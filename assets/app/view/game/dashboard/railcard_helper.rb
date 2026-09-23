@@ -443,7 +443,7 @@ module View
         end
 
         def render_major_railcard(corporation, click_handler = nil, card_classes = ['major-railcard'], wrapper_id = nil)
-          return nil unless major_corporation?(corporation)
+          return nil unless corporation
 
           classes = Array(card_classes).compact.map(&:to_s)
           classes << 'major-railcard' unless classes.include?('major-railcard')
