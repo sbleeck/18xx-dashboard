@@ -2,7 +2,7 @@
 
 module Lib
   module CardAnimation
-    def self.fly(source_selector, dest_selector, &block)
+    def self.fly(source_selector, dest_selector, hide_source: false, &block)
       %x{
         var js_block = #{block};
         var card = null, startX, startY, width, height, clone, styleEl;
@@ -10,11 +10,17 @@ module Lib
           var sel = #{source_selector};
           card = window.document.querySelector(sel);
           if (!card) {
-            var parts = sel.split(' ');
-            var id = parts[0].replace('#', '');
-            var parent = window.document.getElementById(id);
-            if (parent) {
-              card = parent.querySelector('.game-card') || parent.querySelector('.card') || parent;
+            var parts = sel.split(',');
+            for (var p = 0; p < parts.length; p++) {
+              var s = parts[p].trim();
+              card = window.document.querySelector(s);
+              if (card) break;
+            }
+          }
+          if (card) {
+            var innerToken = card.querySelector('.token') || card.querySelector('.game-card') || card.querySelector('.card') || card.querySelector('svg');
+            if (innerToken && card.offsetWidth > 150) {
+              card = innerToken;
             }
           }
         } catch(e) {
@@ -31,8 +37,8 @@ module Lib
         var rect = card.getBoundingClientRect();
         startX = rect.left;
         startY = rect.top;
-        width = rect.width;
-        height = rect.height;
+        width = rect.width || 40;
+        height = rect.height || 40;
 
         clone = card.cloneNode(true);
 
@@ -48,16 +54,18 @@ module Lib
         clone.style.top = startY + 'px';
         clone.style.width = width + 'px';
         clone.style.height = height + 'px';
-        clone.style.zIndex = '9999';
+        clone.style.zIndex = '99999';
         clone.style.margin = '0';
-        clone.style.transition = 'transform 0.5s ease-in-out, opacity 0.5s ease-in-out';
+        clone.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s ease-in-out';
         clone.style.pointerEvents = 'none';
 
         window.document.body.appendChild(clone);
 
-        styleEl = window.document.createElement('style');
-        styleEl.innerHTML = #{source_selector} + " { opacity: 0 !important; pointer-events: none !important; }";
-        window.document.head.appendChild(styleEl);
+        if (#{hide_source}) {
+          styleEl = window.document.createElement('style');
+          styleEl.innerHTML = #{source_selector} + " { opacity: 0 !important; pointer-events: none !important; }";
+          window.document.head.appendChild(styleEl);
+        }
 
         window.requestAnimationFrame(function() {
           window.requestAnimationFrame(function() {
@@ -79,7 +87,7 @@ module Lib
               }
 
               setTimeout(function() {
-                clone.style.transition = 'opacity 0.2s ease-out';
+                clone.style.transition = 'opacity 0.25s ease-out';
                 clone.style.opacity = '0';
 
                 setTimeout(function() {
@@ -89,12 +97,29 @@ module Lib
                   if (styleEl && styleEl.parentNode) {
                     styleEl.parentNode.removeChild(styleEl);
                   }
-                }, 200);
+                }, 250);
               }, 100);
-            }, 500);
+            }, 600);
           });
         });
       }
+    end
+
+    def self.animate_action(_game, action_data, &block)
+      action_type = action_data['type']
+
+      if action_type == 'buy_shares'
+        entity_id = action_data['entity']
+        bundle = action_data['shares'] || []
+        corp_id = bundle.first&.dig('corporation') || action_data['corporation']
+
+        source_selector = "#market-cell-#{corp_id}, #bank-pool-#{corp_id}, [data-corp='#{corp_id}']"
+        dest_selector = "#player-row-#{entity_id}, #player-hand-#{entity_id}, #entity-#{entity_id}"
+
+        fly(source_selector, dest_selector, &block)
+      else
+        yield
+      end
     end
   end
 end

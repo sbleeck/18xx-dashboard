@@ -12,6 +12,15 @@ require 'view/game/history_and_undo'
 require 'view/game/dashboard/par_prompt_overlay'
 require 'view/game/dashboard/dashboard_tile_manifest'
 
+# Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
+module Engine
+  class Minor
+    def ipoed
+      false
+    end
+  end
+end
+
 module View
   module Game
     class DashboardVisualizer < Snabberb::Component
@@ -129,6 +138,70 @@ module View
           on_close: close_handler)
       end
 
+      def animate_last_action(action)
+        return unless action && defined?(Lib::CardAnimation)
+
+        type = if action.is_a?(Hash)
+                 action['type'] || action[:type]
+               elsif action.respond_to?(:type)
+                 action.type
+               end
+        return unless type
+
+        entity_id = if action.is_a?(Hash)
+                      action['entity'] || action[:entity]
+                    elsif action.respond_to?(:entity)
+                      ent = action.entity
+                      ent.respond_to?(:id) ? ent.id : ent
+                    end
+
+        corp_id = nil
+
+        case type
+        when 'buy_shares', 'par'
+          if action.is_a?(Hash)
+            shares = action['shares'] || action[:shares] || []
+            corp_id = shares.first&.dig('corporation') || action['corporation'] || action[:corporation]
+          elsif action.respond_to?(:bundle) && action.bundle
+            corp_id = action.bundle.corporation&.id
+          elsif action.respond_to?(:corporation) && action.corporation
+            c = action.corporation
+            corp_id = c.respond_to?(:id) ? c.id : c
+          end
+
+          return unless corp_id
+
+          source = "#market-cell-#{corp_id}, [data-corp='#{corp_id}'], #token_#{corp_id}, #corp-#{corp_id}, #bank-pool-#{corp_id}, .token.#{corp_id}"
+          dest = "#player-row-#{entity_id}, #entity-#{entity_id}, [data-entity='#{entity_id}'], #player-#{entity_id}, #temporal-hub"
+          Lib::CardAnimation.fly(source, dest, hide_source: false)
+
+        when 'sell_shares'
+          if action.is_a?(Hash)
+            shares = action['shares'] || action[:shares] || []
+            corp_id = shares.first&.dig('corporation') || action['corporation'] || action[:corporation]
+          elsif action.respond_to?(:bundle) && action.bundle
+            corp_id = action.bundle.corporation&.id
+          end
+
+          return unless corp_id
+
+          source = "#player-row-#{entity_id}, #entity-#{entity_id}, [data-entity='#{entity_id}'], #player-#{entity_id}, #temporal-hub"
+          dest = "#market-cell-#{corp_id}, [data-corp='#{corp_id}'], #token_#{corp_id}, #bank-pool-#{corp_id}"
+          Lib::CardAnimation.fly(source, dest, hide_source: false)
+
+        when 'buy_train'
+          train_id = if action.is_a?(Hash)
+                       action['train'] || action[:train]
+                     elsif action.respond_to?(:train)
+                       t = action.train
+                       t.respond_to?(:name) ? t.name : t
+                     end
+          source = "#depot-train-#{train_id}, .depot-train, #command-space-top"
+          dest = "#panel-ledger, #status-corp-#{entity_id}, #entity-#{entity_id}"
+          Lib::CardAnimation.fly(source, dest, hide_source: false)
+        end
+      end
+
       def render
         if @game.respond_to?(:finished?) && @game.finished?
           return h(:div, {
@@ -166,9 +239,12 @@ module View
                            0
                          end
 
+        game_storage_id = @game.respond_to?(:id) ? @game.id : 'default'
+
         h(:div, {
             hook: {
               insert: lambda {
+                        Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
                         `document.body.style.overflow = 'hidden'`
                         `document.body.style.margin = '0'`
                         `document.body.style.padding = '0'`
@@ -535,6 +611,13 @@ module View
                         };
                         setTimeout(window.init18xxResizers, 200);)
                       },
+              postpatch: lambda { |_old, _vnode|
+                           prev_id = Lib::Storage["viz_last_act_#{game_storage_id}"]&.to_i || 0
+                           curr_id = last_action_id.to_i
+
+                           animate_last_action(last_action) if curr_id > prev_id && prev_id.positive?
+                           Lib::Storage["viz_last_act_#{game_storage_id}"] = curr_id
+                         },
               destroy: lambda {
                          `document.body.style.backgroundColor = ''`
                          `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '', backgroundColor: '' })`

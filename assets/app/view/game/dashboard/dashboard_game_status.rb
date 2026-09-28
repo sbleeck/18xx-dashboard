@@ -1700,6 +1700,8 @@ module View
 
         taken = entity.loans.size
         maximum = @game.maximum_loans(entity)
+        # Cap excessive or indefinite loan slots (e.g. PSR or games with unlimited loans) to max 10
+        maximum = [maximum, 10].min if maximum > 10
         actions = status_actions_for(entity)
         if entity == active_entity && @game.round.active_step&.respond_to?(:current_actions)
           actions = (actions + (@game.round.active_step.current_actions || [])).uniq

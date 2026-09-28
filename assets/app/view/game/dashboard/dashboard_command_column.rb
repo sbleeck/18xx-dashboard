@@ -17,6 +17,7 @@ require 'view/game/dashboard/actions_monitor_overlay'
 require 'view/game/dashboard/manual_route_overlay'
 require 'view/game/dashboard/draft_overlay'
 require 'view/game/dashboard/history_overlay'
+require 'view/game/dashboard/move_history_overlay'
 
 class String
   def player?
@@ -63,7 +64,8 @@ module View
       needs :last_entity, store: true, default: nil
       needs :cmd_router_running, store: true, default: false
       needs :show_manual_routes, store: true, default: false
-      needs :show_actions_monitor, store: true, default: false
+      # needs :show_actions_monitor, store: true, default: false
+      needs :show_move_history, store: true, default: false
       needs :show_history_overlay, store: true, default: false
 
       def current_entity
@@ -596,6 +598,9 @@ module View
             nil
           end
 
+          # logo_element = if logo_src
+          #                  h(:img, { attrs: { src: logo_src }, style: { width: '75px', height: '75px', objectFit: 'contain', marginRight: '0.75rem', flexShrink: '0' } }, end
+          #                else
           logo_element = if logo_src
                            h(:img, { attrs: { src: logo_src }, style: { width: '75px', height: '75px', objectFit: 'contain', marginRight: '0.75rem', flexShrink: '0' } })
                          else
@@ -807,7 +812,7 @@ module View
           end
         end
 
-        is_monitor_open = @show_actions_monitor == true || Lib::Storage['cmd_actions_monitor'] == true || Lib::Storage['cmd_actions_monitor'] == 'true'
+        is_move_history_open = @show_move_history == true || Lib::Storage['cmd_move_history_overlay'] == true || Lib::Storage['cmd_move_history_overlay'] == 'true'
         is_history_open = @show_history_overlay == true || Lib::Storage['cmd_history_overlay'] == true || Lib::Storage['cmd_history_overlay'] == 'true'
 
         zone_3 = h(:div, { style: { flex: '0 0 22%', display: 'flex', flexDirection: 'column', padding: '0.4rem', boxSizing: 'border-box', overflowY: 'auto', position: 'relative' } }, [
@@ -925,7 +930,7 @@ module View
                 h(HistoryAndUndo, last_action_id: last_action_id),
               ]),
               h(:button, {
-                  attrs: { id: 'cmd_action_monitor_btn', title: 'Open Available Actions Monitor' },
+                  attrs: { id: 'cmd_move_history_btn', title: 'Open Move History Log' },
                   style: {
                     flex: '0 0 auto',
                     height: '1.45rem',
@@ -934,9 +939,9 @@ module View
                     padding: '0 7px',
                     fontSize: '0.8rem',
                     fontWeight: 'bold',
-                    backgroundColor: is_monitor_open ? '#0f172a' : '#f8f9fa',
-                    color: is_monitor_open ? '#ffffff' : '#212529',
-                    border: is_monitor_open ? '1px solid #0f172a' : '1px solid #ced4da',
+                    backgroundColor: is_move_history_open ? '#0f172a' : '#f8f9fa',
+                    color: is_move_history_open ? '#ffffff' : '#212529',
+                    border: is_move_history_open ? '1px solid #0f172a' : '1px solid #ced4da',
                     borderRadius: '4px',
                     cursor: 'pointer',
                     display: 'inline-flex',
@@ -948,13 +953,13 @@ module View
                   },
                   on: {
                     click: lambda {
-                      new_val = !is_monitor_open
-                      Lib::Storage['cmd_actions_monitor'] = new_val
-                      store(:show_actions_monitor, new_val)
+                      new_val = !is_move_history_open
+                      Lib::Storage['cmd_move_history_overlay'] = new_val ? true : nil
+                      store(:show_move_history, new_val)
                       update
                     },
                   },
-                }, '⚡ Act'),
+                }, '📜 Moves'),
               h(:button, {
                   attrs: { id: 'cmd_history_nav_btn', title: 'Open Visual History Navigation' },
                   style: {
@@ -1055,7 +1060,15 @@ module View
         ].compact)
         overlays = []
         overlays << h(View::Game::Dashboard::ManualRouteOverlay, game: @game, entity: entity, routes: @routes, selected_route: @selected_route) if show_manual_routes
-        overlays << h(View::Game::Dashboard::ActionsMonitorOverlay, game: @game) if is_monitor_open
+
+        if is_move_history_open
+          close_move_hist = lambda {
+            Lib::Storage['cmd_move_history_overlay'] = nil
+            store(:show_move_history, false)
+            update
+          }
+          overlays << h(View::Game::Dashboard::MoveHistoryOverlay, game: @game, on_close: close_move_hist)
+        end
 
         if is_history_open
           close_hist = lambda {
