@@ -579,20 +579,46 @@ module View
 
         step = @game.round.active_step
         is_active_row = (active_entity == corporation)
-        corp_actions = status_corporation_actions(corporation)
-        corporation_controlled = is_active_row || (corporation.respond_to?(:owner) && corporation.owner == active_player)
+
+        # Corporate share actions must be advertised for the corporation itself.
+        # Do not infer them from available bundles, helper methods, or owner actions.
+        corp_actions = status_actions_for(corporation)
+
+        corporation_controlled =
+          is_active_row ||
+          (corporation.respond_to?(:owner) && corporation.owner == active_player)
 
         issuable_bundles = status_issuable_bundles(step, corporation)
-        issue_command = (corp_actions & %w[issue_shares reissue_shares reissue corporate_sell_shares issue sell_shares]).any? ||
-                        (@game.round.operating? && corp_actions.include?('sell_shares')) ||
-                        (step&.respond_to?(:issuable_shares) && issuable_bundles.any?)
-        can_issue = corporation_controlled && issue_command && issuable_bundles.any?
+
+        issue_command =
+          (corp_actions & %w[
+            issue_shares
+            reissue_shares
+            reissue
+            corporate_sell_shares
+            issue
+            sell_shares
+          ]).any?
+
+        can_issue =
+          corporation_controlled &&
+          issue_command &&
+          issuable_bundles.any?
 
         explicit_redeem_bundles = explicit_redeemable_bundles(step, corporation)
         all_redeemable_bundles = status_redeemable_bundles(step, corporation)
-        redeem_command = (corp_actions & %w[redeem redeem_shares corporate_buy_shares]).any?
-        redeem_available = redeem_command || explicit_redeem_bundles.any?
-        can_redeem = corporation_controlled && redeem_available && all_redeemable_bundles.any?
+
+        redeem_command =
+          (corp_actions & %w[
+            redeem
+            redeem_shares
+            corporate_buy_shares
+          ]).any?
+
+        can_redeem =
+          corporation_controlled &&
+          redeem_command &&
+          all_redeemable_bundles.any?
 
         is_unfloated = corporation.respond_to?(:floated?) && !corporation.floated?
         is_directed = corporation.respond_to?(:owner) && (corporation.owner == active_player)
@@ -764,28 +790,28 @@ module View
           end
 
           if can_sell_now
-            if step.respond_to?(:bundles_for_corporation)
-              legal_bundles = step.bundles_for_corporation(p, corporation) || []
-              legal_bundles.each do |b|
-                next if step.respond_to?(:can_sell?) && !step.can_sell?(p, b)
-
-                numeric_price = corporation.share_price ? corporation.share_price.price : 0
-                bundles << { shares: b.shares, percent: b.percent, share_price: numeric_price, bundle: b }
+            legal_bundles =
+              if step.respond_to?(:sellable_bundles)
+                step.sellable_bundles(p, corporation) || []
+              elsif @game.respond_to?(:sellable_bundles)
+                @game.sellable_bundles(p, corporation) || []
+              elsif step.respond_to?(:bundles_for_corporation)
+                step.bundles_for_corporation(p, corporation) || []
+              else
+                []
               end
-            elsif step.respond_to?(:can_sell?)
-              sorted_shares = player_shares.sort_by { |s| s.respond_to?(:president) && s.president ? 1 : 0 }
-              (1..sorted_shares.size).each do |num|
-                chosen_shares = sorted_shares[0...num]
-                b = begin; Engine::ShareBundle.new(chosen_shares); rescue StandardError; nil; end
-                next if b && !step.can_sell?(p, b)
 
-                total_percent = chosen_shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
-                numeric_price = corporation.share_price ? corporation.share_price.price : 0
-                bundles << { shares: chosen_shares, percent: total_percent, share_price: numeric_price, bundle: b }
-              end
+            legal_bundles.each do |b|
+              next if step.respond_to?(:can_sell?) && !step.can_sell?(p, b)
+
+              bundles << {
+                shares: b.shares,
+                percent: b.percent,
+                share_price: b.share_price,
+                bundle: b,
+              }
             end
           end
-
           can_sell = (p == active_player) && !bundles.empty?
 
           valid_player_buys = []

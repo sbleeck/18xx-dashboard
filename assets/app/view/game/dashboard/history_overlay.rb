@@ -157,21 +157,15 @@ module View
 
         def schedule_scrub(val)
           %x{
-            var targetVal = parseInt(#{val}, 10);
-            var total = #{total_actions};
-            var label = document.getElementById('hist_viewing_text');
-            if (label) {
-              label.innerText = 'Viewing: Action #' + targetVal + ' of ' + total;
-            }
+    var targetVal = parseInt(#{val}, 10);
+    var total = #{total_actions};
+    var label = document.getElementById('hist_viewing_text');
 
-            if (window.__hist_scrub_timer) {
-              clearTimeout(window.__hist_scrub_timer);
-            }
-            window.__hist_scrub_timer = setTimeout(function() {
-              window.__hist_scrub_timer = null;
-              #{set_action(`targetVal`)};
-            }, 40);
-          }
+    if (label && Number.isFinite(targetVal)) {
+      label.innerText =
+        'Viewing: Action #' + targetVal + ' of ' + total;
+    }
+  }
         end
 
         def set_action(target_id)
@@ -495,8 +489,8 @@ module View
               h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', flexWrap: 'wrap' } }, [
                 nav_btn('|<< Start', -> { set_action(1) }, disabled: curr <= 1),
                 nav_btn('<< Start Round', -> { click_hist('hist_ArrowUp') }, disabled: curr <= 1),
-                nav_btn('◀ Prev', -> { click_hist('hist_ArrowLeft') { step_action(-1) } }, disabled: curr <= 1),
-                nav_btn('Next ▶', -> { click_hist('hist_ArrowRight') { step_action(1) } }, disabled: curr >= total),
+                nav_btn('◀ Prev', -> { step_action(-1) }, disabled: curr <= 1),
+                nav_btn('Next ▶', -> { step_action(1) }, disabled: curr >= total),
                 nav_btn('Next Round >>', -> { click_hist('hist_ArrowDown') }, disabled: curr >= total),
                 nav_btn('Live >>|', -> { set_action(total) }, disabled: !is_hist),
               ]),

@@ -388,6 +388,8 @@ module View
         else
           under_shape = [h(:circle, {
                              attrs: {
+                               cx: 0,
+                               cy: 0,
                                stroke: border_color,
                                'stroke-width': 2,
                                fill: 'transparent',

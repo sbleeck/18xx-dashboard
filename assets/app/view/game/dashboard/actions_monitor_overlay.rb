@@ -368,42 +368,67 @@ module View
                     }
                   end
                 end
+
               when 'sell_shares'
-                sellable_bundles = []
-                if step.respond_to?(:bundles_for_corporation)
-                  corps = @game.respond_to?(:corporations) ? @game.corporations : []
-                  corps.each do |c|
-                    b_list = step.bundles_for_corporation(ent, c) || []
-                    sellable_bundles.concat(b_list)
-                  rescue StandardError
+                corporations =
+                  @game.respond_to?(:corporations) ? @game.corporations : []
+
+                corporations.each do |corporation|
+                  sellable_bundles =
+                    if step.respond_to?(:sellable_bundles)
+                      begin
+                        step.sellable_bundles(ent, corporation) || []
+                      rescue StandardError
+                        []
+                      end
+                    elsif @game.respond_to?(:sellable_bundles)
+                      begin
+                        @game.sellable_bundles(ent, corporation) || []
+                      rescue StandardError
+                        []
+                      end
+                    elsif step.respond_to?(:bundles_for_corporation)
+                      begin
+                        step.bundles_for_corporation(ent, corporation) || []
+                      rescue StandardError
+                        []
+                      end
+                    else
+                      []
+                    end
+
+                  sellable_bundles.each do |bundle|
+                    next if step.respond_to?(:can_sell?) &&
+                            !(begin
+                              step.can_sell?(ent, bundle)
+                            rescue StandardError
+                              false
+                            end)
+
+                    percent = bundle.respond_to?(:percent) ? bundle.percent : 0
+                    price = bundle.respond_to?(:price) ? bundle.price : 0
+                    price_str = @game.format_currency(price)
+
+                    rows << {
+                      label: "Sell #{percent}% #{corporation.name} (#{price_str})",
+                      color: '#dc2626',
+                      ent: ent,
+                      act: 'sell_shares',
+                      info: "Sell #{percent}% of #{corporation.name} to the market pool for #{price_str}",
+                      callback: lambda {
+                        safe_process_action(
+                          Engine::Action::SellShares.new(
+                            ent,
+                            shares: bundle.shares,
+                            share_price: bundle.share_price,
+                            percent: bundle.percent,
+                          )
+                        )
+                      },
+                    }
                   end
-                elsif step.respond_to?(:sellable_bundles)
-                  begin; sellable_bundles = step.sellable_bundles(ent) || []; rescue StandardError; end
                 end
 
-                if step.respond_to?(:can_sell?)
-                  sellable_bundles = sellable_bundles.select do |b|
-                    step.can_sell?(ent, b); rescue StandardError; false
-                  end
-                end
-
-                sellable_bundles.uniq { |b| [b.corporation&.id, b.num_shares, b.price] }.each do |b|
-                  num = b.num_shares
-                  c_name = b.corporation&.name || 'Corp'
-                  price = b.price
-                  price_str = @game.format_currency(price)
-                  rows << {
-                    label: "Sell #{num} #{c_name} (#{price_str})",
-                    color: '#dc2626',
-                    ent: ent,
-                    act: 'sell_shares',
-                    info: "Sell #{num} share(s) of #{c_name} to market pool for #{price_str}",
-                    callback: lambda {
-                                safe_process_action(Engine::Action::SellShares.new(ent, shares: b.shares,
-                                                                                        share_price: b.share_price, percent: b.percent))
-                              },
-                  }
-                end
               when 'buy_company'
                 buyable_companies = []
                 if step.respond_to?(:buyable_companies)
