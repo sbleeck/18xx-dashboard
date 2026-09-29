@@ -171,8 +171,8 @@ module View
 
           return unless corp_id
 
-          source = "#market-cell-#{corp_id}, [data-corp='#{corp_id}'], #token_#{corp_id}, #corp-#{corp_id}, #bank-pool-#{corp_id}, .token.#{corp_id}"
-          dest = "#player-row-#{entity_id}, #entity-#{entity_id}, [data-entity='#{entity_id}'], #player-#{entity_id}, #temporal-hub"
+          source = "#pool_shares_#{corp_id} .game-card, #ipo_shares_#{corp_id} .game-card, #treasury_shares_#{corp_id} .game-card, #market-cell-#{corp_id}, [data-corp='#{corp_id}']"
+          dest = "#player_shares_#{entity_id}_#{corp_id}, #player-row-#{entity_id}, #temporal-hub"
           Lib::CardAnimation.fly(source, dest, hide_source: false)
 
         when 'sell_shares'
@@ -185,8 +185,8 @@ module View
 
           return unless corp_id
 
-          source = "#player-row-#{entity_id}, #entity-#{entity_id}, [data-entity='#{entity_id}'], #player-#{entity_id}, #temporal-hub"
-          dest = "#market-cell-#{corp_id}, [data-corp='#{corp_id}'], #token_#{corp_id}, #bank-pool-#{corp_id}"
+          source = "#player_shares_#{entity_id}_#{corp_id} .game-card, #player-row-#{entity_id}, #temporal-hub"
+          dest = "#pool_shares_#{corp_id}, #market-cell-#{corp_id}"
           Lib::CardAnimation.fly(source, dest, hide_source: false)
 
         when 'buy_train'
@@ -196,9 +196,21 @@ module View
                        t = action.train
                        t.respond_to?(:name) ? t.name : t
                      end
-          source = "#depot-train-#{train_id}, .depot-train, #command-space-top"
-          dest = "#panel-ledger, #status-corp-#{entity_id}, #entity-#{entity_id}"
+          source = "#bank_train_#{train_id}, [id^='bank_train_#{train_id}'], #extra_cards .card-train, [id^='cmd_train_'], [id^='cmd_other_train_'], #extra_cards"
+          dest = "#train_drop_#{entity_id}, #trains_#{entity_id}, #status_major_#{entity_id}, #panel-ledger"
           Lib::CardAnimation.fly(source, dest, hide_source: false)
+
+        when 'buy_company'
+          company_id = if action.is_a?(Hash)
+                         action['company'] || action[:company]
+                       elsif action.respond_to?(:company)
+                         c = action.company
+                         c.respond_to?(:id) ? c.id : c
+                       end
+          source = "[id^='company_wrapper_'][id$='_#{company_id}'] .game-card, #cmd_buy_company_#{company_id} .game-card, .status-company-wrapper .game-card"
+          dest = "#companies_#{entity_id}, #status_major_#{entity_id}, #panel-ledger"
+          Lib::CardAnimation.fly(source, dest, hide_source: false)
+
         end
       end
 

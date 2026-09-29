@@ -1371,6 +1371,7 @@ module View
                         (entity.respond_to?(:cash) ? entity.cash : 0)
                       end
 
+          wrapper_id = "cmd_buy_company_#{c.id}"
           company_click_handler = lambda {
             `var p = document.getElementById('railcard-portal'); if (p) { p.style.display = 'none'; p.innerHTML = ''; }`
             menu_title = "Buy #{c.name} from #{owner_name} (#{min_price}-#{max_price}):"
@@ -1383,7 +1384,11 @@ module View
               max_price,
               default_price,
               lambda { |price_val|
-                process_action(Engine::Action::BuyCompany.new(entity, company: c, price: price_val))
+                source_selector = "##{wrapper_id} .game-card"
+                target_selector = "#companies_#{entity.id}, #panel-ledger"
+                Lib::CardAnimation.fly(source_selector, target_selector) do
+                  process_action(Engine::Action::BuyCompany.new(entity, company: c, price: price_val))
+                end
               }
             )
           }
@@ -1392,7 +1397,7 @@ module View
           tooltip = build_company_tooltip(c)
           wrapper_classes = tooltip ? %w[cmd-company-wrapper status-company-wrapper] : nil
 
-          render_railcard(card_text, %w[game-card action-buy clickable], company_click_handler, tooltip, nil, nil, wrapper_classes, entity: c)
+          render_railcard(card_text, %w[game-card action-buy clickable], company_click_handler, tooltip, nil, wrapper_id, wrapper_classes, entity: c)
         end.compact
 
         return nil if company_boxes.empty?
@@ -1412,10 +1417,16 @@ module View
                       end
 
         train_boxes = (discardable || []).map do |train|
-          click_handler = -> { process_action(Engine::Action::DiscardTrain.new(entity, train: train)) }
-          render_railcard(train.name, %w[game-card action-sell clickable card-train], click_handler)
+          wrapper_id = "cmd_discard_train_#{train.id}"
+          click_handler = lambda {
+            source_selector = "##{wrapper_id} .game-card"
+            target_selector = '#extra_cards, #panel-ledger'
+            Lib::CardAnimation.fly(source_selector, target_selector) do
+              process_action(Engine::Action::DiscardTrain.new(entity, train: train))
+            end
+          }
+          render_railcard(train.name, %w[game-card action-sell clickable card-train], click_handler, nil, nil, wrapper_id)
         end
-
         return nil if train_boxes.empty?
 
         render_action_row('Discard:', train_boxes)
@@ -1723,11 +1734,18 @@ module View
               variant_str = variant_name.to_s
               variant_param = (variant_str == train.name.to_s ? nil : variant_str)
 
+              wrapper_id = "cmd_train_#{train.id}_#{variant_str.tr('/', '_')}"
               click_handler = lambda {
-                process_action(Engine::Action::BuyTrain.new(entity, train: train, price: price, variant: variant_param))
+                source_selector = "##{wrapper_id} .game-card"
+                slot_selector = "#train_drop_#{entity.id}"
+                cell_selector = "#trains_#{entity.id}"
+                target_selector = `document.querySelector(#{slot_selector}) ? #{slot_selector} : #{cell_selector}`
+                Lib::CardAnimation.fly(source_selector, target_selector) do
+                  process_action(Engine::Action::BuyTrain.new(entity, train: train, price: price, variant: variant_param))
+                end
               }
               train_classes = %w[game-card action-buy clickable card-train]
-              card = render_railcard(variant_str, train_classes, click_handler)
+              card = render_railcard(variant_str, train_classes, click_handler, nil, nil, wrapper_id)
               price_str = @game.format_currency(price)
               train_boxes << h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.4rem' } }, [
                 card,
@@ -1760,18 +1778,25 @@ module View
                           (entity.respond_to?(:cash) ? entity.cash : 9999)
                         end
 
+            wrapper_id = "cmd_other_train_#{c.id}_#{t.id}"
             train_click_handler = lambda {
               `var p = document.getElementById('railcard-portal'); if (p) { p.style.display = 'none'; p.innerHTML = ''; }`
               menu_title = "Buy #{t.name} from #{c.name} (#{min_price}-#{max_price}):"
               show_price_dialog(menu_title, min_price, max_price, min_price, lambda { |price_val|
-                process_action(Engine::Action::BuyTrain.new(entity, train: t, price: price_val))
+                source_selector = "##{wrapper_id} .game-card"
+                slot_selector = "#train_drop_#{entity.id}"
+                cell_selector = "#trains_#{entity.id}"
+                target_selector = `document.querySelector(#{slot_selector}) ? #{slot_selector} : #{cell_selector}`
+                Lib::CardAnimation.fly(source_selector, target_selector) do
+                  process_action(Engine::Action::BuyTrain.new(entity, train: t, price: price_val))
+                end
               })
             }
-            card = render_railcard(t.name, %w[game-card action-buy clickable card-train], train_click_handler)
+            card = render_railcard(t.name, %w[game-card action-buy clickable card-train], train_click_handler, nil, nil, wrapper_id)
             train_boxes << h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.4rem' } }, [
-              card,
-              h(:span, { style: { fontSize: '0.85rem', color: '#475569', fontWeight: 'bold', whiteSpace: 'nowrap' } }, (c.id || c.name).to_s),
-            ])
+   card,
+   h(:span, { style: { fontSize: '0.85rem', color: '#475569', fontWeight: 'bold', whiteSpace: 'nowrap' } }, (c.id || c.name).to_s),
+ ])
           end
         end
 
