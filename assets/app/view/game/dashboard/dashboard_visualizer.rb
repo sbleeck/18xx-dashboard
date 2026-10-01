@@ -214,7 +214,8 @@ module View
         end
       end
 
-      def render
+
+def render
         if @game.respond_to?(:finished?) && @game.finished?
           return h(:div, {
                      style: { display: 'flex', flexDirection: 'row', width: '100vw', height: '100vh', padding: '0.5rem', boxSizing: 'border-box', backgroundColor: '#ffffff', gap: '0.75rem' },
@@ -229,11 +230,10 @@ module View
             h(:div, { style: { width: '45%', display: 'flex', flexDirection: 'column', height: '100%', gap: '0.5rem' } }, [
               h(:div, { style: { flex: '1 1 62%', border: '1px solid #ccc', padding: '2rem', borderRadius: '4px', textAlign: 'center', fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' } }, [
                 h(:h3, 'Final Match State'),
-                h(:p, 'The game has concluded. Active turn components and ledgers are disabled.'),
+                h(:p, 'The 1846 game has concluded. Active turn components and ledgers are disabled.'),
               ]),
-              
-h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'hidden' } }, [
-                  h(:div, { attrs: { class: 'scaler-content' }, style: { width: 'max-content', height: 'max-content', minWidth: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', transformOrigin: 'center top' } }, [
+              h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'hidden' } }, [
+                h(:div, { attrs: { class: 'scaler-content' }, style: { width: 'max-content', height: 'max-content', minWidth: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', transformOrigin: 'center top' } }, [
                   h(View::Game::DashboardStockMarket, game: @game),
                 ]),
               ]),
@@ -304,7 +304,6 @@ h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc'
                             var mouseMoveHandler = function(e) {
                               var delta = isVertical ? (e.clientY - y) : (e.clientX - x);
                               var totalFlex = prevFlex + nextFlex;
-
                               var minNext = 0;
                               if (next) {
                                 var computedMin = isVertical ? window.getComputedStyle(next).minHeight : window.getComputedStyle(next).minWidth;
@@ -312,7 +311,6 @@ h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc'
                               }
                               var maxPrev = Math.max(0, totalFlex - minNext);
                               var newPrevFlex = Math.max(0, Math.min(maxPrev, prevFlex + delta));
-
                               var newNextFlex = Math.max(0, totalFlex - newPrevFlex);
 
                               prev.style.flex = '0 0 ' + newPrevFlex + 'px';
@@ -352,6 +350,26 @@ h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc'
                             wrapper.style.left = offset.x + 'px';
                             wrapper.style.top = offset.y + 'px';
 
+if (panelId === 'map-panel-bot') {
+                              var sizer = panel.querySelector('.map-sizer');
+                              var uZoom = (window.scalerUserZoom && window.scalerUserZoom[panelId]) || 1.0;
+                              var baseScale = (window.scalerScales && window.scalerScales[panelId]) || 1.0;
+                              var effScale = baseScale * uZoom;
+                              if (sizer) {
+                                var svgEl = wrapper.querySelector('svg');
+                                var cw = parseFloat(wrapper.style.width) || (svgEl && (parseFloat(svgEl.getAttribute('width')) || (svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.width))) || wrapper.scrollWidth || 0;
+                                var ch = parseFloat(wrapper.style.height) || (svgEl && (parseFloat(svgEl.getAttribute('height')) || (svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.height))) || wrapper.scrollHeight || 0;
+                                if (cw > 0 && ch > 0) {
+                                  var targetW = Math.round(cw * effScale);
+                                  var targetH = Math.round(ch * effScale);
+                                  sizer.style.width = targetW + 'px';
+                                  sizer.style.height = targetH + 'px';
+                                  sizer.style.minWidth = targetW + 'px';
+                                  sizer.style.minHeight = targetH + 'px';
+                                }
+                              }
+                            }
+
                             var dynStyle = document.getElementById('dynamic-scaler-styles');
                             if (!dynStyle) return;
                             var css = '';
@@ -376,6 +394,12 @@ h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc'
                             window.scalerPanOffset = window.scalerPanOffset || {};
                             window.scalerUserZoom[panelId] = 1.0;
                             window.scalerPanOffset[panelId] = { x: 0, y: 0 };
+                            var panel = document.getElementById(panelId);
+                            if (panel) {
+                              var scrollCanvas = panel.querySelector('#map-scroll-canvas') || panel;
+                              scrollCanvas.scrollLeft = 0;
+                              scrollCanvas.scrollTop = 0;
+                            }
                             try {
                               sessionStorage.setItem('18xx_viz_zoom', JSON.stringify(window.scalerUserZoom));
                               sessionStorage.setItem('18xx_viz_pan', JSON.stringify(window.scalerPanOffset));
@@ -464,7 +488,7 @@ h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc'
                             styleTag.id = 'dashboard-map-svg-styles';
                             document.head.appendChild(styleTag);
                           }
-                          styleTag.innerHTML = '.scaler-content text { font-size: 0.65em !important; letter-spacing: normal !important; } ' +
+styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
                                                '.scaler-content .tile__text { font-size: 0.75em !important; } ' +
                                                '.scaler-content text.number { font-size: 0.55em !important; } ' +
                                                '@keyframes map-hex-pulse { ' +
@@ -625,7 +649,7 @@ h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc'
                             }
                           });
 
-                          ['map-panel-bot', 'panel-ledger', 'panel-market'].forEach(function(id) {
+                            ['map-panel-bot', 'panel-market'].forEach(function(id) {
                             var el = document.getElementById(id);
                             if (el) fitObserver.observe(el);
                           });
@@ -672,10 +696,25 @@ h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc'
             h(:div, { attrs: { id: 'resizer-h-cmd-map' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
             # Map Panel Box
-            h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
+             h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
                render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
-               h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
-                 h(View::Game::DashboardMap, game: @game, user: @user),
+               h(:div, {
+                   attrs: { id: 'map-scroll-canvas' },
+                   style: {
+                     width: '100%',
+                     height: '100%',
+                     overflow: 'auto',
+                     overflowX: 'auto',
+                     overflowY: 'auto',
+                     position: 'relative',
+                     boxSizing: 'border-box',
+                   },
+                 }, [
+                 h(:div, { attrs: { class: 'map-sizer' }, style: { position: 'relative', display: 'inline-block', minWidth: '100%', minHeight: '100%' } }, [
+                   h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
+                     h(View::Game::DashboardMap, game: @game, user: @user),
+                   ]),
+                 ]),
                ]),
                h(:div, {
                    attrs: { class: 'panel-manifest-control' },
@@ -730,8 +769,8 @@ h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc'
             ]),
 
             # Status Table & Cash / Trains Ledger
-            h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'hidden', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column' } }, [
-              h(:div, { attrs: { class: 'scaler-content' }, style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%', transformOrigin: 'top left' } }, [
+                   h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
+              h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
                 h(View::Game::DashboardGameStatus, game: @game),
               ]),
             ]),
@@ -740,8 +779,8 @@ h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc'
             h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
             # Stock Market Grid
-h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
-                render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
+            h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
+              render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
               h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
                 h(View::Game::DashboardStockMarket, game: @game),
               ]),
@@ -751,6 +790,7 @@ h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '
           render_tile_manifest_overlay,
         ].compact)
       end
+
     end
   end
 end
