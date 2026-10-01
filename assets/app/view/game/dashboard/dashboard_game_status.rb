@@ -31,6 +31,7 @@ require 'view/game/dashboard/dashboard_loan_animation'
 require 'view/game/dashboard/dashboard_money_animation'
 require 'view/game/dashboard/railcard_helper'
 require 'view/game/dashboard/par_prompt_overlay'
+require 'view/game/dashboard/history_overlay'
 
 FLOATED = 2
 UNFLOATED = 1

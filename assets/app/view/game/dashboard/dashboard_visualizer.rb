@@ -121,6 +121,72 @@ module View
         ])
       end
 
+      def render_active_turn_card
+        entity = active_entity
+        player = active_player
+        return nil unless entity || player
+
+        entity_label = if entity&.respond_to?(:id) && entity.id
+                         entity.id.to_s
+                       elsif entity&.respond_to?(:name) && entity.name
+                         entity.name.to_s
+                       else
+                         ''
+                       end
+        player_label = if player&.respond_to?(:name) && player.name
+                         player.name.to_s
+                       elsif entity&.respond_to?(:name) && entity.name
+                         entity.name.to_s
+                       else
+                         'Current turn'
+                       end
+        entity_color = entity&.respond_to?(:color) && entity.color ? entity.color : '#334155'
+        entity_text_color = entity&.respond_to?(:text_color) && entity.text_color ? entity.text_color : '#ffffff'
+
+        h(:div, {
+            attrs: { class: 'active-turn-card', title: 'Current player and operating entity' },
+            style: {
+              flex: '0 0 13rem',
+              height: '100%',
+              minHeight: '4.75rem',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              alignItems: 'flex-start',
+              padding: '0.45rem 0.65rem',
+              backgroundColor: '#ffffff',
+              borderRight: '1px solid #cbd5e1',
+              overflow: 'hidden',
+            },
+          }, [
+          h(:div, { style: { fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.08em', color: '#64748b', lineHeight: '1', marginBottom: '0.3rem' } }, 'CURRENT TURN'),
+          h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '0', width: '100%' } }, [
+            h(:div, {
+                style: {
+                  width: '2.15rem',
+                  height: '2.15rem',
+                  minWidth: '2.15rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: entity_color,
+                  color: entity_text_color,
+                  border: '2px solid #0f172a',
+                  fontSize: '0.82rem',
+                  fontWeight: '900',
+                  boxSizing: 'border-box',
+                },
+              }, entity_label),
+            h(:div, { style: { minWidth: '0', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' } }, [
+              h(:div, { style: { fontSize: '1.05rem', fontWeight: '900', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.05' } }, player_label),
+              (h(:div, { style: { marginTop: '0.16rem', fontSize: '0.72rem', fontWeight: '700', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1' } }, "Operating #{entity_label}") unless entity_label.empty?),
+            ].compact),
+          ]),
+        ])
+      end
+
       def render_history_overlay
         val = Lib::Storage['cmd_history_overlay']
         is_open = [true, 'true'].include?(val) || @show_history_overlay == true
@@ -263,7 +329,7 @@ def render
                         `document.body.style.padding = '0'`
                         `document.body.style.backgroundColor = '#ffffff'`
                         `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'hidden', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', height: '100vh', backgroundColor: '#ffffff' })`
-                        `document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: 'hidden', width: '100vw', height: 'calc(100vh - 50px)', maxWidth: '100vw', maxHeight: 'calc(100vh - 50px)' })`
+                        `document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 50px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 50px)' })`
 
                         %x(window.init18xxResizers = function() {
                           var savedResizers = {};
@@ -304,13 +370,18 @@ def render
                             var mouseMoveHandler = function(e) {
                               var delta = isVertical ? (e.clientY - y) : (e.clientX - x);
                               var totalFlex = prevFlex + nextFlex;
+                              var minPrev = 0;
                               var minNext = 0;
+                              if (prev) {
+                                var computedPrevMin = isVertical ? window.getComputedStyle(prev).minHeight : window.getComputedStyle(prev).minWidth;
+                                minPrev = parseFloat(computedPrevMin) || 0;
+                              }
                               if (next) {
                                 var computedMin = isVertical ? window.getComputedStyle(next).minHeight : window.getComputedStyle(next).minWidth;
                                 minNext = parseFloat(computedMin) || 0;
                               }
-                              var maxPrev = Math.max(0, totalFlex - minNext);
-                              var newPrevFlex = Math.max(0, Math.min(maxPrev, prevFlex + delta));
+                              var maxPrev = Math.max(minPrev, totalFlex - minNext);
+                              var newPrevFlex = Math.max(minPrev, Math.min(maxPrev, prevFlex + delta));
                               var newNextFlex = Math.max(0, totalFlex - newPrevFlex);
 
                               prev.style.flex = '0 0 ' + newPrevFlex + 'px';
@@ -336,6 +407,7 @@ def render
 
                           createResizer('resizer-v-main', 'col-left', 'col-right', false);
                           createResizer('resizer-h-cmd-map', 'command-space-top', 'map-panel-bot', true);
+                          createResizer('resizer-h-entity-ledger', 'temporal-hub', 'panel-ledger', true);
                           createResizer('resizer-h-ledger-market', 'panel-ledger', 'panel-market', true);
 
                           window.scalerScales = window.scalerScales || {};
@@ -360,8 +432,13 @@ if (panelId === 'map-panel-bot') {
                                 var cw = parseFloat(wrapper.style.width) || (svgEl && (parseFloat(svgEl.getAttribute('width')) || (svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.width))) || wrapper.scrollWidth || 0;
                                 var ch = parseFloat(wrapper.style.height) || (svgEl && (parseFloat(svgEl.getAttribute('height')) || (svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.height))) || wrapper.scrollHeight || 0;
                                 if (cw > 0 && ch > 0) {
-                                  var targetW = Math.round(cw * effScale);
-                                  var targetH = Math.round(ch * effScale);
+                                  var scrollCanvas = panel.querySelector('#map-scroll-canvas');
+                                  var viewportW = scrollCanvas ? scrollCanvas.clientWidth : panel.clientWidth;
+                                  var viewportH = scrollCanvas ? scrollCanvas.clientHeight : panel.clientHeight;
+                                  var scaledW = cw * effScale;
+                                  var scaledH = ch * effScale;
+                                  var targetW = scaledW > viewportW + 1 ? Math.ceil(scaledW) : viewportW;
+                                  var targetH = scaledH > viewportH + 1 ? Math.ceil(scaledH) : viewportH;
                                   sizer.style.width = targetW + 'px';
                                   sizer.style.height = targetH + 'px';
                                   sizer.style.minWidth = targetW + 'px';
@@ -674,20 +751,24 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
               display: 'flex',
               flexDirection: 'row',
               width: '100vw',
-              height: 'calc(100vh - 50px)',
-              maxHeight: 'calc(100vh - 50px)',
+              height: 'auto',
+              maxHeight: 'none',
               boxSizing: 'border-box',
-              position: 'relative',
+              position: 'fixed',
+              top: '50px',
+              right: '0',
+              bottom: '0',
+              left: '0',
               overflow: 'hidden',
-              padding: '0.5rem',
+              padding: '0.5rem 0.5rem 0 0.5rem',
               backgroundColor: '#ffffff',
             },
           }, [
           # COLUMN 1 (LEFT): COMMAND SPACE (TOP) + MAP CANVAS (BOTTOM)
-          h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
+          h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
             # Command Row (Flexible height controlled by resizer)
-            h(:div, { attrs: { id: 'command-space-top' }, style: { flex: '0 0 7.5rem', minHeight: '4.5rem', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' } }, [
-              h(:div, { style: { padding: '0.2rem', height: '100%', boxSizing: 'border-box', overflowY: 'hidden' } }, [
+            h(:div, { attrs: { id: 'command-space-top' }, style: { flex: '0 0 9rem', minHeight: '6.5rem', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' } }, [
+              h(:div, { attrs: { id: 'command-scroll-viewport' }, style: { padding: '1.45rem 0.25rem 0.2rem', height: '100%', minHeight: '0', boxSizing: 'border-box', overflow: 'hidden' } }, [
                 h(View::Game::DashboardCommandColumn, game: @game),
               ]),
             ]),
@@ -696,13 +777,15 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
             h(:div, { attrs: { id: 'resizer-h-cmd-map' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
             # Map Panel Box
-             h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
+             h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px 4px 0 0', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
                render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
                h(:div, {
                    attrs: { id: 'map-scroll-canvas' },
                    style: {
                      width: '100%',
                      height: '100%',
+                     maxHeight: '100%',
+                     minHeight: '0',
                      overflow: 'auto',
                      overflowX: 'auto',
                      overflowY: 'auto',
@@ -710,7 +793,16 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
                      boxSizing: 'border-box',
                    },
                  }, [
-                 h(:div, { attrs: { class: 'map-sizer' }, style: { position: 'relative', display: 'inline-block', minWidth: '100%', minHeight: '100%' } }, [
+                 h(:div, { attrs: { class: 'map-sizer' }, 
+                  style: {
+                  position: 'relative',
+                  display: 'block',
+                  width: '100%',
+                  height: '100%',
+                  minWidth: '100%',
+                  minHeight: '100%'
+                  }
+                 }, [
                    h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
                      h(View::Game::DashboardMap, game: @game, user: @user),
                    ]),
@@ -760,13 +852,50 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
           h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
 
             # Entity Turn Tracker Hub
-            h(:div, { attrs: { id: 'temporal-hub' }, style: { flex: '0 0 auto', display: 'flex', flexDirection: 'column', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8f9fa', padding: '0.25rem', minHeight: '2.8rem', overflowX: 'auto' } }, [
-              if @game.respond_to?(:finished?) && @game.finished?
-                h(View::Game::DashboardEntityOrder, round: nil)
-              else
-                h(View::Game::DashboardEntityOrder, round: @game.round)
-              end,
-            ]),
+            h(:div, { attrs: { id: 'temporal-hub' }, style: { flex: '0 0 6.5rem', display: 'flex', flexDirection: 'row', alignItems: 'stretch', justifyContent: 'flex-start', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8f9fa', padding: '0', minHeight: '4.75rem', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden' } }, [
+              h(:style, {}, '
+                /* The current player now lives in the turn-order canvas. */
+                #command-space-top > div > div > div:first-child {
+                  display: none !important;
+                }
+                #command-space-top > div > div > div:nth-child(2) {
+                  flex: 1 1 auto !important;
+                  min-width: 0 !important;
+                  border-left: none !important;
+                }
+                #command-space-top > div > div > div:nth-child(3) {
+                  flex: 0 0 28% !important;
+                  min-width: 15.5rem !important;
+                  max-width: none !important;
+                  box-sizing: border-box !important;
+                  overflow: visible !important;
+                }
+              '),
+              render_active_turn_card,
+              h(:div, { attrs: { class: 'entity-order-content' }, style: { flex: '1 1 auto', minWidth: '0', height: '100%', position: 'relative', overflowX: 'auto', overflowY: 'hidden' } }, [
+                h(:style, {}, '
+                  #temporal-hub .entity-order-content > div {
+                    position: absolute !important;
+                    left: 0 !important;
+                    right: auto !important;
+                    bottom: 0.45rem !important;
+                    top: auto !important;
+                    width: max-content !important;
+                    height: auto !important;
+                    min-height: 0 !important;
+                    margin: 0 !important;
+                  }
+                '),
+                if @game.respond_to?(:finished?) && @game.finished?
+                  h(View::Game::DashboardEntityOrder, round: nil)
+                else
+                  h(View::Game::DashboardEntityOrder, round: @game.round)
+                end,
+              ]),
+            ].compact),
+
+            # Draggable boundary between Entity Order and Status
+            h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
 
             # Status Table & Cash / Trains Ledger
                    h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [

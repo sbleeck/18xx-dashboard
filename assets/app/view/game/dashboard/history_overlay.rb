@@ -7,41 +7,60 @@ require 'lib/params'
 require 'lib/settings'
 require 'lib/storage'
 
-# SVG Attribute Safety Shield: Safari can reject empty numeric circle attributes.
-# Keep this deliberately narrow. A previous broad Element#setAttribute patch also
-# intercepted valid SVG values such as width="25px" and removed them, causing
-# images and other graphics to fall back to very large intrinsic dimensions.
+# Robust SVG Safety Shield:
+# Safari/WebKit throws fatal DOMExceptions when cx, cy, or r are set to "" or NaN.
+# Intercept both setAttribute and setAttributeNS using localName and store native references
+# globally so hot reloads never create recursive wrapper chains.
 %x{
   (function() {
-    if (window.__svg_circle_attr_shield_installed) return;
-    window.__svg_circle_attr_shield_installed = true;
+    if (!window.__orig_elem_set_attribute) {
+      window.__orig_elem_set_attribute = Element.prototype.setAttribute;
+      window.__orig_elem_set_attribute_ns = Element.prototype.setAttributeNS;
+    }
 
-    var origSetAttr = Element.prototype.setAttribute;
-    var origSetAttrNS = Element.prototype.setAttributeNS;
+    var origSetAttr = window.__orig_elem_set_attribute;
+    var origSetAttrNS = window.__orig_elem_set_attribute_ns;
 
-    var safeCircleValue = function(el, name, val) {
-      var isCircle = el && el.tagName && el.tagName.toLowerCase() === 'circle';
-      var isCircleNumeric = name === 'cx' || name === 'cy' || name === 'r';
-      if (!isCircle || !isCircleNumeric) return val;
+    var isCircleElement = function(el) {
+      if (!el) return false;
+      var tag = String(el.localName || el.tagName || el.nodeName || '').toLowerCase();
+      return tag === 'circle' || tag.slice(-7) === ':circle';
+    };
+
+    var sanitizeCircleValue = function(el, name, val) {
+      if (!isCircleElement(el)) return val;
+      var attr = String(name || '').toLowerCase();
+      if (attr !== 'cx' && attr !== 'cy' && attr !== 'r') return val;
 
       if (val === '' || val === null || val === undefined ||
           (typeof Opal !== 'undefined' && val === Opal.nil)) {
-        return '0';
+        return attr === 'r' ? '1' : '0';
       }
 
       var str = String(val).trim();
-      return (str === '' || str === 'NaN' || str === 'null' || str === 'undefined') ? '0' : val;
+      if (str === '' || str === 'NaN' || str === 'null' || str === 'undefined') {
+        return attr === 'r' ? '1' : '0';
+      }
+      return val;
     };
 
     Element.prototype.setAttribute = function(name, val) {
-      return origSetAttr.call(this, name, safeCircleValue(this, name, val));
+      return origSetAttr.call(this, name, sanitizeCircleValue(this, name, val));
     };
 
     Element.prototype.setAttributeNS = function(ns, name, val) {
-      return origSetAttrNS.call(this, ns, name, safeCircleValue(this, name, val));
+      return origSetAttrNS.call(this, ns, name, sanitizeCircleValue(this, name, val));
     };
   })();
 }
+
+# Defensively handle raw action entity strings like "GT_7" during animate_last_action
+class String
+  def dig(*_args)
+    nil
+  end
+end
+
 # Monkey-patch Lib::Params to support runtime overrides and preserve tab anchors (e.g. #dashboard)
 module Lib
   module Params
@@ -50,9 +69,15 @@ module Lib
       alias _orig_add_dashboard_anchor add unless method_defined?(:_orig_add_dashboard_anchor)
 
       def [](key)
-        return @overrides[key.to_s] if @overrides && @overrides.key?(key.to_s)
+        url_val = _orig_get_param(key)
+        if @overrides && @overrides.key?(key.to_s)
+          if url_val && !url_val.empty? && url_val != @overrides[key.to_s]
+            @overrides[key.to_s] = url_val
+          end
+          return @overrides[key.to_s]
+        end
 
-        _orig_get_param(key)
+        url_val
       end
 
       def []=(key, val)
@@ -75,15 +100,17 @@ module Lib
   end
 end
 
-# # Ensure GamePage does not cache stale @cursor values across slider drags
-# module View
-#   class GamePage < Snabberb::Component
-#     def cursor
-#       param = Lib::Params['action']
-#       param && !param.to_s.empty? ? param.to_i : nil
-#     end
-#   end
-# end
+# Ensure GamePage does not cache stale @cursor values across history steps
+module View
+  class GamePage < Snabberb::Component
+    def cursor
+      param = Lib::Params['action']
+      return param.to_i if param && !param.to_s.empty?
+
+      nil
+    end
+  end
+end
 
 module View
   module Game
@@ -98,20 +125,24 @@ module View
         needs :on_close, default: nil
 
         def total_actions
-          if @game_data && @game_data['actions']&.any?
-            @game_data['actions'].last['id'] || @game_data['actions'].size
-          elsif @game.respond_to?(:raw_actions) && @game.raw_actions&.any?
-            last = @game.raw_actions.last
-            if last.is_a?(Hash)
-              last['id'] || last[:id]
-            else
-              (last.respond_to?(:id) ? last.id : @game.raw_actions.size)
-            end
-          elsif @game.respond_to?(:last_game_action_id)
-            @game.last_game_action_id
-          else
-            0
-          end
+          acts = if @game_data && @game_data['actions']&.any?
+                   @game_data['actions'].last['id'] || @game_data['actions'].size
+                 elsif @game.respond_to?(:raw_actions) && @game.raw_actions&.any?
+                   last = @game.raw_actions.last
+                   if last.is_a?(Hash)
+                     last['id'] || last[:id]
+                   else
+                     (last.respond_to?(:id) ? last.id : @game.raw_actions.size)
+                   end
+                 elsif @game.respond_to?(:last_game_action_id)
+                   @game.last_game_action_id
+                 else
+                   0
+                 end
+
+          # Maintain maximum seen action id so navigating to Action 1 does not collapse total_actions
+          @max_seen_action = [@max_seen_action || 0, acts.to_i].max
+          @max_seen_action
         end
 
         def current_cursor
@@ -131,51 +162,111 @@ module View
           rescue StandardError
             nil
           end
-          @on_close&.call
+          @on_close&.call if @on_close.respond_to?(:call)
           %x{
             var hud = document.getElementById('history_floating_hud');
             if (hud) hud.style.display = 'none';
           }
         end
 
-        def click_hist(id, &fallback)
-          found = %x{
-            (function() {
-              var sel = '#' + #{id} + ', .' + #{id} + ', [class*="' + #{id} + '"]';
-              var btns = document.querySelectorAll(sel);
-              if (btns && btns.length > 0) {
-                for (var i = 0; i < btns.length; i++) {
-                  btns[i].click();
-                }
-                return true;
-              }
-              return false;
-            })()
+        def round_action_ids
+          if @game.respond_to?(:round_history) && @game.round_history&.any?
+            return @game.round_history.map do |r|
+              if r.is_a?(Hash)
+                r['action_id'] || r[:action_id] || r['id'] || r[:id]
+              elsif r.respond_to?(:action_id)
+                r.action_id
+              else
+                r.to_i
+              end
+            end.compact.uniq.sort
+          end
+
+          %x{
+            if (window._round_history && Array.isArray(window._round_history)) {
+              return window._round_history;
+            }
           }
-          yield if !found && fallback
+          []
+        end
+
+        def prev_round_action
+          curr = current_cursor
+          rounds = round_action_ids
+          if rounds.any?
+            candidates = rounds.select { |id| id < curr }
+            return candidates.last if candidates.any?
+          end
+          nil
+        end
+
+        def next_round_action
+          curr = current_cursor
+          rounds = round_action_ids
+          if rounds.any?
+            candidates = rounds.select { |id| id > curr }
+            return candidates.first if candidates.any?
+          end
+          nil
+        end
+
+        def jump_prev_round
+          target = prev_round_action
+          if target
+            set_action(target)
+          else
+            dispatch_keyboard_nav('ArrowUp')
+          end
+        end
+
+        def jump_next_round
+          target = next_round_action
+          if target
+            set_action(target)
+          else
+            dispatch_keyboard_nav('ArrowDown')
+          end
+        end
+
+        def dispatch_keyboard_nav(key_name)
+          %x{
+            var k = #{key_name};
+            var code = k === 'ArrowUp' ? 38 : (k === 'ArrowDown' ? 40 : 0);
+            var evt = new KeyboardEvent('keydown', {
+              key: k,
+              code: k,
+              which: code,
+              keyCode: code,
+              bubbles: true,
+              cancelable: true
+            });
+            window.dispatchEvent(evt);
+            document.dispatchEvent(evt);
+          }
         end
 
         def schedule_scrub(val)
           %x{
-    var targetVal = parseInt(#{val}, 10);
-    var total = #{total_actions};
-    var label = document.getElementById('hist_viewing_text');
+            var targetVal = parseInt(#{val}, 10);
+            var total = #{total_actions};
+            var label = document.getElementById('hist_viewing_text');
 
-    if (label && Number.isFinite(targetVal)) {
-      label.innerText =
-        'Viewing: Action #' + targetVal + ' of ' + total;
-    }
-  }
+            if (label && Number.isFinite(targetVal)) {
+              label.innerText = 'Viewing: Action #' + targetVal + ' of ' + total;
+            }
+          }
         end
 
         def set_action(target_id)
           target = target_id.to_i
           max_id = total_actions
-          new_cursor = target >= max_id ? nil : [target, 1].max
+
+          # Only return to live (nil cursor) if target strictly meets or exceeds live max AND target > 1
+          new_cursor = (target >= max_id && target > 1) ? nil : [target, 1].max
 
           curr = current_cursor
           target_val = new_cursor || max_id
-          return if target_val == curr
+          return if target_val == curr && Lib::Params['action'] == (new_cursor ? new_cursor.to_s : nil)
 
           Lib::Params['action'] = new_cursor ? new_cursor.to_s : nil
 
@@ -391,7 +482,6 @@ module View
           }
 
           h('div#history_floating_hud', { style: hud_style }, [
-            # Draggable Header Handle
             h('div#history_hud_handle', {
                 style: {
                   padding: '0.55rem 0.9rem',
@@ -447,9 +537,7 @@ module View
                 }, '✕'),
             ]),
 
-            # Controls Body
             h(:div, { style: { padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' } }, [
-              # Action Scrub Slider
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem' } }, [
                 h(:input, {
                     attrs: {
@@ -485,17 +573,15 @@ module View
                 ]),
               ]),
 
-              # Navigation Controls Row
               h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', flexWrap: 'wrap' } }, [
                 nav_btn('|<< Start', -> { set_action(1) }, disabled: curr <= 1),
-                nav_btn('<< Start Round', -> { click_hist('hist_ArrowUp') }, disabled: curr <= 1),
+                nav_btn('<< Start Round', -> { jump_prev_round }, disabled: curr <= 1),
                 nav_btn('◀ Prev', -> { step_action(-1) }, disabled: curr <= 1),
                 nav_btn('Next ▶', -> { step_action(1) }, disabled: curr >= total),
-                nav_btn('Next Round >>', -> { click_hist('hist_ArrowDown') }, disabled: curr >= total),
+                nav_btn('Next Round >>', -> { jump_next_round }, disabled: curr >= total),
                 nav_btn('Live >>|', -> { set_action(total) }, disabled: !is_hist),
               ]),
 
-              # Operational Actions Row
               h(:div, {
                   style: {
                     display: 'flex',
