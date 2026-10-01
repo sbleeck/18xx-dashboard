@@ -7,49 +7,41 @@ require 'lib/params'
 require 'lib/settings'
 require 'lib/storage'
 
-# Robust SVG Safety Shield:
-# Safari/WebKit throws fatal DOMExceptions when cx, cy, or r are set to "" or NaN.
-# Intercept both setAttribute and setAttributeNS using localName and store native references
-# globally so hot reloads never create recursive wrapper chains.
+# Robust SVG numeric-attribute safety shield.
+# Snabbdom may attempt to write an empty cx/cy/r while changing historical states.
+# These names are SVG geometry attributes, so sanitize them by attribute name before
+# Safari receives the value. Do not depend on tagName detection during a VDOM patch.
 %x{
   (function() {
-    if (!window.__orig_elem_set_attribute) {
-      window.__orig_elem_set_attribute = Element.prototype.setAttribute;
-      window.__orig_elem_set_attribute_ns = Element.prototype.setAttributeNS;
-    }
+    if (window.__history_svg_numeric_shield_v2) return;
+    window.__history_svg_numeric_shield_v2 = true;
 
-    var origSetAttr = window.__orig_elem_set_attribute;
-    var origSetAttrNS = window.__orig_elem_set_attribute_ns;
+    var elementSetAttribute = Element.prototype.setAttribute;
+    var elementSetAttributeNS = Element.prototype.setAttributeNS;
 
-    var isCircleElement = function(el) {
-      if (!el) return false;
-      var tag = String(el.localName || el.tagName || el.nodeName || '').toLowerCase();
-      return tag === 'circle' || tag.slice(-7) === ':circle';
-    };
-
-    var sanitizeCircleValue = function(el, name, val) {
-      if (!isCircleElement(el)) return val;
+    var safeSvgNumericValue = function(name, value) {
       var attr = String(name || '').toLowerCase();
-      if (attr !== 'cx' && attr !== 'cy' && attr !== 'r') return val;
+      if (attr.indexOf(':') !== -1) attr = attr.split(':').pop();
+      if (attr !== 'cx' && attr !== 'cy' && attr !== 'r') return value;
 
-      if (val === '' || val === null || val === undefined ||
-          (typeof Opal !== 'undefined' && val === Opal.nil)) {
+      if (value === null || value === undefined ||
+          (typeof Opal !== 'undefined' && value === Opal.nil)) {
         return attr === 'r' ? '1' : '0';
       }
 
-      var str = String(val).trim();
-      if (str === '' || str === 'NaN' || str === 'null' || str === 'undefined') {
+      var text = String(value).trim();
+      if (text === '' || text === 'NaN' || text === 'null' || text === 'undefined') {
         return attr === 'r' ? '1' : '0';
       }
-      return val;
+      return value;
     };
 
-    Element.prototype.setAttribute = function(name, val) {
-      return origSetAttr.call(this, name, sanitizeCircleValue(this, name, val));
+    Element.prototype.setAttribute = function(name, value) {
+      return elementSetAttribute.call(this, name, safeSvgNumericValue(name, value));
     };
 
-    Element.prototype.setAttributeNS = function(ns, name, val) {
-      return origSetAttrNS.call(this, ns, name, sanitizeCircleValue(this, name, val));
+    Element.prototype.setAttributeNS = function(namespace, name, value) {
+      return elementSetAttributeNS.call(this, namespace, name, safeSvgNumericValue(name, value));
     };
   })();
 }
@@ -71,9 +63,7 @@ module Lib
       def [](key)
         url_val = _orig_get_param(key)
         if @overrides && @overrides.key?(key.to_s)
-          if url_val && !url_val.empty? && url_val != @overrides[key.to_s]
-            @overrides[key.to_s] = url_val
-          end
+          @overrides[key.to_s] = url_val if url_val && !url_val.empty? && url_val != @overrides[key.to_s]
           return @overrides[key.to_s]
         end
 
@@ -172,19 +162,23 @@ module View
         def round_action_ids
           if @game.respond_to?(:round_history) && @game.round_history&.any?
             return @game.round_history.map do |r|
-              if r.is_a?(Hash)
-                r['action_id'] || r[:action_id] || r['id'] || r[:id]
-              elsif r.respond_to?(:action_id)
-                r.action_id
-              else
-                r.to_i
-              end
-            end.compact.uniq.sort
+              raw_id = if r.is_a?(Hash)
+                         r['action_id'] || r[:action_id] || r['id'] || r[:id]
+                       elsif r.respond_to?(:action_id)
+                         r.action_id
+                       else
+                         r
+                       end
+              raw_id.to_i if raw_id
+            end.compact.select(&:positive?).uniq.sort
           end
 
           %x{
             if (window._round_history && Array.isArray(window._round_history)) {
-              return window._round_history;
+              return window._round_history
+                .map(function(id) { return parseInt(id, 10); })
+                .filter(function(id) { return Number.isFinite(id) && id > 0; })
+                .sort(function(a, b) { return a - b; });
             }
           }
           []
@@ -257,16 +251,32 @@ module View
           }
         end
 
+        def sync_slider(action_id, max_id)
+          %x{
+            window.requestAnimationFrame(function() {
+              var slider = document.getElementById('hist_slider_input');
+              var label = document.getElementById('hist_viewing_text');
+              var value = String(#{action_id});
+              var maximum = String(#{max_id});
+
+              if (slider) {
+                slider.min = '1';
+                slider.max = maximum;
+                slider.value = value;
+              }
+
+              if (label) {
+                label.textContent = 'Viewing: Action #' + value + ' of ' + maximum;
+              }
+            });
+          }
+        end
+
         def set_action(target_id)
-          target = target_id.to_i
-          max_id = total_actions
-
-          # Only return to live (nil cursor) if target strictly meets or exceeds live max AND target > 1
-          new_cursor = (target >= max_id && target > 1) ? nil : [target, 1].max
-
-          curr = current_cursor
+          max_id = [total_actions.to_i, 1].max
+          target = [[target_id.to_i, 1].max, max_id].min
+          new_cursor = target >= max_id ? nil : target
           target_val = new_cursor || max_id
-          return if target_val == curr && Lib::Params['action'] == (new_cursor ? new_cursor.to_s : nil)
 
           Lib::Params['action'] = new_cursor ? new_cursor.to_s : nil
 
@@ -284,6 +294,7 @@ module View
 
           store(:app_route, new_route)
           update if respond_to?(:update)
+          sync_slider(target_val, max_id)
         end
 
         def step_action(delta)
