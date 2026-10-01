@@ -229,10 +229,11 @@ module View
             h(:div, { style: { width: '45%', display: 'flex', flexDirection: 'column', height: '100%', gap: '0.5rem' } }, [
               h(:div, { style: { flex: '1 1 62%', border: '1px solid #ccc', padding: '2rem', borderRadius: '4px', textAlign: 'center', fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' } }, [
                 h(:h3, 'Final Match State'),
-                h(:p, 'The 1846 game has concluded. Active turn components and ledgers are disabled.'),
+                h(:p, 'The game has concluded. Active turn components and ledgers are disabled.'),
               ]),
-              h(:div, { style: { flex: '1 1 30%', minHeight: '0', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'hidden' } }, [
-                h(:div, { attrs: { class: 'scaler-content' }, style: { width: 'max-content', height: 'max-content', minWidth: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', transformOrigin: 'center top' } }, [
+              
+h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'hidden' } }, [
+                  h(:div, { attrs: { class: 'scaler-content' }, style: { width: 'max-content', height: 'max-content', minWidth: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', transformOrigin: 'center top' } }, [
                   h(View::Game::DashboardStockMarket, game: @game),
                 ]),
               ]),
@@ -303,7 +304,15 @@ module View
                             var mouseMoveHandler = function(e) {
                               var delta = isVertical ? (e.clientY - y) : (e.clientX - x);
                               var totalFlex = prevFlex + nextFlex;
-                              var newPrevFlex = Math.max(0, prevFlex + delta);
+
+                              var minNext = 0;
+                              if (next) {
+                                var computedMin = isVertical ? window.getComputedStyle(next).minHeight : window.getComputedStyle(next).minWidth;
+                                minNext = parseFloat(computedMin) || 0;
+                              }
+                              var maxPrev = Math.max(0, totalFlex - minNext);
+                              var newPrevFlex = Math.max(0, Math.min(maxPrev, prevFlex + delta));
+
                               var newNextFlex = Math.max(0, totalFlex - newPrevFlex);
 
                               prev.style.flex = '0 0 ' + newPrevFlex + 'px';
@@ -731,8 +740,8 @@ module View
             h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
             # Stock Market Grid
-            h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '0', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
-              render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
+h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
+                render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
               h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
                 h(View::Game::DashboardStockMarket, game: @game),
               ]),
