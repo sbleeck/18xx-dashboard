@@ -44,6 +44,7 @@ module View
       include Actionable
       include View::ShareCalculation
       include View::Game::Dashboard::RailcardHelper
+
       needs :game, store: true
       needs :game_data, store: true
 
@@ -689,7 +690,7 @@ module View
                               else
                                 lambda { |_event|
                                   exec_issue_share_bundle(
-                                    corporation, (treasury_issuable_bundles.first || issuable_bundles.first), corp_actions,
+                                    corporation, treasury_issuable_bundles.first || issuable_bundles.first, corp_actions,
                                     "#treasury_shares_#{corporation.id} .game-card",
                                     "#pool_shares_#{corporation.id}"
                                   )
@@ -1564,7 +1565,7 @@ module View
         font_color = '#dc2626' if held
         font_color = '#d97706' if half_held
 
-        rev_class = "td.padded_number.column-zone-corporate#{font_color ? '' : '.money-value'}"
+        rev_class = "td.padded_number.column-zone-corporate#{'.money-value' unless font_color}"
         rev_props = { hook: Lib::MoneyAnimation.hook }
         rev_props[:style] = { color: font_color, fontFamily: 'var(--font-money)', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' }.compact
         corporation_row_content << h(rev_class, rev_props, clean_rev)
@@ -1658,7 +1659,7 @@ module View
         action = if defined?(Engine::Action::Short)
                    Engine::Action::Short.new(player, corporation: corporation)
                  else
-                   Engine::Action::BuyShares.new(player, shares: corporation.shares.first, share_price: corporation.share_price)
+                   Engine::Action::BuyShares.new(player, bundle: corporation.shares.first.to_bundle)
                  end
         if source_selector
           Lib::CardAnimation.fly(source_selector, target_selector) { process_action(action) }
@@ -1903,7 +1904,7 @@ module View
                  elsif actions.include?('corporate_sell_shares') && defined?(Engine::Action::CorporateSellShares)
                    Engine::Action::CorporateSellShares.new(corporation, bundle: bundle)
                  else
-                   Engine::Action::SellShares.new(corporation, shares: shares, share_price: share_price, percent: percent)
+                   Engine::Action::SellShares.new(corporation, bundle: bundle)
                  end
         if source_selector && target_selector
           Lib::CardAnimation.fly(source_selector, target_selector) { process_action(action) }
@@ -1922,9 +1923,9 @@ module View
                  elsif actions.include?('redeem') && defined?(Engine::Action::Redeem)
                    Engine::Action::Redeem.new(corporation, bundle: bundle)
                  elsif actions.include?('corporate_buy_shares') && defined?(Engine::Action::CorporateBuyShares)
-                   Engine::Action::CorporateBuyShares.new(corporation, shares: shares, share_price: share_price, percent: percent)
+                   Engine::Action::CorporateBuyShares.new(corporation, bundle: bundle)
                  else
-                   Engine::Action::BuyShares.new(corporation, shares: shares, share_price: share_price, percent: percent)
+                   Engine::Action::BuyShares.new(corporation, bundle: bundle)
                  end
         if source_selector && target_selector
           Lib::CardAnimation.fly(source_selector, target_selector) { process_action(action) }
@@ -2005,11 +2006,9 @@ module View
         escaped_corp_id = `CSS.escape(#{corporation_id})`
         Lib::CardAnimation.fly(source_selector, "#pool_shares_#{escaped_corp_id}") do
           process_action(Engine::Action::SellShares.new(
-            player,
-            shares: target_bundle[:shares],
-            share_price: target_bundle[:share_price],
-            percent: target_bundle[:percent]
-          ))
+      player,
+      bundle: target_bundle[:bundle]
+    ))
         end
       end
 
@@ -2018,22 +2017,18 @@ module View
         escaped_corp_id = `CSS.escape(#{corporation_id})`
         Lib::CardAnimation.fly(source_selector, "#player_shares_#{escaped_player_id}_#{escaped_corp_id}") do
           process_action(Engine::Action::BuyShares.new(
-            player,
-            shares: bnd.shares,
-            share_price: bnd.share_price,
-            percent: bnd.percent
-          ))
+      player,
+      bundle: bnd
+    ))
         end
       end
 
       def exec_buy_shares_simple(source_selector, player, bnd, corporation_id)
         Lib::CardAnimation.fly(source_selector, "#player_shares_#{player.id}_#{corporation_id}") do
           process_action(Engine::Action::BuyShares.new(
-            player,
-            shares: bnd.shares,
-            share_price: bnd.share_price,
-            percent: bnd.percent
-          ))
+      player,
+      bundle: bnd
+    ))
         end
       end
 
@@ -2094,7 +2089,7 @@ module View
         storage_key = "dashboard_treasury_column_#{@game.class.name}"
         treasury_required = @game.separate_treasury? || any_reserved_shares?
         Lib::Storage[storage_key] = true if treasury_required
-        Lib::Storage[storage_key] == true || Lib::Storage[storage_key] == 'true'
+        [true, 'true'].include?(Lib::Storage[storage_key])
       end
 
       def treasury_shares_for(corporation)

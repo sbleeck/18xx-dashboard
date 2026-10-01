@@ -335,7 +335,8 @@ module View
                 end
               end
               if valid_shares.any?
-                process_action(Engine::Action::BuyShares.new(c, shares: valid_shares.first))
+                process_action(Engine::Action::BuyShares.new(c, bundle: valid_shares.first.to_bundle))
+                Engine::Action::BuyShares.new(c, shares: valid_shares.first)
                 next
               end
             end
@@ -1208,7 +1209,7 @@ module View
 
               click_handler = lambda {
                 action_class = actions.include?('corporate_buy_shares') ? Engine::Action::CorporateBuyShares : Engine::Action::BuyShares
-                process_action(action_class.new(entity, shares: bundle.respond_to?(:shares) ? bundle.shares : [bundle], share_price: bundle.respond_to?(:share_price) ? bundle.share_price : nil, percent: pct))
+                process_action(action_class.new(entity, bundle: bundle))
               }
               card = render_railcard("#{pct}%", %w[game-card action-buy clickable], click_handler)
               h(:div, { style: { display: 'inline-flex', alignItems: 'center', gap: '0.3rem', margin: '0 0.2rem' } }, [
@@ -1907,19 +1908,9 @@ module View
               elsif all_actions.include?('issue_shares') && defined?(Engine::Action::IssueShares)
                 process_action(Engine::Action::IssueShares.new(acting_entity, bundle: bundle))
               elsif all_actions.include?('corporate_sell_shares') && defined?(Engine::Action::CorporateSellShares)
-                process_action(Engine::Action::CorporateSellShares.new(
-                  acting_entity,
-                  shares: bundle.respond_to?(:shares) ? bundle.shares : [bundle],
-                  share_price: bundle.respond_to?(:share_price) && bundle.share_price ? bundle.share_price : (price / [num, 1].max),
-                  percent: bundle.respond_to?(:percent) ? bundle.percent : (num * 10)
-                ))
+                process_action(Engine::Action::CorporateSellShares.new(acting_entity, bundle: bundle))
               else
-                process_action(Engine::Action::SellShares.new(
-                  acting_entity,
-                  shares: bundle.respond_to?(:shares) ? bundle.shares : [bundle],
-                  share_price: bundle.respond_to?(:share_price) && bundle.share_price ? bundle.share_price : (price / [num, 1].max),
-                  percent: bundle.respond_to?(:percent) ? bundle.percent : (num * 10)
-                ))
+                process_action(Engine::Action::SellShares.new(acting_entity, bundle: bundle))
               end
             }
 
@@ -2011,17 +2002,10 @@ module View
               elsif all_actions.include?('redeem') && defined?(Engine::Action::Redeem)
                 process_action(Engine::Action::Redeem.new(acting_entity, bundle: bundle))
               elsif all_actions.include?('corporate_buy_shares') && defined?(Engine::Action::CorporateBuyShares)
-                process_action(Engine::Action::CorporateBuyShares.new(
-                  acting_entity,
-                  shares: bundle.respond_to?(:shares) ? bundle.shares : [bundle],
-                  share_price: bundle.respond_to?(:share_price) && bundle.share_price ? bundle.share_price : (price / [num, 1].max),
-                  percent: bundle.respond_to?(:percent) ? bundle.percent : (num * 10)
-                ))
+                process_action(Engine::Action::CorporateBuyShares.new(acting_entity, bundle: bundle))
               else
-                process_action(Engine::Action::BuyShares.new(
-                  acting_entity,
-                  shares: bundle.respond_to?(:shares) ? bundle.shares.first : bundle
-                ))
+                process_action(Engine::Action::BuyShares.new(acting_entity, bundle: bundle))
+
               end
             }
 
