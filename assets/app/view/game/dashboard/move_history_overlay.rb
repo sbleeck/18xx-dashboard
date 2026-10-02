@@ -390,7 +390,7 @@ module View
             end
           end
 
-          html = clean_text.gsub(/&/, '&amp;').gsub(/</, '&lt;').gsub(/>/, '&gt;')
+          html = clean_text.gsub('&', '&amp;').gsub('<', '&lt;').gsub('>', '&gt;')
           tokens.each do |tok, replacement|
             html = html.gsub(tok, replacement)
           end
@@ -608,7 +608,7 @@ module View
 
           nodes = blocks.map.with_index do |block, _idx|
             if block[:type] == :divider
-              clean_text = block[:text].gsub(/--/, '').strip
+              clean_text = block[:text].gsub('--', '').strip
               h(:div, {
                   style: {
                     position: 'sticky',

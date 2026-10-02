@@ -429,7 +429,11 @@ module View
         step = @game.round.active_step
         entity = current_entity
         entity_id = entity&.id
-        if Lib::Storage['cmd_last_entity_id']&.to_s != entity_id&.to_s
+        is_move_history_open = @show_move_history == true || Lib::Storage['cmd_move_history_overlay'] == true || Lib::Storage['cmd_move_history_overlay'] == 'true'
+        is_history_open = @show_history_overlay == true || Lib::Storage['cmd_history_overlay'] == true || Lib::Storage['cmd_history_overlay'] == 'true'
+        preserve_command_panel = is_move_history_open || is_history_open
+
+        if !preserve_command_panel && Lib::Storage['cmd_last_entity_id']&.to_s != entity_id&.to_s
           Lib::Storage['cmd_last_entity_id'] = entity_id
           @routes = []
           store(:routes, @routes, skip: true)
@@ -535,22 +539,7 @@ module View
         current_revenue = Lib::Storage[storage_key].to_i
         formatted_revenue = @game.respond_to?(:format_revenue_currency) ? @game.format_revenue_currency(current_revenue) : @game.format_currency(current_revenue)
 
-        if @game.finished
-          return h(:div, { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' } }, [
-            h(:div, { style: { fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' } }, 'End of Game'),
-            h(:button, {
-                style: { padding: '1rem 2rem', fontSize: '1.2rem', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' },
-                on: {
-                  click: lambda {
-                    Lib::Storage['show_results_overlay'] = true
-                    update
-                  },
-                },
-              }, 'Show Results'),
-            (Lib::Storage['show_results_overlay'] ? h(View::Game::Dashboard::ResultsOverlay, game: @game) : nil),
-          ].compact)
-        end
-
+        game_finished = @game.finished
         is_draft_round = is_draft ||
                           (@game.round.class.name =~ /Draft|Auction/i) ||
                           (step&.class&.name =~ /Draft|Auction|Waterfall/i)
@@ -618,6 +607,41 @@ module View
 
         show_manual_routes = @show_manual_routes || Lib::Storage['cmd_manual_routes'] == true || Lib::Storage['cmd_manual_routes'] == 'true'
         zone_2_content = []
+        if game_finished
+          zone_2_content << h(:div, {
+                                style: {
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'flex',
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.75rem',
+                                },
+                              }, [
+            h(:strong, { style: { fontSize: '1rem', color: '#0f172a' } }, 'End of Game'),
+            h(:button, {
+                style: {
+                  height: '1.65rem',
+                  padding: '0 12px',
+                  fontSize: '0.82rem',
+                  fontWeight: 'bold',
+                  backgroundColor: '#16a34a',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                },
+                on: {
+                  click: lambda {
+                    Lib::Storage['show_results_overlay'] = true
+                    update
+                  },
+                },
+              }, 'Show Results'),
+            (Lib::Storage['show_results_overlay'] ? h(View::Game::Dashboard::ResultsOverlay, game: @game) : nil),
+          ].compact)
+        end
 
         if phase == :run_routes
           if @cmd_router_running
@@ -812,9 +836,6 @@ module View
             true
           end
         end
-
-        is_move_history_open = @show_move_history == true || Lib::Storage['cmd_move_history_overlay'] == true || Lib::Storage['cmd_move_history_overlay'] == 'true'
-        is_history_open = @show_history_overlay == true || Lib::Storage['cmd_history_overlay'] == true || Lib::Storage['cmd_history_overlay'] == 'true'
 
         zone_3 = h(:div, { style: { flex: '0 0 22%', display: 'flex', flexDirection: 'column', padding: '0.4rem', boxSizing: 'border-box', overflowY: 'auto', position: 'relative' } }, [
           h(:style, {}, '
@@ -1054,11 +1075,6 @@ module View
           }.call
         end
 
-        panel_bar = h(:div, { style: { display: 'flex', flexDirection: 'row', width: '100%', height: '100%', boxSizing: 'border-box', backgroundColor: '#fff', position: 'relative', zIndex: 99_999, overflow: 'visible' } }, [
-          zone_1,
-          zone_2,
-          zone_3,
-        ].compact)
         overlays = []
         overlays << h(View::Game::Dashboard::ManualRouteOverlay, game: @game, entity: entity, routes: @routes, selected_route: @selected_route) if show_manual_routes
 
@@ -1068,7 +1084,7 @@ module View
             store(:show_move_history, false)
             update
           }
-          overlays << h(View::Game::Dashboard::MoveHistoryOverlay, game: @game, on_close: close_move_hist)
+          overlays << h(View::Game::Dashboard::MoveHistoryOverlay, game: @game, game_data: @game_data, on_close: close_move_hist)
         end
 
         if is_history_open
@@ -1080,14 +1096,25 @@ module View
           overlays << h(View::Game::Dashboard::HistoryOverlay, game: @game, game_data: @game_data, on_close: close_hist)
         end
 
-        if overlays.any?
-          h(:div, { style: { width: '100%', height: '100%', position: 'relative', pointerEvents: 'none' } }, [
-             h(:div, { style: { pointerEvents: 'auto', width: '100%', height: '100%' } }, [panel_bar]),
-             *overlays,
-           ])
-        else
-          panel_bar
-        end
+        # Keep the command bar as the component root. DashboardVisualizer uses direct-child
+        # selectors for its three zones; wrapping the bar when an overlay opens causes that
+        # selector to hide the entire command panel. Fixed-position overlays can safely be
+        # appended as additional children without changing the three-zone structure.
+        h(:div, {
+            attrs: { id: 'dashboard-command-panel-bar' },
+            style: {
+              display: 'flex',
+              flexDirection: 'row',
+              width: '100%',
+              height: '100%',
+              boxSizing: 'border-box',
+              backgroundColor: '#fff',
+              position: 'relative',
+              zIndex: 99_999,
+              overflow: 'visible',
+              pointerEvents: 'auto',
+            },
+          }, [zone_1, zone_2, zone_3, *overlays].compact)
       end
 
       def render_merger_step(step, entity, actions)

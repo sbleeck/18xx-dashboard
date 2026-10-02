@@ -159,84 +159,103 @@ module View
           }
         end
 
-        def round_action_ids
-          if @game.respond_to?(:round_history) && @game.round_history&.any?
-            return @game.round_history.map do |r|
-              raw_id = if r.is_a?(Hash)
-                         r['action_id'] || r[:action_id] || r['id'] || r[:id]
-                       elsif r.respond_to?(:action_id)
-                         r.action_id
-                       else
-                         r
-                       end
-              raw_id.to_i if raw_id
-            end.compact.select(&:positive?).uniq.sort
+        def normalize_round_action_ids(raw)
+          values = []
+          Array(raw).each do |entry|
+            value = if entry.is_a?(Array)
+                      entry.first
+                    elsif entry.is_a?(Hash)
+                      entry['action_id'] || entry[:action_id] || entry['id'] || entry[:id]
+                    elsif entry.respond_to?(:action_id)
+                      entry.action_id
+                    elsif entry.respond_to?(:id) && !entry.is_a?(Numeric)
+                      entry.id
+                    else
+                      entry
+                    end
+            text = value.to_s.strip
+            values << text.to_i if text.match?(/\A\d+\z/)
           end
+          maximum = total_actions.to_i
+          values.select { |id| id.positive? && id <= maximum }.uniq.sort
+        rescue StandardError
+          []
+        end
 
-          %x{
-            if (window._round_history && Array.isArray(window._round_history)) {
-              return window._round_history
-                .map(function(id) { return parseInt(id, 10); })
-                .filter(function(id) { return Number.isFinite(id) && id > 0; })
-                .sort(function(a, b) { return a - b; });
-            }
-          }
+        def round_cache_key
+          game_id = if @game_data && @game_data['id']
+                      @game_data['id']
+                    elsif @game.respond_to?(:id)
+                      @game.id
+                    else
+                      'current'
+                    end
+          "history_round_ids_#{game_id}"
+        end
+
+        def round_action_ids
+          game_raw = @game.respond_to?(:round_history) ? @game.round_history : nil
+          game_ids = normalize_round_action_ids(game_raw)
+
+          window_raw = `window._round_history || []`
+          window_ids = normalize_round_action_ids(Native(window_raw))
+
+          stored_ids = normalize_round_action_ids(Lib::Storage[round_cache_key])
+          ids = (stored_ids + game_ids + window_ids).uniq.sort
+
+          Lib::Storage[round_cache_key] = ids if ids.any?
+          `window._round_history = #{ids.to_n};`
+          ids
+        rescue StandardError
           []
         end
 
         def prev_round_action
-          curr = current_cursor
-          rounds = round_action_ids
-          if rounds.any?
-            candidates = rounds.select { |id| id < curr }
-            return candidates.last if candidates.any?
-          end
-          nil
+          curr = current_cursor.to_i
+          round_action_ids.select { |id| id < curr }.last
         end
 
         def next_round_action
-          curr = current_cursor
-          rounds = round_action_ids
-          if rounds.any?
-            candidates = rounds.select { |id| id > curr }
-            return candidates.first if candidates.any?
-          end
-          nil
+          curr = current_cursor.to_i
+          maximum = total_actions.to_i
+          round_action_ids.find { |id| id > curr && id <= maximum }
         end
 
         def jump_prev_round
           target = prev_round_action
-          if target
-            set_action(target)
-          else
-            dispatch_keyboard_nav('ArrowUp')
-          end
+          set_action(target) if target
         end
 
         def jump_next_round
           target = next_round_action
-          if target
-            set_action(target)
-          else
-            dispatch_keyboard_nav('ArrowDown')
-          end
+          set_action(target) if target
         end
 
-        def dispatch_keyboard_nav(key_name)
-          %x{
-            var k = #{key_name};
-            var code = k === 'ArrowUp' ? 38 : (k === 'ArrowDown' ? 40 : 0);
-            var evt = new KeyboardEvent('keydown', {
-              key: k,
-              code: k,
-              which: code,
-              keyCode: code,
-              bubbles: true,
-              cancelable: true
-            });
-            window.dispatchEvent(evt);
-            document.dispatchEvent(evt);
-          }
+        def history_minimized?
+          value = Lib::Storage['history_overlay_minimized']
+          [true, 'true'].include?(value)
+        end
+
+        def toggle_history_minimized
+          Lib::Storage['history_overlay_minimized'] = !history_minimized?
+          update
+        end
+
+        def current_move_text
+          curr = current_cursor.to_i
+          log = @game.respond_to?(:log) ? @game.log : nil
+          entry = log && log.any? ? log.last : nil
+          text = if entry.respond_to?(:message)
+                   entry.message.to_s
+                 elsif entry.respond_to?(:text)
+                   entry.text.to_s
+                 else
+                   entry.to_s
+                 end
+          text = 'No move description available' if text.empty?
+          "Action ##{curr}: #{text}"
+        rescue StandardError
+          "Action ##{curr}"
         end
 
         def schedule_scrub(val)
@@ -435,9 +454,10 @@ module View
           h(:button, {
               attrs: { disabled: disabled, type: 'button' },
               style: {
-                padding: '0 10px',
-                height: '1.85rem',
-                fontSize: '0.82rem',
+                padding: '0 7px',
+                height: '1.6rem',
+                minWidth: '2.2rem',
+                fontSize: '0.74rem',
                 fontWeight: 'bold',
                 backgroundColor: bg,
                 color: color,
@@ -458,6 +478,7 @@ module View
           total = total_actions
           curr = current_cursor
           is_hist = viewing_history?
+          is_minimized = history_minimized?
 
           saved_pos = %x{
             (function() {
@@ -517,38 +538,54 @@ module View
                       padding: '2px 6px',
                       borderRadius: '4px',
                       fontWeight: 'bold',
-                      backgroundColor: is_hist ? '#fef08a' : '#dcfce7',
-                      color: is_hist ? '#854d0e' : '#166534',
-                      border: is_hist ? '1px solid #facc15' : '1px solid #86efac',
+                      display: 'none',
+                      backgroundColor: 'transparent',
+                      color: '#64748b',
+                      border: 'none',
                     },
-                  }, is_hist ? "HISTORICAL (Action ##{curr})" : 'LIVE'),
+                  }, ''),
               ]),
-              h(:button, {
-                  attrs: { id: 'btn_close_history_overlay', type: 'button', title: 'Close Navigation HUD' },
-                  style: {
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '1.25rem',
-                    color: '#64748b',
-                    cursor: 'pointer',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    lineHeight: '1',
-                    pointerEvents: 'auto',
-                    zIndex: '10',
-                  },
-                  on: {
-                    click: lambda { |e|
-                      %x{
+              h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.2rem' } }, [
+                h(:button, {
+                    attrs: { type: 'button', title: is_minimized ? 'Expand' : 'Minimize' },
+                    style: {
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '1.1rem',
+                      color: '#64748b',
+                      cursor: 'pointer',
+                      padding: '2px 7px',
+                      lineHeight: '1',
+                    },
+                    on: { click: -> { toggle_history_minimized } },
+                  }, is_minimized ? '□' : '−'),
+                h(:button, {
+                    attrs: { id: 'btn_close_history_overlay', type: 'button', title: 'Close Navigation HUD' },
+                    style: {
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '1.25rem',
+                      color: '#64748b',
+                      cursor: 'pointer',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      lineHeight: '1',
+                      pointerEvents: 'auto',
+                      zIndex: '10',
+                    },
+                    on: {
+                      click: lambda { |e|
+                        %x{
                         if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
                       }
-                      close_overlay
+                        close_overlay
+                      },
                     },
-                  },
-                }, '✕'),
+                  }, '✕'),
+              ]),
             ]),
 
-            h(:div, { style: { padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' } }, [
+            h(:div, { style: { padding: '0.85rem 1rem', display: is_minimized ? 'none' : 'flex', flexDirection: 'column', gap: '0.65rem' } }, [
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem' } }, [
                 h(:input, {
                     attrs: {
@@ -584,13 +621,13 @@ module View
                 ]),
               ]),
 
-              h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', flexWrap: 'wrap' } }, [
-                nav_btn('|<< Start', -> { set_action(1) }, disabled: curr <= 1),
-                nav_btn('<< Start Round', -> { jump_prev_round }, disabled: curr <= 1),
-                nav_btn('◀ Prev', -> { step_action(-1) }, disabled: curr <= 1),
-                nav_btn('Next ▶', -> { step_action(1) }, disabled: curr >= total),
-                nav_btn('Next Round >>', -> { jump_next_round }, disabled: curr >= total),
-                nav_btn('Live >>|', -> { set_action(total) }, disabled: !is_hist),
+              h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', flexWrap: 'nowrap' } }, [
+                nav_btn('|◀', -> { set_action(1) }, disabled: curr <= 1),
+                nav_btn('◀|', -> { jump_prev_round }, disabled: prev_round_action.nil?),
+                nav_btn('◀', -> { step_action(-1) }, disabled: curr <= 1),
+                nav_btn('▶', -> { step_action(1) }, disabled: curr >= total),
+                nav_btn('|▶', -> { jump_next_round }, disabled: next_round_action.nil?),
+                nav_btn('▶|', -> { set_action(total) }, disabled: !is_hist),
               ]),
 
               h(:div, {
@@ -604,8 +641,8 @@ module View
                     marginTop: '0.2rem',
                   },
                 }, [
-                h(:div, { style: { fontSize: '0.8rem', color: '#64748b', fontStyle: 'italic' } },
-                  is_hist ? 'Reviewing historical game board state.' : 'Ready. Game is at latest live state.'),
+                h(:div, { style: { fontSize: '0.76rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+                  current_move_text),
                 h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.4rem' } }, [
                   (nav_btn('Return to Live', -> { set_action(total) }, primary: true) if is_hist),
                   nav_btn('⚡ Play From Here', -> { play_from_here }, disabled: !is_hist, danger: is_hist),
