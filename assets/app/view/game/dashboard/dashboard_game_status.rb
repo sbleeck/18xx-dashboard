@@ -1584,8 +1584,8 @@ module View
         )
 
         h(:tr, tr_props, [
-          h(:th, name_props, [major_card]),
-          *row_content,
+h(:th, name_props, [major_card].compact),
+*row_content,
         ])
       end
 

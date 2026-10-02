@@ -758,9 +758,30 @@ module View
         end
 
         unless game_finished
-          ground_truth_actions = render_ground_truth_actions(actions, step)
+          ground_truth_actions = begin
+            render_ground_truth_actions(actions, step)
+          rescue StandardError => e
+            `console.error("Dashboard command action rendering failed:", #{e.message})`
+
+            h(
+              :div,
+              {
+                attrs: { class: 'dashboard-command-render-fallback' },
+                style: {
+                  width: '100%',
+                  padding: '0.35rem',
+                  color: '#64748b',
+                  fontSize: '0.85rem',
+                  fontStyle: 'italic',
+                },
+              },
+              'No dashboard action controls available for this step.'
+            )
+          end
+
           zone_2_content << ground_truth_actions if ground_truth_actions
         end
+
         zone_2 = h(:div, { style: { flex: '1 1 56%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', gap: '0.25rem', padding: '0.25rem 0.5rem', borderRight: '1px solid #ccc', boxSizing: 'border-box', overflowY: 'auto' } }, zone_2_content.compact)
 
         advance_text = 'Pass'
@@ -2930,7 +2951,10 @@ corporation_or_minor?(step&.current_entity || current_entity)
         when Engine::Round::Auction, Engine::Round::Draft
           h(View::Game::Dashboard::DraftOverlay, game: @game)
         when Engine::Round::Merger
-          if !(%w[buy_train scrap_train reassign_trains] & actions).empty? && @game.train_actions_always_use_operating_round_view?
+          if !(%w[buy_train scrap_train reassign_trains] & actions).empty? &&
+             @game.train_actions_always_use_operating_round_view? &&
+             !(step&.current_entity || current_entity).is_a?(Engine::Bank)
+
             h(Round::Operating, game: @game)
 
           elsif (%w[merge convert buy_shares corporate_buy_shares take_loan payoff_loan] & actions).any?
