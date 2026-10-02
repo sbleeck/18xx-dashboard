@@ -78,7 +78,7 @@ module View
       end
 
       def display_players
-        @game.players.sort_by { |p| p.id.to_s }
+        @game.players
       end
 
       def render
