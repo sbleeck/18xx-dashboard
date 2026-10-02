@@ -50790,9 +50790,13 @@ Opal.modules["view/game/dashboard/dashboard_card_animation"] = function(Opal) {/
         }
 
         if (!card) {
-          if (js_block) {
-            js_block.$call();
-          }
+if (
+  js_block &&
+  js_block !== Opal.nil &&
+  typeof js_block.$call === 'function'
+) {
+  js_block.$call();
+}
           return;
         }
 
@@ -50844,9 +50848,13 @@ Opal.modules["view/game/dashboard/dashboard_card_animation"] = function(Opal) {/
             }
 
             setTimeout(function() {
-              if (js_block) {
-                js_block.$call();
-              }
+if (
+  js_block &&
+  js_block !== Opal.nil &&
+  typeof js_block.$call === 'function'
+) {
+  js_block.$call();
+}
 
               setTimeout(function() {
                 clone.style.transition = 'opacity 0.25s ease-out';
@@ -52589,30 +52597,35 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
           can_issue = entity_actions['$&'](["issue_shares", "reissue_shares", "reissue", "corporate_sell_shares", "sell_shares"])['$any?']();
           if (($truthy(issuable_bundles['$any?']()) && ($truthy(can_issue)))) {
             
-            issue_buttons = $send(issuable_bundles, 'map', [], function $$93(raw_bundle){var self = $$93.$$s == null ? this : $$93.$$s, bundle = nil, num = nil, price = nil, pct_str = nil, price_str = nil, click_handler = nil, card = nil;
+            issue_buttons = $send(issuable_bundles, 'map', [], function $$93(raw_bundle){var self = $$93.$$s == null ? this : $$93.$$s, bundle = nil, shares = nil, num = nil, price = nil, share_price = nil, percent = nil, pct_str = nil, price_str = nil, wrapper_id = nil, click_handler = nil, card = nil;
               if (self.game == null) self.game = nil;
 
               
               if (raw_bundle == null) raw_bundle = nil;
               bundle = (($truthy(raw_bundle['$respond_to?']("to_bundle")) && ($not(raw_bundle['$respond_to?']("num_shares")))) ? (raw_bundle.$to_bundle()) : (raw_bundle));
-              num = ($truthy(bundle['$respond_to?']("num_shares")) ? (bundle.$num_shares()) : (($truthy(bundle['$respond_to?']("shares")) ? (bundle.$shares().$size()) : (1))));
+              shares = ($truthy(bundle['$respond_to?']("shares")) ? (bundle.$shares()) : ([bundle]));
+              num = ($truthy(bundle['$respond_to?']("num_shares")) ? (bundle.$num_shares()) : (shares.$size()));
               price = ($truthy(bundle['$respond_to?']("price")) ? (bundle.$price()) : (($truthy(bundle['$respond_to?']("share_price")) && ($truthy(bundle.$share_price()))) ? ($rb_times(bundle.$share_price().$price(), num)) : (($truthy(entity['$respond_to?']("share_price")) && ($truthy(entity.$share_price()))) ? ($rb_times(entity.$share_price().$price(), num)) : (0))));
-              pct_str = (($truthy(bundle['$respond_to?']("percent")) && ($truthy(bundle.$percent()))) ? ("" + (bundle.$percent()) + "%") : ("" + (num) + "S"));
+              share_price = (($truthy(bundle['$respond_to?']("share_price")) && ($truthy(bundle.$share_price()))) ? (bundle.$share_price()) : ($truthy(entity['$respond_to?']("share_price")) ? (entity.$share_price()) : nil));
+              percent = ($truthy(bundle['$respond_to?']("percent")) ? (bundle.$percent()) : nil);
+              pct_str = ($truthy(percent) ? ("" + (percent) + "%") : ("" + (num) + "S"));
               price_str = self.game.$format_currency(price);
-              click_handler = $send(self, 'lambda', [], function $$94(){var $a, $b, $c, $d, $e, $f, $g, $h, $i, self = $$94.$$s == null ? this : $$94.$$s, acting_entity = nil, all_actions = nil;
+              wrapper_id = "cmd_issue_" + (entity.$id()) + "_" + (num) + "_" + (($truthy(($ret_or_1 = percent)) ? ($ret_or_1) : ("shares")));
+              click_handler = $send(self, 'lambda', [], function $$94(){var $a, $b, $c, $d, $e, $f, $g, $h, $i, self = $$94.$$s == null ? this : $$94.$$s, acting_entity = nil, all_actions = nil, action_kwargs = nil;
                 if (self.game == null) self.game = nil;
 
                 
-                acting_entity = (($truthy(entity['$respond_to?']("corporation?")) && ($truthy(entity['$corporation?']()))) ? (entity) : (($truthy(($ret_or_1 = self.game.$current_entity())) ? ($ret_or_1) : (self.$current_entity()))));
+                acting_entity = (($truthy(entity['$respond_to?']("corporation?")) && ($truthy(entity['$corporation?']()))) ? (entity) : ($truthy(($ret_or_1 = self.game.$current_entity())) ? ($ret_or_1) : (self.$current_entity())));
                 all_actions = $rb_plus($rb_plus(self.$actions_for(acting_entity), self.$actions_for(entity)), ($truthy(step['$respond_to?']("current_actions")) ? (($truthy(($ret_or_1 = step.$current_actions())) ? ($ret_or_1) : ([]))) : ([]))).$uniq();
+                action_kwargs = (new Map([["shares", shares], ["share_price", share_price], ["percent", percent]]));
                 if (($truthy(all_actions['$include?']("reissue_shares")) && ($truthy((($c = $$('Engine', 'skip_raise')) && ($b = $$$($c, 'Action', 'skip_raise')) && ($a = $$$($b, 'ReissueShares', 'skip_raise')) ? 'constant' : nil))))) {
-                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'ReissueShares').$new(acting_entity, (new Map([["bundle", bundle]]))))
+                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'ReissueShares').$new(acting_entity, Opal.to_hash(action_kwargs)))
                 } else if (($truthy(all_actions['$include?']("issue_shares")) && ($truthy((($f = $$('Engine', 'skip_raise')) && ($e = $$$($f, 'Action', 'skip_raise')) && ($d = $$$($e, 'IssueShares', 'skip_raise')) ? 'constant' : nil))))) {
-                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'IssueShares').$new(acting_entity, (new Map([["bundle", bundle]]))))
+                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'IssueShares').$new(acting_entity, Opal.to_hash(action_kwargs)))
                 } else if (($truthy(all_actions['$include?']("corporate_sell_shares")) && ($truthy((($i = $$('Engine', 'skip_raise')) && ($h = $$$($i, 'Action', 'skip_raise')) && ($g = $$$($h, 'CorporateSellShares', 'skip_raise')) ? 'constant' : nil))))) {
-                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'CorporateSellShares').$new(acting_entity, (new Map([["bundle", bundle]]))))
+                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'CorporateSellShares').$new(acting_entity, Opal.to_hash(action_kwargs)))
                 } else {
-                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'SellShares').$new(acting_entity, (new Map([["bundle", bundle]]))))
+                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'SellShares').$new(acting_entity, Opal.to_hash(action_kwargs)))
                 };}, {$$s: self});
               card = self.$render_railcard(pct_str, ["game-card", "action-sell", "clickable"], click_handler);
               return self.$h("div", (new Map([["style", (new Map([["display", "inline-flex"], ["alignItems", "center"], ["gap", "0.3rem"], ["margin", "0 0.2rem"]]))]])), [card, self.$h("span", (new Map([["style", (new Map([["fontFamily", $$('FONT_MONEY')], ["color", $$('COLOR_MONEY')], ["fontWeight", "bold"], ["fontSize", "0.85rem"], ["whiteSpace", "nowrap"]]))]])), price_str)]);}, {$$s: self});
@@ -53359,7 +53372,7 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
           return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.35rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [row1, row2].$compact());
         });
         return $def(self, '$render_ground_truth_actions', function $$render_ground_truth_actions(actions, step) {
-          var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $n, $o, $p, $q, $r, $s, $t, $u, $v, $w, $x, $y, $z, $aa, $ab, $ac, $ad, $ae, $af, $ag, $ah, $ai, $aj, $ak, $al, $am, $an, $ao, $ap, $aq, $ar, $as, $at, $au, $av, $aw, $ax, $ay, $az, $ba, $bb, $bc, $bd, $be, $bf, $bg, $bh, $bi, $bj, $bk, $bl, $bm, $bn, $bo, $bp, $bq, $br, $bs, $bt, $bu, self = this, is_acquisition = nil, $ret_or_1 = nil, $ret_or_2 = nil, $ret_or_3 = nil, offer_node = nil, acq_node = nil, pending_corp = nil, transacted_company = nil, shares_ability = nil, share = nil, actor = nil, player_actor = nil, is_draft_or_auction = nil, $ret_or_4 = nil, $ret_or_5 = nil, stock_components = nil, bidding_row = nil, is_pure_merger_step = nil, components = nil, convert_track = nil, loans_rendered = nil, choice_item = nil, assign_item = nil, price_protection = nil, price_protection_corporation = nil, acting_entity = nil, fallback_item = nil, entity = nil, player = nil, show_bankrupt = nil, b_options = nil, can_buy_companies = nil;
+          var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $n, $o, $p, $q, $r, $s, $t, $u, $v, $w, $x, $y, $z, $aa, $ab, $ac, $ad, $ae, $af, $ag, $ah, $ai, $aj, $ak, $al, $am, $an, $ao, $ap, $aq, $ar, $as, $at, $au, $av, $aw, $ax, $ay, $az, $ba, $bb, $bc, $bd, $be, $bf, $bg, $bh, $bi, $bj, $bk, $bl, $bm, $bn, $bo, $bp, $bq, $br, $bs, $bt, self = this, is_acquisition = nil, $ret_or_1 = nil, $ret_or_2 = nil, $ret_or_3 = nil, offer_node = nil, acq_node = nil, pending_corp = nil, transacted_company = nil, shares_ability = nil, share = nil, actor = nil, player_actor = nil, is_draft_or_auction = nil, $ret_or_4 = nil, $ret_or_5 = nil, stock_components = nil, bidding_row = nil, is_pure_merger_step = nil, components = nil, convert_track = nil, loans_rendered = nil, choice_item = nil, assign_item = nil, price_protection = nil, price_protection_corporation = nil, acting_entity = nil, fallback_item = nil, entity = nil, player = nil, show_bankrupt = nil, b_options = nil, can_buy_companies = nil;
 
           
           if ($truthy(self.game.$finished())) {
@@ -53598,9 +53611,8 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
                 };
               } else if ((($truthy(actions['$include?']("buy_shares")) || ($truthy(actions['$include?']("sell_shares")))) && ($truthy(self['$corporation_or_minor?'](($truthy(($ret_or_2 = ($ar = step, ($ar === nil || $ar == null) ? nil : $ar.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()))))))) {
                 
-                components['$<<'](self.$render_issue_shares(step, ($truthy(($ret_or_2 = ($as = step, ($as === nil || $as == null) ? nil : $as.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()))));
                 price_protection = (function() { try {
-                  if ($truthy(($at = step, ($at === nil || $at == null) ? nil : $at['$respond_to?']("price_protection")))) {
+                  if ($truthy(($as = step, ($as === nil || $as == null) ? nil : $as['$respond_to?']("price_protection")))) {
                     return step.$price_protection()
                   } else {
                     return nil
@@ -53612,7 +53624,7 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
                     } finally { Opal.pop_exception($err); }
                   } else { throw $err; }
                 }})();
-                price_protection_corporation = ($truthy(($au = price_protection, ($au === nil || $au == null) ? nil : $au['$respond_to?']("corporation"))) ? (price_protection.$corporation()) : ($truthy(self['$corporation_or_minor?'](price_protection)) ? (price_protection) : nil));
+                price_protection_corporation = ($truthy(($at = price_protection, ($at === nil || $at == null) ? nil : $at['$respond_to?']("corporation"))) ? (price_protection.$corporation()) : ($truthy(self['$corporation_or_minor?'](price_protection)) ? (price_protection) : nil));
                 if ($truthy(price_protection_corporation)) {
                   
                   components['$<<'](self.$h($$('Corporation'), (new Map([["corporation", price_protection_corporation]]))));
@@ -53620,9 +53632,9 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
                 } else if ($truthy(self.game['$corporations_can_ipo?']())) {
                   components['$<<'](self.$h($$('CorporateBuySellShares')))
                 } else if ($truthy(["issue_shares", "reissue_shares", "reissue", "redeem", "redeem_shares"]['$&'](actions)['$none?']())) {
-                  components['$<<'](self.$render_issue_shares(step, ($truthy(($ret_or_2 = ($av = step, ($av === nil || $av == null) ? nil : $av.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()))))
+                  components['$<<'](self.$render_issue_shares(step, ($truthy(($ret_or_2 = ($au = step, ($au === nil || $au == null) ? nil : $au.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()))))
                 };
-                acting_entity = ($truthy(($ret_or_2 = ($aw = step, ($aw === nil || $aw == null) ? nil : $aw.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()));
+                acting_entity = ($truthy(($ret_or_2 = ($av = step, ($av === nil || $av == null) ? nil : $av.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()));
                 if ((($truthy(actions['$include?']("buy_shares")) && ($not(actions['$include?']("run_routes")))) && ($truthy(self['$corporation_or_minor?'](acting_entity))))) {
                   components['$<<'](self.$h($$('CorporateBuyShares')))
                 };
@@ -53632,7 +53644,7 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
                 components['$<<'](self.$h($$('SwapTrain')))
               } else if ($truthy(actions['$include?']("buy_corporation"))) {
                 
-                acting_entity = ($truthy(($ret_or_2 = ($ax = step, ($ax === nil || $ax == null) ? nil : $ax.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()));
+                acting_entity = ($truthy(($ret_or_2 = ($aw = step, ($aw === nil || $aw == null) ? nil : $aw.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()));
                 if ($truthy(self['$corporation_or_minor?'](acting_entity))) {
                   components['$<<'](self.$h($$('BuyCorporation')))
                 } else {
@@ -53644,22 +53656,22 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
                 };
               };
               if ((($truthy(actions['$include?']("scrap_train")) || ($truthy(actions['$include?']("surrender_train")))) || ($truthy(actions['$include?']("surrender"))))) {
-                components['$<<'](self.$render_surrender_trains(actions, step, ($ay = step, ($ay === nil || $ay == null) ? nil : $ay.$current_entity())))
+                components['$<<'](self.$render_surrender_trains(actions, step, ($ax = step, ($ax === nil || $ax == null) ? nil : $ax.$current_entity())))
               };
               if (($not(loans_rendered) && ($truthy(["take_loan", "payoff_loan"]['$&'](actions)['$any?']())))) {
-                components['$<<'](self.$render_loan_actions(step, ($truthy(($ret_or_2 = ($az = step, ($az === nil || $az == null) ? nil : $az.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions))
+                components['$<<'](self.$render_loan_actions(step, ($truthy(($ret_or_2 = ($ay = step, ($ay === nil || $ay == null) ? nil : $ay.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions))
               };
               if ($truthy(actions['$include?']("view_merge_options"))) {
-                components['$<<'](self.$h($$('ViewMergeOptions'), (new Map([["corporation", ($ba = step, ($ba === nil || $ba == null) ? nil : $ba.$current_entity())]]))))
+                components['$<<'](self.$h($$('ViewMergeOptions'), (new Map([["corporation", ($az = step, ($az === nil || $az == null) ? nil : $az.$current_entity())]]))))
               };
               if ($truthy(actions['$include?']("bankrupt"))) {
                 
-                entity = ($bb = step, ($bb === nil || $bb == null) ? nil : $bb.$current_entity());
-                player = ($truthy(($bc = entity, ($bc === nil || $bc == null) ? nil : $bc['$player?']())) ? (entity) : (($bd = entity, ($bd === nil || $bd == null) ? nil : $bd.$owner())));
+                entity = ($ba = step, ($ba === nil || $ba == null) ? nil : $ba.$current_entity());
+                player = ($truthy(($bb = entity, ($bb === nil || $bb == null) ? nil : $bb['$player?']())) ? (entity) : (($bc = entity, ($bc === nil || $bc == null) ? nil : $bc.$owner())));
                 show_bankrupt = false;
-                if (($truthy(($bf = step, ($bf === nil || $bf == null) ? nil : $bf['$respond_to?']("must_buy_train?"))) && ($truthy(($be = step, ($be === nil || $be == null) ? nil : $be['$must_buy_train?'](entity)))))) {
+                if (($truthy(($be = step, ($be === nil || $be == null) ? nil : $be['$respond_to?']("must_buy_train?"))) && ($truthy(($bd = step, ($bd === nil || $bd == null) ? nil : $bd['$must_buy_train?'](entity)))))) {
                   show_bankrupt = ($truthy(self.game['$respond_to?']("can_go_bankrupt?")) ? (self.game['$can_go_bankrupt?'](player, entity)) : (true))
-                } else if (((($truthy(self.game.$round()['$respond_to?']("stock?")) && ($truthy(self.game.$round()['$stock?']()))) && ($truthy(($bh = step, ($bh === nil || $bh == null) ? nil : $bh['$respond_to?']("must_sell?"))))) && ($truthy(($bg = step, ($bg === nil || $bg == null) ? nil : $bg['$must_sell?'](player)))))) {
+                } else if (((($truthy(self.game.$round()['$respond_to?']("stock?")) && ($truthy(self.game.$round()['$stock?']()))) && ($truthy(($bg = step, ($bg === nil || $bg == null) ? nil : $bg['$respond_to?']("must_sell?"))))) && ($truthy(($bf = step, ($bf === nil || $bf == null) ? nil : $bf['$must_sell?'](player)))))) {
                   show_bankrupt = true
                 };
                 if ($truthy(show_bankrupt)) {
@@ -53682,19 +53694,19 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
                   };
                 };
               };
-              can_buy_companies = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = actions['$include?']("buy_company"))) ? ($ret_or_3) : (($truthy(($ret_or_4 = step['$respond_to?']("buyable_companies"))) ? (($bi = step.$buyable_companies(($bj = step, ($bj === nil || $bj == null) ? nil : $bj.$current_entity())), ($bi === nil || $bi == null) ? nil : $bi['$any?']())) : ($ret_or_4)))))) ? ($ret_or_2) : (($truthy(($ret_or_3 = step['$respond_to?']("can_buy_company?"))) ? ($send(self.game.$companies(), 'any?', [], function $$135(c){var $bk;
+              can_buy_companies = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = actions['$include?']("buy_company"))) ? ($ret_or_3) : (($truthy(($ret_or_4 = step['$respond_to?']("buyable_companies"))) ? (($bh = step.$buyable_companies(($bi = step, ($bi === nil || $bi == null) ? nil : $bi.$current_entity())), ($bh === nil || $bh == null) ? nil : $bh['$any?']())) : ($ret_or_4)))))) ? ($ret_or_2) : (($truthy(($ret_or_3 = step['$respond_to?']("can_buy_company?"))) ? ($send(self.game.$companies(), 'any?', [], function $$135(c){var $bj;
 
                 
                 if (c == null) c = nil;
-                return step['$can_buy_company?'](($bk = step, ($bk === nil || $bk == null) ? nil : $bk.$current_entity()), c);})) : ($ret_or_3))));
+                return step['$can_buy_company?'](($bj = step, ($bj === nil || $bj == null) ? nil : $bj.$current_entity()), c);})) : ($ret_or_3))));
               if ($truthy(can_buy_companies)) {
-                components['$<<'](self.$render_buyable_companies(step, ($bk = step, ($bk === nil || $bk == null) ? nil : $bk.$current_entity())))
+                components['$<<'](self.$render_buyable_companies(step, ($bj = step, ($bj === nil || $bj == null) ? nil : $bj.$current_entity())))
               };
               if ($truthy(actions['$include?']("buy_train"))) {
-                components['$<<'](self.$render_buyable_trains(step, ($bl = step, ($bl === nil || $bl == null) ? nil : $bl.$current_entity())))
+                components['$<<'](self.$render_buyable_trains(step, ($bk = step, ($bk === nil || $bk == null) ? nil : $bk.$current_entity())))
               };
               if ($truthy(actions['$include?']("discard_train"))) {
-                components['$<<'](self.$render_discard_trains(step, ($bm = step, ($bm === nil || $bm == null) ? nil : $bm.$current_entity())))
+                components['$<<'](self.$render_discard_trains(step, ($bl = step, ($bl === nil || $bl == null) ? nil : $bl.$current_entity())))
               };
               if ($truthy(actions['$include?']("acquire_company"))) {
                 components['$<<'](self.$h($$('AcquireCompanies')))
@@ -53707,7 +53719,7 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
               };
               if ($truthy(components.$compact()['$empty?']())) {
                 
-                fallback_item = self.$render_generic_fallback(step, ($truthy(($ret_or_2 = ($bn = step, ($bn === nil || $bn == null) ? nil : $bn.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions);
+                fallback_item = self.$render_generic_fallback(step, ($truthy(($ret_or_2 = ($bm = step, ($bm === nil || $bm == null) ? nil : $bm.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions);
                 if ($truthy(fallback_item)) {
                   components['$<<'](fallback_item)
                 };
@@ -53717,7 +53729,7 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
           } else if ($eqeqeq($$$($$$($$('Engine'), 'Round'), 'Choices'), $ret_or_1)) {
             if ($truthy(actions['$include?']("choose"))) {
               
-              choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($bo = step, ($bo === nil || $bo == null) ? nil : $bo.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
+              choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($bn = step, ($bn === nil || $bn == null) ? nil : $bn.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
               if ($truthy(choice_item)) {
                 return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [choice_item])
               } else {
@@ -53729,13 +53741,13 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
           } else if (($eqeqeq($$$($$$($$('Engine'), 'Round'), 'Auction'), $ret_or_1) || ($eqeqeq($$$($$$($$('Engine'), 'Round'), 'Draft'), $ret_or_1)))) {
             return self.$h($$$($$$($$$($$('View'), 'Game'), 'Dashboard'), 'DraftOverlay'), (new Map([["game", self.game]])))
           } else if ($eqeqeq($$$($$$($$('Engine'), 'Round'), 'Merger'), $ret_or_1)) {
-            if ((($not(["buy_train", "scrap_train", "reassign_trains"]['$&'](actions)['$empty?']()) && ($truthy(self.game['$train_actions_always_use_operating_round_view?']()))) && ($not(($truthy(($ret_or_2 = ($bp = step, ($bp === nil || $bp == null) ? nil : $bp.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()))['$is_a?']($$$($$('Engine'), 'Bank')))))) {
+            if ((($not(["buy_train", "scrap_train", "reassign_trains"]['$&'](actions)['$empty?']()) && ($truthy(self.game['$train_actions_always_use_operating_round_view?']()))) && ($not(($truthy(($ret_or_2 = ($bo = step, ($bo === nil || $bo == null) ? nil : $bo.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()))['$is_a?']($$$($$('Engine'), 'Bank')))))) {
               return self.$h($$$($$('Round'), 'Operating'), (new Map([["game", self.game]])))
             } else if ($truthy(["merge", "convert", "buy_shares", "corporate_buy_shares", "take_loan", "payoff_loan"]['$&'](actions)['$any?']())) {
-              return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [self.$render_merger_step(step, ($truthy(($ret_or_2 = ($bq = step, ($bq === nil || $bq == null) ? nil : $bq.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions)].$compact())
+              return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [self.$render_merger_step(step, ($truthy(($ret_or_2 = ($bp = step, ($bp === nil || $bp == null) ? nil : $bp.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions)].$compact())
             } else if ($truthy(actions['$include?']("choose"))) {
               
-              choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($br = step, ($br === nil || $br == null) ? nil : $br.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
+              choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($bq = step, ($bq === nil || $bq == null) ? nil : $bq.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
               if ($truthy(choice_item)) {
                 return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [choice_item])
               } else {
@@ -53747,20 +53759,20 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
           } else if ($truthy(is_draft_or_auction)) {
             return self.$h($$$($$$($$$($$('View'), 'Game'), 'Dashboard'), 'DraftOverlay'), (new Map([["game", self.game]])))
           } else if ($truthy(actions['$include?']("assign"))) {
-            if ($truthy(($ret_or_2 = self.$render_assign_step(step, ($truthy(($ret_or_3 = ($bs = step, ($bs === nil || $bs == null) ? nil : $bs.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
+            if ($truthy(($ret_or_2 = self.$render_assign_step(step, ($truthy(($ret_or_3 = ($br = step, ($br === nil || $br == null) ? nil : $br.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
               return $ret_or_2
             } else {
               return self.$h("div")
             }
           } else if ($truthy(actions['$include?']("choose"))) {
             
-            choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($bt = step, ($bt === nil || $bt == null) ? nil : $bt.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
+            choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($bs = step, ($bs === nil || $bs == null) ? nil : $bs.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
             return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [choice_item].$compact());
           } else if ($truthy(self.game.$round()['$unordered?']())) {
             return self.$h($$$($$('Round'), 'Unordered'), (new Map([["game", self.game], ["user", nil]])))
           } else if ($truthy(self.game.$round()['$unordered?']())) {
             return self.$h($$$($$('Round'), 'Unordered'), (new Map([["game", self.game], ["user", nil]])))
-          } else if ($truthy(($ret_or_2 = self.$render_generic_fallback(step, ($truthy(($ret_or_3 = ($bu = step, ($bu === nil || $bu == null) ? nil : $bu.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
+          } else if ($truthy(($ret_or_2 = self.$render_generic_fallback(step, ($truthy(($ret_or_3 = ($bt = step, ($bt === nil || $bt == null) ? nil : $bt.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
             return $ret_or_2
           } else {
             return self.$h("div")
@@ -59515,7 +59527,7 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
         });
         
         $def(self, '$animate_last_action', function $$animate_last_action(action) {
-          var $a, $b, $c, $d, $e, $f, type = nil, $ret_or_1 = nil, entity_id = nil, ent = nil, corp_id = nil, shares = nil, $ret_or_2 = nil, $ret_or_3 = nil, c = nil, source = nil, dest = nil, train_id = nil, t = nil, company_id = nil;
+          var $a, $b, $c, $d, $e, $f, type = nil, $ret_or_1 = nil, entity_id = nil, ent = nil, corp_id = nil, shares = nil, $ret_or_2 = nil, $ret_or_3 = nil, c = nil, source = nil, dest = nil, train_id = nil, t = nil, escaped_train_id = nil, company_id = nil;
 
           
           if (!($truthy(action) && ($truthy((($b = $$('Lib', 'skip_raise')) && ($a = $$$($b, 'CardAnimation', 'skip_raise')) ? 'constant' : nil))))) {
@@ -59567,7 +59579,8 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
             case "buy_train":
               
               train_id = ($truthy(action['$is_a?']($$('Hash'))) ? (($truthy(($ret_or_2 = action['$[]']("train"))) ? ($ret_or_2) : (action['$[]']("train")))) : ($truthy(action['$respond_to?']("train")) ? (((t = action.$train()), ($truthy(t['$respond_to?']("name")) ? (t.$name()) : (t)))) : nil));
-              source = "#bank_train_" + (train_id) + ", [id^='bank_train_" + (train_id) + "'], #extra_cards .card-train, [id^='cmd_train_'], [id^='cmd_other_train_'], #extra_cards";
+              escaped_train_id = CSS.escape(train_id);
+              source = "#bank_train_" + (escaped_train_id) + ", [id^='bank_train_" + (escaped_train_id) + "'], #extra_cards .card-train, [id^='cmd_train_'], [id^='cmd_other_train_'], #extra_cards";
               dest = "#train_drop_" + (entity_id) + ", #trains_" + (entity_id) + ", #status_major_" + (entity_id) + ", #panel-ledger";
               return $$$($$('Lib'), 'CardAnimation').$fly(source, dest, (new Map([["hide_source", false]])));
             case "buy_company":
