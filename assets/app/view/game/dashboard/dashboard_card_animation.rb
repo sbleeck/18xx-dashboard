@@ -28,9 +28,13 @@ module Lib
         }
 
         if (!card) {
-          if (js_block) {
-            js_block.$call();
-          }
+if (
+  js_block &&
+  js_block !== Opal.nil &&
+  typeof js_block.$call === 'function'
+) {
+  js_block.$call();
+}
           return;
         }
 
@@ -82,9 +86,13 @@ module Lib
             }
 
             setTimeout(function() {
-              if (js_block) {
-                js_block.$call();
-              }
+if (
+  js_block &&
+  js_block !== Opal.nil &&
+  typeof js_block.$call === 'function'
+) {
+  js_block.$call();
+}
 
               setTimeout(function() {
                 clone.style.transition = 'opacity 0.25s ease-out';

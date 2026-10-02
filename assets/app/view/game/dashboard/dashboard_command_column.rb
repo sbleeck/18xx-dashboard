@@ -1936,59 +1936,189 @@ module View
 
         rows = []
 
-        can_issue = (entity_actions & %w[issue_shares reissue_shares reissue corporate_sell_shares sell_shares]).any?
+        can_issue = (
+          entity_actions &
+          %w[
+            issue_shares
+            reissue_shares
+            reissue
+            corporate_sell_shares
+            sell_shares
+          ]
+        ).any?
+
         if issuable_bundles.any? && can_issue
           issue_buttons = issuable_bundles.map do |raw_bundle|
-            bundle = raw_bundle.respond_to?(:to_bundle) && !raw_bundle.respond_to?(:num_shares) ? raw_bundle.to_bundle : raw_bundle
+            bundle =
+              if raw_bundle.respond_to?(:to_bundle) &&
+                 !raw_bundle.respond_to?(:num_shares)
+                raw_bundle.to_bundle
+              else
+                raw_bundle
+              end
 
-            num = if bundle.respond_to?(:num_shares)
-                    bundle.num_shares
-                  else
-                    (bundle.respond_to?(:shares) ? bundle.shares.size : 1)
-                  end
-            price = if bundle.respond_to?(:price)
-                      bundle.price
-                    elsif bundle.respond_to?(:share_price) && bundle.share_price
-                      bundle.share_price.price * num
-                    elsif entity.respond_to?(:share_price) && entity.share_price
-                      entity.share_price.price * num
-                    else
-                      0
-                    end
+            shares =
+              if bundle.respond_to?(:shares)
+                bundle.shares
+              else
+                [bundle]
+              end
 
-            pct_str = bundle.respond_to?(:percent) && bundle.percent ? "#{bundle.percent}%" : "#{num}S"
+            num =
+              if bundle.respond_to?(:num_shares)
+                bundle.num_shares
+              else
+                shares.size
+              end
+
+            price =
+              if bundle.respond_to?(:price)
+                bundle.price
+              elsif bundle.respond_to?(:share_price) && bundle.share_price
+                bundle.share_price.price * num
+              elsif entity.respond_to?(:share_price) && entity.share_price
+                entity.share_price.price * num
+              else
+                0
+              end
+
+            share_price =
+              if bundle.respond_to?(:share_price) && bundle.share_price
+                bundle.share_price
+              elsif entity.respond_to?(:share_price)
+                entity.share_price
+              end
+
+            percent =
+              (bundle.percent if bundle.respond_to?(:percent))
+
+            pct_str = percent ? "#{percent}%" : "#{num}S"
             price_str = @game.format_currency(price)
 
-            click_handler = lambda {
-              acting_entity = entity.respond_to?(:corporation?) && entity.corporation? ? entity : (@game.current_entity || current_entity)
-              all_actions = (actions_for(acting_entity) + actions_for(entity) + (step.respond_to?(:current_actions) ? (step.current_actions || []) : [])).uniq
+            wrapper_id = "cmd_issue_#{entity.id}_#{num}_#{percent || 'shares'}"
 
-              if all_actions.include?('reissue_shares') && defined?(Engine::Action::ReissueShares)
-                process_action(Engine::Action::ReissueShares.new(acting_entity, bundle: bundle))
-              elsif all_actions.include?('issue_shares') && defined?(Engine::Action::IssueShares)
-                process_action(Engine::Action::IssueShares.new(acting_entity, bundle: bundle))
-              elsif all_actions.include?('corporate_sell_shares') && defined?(Engine::Action::CorporateSellShares)
-                process_action(Engine::Action::CorporateSellShares.new(acting_entity, bundle: bundle))
+            click_handler = lambda do
+              acting_entity =
+                if entity.respond_to?(:corporation?) && entity.corporation?
+                  entity
+                else
+                  @game.current_entity || current_entity
+                end
+
+              all_actions = (
+                actions_for(acting_entity) +
+                actions_for(entity) +
+                (
+                  if step.respond_to?(:current_actions)
+                    step.current_actions || []
+                  else
+                    []
+                  end
+                )
+              ).uniq
+
+              action_kwargs = {
+                shares: shares,
+                share_price: share_price,
+                percent: percent,
+              }
+
+              if all_actions.include?('reissue_shares') &&
+                 defined?(Engine::Action::ReissueShares)
+                process_action(
+                  Engine::Action::ReissueShares.new(
+                    acting_entity,
+                    **action_kwargs
+                  )
+                )
+              elsif all_actions.include?('issue_shares') &&
+                    defined?(Engine::Action::IssueShares)
+                process_action(
+                  Engine::Action::IssueShares.new(
+                    acting_entity,
+                    **action_kwargs
+                  )
+                )
+              elsif all_actions.include?('corporate_sell_shares') &&
+                    defined?(Engine::Action::CorporateSellShares)
+                process_action(
+                  Engine::Action::CorporateSellShares.new(
+                    acting_entity,
+                    **action_kwargs
+                  )
+                )
               else
-                process_action(Engine::Action::SellShares.new(acting_entity, bundle: bundle))
+                process_action(
+                  Engine::Action::SellShares.new(
+                    acting_entity,
+                    **action_kwargs
+                  )
+                )
               end
-            }
+            end
 
-            card = render_railcard(pct_str, %w[game-card action-sell clickable], click_handler)
-            h(:div, { style: { display: 'inline-flex', alignItems: 'center', gap: '0.3rem', margin: '0 0.2rem' } }, [
-              card,
-              h(:span, { style: { fontFamily: FONT_MONEY, color: COLOR_MONEY, fontWeight: 'bold', fontSize: '0.85rem', whiteSpace: 'nowrap' } }, price_str),
-            ])
+            card = render_railcard(
+              pct_str,
+              %w[game-card action-sell clickable],
+              click_handler
+            )
+
+            h(
+              :div,
+              {
+                style: {
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  margin: '0 0.2rem',
+                },
+              },
+              [
+                card,
+                h(
+                  :span,
+                  {
+                    style: {
+                      fontFamily: FONT_MONEY,
+                      color: COLOR_MONEY,
+                      fontWeight: 'bold',
+                      fontSize: '0.85rem',
+                      whiteSpace: 'nowrap',
+                    },
+                  },
+                  price_str
+                ),
+              ]
+            )
           end
 
           corp_tag = @game.round.stock? ? " (#{entity.name})" : ''
           rows << render_action_row("Issue#{corp_tag}:", issue_buttons)
 
-        elsif (entity_actions & %w[issue_shares reissue_shares reissue]).any?
-
-          rows << render_action_row('Issue:', [
-            h(:span, { style: { color: '#888', fontStyle: 'italic', fontSize: '0.85rem' } }, 'No issuable shares available'),
-          ])
+        elsif (
+          entity_actions &
+          %w[
+            issue_shares
+            reissue_shares
+            reissue
+          ]
+        ).any?
+          rows << render_action_row(
+            'Issue:',
+            [
+              h(
+                :span,
+                {
+                  style: {
+                    color: '#888',
+                    fontStyle: 'italic',
+                    fontSize: '0.85rem',
+                  },
+                },
+                'No issuable shares available'
+              ),
+            ]
+          )
         end
 
         redeemable_bundles = begin
@@ -2832,8 +2962,7 @@ module View
               components << h(CashCrisis)
               loans_rendered = true if (%w[take_loan payoff_loan] & actions).any?
             elsif (actions.include?('buy_shares') || actions.include?('sell_shares')) &&
-corporation_or_minor?(step&.current_entity || current_entity)
-              components << render_issue_shares(step, step&.current_entity || current_entity)
+              corporation_or_minor?(step&.current_entity || current_entity)
 
               price_protection = begin
                 step.price_protection if step&.respond_to?(:price_protection)

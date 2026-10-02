@@ -196,7 +196,9 @@ module View
                        t = action.train
                        t.respond_to?(:name) ? t.name : t
                      end
-          source = "#bank_train_#{train_id}, [id^='bank_train_#{train_id}'], #extra_cards .card-train, [id^='cmd_train_'], [id^='cmd_other_train_'], #extra_cards"
+
+          escaped_train_id = `CSS.escape(#{train_id})`
+          source = "#bank_train_#{escaped_train_id}, [id^='bank_train_#{escaped_train_id}'], #extra_cards .card-train, [id^='cmd_train_'], [id^='cmd_other_train_'], #extra_cards"
           dest = "#train_drop_#{entity_id}, #trains_#{entity_id}, #status_major_#{entity_id}, #panel-ledger"
           Lib::CardAnimation.fly(source, dest, hide_source: false)
 
