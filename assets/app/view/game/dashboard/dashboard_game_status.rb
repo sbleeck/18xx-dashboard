@@ -1894,7 +1894,7 @@ h(:th, name_props, [major_card].compact),
         share_price = (bundle.respond_to?(:share_price) && bundle.share_price) || corporation.share_price
         percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
         action = if actions.include?('issue_shares') && defined?(Engine::Action::IssueShares)
-                   Engine::Action::IssueShares.new(corporation, bundle: bundle)
+                   Engine::Action::IssueShares.new(corporation, shares: shares)
                  elsif actions.include?('issue') && defined?(Engine::Action::Issue)
                    Engine::Action::Issue.new(corporation, bundle: bundle)
                  elsif actions.include?('reissue_shares') && defined?(Engine::Action::ReissueShares)
@@ -1904,7 +1904,12 @@ h(:th, name_props, [major_card].compact),
                  elsif actions.include?('corporate_sell_shares') && defined?(Engine::Action::CorporateSellShares)
                    Engine::Action::CorporateSellShares.new(corporation, bundle: bundle)
                  else
-                   Engine::Action::SellShares.new(corporation, bundle: bundle)
+                   Engine::Action::SellShares.new(
+                   corporation,
+                   shares: shares,
+                   share_price: share_price,
+                   percent: percent
+                 )
                  end
         if source_selector && target_selector
           Lib::CardAnimation.fly(source_selector, target_selector) { process_action(action) }
@@ -2004,31 +2009,64 @@ h(:th, name_props, [major_card].compact),
 
       def exec_sell_shares(source_selector, player, target_bundle, corporation_id)
         escaped_corp_id = `CSS.escape(#{corporation_id})`
-        Lib::CardAnimation.fly(source_selector, "#pool_shares_#{escaped_corp_id}") do
-          process_action(Engine::Action::SellShares.new(
-      player,
-      bundle: target_bundle[:bundle]
-    ))
+
+        bundle = target_bundle[:bundle]
+        shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
+
+        Lib::CardAnimation.fly(
+          source_selector,
+          "#pool_shares_#{escaped_corp_id}"
+        ) do
+          process_action(
+            Engine::Action::SellShares.new(
+              player,
+              shares: shares,
+              share_price: (
+                bundle.share_price if bundle.respond_to?(:share_price)
+              ),
+              percent: (
+                bundle.percent if bundle.respond_to?(:percent)
+              )
+            )
+          )
         end
       end
 
       def exec_buy_shares(source_selector, player, bnd, corporation_id)
         escaped_player_id = `CSS.escape(#{player.id})`
         escaped_corp_id = `CSS.escape(#{corporation_id})`
-        Lib::CardAnimation.fly(source_selector, "#player_shares_#{escaped_player_id}_#{escaped_corp_id}") do
-          process_action(Engine::Action::BuyShares.new(
-      player,
-      bundle: bnd
-    ))
+        shares = bnd.respond_to?(:shares) ? bnd.shares : [bnd]
+
+        Lib::CardAnimation.fly(
+          source_selector,
+          "#player_shares_#{escaped_player_id}_#{escaped_corp_id}"
+        ) do
+          process_action(
+            Engine::Action::BuyShares.new(
+              player,
+              shares: shares,
+              share_price: (bnd.share_price if bnd.respond_to?(:share_price)),
+              percent: (bnd.percent if bnd.respond_to?(:percent))
+            )
+          )
         end
       end
 
       def exec_buy_shares_simple(source_selector, player, bnd, corporation_id)
-        Lib::CardAnimation.fly(source_selector, "#player_shares_#{player.id}_#{corporation_id}") do
-          process_action(Engine::Action::BuyShares.new(
-      player,
-      bundle: bnd
-    ))
+        shares = bnd.respond_to?(:shares) ? bnd.shares : [bnd]
+
+        Lib::CardAnimation.fly(
+          source_selector,
+          "#player_shares_#{player.id}_#{corporation_id}"
+        ) do
+          process_action(
+            Engine::Action::BuyShares.new(
+              player,
+              shares: shares,
+              share_price: (bnd.share_price if bnd.respond_to?(:share_price)),
+              percent: (bnd.percent if bnd.respond_to?(:percent))
+            )
+          )
         end
       end
 
