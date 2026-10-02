@@ -121,72 +121,6 @@ module View
         ])
       end
 
-      def render_active_turn_card
-        entity = active_entity
-        player = active_player
-        return nil unless entity || player
-
-        entity_label = if entity&.respond_to?(:id) && entity.id
-                         entity.id.to_s
-                       elsif entity&.respond_to?(:name) && entity.name
-                         entity.name.to_s
-                       else
-                         ''
-                       end
-        player_label = if player&.respond_to?(:name) && player.name
-                         player.name.to_s
-                       elsif entity&.respond_to?(:name) && entity.name
-                         entity.name.to_s
-                       else
-                         'Current turn'
-                       end
-        entity_color = entity&.respond_to?(:color) && entity.color ? entity.color : '#334155'
-        entity_text_color = entity&.respond_to?(:text_color) && entity.text_color ? entity.text_color : '#ffffff'
-
-        h(:div, {
-            attrs: { class: 'active-turn-card', title: 'Current player and operating entity' },
-            style: {
-              flex: '0 0 13rem',
-              height: '100%',
-              minHeight: '4.75rem',
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-end',
-              alignItems: 'flex-start',
-              padding: '0.45rem 0.65rem',
-              backgroundColor: '#ffffff',
-              borderRight: '1px solid #cbd5e1',
-              overflow: 'hidden',
-            },
-          }, [
-          h(:div, { style: { fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.08em', color: '#64748b', lineHeight: '1', marginBottom: '0.3rem' } }, 'CURRENT TURN'),
-          h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '0', width: '100%' } }, [
-            h(:div, {
-                style: {
-                  width: '2.15rem',
-                  height: '2.15rem',
-                  minWidth: '2.15rem',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: entity_color,
-                  color: entity_text_color,
-                  border: '2px solid #0f172a',
-                  fontSize: '0.82rem',
-                  fontWeight: '900',
-                  boxSizing: 'border-box',
-                },
-              }, entity_label),
-            h(:div, { style: { minWidth: '0', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' } }, [
-              h(:div, { style: { fontSize: '1.05rem', fontWeight: '900', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.05' } }, player_label),
-              (h(:div, { style: { marginTop: '0.16rem', fontSize: '0.72rem', fontWeight: '700', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1' } }, "Operating #{entity_label}") unless entity_label.empty?),
-            ].compact),
-          ]),
-        ])
-      end
-
       def render_history_overlay
         val = Lib::Storage['cmd_history_overlay']
         is_open = [true, 'true'].include?(val) || @show_history_overlay == true
@@ -280,8 +214,83 @@ module View
         end
       end
 
+      def render_active_turn_card
+        entity = active_entity
+        player = active_player
+        return nil unless entity || player
 
-def render
+        entity_label = if entity&.respond_to?(:id) && entity.id
+                         entity.id.to_s
+                       elsif entity&.respond_to?(:name) && entity.name
+                         entity.name.to_s
+                       else
+                         ''
+                       end
+        player_label = if player&.respond_to?(:name) && player.name
+                         player.name.to_s
+                       elsif entity&.respond_to?(:name) && entity.name
+                         entity.name.to_s
+                       else
+                         'Current turn'
+                       end
+        entity_color = entity&.respond_to?(:color) && entity.color ? entity.color : '#334155'
+        entity_text_color = entity&.respond_to?(:text_color) && entity.text_color ? entity.text_color : '#ffffff'
+
+        is_hotseat = @game_data && @game_data[:mode] == :hotseat
+        is_my_turn = is_hotseat || (@user && @game.active_players_id.include?(@user.dig('id')))
+
+        card_bg = is_my_turn ? '#16a34a' : '#ffffff'
+        card_title_color = is_my_turn ? '#dcfce7' : '#64748b'
+        card_text_color = is_my_turn ? '#ffffff' : '#0f172a'
+        card_sub_color = is_my_turn ? '#f0fdf4' : '#475569'
+        turn_text = is_my_turn ? 'YOUR TURN' : 'WAITING ON OTHERS'
+
+        h(:div, {
+            attrs: { class: 'active-turn-card', title: 'Current player and operating entity' },
+            style: {
+              flex: '0 0 13rem',
+              height: '100%',
+              minHeight: '4.75rem',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              alignItems: 'flex-start',
+              padding: '0.45rem 0.65rem',
+              backgroundColor: card_bg,
+              transition: 'background-color 0.3s ease',
+              borderRight: '1px solid #cbd5e1',
+              overflow: 'hidden',
+            },
+          }, [
+          h(:div, { style: { fontSize: '0.68rem', fontWeight: '900', letterSpacing: '0.08em', color: card_title_color, lineHeight: '1', marginBottom: '0.3rem' } }, turn_text),
+          h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '0', width: '100%' } }, [
+            h(:div, {
+                style: {
+                  width: '2.15rem',
+                  height: '2.15rem',
+                  minWidth: '2.15rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: entity_color,
+                  color: entity_text_color,
+                  border: "2px solid #{is_my_turn ? '#ffffff' : '#0f172a'}",
+                  fontSize: '0.82rem',
+                  fontWeight: '900',
+                  boxSizing: 'border-box',
+                },
+              }, entity_label),
+            h(:div, { style: { minWidth: '0', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' } }, [
+              h(:div, { style: { fontSize: '1.05rem', fontWeight: '900', color: card_text_color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.05' } }, player_label),
+              (h(:div, { style: { marginTop: '0.16rem', fontSize: '0.72rem', fontWeight: '700', color: card_sub_color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1' } }, "Operating #{entity_label}") unless entity_label.empty?),
+            ].compact),
+          ]),
+        ])
+      end
+
+      def render
         if @game.respond_to?(:finished?) && @game.finished?
           return h(:div, {
                      style: { display: 'flex', flexDirection: 'row', width: '100vw', height: '100vh', padding: '0.5rem', boxSizing: 'border-box', backgroundColor: '#ffffff', gap: '0.75rem' },
@@ -320,6 +329,23 @@ def render
 
         game_storage_id = @game.respond_to?(:id) ? @game.id : 'default'
 
+        is_hotseat = @game_data && @game_data[:mode] == :hotseat
+        is_player = @user && @game.players.any? { |p| p.id.to_s == @user.dig('id').to_s }
+        is_my_turn = is_hotseat || (@user && @game.active_players_id.include?(@user.dig('id')))
+
+        frame_bg = '#ffffff'
+        frame_border = 'none'
+
+        if is_player && !is_hotseat
+          if is_my_turn
+            frame_bg = '#dcfce7'
+            frame_border = '4px solid #16a34a'
+          else
+            frame_bg = '#e2e8f0'
+            frame_border = '4px solid #64748b'
+          end
+        end
+
         h(:div, {
             hook: {
               insert: lambda {
@@ -327,8 +353,8 @@ def render
                         `document.body.style.overflow = 'hidden'`
                         `document.body.style.margin = '0'`
                         `document.body.style.padding = '0'`
-                        `document.body.style.backgroundColor = '#ffffff'`
-                        `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'hidden', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', height: '100vh', backgroundColor: '#ffffff' })`
+                        `document.body.style.backgroundColor = '#{frame_bg}'`
+                        `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'hidden', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', height: '100vh', backgroundColor: '#{frame_bg}', transition: 'background-color 0.3s ease' })`
                         `document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 50px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 50px)' })`
 
                         %x(window.init18xxResizers = function() {
@@ -742,7 +768,7 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
                          },
               destroy: lambda {
                          `document.body.style.backgroundColor = ''`
-                         `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '', backgroundColor: '' })`
+                         `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '', backgroundColor: '', transition: '' })`
                          `document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' })`
                        },
             },
@@ -761,97 +787,93 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
               left: '0',
               overflow: 'hidden',
               padding: '0.5rem 0.5rem 0 0.5rem',
-              backgroundColor: '#ffffff',
+              backgroundColor: frame_bg,
+              border: frame_border,
+              transition: 'background-color 0.3s ease, border 0.3s ease',
             },
           }, [
-          # COLUMN 1 (LEFT): COMMAND SPACE (TOP) + MAP CANVAS (BOTTOM)
           h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
-            # Command Row (Flexible height controlled by resizer)
             h(:div, { attrs: { id: 'command-space-top' }, style: { flex: '0 0 9rem', minHeight: '6.5rem', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' } }, [
               h(:div, { attrs: { id: 'command-scroll-viewport' }, style: { padding: '1.45rem 0.25rem 0.2rem', height: '100%', minHeight: '0', boxSizing: 'border-box', overflow: 'hidden' } }, [
                 h(View::Game::DashboardCommandColumn, game: @game),
               ]),
             ]),
 
-            # Horizontal Resizer between Command Space and Map
             h(:div, { attrs: { id: 'resizer-h-cmd-map' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
-            # Map Panel Box
-             h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px 4px 0 0', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
-               render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
-               h(:div, {
-                   attrs: { id: 'map-scroll-canvas' },
-                   style: {
-                     width: '100%',
-                     height: '100%',
-                     maxHeight: '100%',
-                     minHeight: '0',
-                     overflow: 'auto',
-                     overflowX: 'auto',
-                     overflowY: 'auto',
-                     position: 'relative',
-                     boxSizing: 'border-box',
-                   },
-                 }, [
-                 h(:div, { attrs: { class: 'map-sizer' }, 
+            h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px 4px 0 0', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
+              render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
+              h(:div, {
+                  attrs: { id: 'map-scroll-canvas' },
                   style: {
-                  position: 'relative',
-                  display: 'block',
-                  width: '100%',
-                  height: '100%',
-                  minWidth: '100%',
-                  minHeight: '100%'
-                  }
-                 }, [
-                   h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
-                     h(View::Game::DashboardMap, game: @game, user: @user),
-                   ]),
-                 ]),
-               ]),
-               h(:div, {
-                   attrs: { class: 'panel-manifest-control' },
-                   style: {
-                     position: 'absolute',
-                     top: '8px',
-                     right: '8px',
-                     zIndex: 30,
-                     display: 'flex',
-                   },
-                 }, [
-                 h(:button, {
-                     attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
-                     style: {
-                       backgroundColor: '#ffffff',
-                       color: '#1e293b',
-                       border: '1px solid #94a3b8',
-                       borderRadius: '4px',
-                       padding: '4px 9px',
-                       fontSize: '0.78rem',
-                       fontWeight: 'bold',
-                       cursor: 'pointer',
-                       boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                       display: 'inline-flex',
-                       alignItems: 'center',
-                       lineHeight: '1.2',
-                     },
-                     on: {
-                       click: lambda {
-                         Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
-                         update
-                       },
-                     },
-                   }, 'Show Remaining Tiles'),
-               ]),
-             ]),
+                    width: '100%',
+                    height: '100%',
+                    maxHeight: '100%',
+                    minHeight: '0',
+                    overflow: 'auto',
+                    overflowX: 'auto',
+                    overflowY: 'auto',
+                    position: 'relative',
+                    boxSizing: 'border-box',
+                  },
+                }, [
+                h(:div, {
+                    attrs: { class: 'map-sizer' },
+                    style: {
+                      position: 'relative',
+                      display: 'block',
+                      width: '100%',
+                      height: '100%',
+                      minWidth: '100%',
+                      minHeight: '100%',
+                    },
+                  }, [
+                  h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
+                    h(View::Game::DashboardMap, game: @game, user: @user),
+                  ]),
+                ]),
+              ]),
+              h(:div, {
+                  attrs: { class: 'panel-manifest-control' },
+                  style: {
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    zIndex: 30,
+                    display: 'flex',
+                  },
+                }, [
+                h(:button, {
+                    attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
+                    style: {
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
+                      border: '1px solid #94a3b8',
+                      borderRadius: '4px',
+                      padding: '4px 9px',
+                      fontSize: '0.78rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      lineHeight: '1.2',
+                    },
+                    on: {
+                      click: lambda {
+                        Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
+                        update
+                      },
+                    },
+                  }, 'Show Remaining Tiles'),
+              ]),
+            ]),
           ]),
 
-          # VERTICAL RESIZER
           h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
 
-          # COLUMN 2 (RIGHT): GLOBAL CONTROLS, TURN ORDER & DATA LEDGERS
           h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
 
-            # Entity Turn Tracker Hub
             h(:div, { attrs: { id: 'temporal-hub' }, style: { flex: '0 0 6.5rem', display: 'flex', flexDirection: 'row', alignItems: 'stretch', justifyContent: 'flex-start', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8f9fa', padding: '0', minHeight: '4.75rem', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden' } }, [
               h(:style, {}, '
                 /* The current player now lives in the turn-order canvas. */
@@ -894,20 +916,16 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
               ]),
             ].compact),
 
-            # Draggable boundary between Entity Order and Status
             h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
 
-            # Status Table & Cash / Trains Ledger
-                   h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
-              h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
-                h(View::Game::DashboardGameStatus, game: @game),
-              ]),
-            ]),
+            h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
+       h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
+         h(View::Game::DashboardGameStatus, game: @game),
+       ]),
+     ]),
 
-            # Horizontal Resizer
             h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
-            # Stock Market Grid
             h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
               render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
               h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
@@ -919,7 +937,6 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
           render_tile_manifest_overlay,
         ].compact)
       end
-
     end
   end
 end
