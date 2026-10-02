@@ -117,7 +117,7 @@ module View
                        ].compact.uniq
                      end
 
-        candidates.map do |candidate|
+        candidates.select { |candidate| corporation_or_minor?(candidate) }.map do |candidate|
           candidate_actions = actions_for(candidate)
           player_actions = p ? actions_for(p) : []
 
@@ -156,6 +156,15 @@ module View
         entity.is_a?(Engine::Company) ||
           (entity.respond_to?(:company?) && entity.company?) ||
           (!entity.respond_to?(:corporation?) && !entity.respond_to?(:minor?) && (entity.respond_to?(:value) || entity.respond_to?(:desc)))
+      end
+
+      def corporation_or_minor?(entity)
+        return false unless entity
+
+        (entity.respond_to?(:corporation?) && entity.corporation?) ||
+          (entity.respond_to?(:minor?) && entity.minor?) ||
+          (defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation)) ||
+          (defined?(Engine::Minor) && entity.is_a?(Engine::Minor))
       end
 
       def home_token_step?(step, actions)
@@ -643,7 +652,7 @@ module View
           ].compact)
         end
 
-        if phase == :run_routes
+        if !game_finished && phase == :run_routes
           if @cmd_router_running
             zone_2_content << h(:div, { style: { padding: '0.2rem', textAlign: 'center', color: '#666', fontStyle: 'italic', fontSize: '0.9rem' } }, '🔄 Computing optimal network tracks...')
           elsif show_manual_routes
@@ -748,7 +757,10 @@ module View
           ].compact)
         end
 
-        zone_2_content << render_ground_truth_actions(actions, step)
+        unless game_finished
+          ground_truth_actions = render_ground_truth_actions(actions, step)
+          zone_2_content << ground_truth_actions if ground_truth_actions
+        end
         zone_2 = h(:div, { style: { flex: '1 1 56%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', gap: '0.25rem', padding: '0.25rem 0.5rem', borderRight: '1px solid #ccc', boxSizing: 'border-box', overflowY: 'auto' } }, zone_2_content.compact)
 
         advance_text = 'Pass'
@@ -818,7 +830,7 @@ module View
           end
         end
 
-        has_abilities = !actions.include?('choose') && entity && (@game.companies || []).any? do |c|
+        has_abilities = !game_finished && !actions.include?('choose') && entity && (@game.companies || []).any? do |c|
           next false if c.respond_to?(:closed?) && c.closed?
 
           is_owner = c.owner == entity || (entity.respond_to?(:owner) && c.owner && c.owner == entity.owner)
@@ -2654,7 +2666,7 @@ module View
                            step.parring
                          elsif step&.respond_to?(:corporations) && step.corporations&.one?
                            step.corporations.first
-                         elsif (step&.current_entity || current_entity)&.corporation?
+                         elsif corporation_or_minor?(step&.current_entity || current_entity)
                            step&.current_entity || current_entity
                          end
 
@@ -2799,25 +2811,57 @@ module View
               components << h(CashCrisis)
               loans_rendered = true if (%w[take_loan payoff_loan] & actions).any?
             elsif (actions.include?('buy_shares') || actions.include?('sell_shares')) &&
-                  (step&.current_entity || current_entity)&.corporation?
+corporation_or_minor?(step&.current_entity || current_entity)
               components << render_issue_shares(step, step&.current_entity || current_entity)
-            elsif actions.include?('buy_shares') || actions.include?('sell_shares') || actions.include?('par')
-              if step&.respond_to?(:price_protection) && (price_protection = step.price_protection)
 
-                components << h(Corporation, corporation: price_protection.corporation)
-                components << h(BuySellShares, corporation: price_protection.corporation)
+              price_protection = begin
+                step.price_protection if step&.respond_to?(:price_protection)
+              rescue StandardError
+                nil
+              end
+
+              price_protection_corporation =
+                if price_protection&.respond_to?(:corporation)
+                  price_protection.corporation
+                elsif corporation_or_minor?(price_protection)
+                  price_protection
+                end
+
+              if price_protection_corporation
+                components << h(
+                  Corporation,
+                  corporation: price_protection_corporation
+                )
+
+                components << h(
+                  BuySellShares,
+                  corporation: price_protection_corporation
+                )
+
               elsif @game.corporations_can_ipo?
                 components << h(CorporateBuySellShares)
               elsif (%w[issue_shares reissue_shares reissue redeem redeem_shares] & actions).none?
                 components << render_issue_shares(step, step&.current_entity || current_entity)
               end
-              components << h(CorporateBuyShares) if actions.include?('buy_shares') && !actions.include?('run_routes')
+              acting_entity = step&.current_entity || current_entity
+
+              if actions.include?('buy_shares') &&
+              !actions.include?('run_routes') &&
+              corporation_or_minor?(acting_entity)
+                components << h(CorporateBuyShares)
+              end
             elsif actions.include?('corporate_sell_shares')
               components << h(CorporateSellShares)
             elsif actions.include?('swap_train')
               components << h(SwapTrain)
             elsif actions.include?('buy_corporation')
-              components << h(BuyCorporation)
+              acting_entity = step&.current_entity || current_entity
+              if corporation_or_minor?(acting_entity)
+                components << h(BuyCorporation)
+              else
+                fallback_item = render_generic_fallback(step, acting_entity, actions)
+                components << fallback_item if fallback_item
+              end
             end
 
             if actions.include?('scrap_train') || actions.include?('surrender_train') || actions.include?('surrender')

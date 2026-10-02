@@ -204,46 +204,6 @@ module View
           render_company_tooltip('Private Company', c.name, desc_text, value_str, revenue_str, owner_name, target_hexes, price_str)
         end
 
-        def render_corp_tooltip(corporation)
-          return nil unless corporation
-
-          target_hexes = resolve_target_hexes(corporation)
-
-          h(:div, {
-              attrs: {
-                class: 'status-corp-tooltip cmd-corp-tooltip',
-                'data-hexes': target_hexes.join(','),
-              },
-              style: {
-                display: 'none',
-              },
-            }, [
-              h(Corporation,
-                corporation: corporation,
-                game: @game,
-                display: 'block',
-                selectable: false,
-                interactive: false),
-            ])
-        end
-
-        def build_entity_tooltip(entity, price: nil)
-          return nil unless entity
-
-          if (entity.respond_to?(:company?) && entity.company?) ||
-             (defined?(Engine::Company) && entity.is_a?(Engine::Company)) ||
-             (!entity.respond_to?(:corporation?) && !entity.respond_to?(:minor?) &&
-              !(defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation)) &&
-              !(defined?(Engine::Minor) && entity.is_a?(Engine::Minor)))
-            build_company_tooltip(entity, price: price)
-          elsif (entity.respond_to?(:corporation?) && entity.corporation?) ||
-                (entity.respond_to?(:minor?) && entity.minor?) ||
-                (defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation)) ||
-                (defined?(Engine::Minor) && entity.is_a?(Engine::Minor))
-            render_corp_tooltip(entity)
-          end
-        end
-
         def render_price_dialog(title, storage_key, min_price, max_price, on_confirm, on_cancel)
           stored = Lib::Storage[storage_key]
           val_i = stored ? stored.to_i : min_price
@@ -442,27 +402,88 @@ module View
           is_corporation && !is_minor
         end
 
+        def build_entity_tooltip(entity, price: nil)
+          return nil unless entity
+
+          is_company =
+            (entity.respond_to?(:company?) && entity.company?) ||
+            (defined?(Engine::Company) && entity.is_a?(Engine::Company))
+
+          is_corporation =
+            (entity.respond_to?(:corporation?) && entity.corporation?) ||
+            (defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation))
+
+          is_minor =
+            (entity.respond_to?(:minor?) && entity.minor?) ||
+            (defined?(Engine::Minor) && entity.is_a?(Engine::Minor))
+
+          if is_company
+            build_company_tooltip(entity, price: price)
+          elsif is_corporation || is_minor
+            render_corp_tooltip(entity)
+          else
+            nil
+          end
+        end
+
+        def render_corp_tooltip(entity)
+          return nil unless entity
+
+          is_corporation =
+            (entity.respond_to?(:corporation?) && entity.corporation?) ||
+            (defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation))
+
+          is_minor =
+            (entity.respond_to?(:minor?) && entity.minor?) ||
+            (defined?(Engine::Minor) && entity.is_a?(Engine::Minor))
+
+          return nil unless is_corporation || is_minor
+
+          target_hexes = resolve_target_hexes(entity)
+
+          h(:div, {
+              attrs: {
+                class: 'status-corp-tooltip cmd-corp-tooltip',
+                'data-hexes': target_hexes.join(','),
+              },
+              style: {
+                display: 'none',
+              },
+            }, [
+              h(Corporation,
+                corporation: entity,
+                game: @game,
+                display: 'block',
+                selectable: false,
+                interactive: false),
+            ])
+        end
+
         def render_major_railcard(corporation, click_handler = nil, card_classes = ['major-railcard'], wrapper_id = nil)
-          return nil unless corporation
+          return nil unless major_corporation?(corporation)
 
           classes = Array(card_classes).compact.map(&:to_s)
           classes << 'major-railcard' unless classes.include?('major-railcard')
           classes << 'clickable' if click_handler && !classes.include?('clickable')
 
           tooltip = render_corp_tooltip(corporation)
+
           text = if corporation.respond_to?(:sym) && corporation.sym && !corporation.sym.to_s.empty?
                    corporation.sym.to_s
                  else
                    corporation.id.to_s
                  end
+
           bg_color = corporation.respond_to?(:color) && corporation.color ? corporation.color : '#4169e1'
           text_color = corporation.respond_to?(:text_color) && corporation.text_color ? corporation.text_color : '#ffffff'
           is_buy = classes.include?('action-buy')
           is_sell = classes.include?('action-sell')
           edge_color = if is_buy
                          '#16a34a'
+                       elsif is_sell
+                         '#dc2626'
                        else
-                         (is_sell ? '#dc2626' : '#333333')
+                         '#333333'
                        end
 
           card_props = {
@@ -493,6 +514,7 @@ module View
               whiteSpace: 'nowrap',
             },
           }
+
           card_props[:on] = { click: click_handler } if click_handler
 
           wrapper_attrs = {
