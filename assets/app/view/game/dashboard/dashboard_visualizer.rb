@@ -352,12 +352,63 @@ module View
             hook: {
               insert: lambda {
                         Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
+                        # Reset window scroll to origin so hard reloads do not clip the top navbar
+                        `window.scrollTo(0, 0)`
                         `document.body.style.overflow = 'hidden'`
                         `document.body.style.margin = '0'`
                         `document.body.style.padding = '0'`
                         `document.body.style.backgroundColor = '#{frame_bg}'`
                         `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'hidden', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', height: '100vh', backgroundColor: '#{frame_bg}', transition: 'background-color 0.3s ease' })`
-                        `document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 50px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 50px)' })`
+                        # Make #game a flex column hosting the menu bar and dashboard in natural flow
+                        `document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 36px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 36px)' })`
+
+                        %x(
+                          var menuStyleTag = document.getElementById('dashboard-menu-overrides');
+                          if (!menuStyleTag) {
+                            menuStyleTag = document.createElement('style');
+                            menuStyleTag.id = 'dashboard-menu-overrides';
+                            document.head.appendChild(menuStyleTag);
+                          }
+                          /* Target #game > div:first-child directly instead of unattached #menu */
+                          menuStyleTag.innerHTML = '' +
+                            '#app > div:first-child, nav, #nav { margin-bottom: 0 !important; flex: 0 0 auto !important; } ' +
+                            '#game > div:first-child { ' +
+                            '  height: 26px !important; ' +
+                            '  min-height: 26px !important; ' +
+                            '  max-height: 26px !important; ' +
+                            '  line-height: 26px !important; ' +
+                            '  margin: 0 !important; ' +
+                            '  padding: 0 0.5rem !important; ' +
+                            '  display: flex !important; ' +
+                            '  flex-direction: row !important; ' +
+                            '  align-items: center !important; ' +
+                            '  gap: 0.15rem !important; ' +
+                            '  flex: 0 0 26px !important; ' +
+                            '  box-sizing: border-box !important; ' +
+                            '  overflow-x: auto !important; ' +
+                            '  overflow-y: hidden !important; ' +
+                            '  border: none !important; ' +
+                            '} ' +
+                            '#game > div:first-child a, #game > div:first-child span { ' +
+                            '  font-size: 0.78rem !important; ' +
+                            '  font-weight: 500 !important; ' +
+                            '  line-height: 26px !important; ' +
+                            '  padding: 0 0.45rem !important; ' +
+                            '  color: #1a1a1a !important; ' +
+                            '  text-decoration: none !important; ' +
+                            '  display: inline-flex !important; ' +
+                            '  align-items: center !important; ' +
+                            '  border-radius: 3px !important; ' +
+                            '  transition: background-color 0.15s ease !important; ' +
+                            '} ' +
+                            '#game > div:first-child a:hover { background-color: rgba(0, 0, 0, 0.12) !important; } ' +
+                            '#game > div:first-child a.active, #game > div:first-child .active { ' +
+                            '  font-weight: 700 !important; ' +
+                            '  background-color: rgba(0, 0, 0, 0.18) !important; ' +
+                            '  box-shadow: inset 0 -2px 0 0 #000000 !important; ' +
+                            '} ' +
+                            '#game > div:first-child a u, #game > div:first-child span u { text-decoration: underline !important; }';
+                        )
 
                         %x(window.init18xxResizers = function() {
                           var savedResizers = {};
@@ -450,7 +501,7 @@ module View
                             wrapper.style.left = offset.x + 'px';
                             wrapper.style.top = offset.y + 'px';
 
-if (panelId === 'map-panel-bot') {
+                            if (panelId === 'map-panel-bot') {
                               var sizer = panel.querySelector('.map-sizer');
                               var uZoom = (window.scalerUserZoom && window.scalerUserZoom[panelId]) || 1.0;
                               var baseScale = (window.scalerScales && window.scalerScales[panelId]) || 1.0;
@@ -593,7 +644,7 @@ if (panelId === 'map-panel-bot') {
                             styleTag.id = 'dashboard-map-svg-styles';
                             document.head.appendChild(styleTag);
                           }
-styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
+                          styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
                                                '.scaler-content .tile__text { font-size: 0.75em !important; } ' +
                                                '.scaler-content text.number { font-size: 0.55em !important; } ' +
                                                '@keyframes map-hex-pulse { ' +
@@ -754,7 +805,7 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
                             }
                           });
 
-                            ['map-panel-bot', 'panel-market'].forEach(function(id) {
+                          ['map-panel-bot', 'panel-market'].forEach(function(id) {
                             var el = document.getElementById(id);
                             if (el) fitObserver.observe(el);
                           });
@@ -769,6 +820,10 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
                            Lib::Storage["viz_last_act_#{game_storage_id}"] = curr_id
                          },
               destroy: lambda {
+                         %x(
+                           var menuStyle = document.getElementById('dashboard-menu-overrides');
+                           if (menuStyle) menuStyle.remove();
+                         )
                          `document.body.style.backgroundColor = ''`
                          `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '', backgroundColor: '', transition: '' })`
                          `document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' })`
@@ -776,167 +831,167 @@ styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
             },
             attrs: { id: 'viz-master-frame' },
             style: {
+              # Changed to standard flex row item directly under the menu inside #game
               display: 'flex',
               flexDirection: 'row',
+              flex: '1 1 auto',
               width: '100vw',
-              height: 'auto',
-              maxHeight: 'none',
+              height: 'calc(100% - 26px)',
+              minHeight: '0',
               boxSizing: 'border-box',
-              position: 'fixed',
-              top: '50px',
-              right: '0',
-              bottom: '0',
-              left: '0',
+              position: 'relative',
               overflow: 'hidden',
-              padding: '0.5rem 0.5rem 0 0.5rem',
+              padding: '0.4rem 0.5rem 0.5rem 0.5rem',
               backgroundColor: frame_bg,
               border: frame_border,
+              borderTop: 'none',
+
               transition: 'background-color 0.3s ease, border 0.3s ease',
             },
           }, [
-          h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
-            h(:div, { attrs: { id: 'command-space-top' }, style: { flex: '0 0 9rem', minHeight: '6.5rem', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' } }, [
-              h(:div, { attrs: { id: 'command-scroll-viewport' }, style: { padding: '1.45rem 0.25rem 0.2rem', height: '100%', minHeight: '0', boxSizing: 'border-box', overflow: 'hidden' } }, [
-                h(View::Game::DashboardCommandColumn, game: @game),
-              ]),
-            ]),
-
-            h(:div, { attrs: { id: 'resizer-h-cmd-map' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
-
-            h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px 4px 0 0', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
-              render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
-              h(:div, {
-                  attrs: { id: 'map-scroll-canvas' },
-                  style: {
-                    width: '100%',
-                    height: '100%',
-                    maxHeight: '100%',
-                    minHeight: '0',
-                    overflow: 'auto',
-                    overflowX: 'auto',
-                    overflowY: 'auto',
-                    position: 'relative',
-                    boxSizing: 'border-box',
-                  },
-                }, [
-                h(:div, {
-                    attrs: { class: 'map-sizer' },
-                    style: {
-                      position: 'relative',
-                      display: 'block',
-                      width: '100%',
-                      height: '100%',
-                      minWidth: '100%',
-                      minHeight: '100%',
-                    },
-                  }, [
-                  h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
-                    h(View::Game::DashboardMap, game: @game, user: @user),
-                  ]),
+            h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
+              h(:div, { attrs: { id: 'command-space-top' }, style: { flex: '0 0 9rem', minHeight: '6.5rem', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' } }, [
+                h(:div, { attrs: { id: 'command-scroll-viewport' }, style: { padding: '1.45rem 0.25rem 0.2rem', height: '100%', minHeight: '0', boxSizing: 'border-box', overflow: 'hidden' } }, [
+                  h(View::Game::DashboardCommandColumn, game: @game),
                 ]),
               ]),
-              h(:div, {
-                  attrs: { class: 'panel-manifest-control' },
-                  style: {
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
-                    zIndex: 30,
-                    display: 'flex',
-                  },
-                }, [
-                h(:button, {
-                    attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
+
+              h(:div, { attrs: { id: 'resizer-h-cmd-map' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
+
+              h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px 4px 0 0', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
+                render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
+                h(:div, {
+                    attrs: { id: 'map-scroll-canvas' },
                     style: {
-                      backgroundColor: '#ffffff',
-                      color: '#1e293b',
-                      border: '1px solid #94a3b8',
-                      borderRadius: '4px',
-                      padding: '4px 9px',
-                      fontSize: '0.78rem',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      lineHeight: '1.2',
+                      width: '100%',
+                      height: '100%',
+                      maxHeight: '100%',
+                      minHeight: '0',
+                      overflow: 'auto',
+                      overflowX: 'auto',
+                      overflowY: 'auto',
+                      position: 'relative',
+                      boxSizing: 'border-box',
                     },
-                    on: {
-                      click: lambda {
-                        Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
-                        update
+                  }, [
+                  h(:div, {
+                      attrs: { class: 'map-sizer' },
+                      style: {
+                        position: 'relative',
+                        display: 'block',
+                        width: '100%',
+                        height: '100%',
+                        minWidth: '100%',
+                        minHeight: '100%',
                       },
+                    }, [
+                    h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
+                      h(View::Game::DashboardMap, game: @game, user: @user),
+                    ]),
+                  ]),
+                ]),
+                h(:div, {
+                    attrs: { class: 'panel-manifest-control' },
+                    style: {
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      zIndex: 30,
+                      display: 'flex',
                     },
-                  }, 'Show Remaining Tiles'),
+                  }, [
+                  h(:button, {
+                      attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
+                      style: {
+                        backgroundColor: '#ffffff',
+                        color: '#1e293b',
+                        border: '1px solid #94a3b8',
+                        borderRadius: '4px',
+                        padding: '4px 9px',
+                        fontSize: '0.78rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        lineHeight: '1.2',
+                      },
+                      on: {
+                        click: lambda {
+                          Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
+                          update
+                        },
+                      },
+                    }, 'Show Remaining Tiles'),
+                ]),
               ]),
             ]),
-          ]),
 
-          h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
+            h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
 
-          h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
+            h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
 
-            h(:div, { attrs: { id: 'temporal-hub' }, style: { flex: '0 0 6.5rem', display: 'flex', flexDirection: 'row', alignItems: 'stretch', justifyContent: 'flex-start', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8f9fa', padding: '0', minHeight: '4.75rem', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden' } }, [
-              h(:style, {}, '
-                /* The current player now lives in the turn-order canvas. */
-                #command-space-top > div > div > div:first-child {
-                  display: none !important;
-                }
-                #command-space-top > div > div > div:nth-child(2) {
-                  flex: 1 1 auto !important;
-                  min-width: 0 !important;
-                  border-left: none !important;
-                }
-                #command-space-top > div > div > div:nth-child(3) {
-                  flex: 0 0 28% !important;
-                  min-width: 15.5rem !important;
-                  max-width: none !important;
-                  box-sizing: border-box !important;
-                  overflow: visible !important;
-                }
-              '),
-              render_active_turn_card,
-              h(:div, { attrs: { class: 'entity-order-content' }, style: { flex: '1 1 auto', minWidth: '0', height: '100%', position: 'relative', overflowX: 'auto', overflowY: 'hidden' } }, [
+              h(:div, { attrs: { id: 'temporal-hub' }, style: { flex: '0 0 6.5rem', display: 'flex', flexDirection: 'row', alignItems: 'stretch', justifyContent: 'flex-start', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8f9fa', padding: '0', minHeight: '4.75rem', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden' } }, [
                 h(:style, {}, '
-                  #temporal-hub .entity-order-content > div {
-                    position: absolute !important;
-                    left: 0 !important;
-                    right: auto !important;
-                    bottom: 0.45rem !important;
-                    top: auto !important;
-                    width: max-content !important;
-                    height: auto !important;
-                    min-height: 0 !important;
-                    margin: 0 !important;
+                  /* The current player now lives in the turn-order canvas. */
+                  #command-space-top > div > div > div:first-child {
+                    display: none !important;
+                  }
+                  #command-space-top > div > div > div:nth-child(2) {
+                    flex: 1 1 auto !important;
+                    min-width: 0 !important;
+                    border-left: none !important;
+                  }
+                  #command-space-top > div > div > div:nth-child(3) {
+                    flex: 0 0 28% !important;
+                    min-width: 15.5rem !important;
+                    max-width: none !important;
+                    box-sizing: border-box !important;
+                    overflow: visible !important;
                   }
                 '),
-                if @game.respond_to?(:finished?) && @game.finished?
-                  h(View::Game::DashboardEntityOrder, round: nil)
-                else
-                  h(View::Game::DashboardEntityOrder, round: @game.round)
-                end,
+                render_active_turn_card,
+                h(:div, { attrs: { class: 'entity-order-content' }, style: { flex: '1 1 auto', minWidth: '0', height: '100%', position: 'relative', overflowX: 'auto', overflowY: 'hidden' } }, [
+                  h(:style, {}, '
+                    #temporal-hub .entity-order-content > div {
+                      position: absolute !important;
+                      left: 0 !important;
+                      right: auto !important;
+                      bottom: 0.45rem !important;
+                      top: auto !important;
+                      width: max-content !important;
+                      height: auto !important;
+                      min-height: 0 !important;
+                      margin: 0 !important;
+                    }
+                  '),
+                  if @game.respond_to?(:finished?) && @game.finished?
+                    h(View::Game::DashboardEntityOrder, round: nil)
+                  else
+                    h(View::Game::DashboardEntityOrder, round: @game.round)
+                  end,
+                ]),
+              ].compact),
+
+              h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
+
+              h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
+                h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
+                  h(View::Game::DashboardGameStatus, game: @game),
+                ]),
               ]),
-            ].compact),
 
-            h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
+              h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
-            h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
-       h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
-         h(View::Game::DashboardGameStatus, game: @game),
-       ]),
-     ]),
-
-            h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
-
-            h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
-              render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
-              h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
-                h(View::Game::DashboardStockMarket, game: @game),
+              h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
+                render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
+                h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
+                  h(View::Game::DashboardStockMarket, game: @game),
+                ]),
               ]),
             ]),
-          ]),
-          render_par_overlay,
-          render_tile_manifest_overlay,
+            render_par_overlay,
+            render_tile_manifest_overlay,
         ].compact)
       end
     end
