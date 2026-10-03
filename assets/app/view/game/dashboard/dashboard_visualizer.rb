@@ -39,15 +39,32 @@ module View
 
       def active_player
         entity = active_entity
-        return nil unless entity
-
-        if entity.player?
-          entity
-        elsif entity.respond_to?(:player) && entity.player
-          entity.player
-        else
-          entity.owner
+        if entity
+          return entity if entity.player?
+          return entity.player if entity.respond_to?(:player) && entity.player
+          return entity.owner if entity.respond_to?(:owner) && entity.owner
         end
+
+        step = begin
+          @game.round.active_step
+        rescue StandardError
+          nil
+        end
+        if step&.respond_to?(:active_entities)
+          act_ent = step.active_entities&.first
+          if act_ent
+            return act_ent if act_ent.player?
+            return act_ent.player if act_ent.respond_to?(:player) && act_ent.player
+            return act_ent.owner if act_ent.respond_to?(:owner) && act_ent.owner
+          end
+        end
+
+        if @game.respond_to?(:active_players_id) && @game.active_players_id&.any?
+          active_id = @game.active_players_id.first
+          return @game.players.find { |p| p.id.to_s == active_id.to_s }
+        end
+
+        nil
       end
 
       def render_par_overlay
@@ -217,79 +234,68 @@ module View
       end
 
       def render_active_turn_card
-        entity = active_entity
         player = active_player
-        return nil unless entity || player
-
-        entity_label = if entity&.respond_to?(:id) && entity.id
-                         entity.id.to_s
-                       elsif entity&.respond_to?(:name) && entity.name
-                         entity.name.to_s
+        player_label = if player&.respond_to?(:name) && player.name
+                         player.name.to_s
+                       elsif player&.respond_to?(:id) && player.id
+                         player.id.to_s
                        else
                          ''
                        end
-        player_label = if player&.respond_to?(:name) && player.name
-                         player.name.to_s
-                       elsif entity&.respond_to?(:name) && entity.name
-                         entity.name.to_s
-                       else
-                         'Current turn'
-                       end
-        entity_color = entity&.respond_to?(:color) && entity.color ? entity.color : '#334155'
-        entity_text_color = entity&.respond_to?(:text_color) && entity.text_color ? entity.text_color : '#ffffff'
+
+        if player_label.empty?
+          entity = active_entity
+          if entity&.respond_to?(:player) && entity.player&.name
+            player_label = entity.player.name.to_s
+          elsif entity&.respond_to?(:owner) && entity.owner&.name
+            player_label = entity.owner.name.to_s
+          elsif entity&.respond_to?(:name) && entity.name
+            player_label = entity.name.to_s
+          end
+        end
+
+        return nil if player_label.empty?
 
         is_hotseat = @game_data && @game_data[:mode] == :hotseat
-        is_my_turn = is_hotseat || (@user && @game.active_players_id.include?(@user.dig('id')))
+        user_id = @user&.dig('id') || @user&.dig(:id)
+        is_my_turn = is_hotseat || (user_id && @game.respond_to?(:active_players_id) && @game.active_players_id&.map(&:to_s)&.include?(user_id.to_s))
 
         card_bg = is_my_turn ? '#16a34a' : '#ffffff'
-        card_title_color = is_my_turn ? '#dcfce7' : '#64748b'
         card_text_color = is_my_turn ? '#ffffff' : '#0f172a'
-        card_sub_color = is_my_turn ? '#f0fdf4' : '#475569'
-        turn_text = is_my_turn ? 'YOUR TURN' : 'WAITING ON OTHERS'
+        card_border = is_my_turn ? '1px solid #15803d' : '1px solid #cbd5e1'
 
         h(:div, {
-            attrs: { class: 'active-turn-card', title: 'Current player and operating entity' },
-            style: {
-              flex: '0 0 13rem',
-              height: '100%',
-              minHeight: '4.75rem',
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-end',
-              alignItems: 'flex-start',
-              padding: '0.45rem 0.65rem',
-              backgroundColor: card_bg,
-              transition: 'background-color 0.3s ease',
-              borderRight: '1px solid #cbd5e1',
-              overflow: 'hidden',
+            attrs: {
+              class: 'active-turn-card',
+              title: is_my_turn ? "Your turn (#{player_label})" : "Waiting on #{player_label}",
             },
-          }, [
-          h(:div, { style: { fontSize: '0.68rem', fontWeight: '900', letterSpacing: '0.08em', color: card_title_color, lineHeight: '1', marginBottom: '0.3rem' } }, turn_text),
-          h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '0', width: '100%' } }, [
-            h(:div, {
-                style: {
-                  width: '2.15rem',
-                  height: '2.15rem',
-                  minWidth: '2.15rem',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: entity_color,
-                  color: entity_text_color,
-                  border: "2px solid #{is_my_turn ? '#ffffff' : '#0f172a'}",
-                  fontSize: '0.82rem',
-                  fontWeight: '900',
-                  boxSizing: 'border-box',
-                },
-              }, entity_label),
-            h(:div, { style: { minWidth: '0', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' } }, [
-              h(:div, { style: { fontSize: '1.05rem', fontWeight: '900', color: card_text_color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.05' } }, player_label),
-              (h(:div, { style: { marginTop: '0.16rem', fontSize: '0.72rem', fontWeight: '700', color: card_sub_color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1' } }, "Operating #{entity_label}") unless entity_label.empty?),
-            ].compact),
-          ]),
-        ])
+            style: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 auto',
+              alignSelf: 'center',
+              height: '2.5rem',
+              minHeight: '2.5rem',
+              maxHeight: '2.5rem',
+              padding: '0 0.85rem',
+              borderRadius: '4px',
+              backgroundColor: card_bg,
+              color: card_text_color,
+              border: card_border,
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+              letterSpacing: '0.5px',
+              lineHeight: '1',
+              boxSizing: 'border-box',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              transition: 'background-color 0.2s ease, color 0.2s ease',
+              flexShrink: '0',
+            },
+          }, player_label)
       end
 
       def render
@@ -831,7 +837,6 @@ module View
             },
             attrs: { id: 'viz-master-frame' },
             style: {
-              # Changed to standard flex row item directly under the menu inside #game
               display: 'flex',
               flexDirection: 'row',
               flex: '1 1 auto',
@@ -845,7 +850,6 @@ module View
               backgroundColor: frame_bg,
               border: frame_border,
               borderTop: 'none',
-
               transition: 'background-color 0.3s ease, border 0.3s ease',
             },
           }, [
@@ -931,7 +935,25 @@ module View
 
             h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
 
-              h(:div, { attrs: { id: 'temporal-hub' }, style: { flex: '0 0 6.5rem', display: 'flex', flexDirection: 'row', alignItems: 'stretch', justifyContent: 'flex-start', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8f9fa', padding: '0', minHeight: '4.75rem', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden' } }, [
+              # // --- START FIX ---
+              h(:div, {
+                  attrs: { id: 'temporal-hub' },
+                  style: {
+                    flex: '0 0 3.75rem',
+                    minHeight: '3.25rem',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: '#f8f9fa',
+                    padding: '0 0.65rem',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                    gap: '0.65rem',
+                  },
+                }, [
                 h(:style, {}, '
                   /* The current player now lives in the turn-order canvas. */
                   #command-space-top > div > div > div:first-child {
@@ -951,20 +973,17 @@ module View
                   }
                 '),
                 render_active_turn_card,
-                h(:div, { attrs: { class: 'entity-order-content' }, style: { flex: '1 1 auto', minWidth: '0', height: '100%', position: 'relative', overflowX: 'auto', overflowY: 'hidden' } }, [
-                  h(:style, {}, '
-                    #temporal-hub .entity-order-content > div {
-                      position: absolute !important;
-                      left: 0 !important;
-                      right: auto !important;
-                      bottom: 0.45rem !important;
-                      top: auto !important;
-                      width: max-content !important;
-                      height: auto !important;
-                      min-height: 0 !important;
-                      margin: 0 !important;
-                    }
-                  '),
+                h(:div, {
+                    attrs: { class: 'entity-order-content' },
+                    style: {
+                      flex: '1 1 auto',
+                      minWidth: '0',
+                      height: '2.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                    },
+                  }, [
                   if @game.respond_to?(:finished?) && @game.finished?
                     h(View::Game::DashboardEntityOrder, round: nil)
                   else
@@ -972,6 +991,25 @@ module View
                   end,
                 ]),
               ].compact),
+              # // --- END FIX ---
+              # // --- DELETE --- # h(:div, { attrs: { id: 'temporal-hub' }, style: { flex: '0 0 6.5rem', display: 'flex', flexDirection: 'row', alignItems: 'stretch', justifyContent: 'flex-start', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8f9fa', padding: '0', minHeight: '4.75rem', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden' } }, [
+              # // --- DELETE --- #   h(:style, {}, '
+              # // --- DELETE --- #     #command-space-top > div > div > div:first-child { display: none !important; }
+              # // --- DELETE --- #     #command-space-top > div > div > div:nth-child(2) { flex: 1 1 auto !important; min-width: 0 !important; border-left: none !important; }
+              # // --- DELETE --- #     #command-space-top > div > div > div:nth-child(3) { flex: 0 0 28% !important; min-width: 15.5rem !important; max-width: none !important; box-sizing: border-box !important; overflow: visible !important; }
+              # // --- DELETE --- #   '),
+              # // --- DELETE --- #   render_active_turn_card,
+              # // --- DELETE --- #   h(:div, { attrs: { class: 'entity-order-content' }, style: { flex: '1 1 auto', minWidth: '0', height: '100%', position: 'relative', overflowX: 'auto', overflowY: 'hidden' } }, [
+              # // --- DELETE --- #     h(:style, {}, '
+              # // --- DELETE --- #       #temporal-hub .entity-order-content > div { position: absolute !important; left: 0 !important; right: auto !important; bottom: 0.45rem !important; top: auto !important; width: max-content !important; height: auto !important; min-height: 0 !important; margin: 0 !important; }
+              # // --- DELETE --- #     '),
+              # // --- DELETE --- #     if @game.respond_to?(:finished?) && @game.finished?
+              # // --- DELETE --- #       h(View::Game::DashboardEntityOrder, round: nil)
+              # // --- DELETE --- #     else
+              # // --- DELETE --- #       h(View::Game::DashboardEntityOrder, round: @game.round)
+              # // --- DELETE --- #     end,
+              # // --- DELETE --- #   ]),
+              # // --- DELETE --- # ].compact),
 
               h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
 
