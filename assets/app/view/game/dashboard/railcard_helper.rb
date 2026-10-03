@@ -19,6 +19,15 @@ module View
           }
         '
 
+        def minor_entity?(entity)
+          return false unless entity
+
+          (entity.respond_to?(:minor?) && entity.minor?) ||
+            (defined?(Engine::Minor) && entity.is_a?(Engine::Minor)) ||
+            (entity.respond_to?(:type) && entity.type.to_s == 'minor') ||
+            (@game.respond_to?(:minors) && @game.minors&.include?(entity))
+        end
+
         def resolve_target_hexes(target)
           return [] unless target
           return [] if target.is_a?(Engine::Train) || target.respond_to?(:rusts_on)
@@ -175,10 +184,22 @@ module View
 
         def build_company_tooltip(c, price: nil)
           owner_name = c.owner&.name || 'Bank'
-          desc_text = if c.respond_to?(:desc) && c.desc && !c.desc.empty?
+          desc_text = if c.respond_to?(:desc) && c.desc && !c.desc.to_s.strip.empty?
                         c.desc
                       elsif c.respond_to?(:abilities) && c.abilities&.any?
-                        c.abilities.map { |a| a.respond_to?(:description) ? a.description : nil }.compact.join(' ')
+                        ability_descs = c.abilities.map do |a|
+                          desc = nil
+                          if a.respond_to?(:description)
+                            begin
+                              desc = a.description
+                            rescue NotImplementedError, ScriptError, StandardError
+                              desc = nil
+                            end
+                          end
+                          desc ||= a.type.to_s.tr('_', ' ').capitalize if a.respond_to?(:type) && a.type
+                          desc
+                        end.compact
+                        ability_descs.any? ? ability_descs.join(' ') : 'No special abilities.'
                       else
                         'No special abilities.'
                       end
@@ -395,11 +416,10 @@ module View
 
         def major_corporation?(entity)
           return false unless entity
+          return false if minor_entity?(entity)
 
-          is_corporation = (entity.respond_to?(:corporation?) && entity.corporation?) ||
-                           (defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation))
-          is_minor = entity.respond_to?(:minor?) && entity.minor?
-          is_corporation && !is_minor
+          (entity.respond_to?(:corporation?) && entity.corporation?) ||
+            (defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation))
         end
 
         def build_entity_tooltip(entity, price: nil)
@@ -409,17 +429,9 @@ module View
             (entity.respond_to?(:company?) && entity.company?) ||
             (defined?(Engine::Company) && entity.is_a?(Engine::Company))
 
-          is_corporation =
-            (entity.respond_to?(:corporation?) && entity.corporation?) ||
-            (defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation))
-
-          is_minor =
-            (entity.respond_to?(:minor?) && entity.minor?) ||
-            (defined?(Engine::Minor) && entity.is_a?(Engine::Minor))
-
           if is_company
             build_company_tooltip(entity, price: price)
-          elsif is_corporation || is_minor
+          elsif minor_entity?(entity) || major_corporation?(entity)
             render_corp_tooltip(entity)
           else
             nil
