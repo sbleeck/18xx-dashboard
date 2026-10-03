@@ -259,7 +259,7 @@ module View
 
       def render_extra_cards
         children = []
-        train_handler = lambda do |train, price = nil, variant = nil|
+        train_handler = lambda do |train, price = nil, variant = nil, source_type = 'fresh'|
           owner_entity = train.owner
           if owner_entity.respond_to?(:owner)
             owner_key = owner_entity.respond_to?(:id) ? owner_entity.id : 'depot'
@@ -271,7 +271,28 @@ module View
             variant_name = variant ? variant.to_s : train.name.to_s
             variant_param = (variant_name == train.name.to_s ? nil : variant_name)
 
-            process_action(Engine::Action::BuyTrain.new(active_entity, train: train, price: price_to_pay, variant: variant_param))
+            transfer = {
+              kind: 'train',
+              item_id: train.id.to_s,
+              source_type: source_type == 'pool' ? 'train_pool' : 'train_fresh',
+              source_id: nil,
+              variant: variant&.to_s,
+            }
+
+            %x{
+  if (typeof window !== 'undefined') {
+    window._railcard_pending_transfer = #{transfer};
+  }
+}
+
+            process_action(
+              Engine::Action::BuyTrain.new(
+                active_entity,
+                train: train,
+                price: price,
+                variant: variant
+              )
+            )
           end
         end
 
@@ -1987,6 +2008,13 @@ h(:th, name_props, [major_card].compact),
 
       def exec_buy_shares(source_selector, player, bnd, corporation_id)
         shares = bnd.respond_to?(:shares) ? bnd.shares : [bnd]
+
+        %x{
+    if (typeof window !== 'undefined') {
+      window._railcard_pending_source = #{source_selector};
+    }
+  }
+
         process_action(
           Engine::Action::BuyShares.new(
             player,
@@ -1999,6 +2027,13 @@ h(:th, name_props, [major_card].compact),
 
       def exec_buy_shares_simple(source_selector, player, bnd, corporation_id)
         shares = bnd.respond_to?(:shares) ? bnd.shares : [bnd]
+
+        %x{
+    if (typeof window !== 'undefined') {
+      window._railcard_pending_source = #{source_selector};
+    }
+  }
+
         process_action(
           Engine::Action::BuyShares.new(
             player,

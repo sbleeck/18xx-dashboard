@@ -1445,11 +1445,33 @@ module View
               max_price,
               default_price,
               lambda { |price_val|
-                source_selector = "##{wrapper_id} .game-card"
-                target_selector = "#companies_#{entity.id}, #panel-ledger"
-                Lib::CardAnimation.fly(source_selector, target_selector) do
-                  process_action(Engine::Action::BuyCompany.new(entity, company: c, price: price_val))
-                end
+                source_owner = c.owner
+
+                source_type =
+                  if source_owner&.respond_to?(:player?) && source_owner.player?
+                    :player
+                  elsif source_owner&.respond_to?(:corporation?) && source_owner.corporation?
+                    :corporation
+                  elsif source_owner&.respond_to?(:minor?) && source_owner.minor?
+                    :corporation
+                  else
+                    :bank
+                  end
+
+                remember_card_transfer(
+                  kind: :company,
+                  item_id: c.id,
+                  source_type: source_type,
+                  source_id: (source_owner.id if source_owner&.respond_to?(:id))
+                )
+
+                process_action(
+                  Engine::Action::BuyCompany.new(
+                    entity,
+                    company: c,
+                    price: price_val
+                  )
+                )
               }
             )
           }
@@ -1479,15 +1501,34 @@ module View
 
         train_boxes = (discardable || []).map do |train|
           wrapper_id = "cmd_discard_train_#{train.id}"
+
           click_handler = lambda {
-            source_selector = "##{wrapper_id} .game-card"
-            target_selector = '#extra_cards, #panel-ledger'
-            Lib::CardAnimation.fly(source_selector, target_selector) do
-              process_action(Engine::Action::DiscardTrain.new(entity, train: train))
-            end
+            remember_card_transfer(
+              kind: :train,
+              item_id: train.id,
+              source_type: :corporation,
+              source_id: entity.id,
+              variant: train.name
+            )
+
+            process_action(
+              Engine::Action::DiscardTrain.new(
+                entity,
+                train: train
+              )
+            )
           }
-          render_railcard(train.name, %w[game-card action-sell clickable card-train], click_handler, nil, nil, wrapper_id)
+
+          render_railcard(
+            train.name,
+            %w[game-card action-sell clickable card-train],
+            click_handler,
+            nil,
+            nil,
+            wrapper_id
+          )
         end
+
         return nil if train_boxes.empty?
 
         render_action_row('Discard:', train_boxes)
@@ -1797,13 +1838,21 @@ module View
 
               wrapper_id = "cmd_train_#{train.id}_#{variant_str.tr('/', '_')}"
               click_handler = lambda {
-                source_selector = "##{wrapper_id} .game-card"
-                slot_selector = "#train_drop_#{entity.id}"
-                cell_selector = "#trains_#{entity.id}"
-                target_selector = `document.querySelector(#{slot_selector}) ? #{slot_selector} : #{cell_selector}`
-                Lib::CardAnimation.fly(source_selector, target_selector) do
-                  process_action(Engine::Action::BuyTrain.new(entity, train: train, price: price, variant: variant_param))
-                end
+                remember_card_transfer(
+    kind: :train,
+    item_id: train.id,
+    source_type: (is_pool ? :train_pool : :train_fresh),
+    variant: variant_str
+  )
+
+                process_action(
+                  Engine::Action::BuyTrain.new(
+                    entity,
+                    train: train,
+                    price: price,
+                    variant: variant_param
+                  )
+                )
               }
               train_classes = %w[game-card action-buy clickable card-train]
               card = render_railcard(variant_str, train_classes, click_handler, nil, nil, wrapper_id)
@@ -1840,19 +1889,37 @@ module View
                         end
 
             wrapper_id = "cmd_other_train_#{c.id}_#{t.id}"
+
             train_click_handler = lambda {
               `var p = document.getElementById('railcard-portal'); if (p) { p.style.display = 'none'; p.innerHTML = ''; }`
+
               menu_title = "Buy #{t.name} from #{c.name} (#{min_price}-#{max_price}):"
-              show_price_dialog(menu_title, min_price, max_price, min_price, lambda { |price_val|
-                source_selector = "##{wrapper_id} .game-card"
-                slot_selector = "#train_drop_#{entity.id}"
-                cell_selector = "#trains_#{entity.id}"
-                target_selector = `document.querySelector(#{slot_selector}) ? #{slot_selector} : #{cell_selector}`
-                Lib::CardAnimation.fly(source_selector, target_selector) do
-                  process_action(Engine::Action::BuyTrain.new(entity, train: t, price: price_val))
-                end
-              })
+
+              show_price_dialog(
+                menu_title,
+                min_price,
+                max_price,
+                min_price,
+                lambda { |price_val|
+                  remember_card_transfer(
+                    kind: :train,
+                    item_id: t.id,
+                    source_type: :corporation,
+                    source_id: c.id,
+                    variant: t.name
+                  )
+
+                  process_action(
+                    Engine::Action::BuyTrain.new(
+                      entity,
+                      train: t,
+                      price: price_val
+                    )
+                  )
+                }
+              )
             }
+
             card = render_railcard(t.name, %w[game-card action-buy clickable card-train], train_click_handler, nil, nil, wrapper_id)
             train_boxes << h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.4rem' } }, [
    card,
@@ -2394,6 +2461,22 @@ module View
             render_action_row('Corporation:', [offer_card, instruction]),
             render_action_row('Decision:', [offer_button]),
           ])
+      end
+
+      def remember_card_transfer(kind:, item_id:, source_type:, source_id: nil, variant: nil)
+        transfer = {
+          kind: kind.to_s,
+          item_id: item_id.to_s,
+          source_type: source_type.to_s,
+          source_id: source_id&.to_s,
+          variant: variant&.to_s,
+        }
+
+        %x{
+    if (typeof window !== 'undefined') {
+      window._railcard_pending_transfer = #{transfer};
+    }
+  }
       end
 
       def remaining_subsidiary_cost(step, entity)

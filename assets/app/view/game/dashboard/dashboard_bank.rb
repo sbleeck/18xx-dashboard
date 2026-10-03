@@ -138,7 +138,7 @@ module View
             click_handler = lambda {
               variant_str = variant_name.to_s
               if @train_handler
-                @train_handler.call(train, price, variant_str)
+                @train_handler.call(train, price, variant_str, type)
               else
                 process_action(Engine::Action::BuyTrain.new(
                   active_entity,
@@ -520,7 +520,7 @@ module View
                 click_handler = lambda {
                   variant_str = variant_name.to_s
                   if @train_handler
-                    @train_handler.call(train, price, variant_str)
+                    @train_handler.call(train, price, variant_str, 'fresh')
                   else
                     process_action(Engine::Action::BuyTrain.new(
                       active_entity,
