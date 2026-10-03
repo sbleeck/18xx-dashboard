@@ -2,7 +2,6 @@
 
 require 'lib/settings'
 require 'view/game/actionable'
-require 'view/game/dashboard/dashboard_card'
 require 'view/game/dashboard/railcard_helper'
 
 module View

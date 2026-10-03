@@ -158,12 +158,183 @@ module View
           .status-corp-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .cmd-company-tooltip { display: none !important; }
         CSS
 
+        check_and_animate_last_action
+
         h(:div, [
           h('div#spreadsheet', { style: { overflow: 'auto', marginTop: '1rem' } }, [
             h(:style, css),
             render_corporation_table,
           ]),
         ])
+      end
+
+      def check_and_animate_last_action
+        return unless @game
+
+        action = if @game.respond_to?(:last_action) && @game.last_action
+                   @game.last_action
+                 elsif @game.respond_to?(:actions) && @game.actions&.last
+                   @game.actions.last
+                 end
+        return unless action
+
+        action_id = action.id || action.object_id
+        action_name = action.class.name.split('::').last
+
+        entity = action.respond_to?(:entity) ? action.entity : nil
+        bundle = action.respond_to?(:bundle) ? action.bundle : nil
+        shares = if action.respond_to?(:shares)
+                   action.shares
+                 else
+                   (bundle&.respond_to?(:shares) ? bundle.shares : [])
+                 end
+
+        corp = if bundle&.respond_to?(:corporation)
+                 bundle.corporation
+               elsif action.respond_to?(:corporation)
+                 action.corporation
+               elsif shares.any? && shares.first.respond_to?(:corporation)
+                 shares.first.corporation
+               end
+        corp_id = corp&.id
+
+        source_sel = nil
+        target_sel = nil
+
+        case action_name
+        when 'BuyShares'
+          if entity && corp_id
+            target_sel = "#player_shares_#{entity.id}_#{corp_id}"
+
+            from_pool = false
+            if action.respond_to?(:source) && action.source == 'pool'
+              from_pool = true
+            elsif bundle && bundle.owner == @game.share_pool
+              from_pool = true
+            elsif shares.any? && @game.share_pool.shares_by_corporation[corp]&.include?(shares.first)
+              from_pool = true
+            end
+
+            source_sel = if from_pool
+                           "#pool_shares_#{corp_id}"
+                         elsif bundle&.owner == corp || (shares.any? && shares.first.owner == corp)
+                           has_treasury_column? ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
+                         elsif bundle&.owner&.player? && bundle.owner != entity
+                           "#player_shares_#{bundle.owner.id}_#{corp_id}"
+                         elsif shares.any? && shares.first.owner&.player? && shares.first.owner != entity
+                           "#player_shares_#{shares.first.owner.id}_#{corp_id}"
+                         else
+                           "#ipo_shares_#{corp_id}"
+                         end
+          end
+        when 'SellShares'
+          if entity && corp_id
+            source_sel = "#player_shares_#{entity.id}_#{corp_id}"
+            target_sel = "#pool_shares_#{corp_id}"
+          end
+        when 'Short'
+          if entity && corp_id
+            source_sel = "#pool_shares_#{corp_id}"
+            target_sel = "#player_shares_#{entity.id}_#{corp_id}"
+          end
+        when 'BuyTrain'
+          if entity
+            target_sel = "#train_drop_#{entity.id}"
+            train = action.respond_to?(:train) ? action.train : nil
+            other = action.respond_to?(:other_entity) ? action.other_entity : nil
+            source_sel = if other && train
+                           "#train_wrapper_#{other.id}_#{train.id}"
+                         elsif train
+                           "#bank_train_#{train.id}"
+                         else
+                           '#extra_cards'
+                         end
+          end
+        when 'IssueShares', 'Issue', 'CorporateSellShares', 'ReissueShares', 'Reissue'
+          if corp_id
+            source_sel = has_treasury_column? ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
+            target_sel = "#pool_shares_#{corp_id}"
+          end
+        when 'RedeemShares', 'Redeem', 'CorporateBuyShares'
+          if corp_id
+            source_sel = "#pool_shares_#{corp_id}"
+            target_sel = has_treasury_column? ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
+          end
+        when 'BuyCompany'
+          if entity
+            target_sel = "#companies_#{entity.id}"
+            source_sel = '#extra_cards'
+          end
+        when 'DiscardTrain'
+          if entity
+            target_sel = '#extra_cards'
+            train = action.respond_to?(:train) ? action.train : nil
+            source_sel = train ? "#train_wrapper_#{entity.id}_#{train.id}" : nil
+          end
+        end
+
+        return unless source_sel && target_sel
+
+        %x{
+          if (typeof window === 'undefined') return;
+
+          var actId = #{action_id};
+          var gameId = #{(@game.respond_to?(:id) ? @game.id : 'default')};
+          var trackerKey = '_last_act_' + gameId;
+
+          if (window[trackerKey] === undefined) {
+            window[trackerKey] = actId;
+            return;
+          }
+
+          if (window[trackerKey] >= actId) return;
+          window[trackerKey] = actId;
+
+          var rawSrc = #{source_sel};
+          var rawTgt = #{target_sel};
+
+          window.requestAnimationFrame(function() {
+            setTimeout(function() {
+              var sanitize = function(sel) {
+                if (!sel || sel.indexOf('#') !== 0) return sel;
+                var tokens = sel.split(' ');
+                var rawId = tokens[0].substring(1);
+                var safeId = '#' + (window.CSS && window.CSS.escape ? window.CSS.escape(rawId) : rawId);
+                tokens[0] = safeId;
+                return tokens.join(' ');
+              };
+
+              var src = sanitize(rawSrc);
+              var tgt = sanitize(rawTgt);
+
+              var srcEl = document.querySelector(src);
+              if (!srcEl && src.indexOf(' ') !== -1) {
+                src = src.split(' ')[0];
+                srcEl = document.querySelector(src);
+              }
+              if (!srcEl && src.indexOf('bank_train') !== -1) {
+                src = '#extra_cards';
+                srcEl = document.querySelector(src);
+              }
+
+              var tgtEl = document.querySelector(tgt);
+              if (!tgtEl && tgt.indexOf(' ') !== -1) {
+                tgt = tgt.split(' ')[0];
+                tgtEl = document.querySelector(tgt);
+              }
+              if (!tgtEl && tgt.indexOf('train_drop') !== -1) {
+                var tgtParts = tgt.split('_');
+                var eId = tgtParts[tgtParts.length - 1];
+                tgt = sanitize('#trains_' + eId);
+                tgtEl = document.querySelector(tgt);
+              }
+
+              if (srcEl && tgtEl) {
+                #{Lib::CardAnimation.fly(`src`, `tgt`) {}}
+              }
+            }, 40);
+          });
+        }
       end
 
       def render_corporation_table
@@ -268,20 +439,8 @@ module View
             price_to_pay = price || train.price
             variant_name = variant ? variant.to_s : train.name.to_s
             variant_param = (variant_name == train.name.to_s ? nil : variant_name)
-            clean_variant_id = variant_name.tr('/', '_')
-            escaped_train_id = `CSS.escape('bank_train_' + #{train.id} + '_' + #{clean_variant_id})`
-            escaped_dest_id = `CSS.escape('trains_' + #{active_entity.id})`
-            escaped_slot_id = `CSS.escape('train_drop_' + #{active_entity.id})`
-            source_selector = "##{escaped_train_id} .game-card"
-            source_fallback = "##{`CSS.escape('bank_train_' + #{train.id})`} .game-card"
-            cell_selector = "##{escaped_dest_id}"
-            slot_selector = "##{escaped_slot_id}"
-            target_selector = `document.querySelector(#{slot_selector}) ? #{slot_selector} : #{cell_selector}`
-            active_source = `document.querySelector(#{source_selector}) ? #{source_selector} : #{source_fallback}`
 
-            Lib::CardAnimation.fly(active_source, target_selector) do
-              process_action(Engine::Action::BuyTrain.new(active_entity, train: train, price: price_to_pay, variant: variant_param))
-            end
+            process_action(Engine::Action::BuyTrain.new(active_entity, train: train, price: price_to_pay, variant: variant_param))
           end
         end
 
@@ -1507,12 +1666,7 @@ module View
             card_classes << 'clickable'
 
             train_click_handler = lambda {
-              escaped_train_wrapper_id = `CSS.escape('train_wrapper_' + #{corporation.id} + '_' + #{t.id})`
-              source_selector = "##{escaped_train_wrapper_id} .game-card"
-              target_selector = '#extra_cards'
-              Lib::CardAnimation.fly(source_selector, target_selector) do
-                process_action(Engine::Action::DiscardTrain.new(active_entity, train: t))
-              end
+              process_action(Engine::Action::DiscardTrain.new(active_entity, train: t))
             }
           end
 
@@ -1653,19 +1807,12 @@ h(:th, name_props, [major_card].compact),
       end
 
       def exec_short_shares(source_selector, player, corporation)
-        escaped_player_id = `CSS.escape(#{player.id})`
-        escaped_corp_id = `CSS.escape(#{corporation.id})`
-        target_selector = "#player_shares_#{escaped_player_id}_#{escaped_corp_id}"
         action = if defined?(Engine::Action::Short)
                    Engine::Action::Short.new(player, corporation: corporation)
                  else
                    Engine::Action::BuyShares.new(player, bundle: corporation.shares.first.to_bundle)
                  end
-        if source_selector
-          Lib::CardAnimation.fly(source_selector, target_selector) { process_action(action) }
-        else
-          process_action(action)
-        end
+        process_action(action)
       end
 
       def render_corp_tokens(corporation)
@@ -1825,11 +1972,7 @@ h(:th, name_props, [major_card].compact),
             card_classes << 'action-buy'
             card_classes << 'clickable'
             company_click_handler = lambda {
-              source_selector = "#company_wrapper_#{entity.id}_#{c.id} .game-card"
-              target_selector = "#companies_#{active_ent.id}"
-              Lib::CardAnimation.fly(source_selector, target_selector) do
-                process_action(matching_special_action[1].new(active_ent, company: c))
-              end
+              process_action(matching_special_action[1].new(active_ent, company: c))
             }
           elsif company_buyable_step && not_own_company && is_buyable
             card_classes << 'action-buy'
@@ -1854,10 +1997,7 @@ h(:th, name_props, [major_card].compact),
               default_price = [default_price, min_price].max
 
               show_price_dialog(menu_title, min_price, max_price, default_price, lambda { |price_val|
-                source_selector = "#company_wrapper_#{entity.id}_#{c.id} .game-card"
-                target_selector = "#companies_#{active_ent.id}"
-
-                Lib::CardAnimation.fly(source_selector, target_selector) { process_action(Engine::Action::BuyCompany.new(active_ent, company: c, price: price_val)) }
+                process_action(Engine::Action::BuyCompany.new(active_ent, company: c, price: price_val))
               })
             }
           end
@@ -1911,11 +2051,8 @@ h(:th, name_props, [major_card].compact),
                    percent: percent
                  )
                  end
-        if source_selector && target_selector
-          Lib::CardAnimation.fly(source_selector, target_selector) { process_action(action) }
-        else
-          process_action(action)
-        end
+
+        process_action(action)
       end
 
       def exec_redeem_share_bundle(corporation, bundle, corp_actions = nil, source_selector = nil, target_selector = nil)
@@ -1932,11 +2069,8 @@ h(:th, name_props, [major_card].compact),
                  else
                    Engine::Action::BuyShares.new(corporation, bundle: bundle)
                  end
-        if source_selector && target_selector
-          Lib::CardAnimation.fly(source_selector, target_selector) { process_action(action) }
-        else
-          process_action(action)
-        end
+
+        process_action(action)
       end
 
       def render_player_cash
@@ -2008,81 +2142,48 @@ h(:th, name_props, [major_card].compact),
       end
 
       def exec_sell_shares(source_selector, player, target_bundle, corporation_id)
-        escaped_corp_id = `CSS.escape(#{corporation_id})`
-
         bundle = target_bundle[:bundle]
         shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
-
-        Lib::CardAnimation.fly(
-          source_selector,
-          "#pool_shares_#{escaped_corp_id}"
-        ) do
-          process_action(
-            Engine::Action::SellShares.new(
-              player,
-              shares: shares,
-              share_price: (
-                bundle.share_price if bundle.respond_to?(:share_price)
-              ),
-              percent: (
-                bundle.percent if bundle.respond_to?(:percent)
-              )
-            )
+        process_action(
+          Engine::Action::SellShares.new(
+            player,
+            shares: shares,
+            share_price: (bundle.share_price if bundle.respond_to?(:share_price)),
+            percent: (bundle.percent if bundle.respond_to?(:percent))
           )
-        end
+        )
       end
 
       def exec_buy_shares(source_selector, player, bnd, corporation_id)
-        escaped_player_id = `CSS.escape(#{player.id})`
-        escaped_corp_id = `CSS.escape(#{corporation_id})`
         shares = bnd.respond_to?(:shares) ? bnd.shares : [bnd]
-
-        Lib::CardAnimation.fly(
-          source_selector,
-          "#player_shares_#{escaped_player_id}_#{escaped_corp_id}"
-        ) do
-          process_action(
-            Engine::Action::BuyShares.new(
-              player,
-              shares: shares,
-              share_price: (bnd.share_price if bnd.respond_to?(:share_price)),
-              percent: (bnd.percent if bnd.respond_to?(:percent))
-            )
+        process_action(
+          Engine::Action::BuyShares.new(
+            player,
+            shares: shares,
+            share_price: (bnd.share_price if bnd.respond_to?(:share_price)),
+            percent: (bnd.percent if bnd.respond_to?(:percent))
           )
-        end
+        )
       end
 
       def exec_buy_shares_simple(source_selector, player, bnd, corporation_id)
         shares = bnd.respond_to?(:shares) ? bnd.shares : [bnd]
-
-        Lib::CardAnimation.fly(
-          source_selector,
-          "#player_shares_#{player.id}_#{corporation_id}"
-        ) do
-          process_action(
-            Engine::Action::BuyShares.new(
-              player,
-              shares: shares,
-              share_price: (bnd.share_price if bnd.respond_to?(:share_price)),
-              percent: (bnd.percent if bnd.respond_to?(:percent))
-            )
+        process_action(
+          Engine::Action::BuyShares.new(
+            player,
+            shares: shares,
+            share_price: (bnd.share_price if bnd.respond_to?(:share_price)),
+            percent: (bnd.percent if bnd.respond_to?(:percent))
           )
-        end
+        )
       end
 
       def exec_buy_corporate_train(source_selector, active_entity, train, price_value)
-        escaped_dest_id = `CSS.escape('trains_' + #{active_entity.id})`
-        escaped_slot_id = `CSS.escape('train_drop_' + #{active_entity.id})`
-        slot_selector = "##{escaped_slot_id}"
-        cell_selector = "##{escaped_dest_id}"
-        target_selector = `document.querySelector(#{slot_selector}) ? #{slot_selector} : #{cell_selector}`
-        Lib::CardAnimation.fly(source_selector, target_selector) do
-          process_action(Engine::Action::BuyTrain.new(
-            active_entity,
-            train: train,
-            price: price_value
-          ))
-        end
+        process_action(Engine::Action::BuyTrain.new(
+           active_entity,
+           train: train,
+           price: price_value
+         ))
       end
 
       def pd_props

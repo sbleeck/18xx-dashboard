@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'lib/settings'
-require 'view/game/dashboard/dashboard_card'
 require 'view/game/dashboard/railcard_helper'
 
 module View
@@ -62,7 +61,7 @@ module View
         rusts = all_trains.select do |t|
           Array(t.rusts_on).map(&:to_s).include?(train.sym.to_s) || Array(t.rusts_on).map(&:to_s).include?(train.name.to_s)
         end.map(&:name).uniq
-        rust_details << "Rusts: #{rusts.join(', ')} train#{rusts.size > 1 ? 's' : ''}" if rusts.any?
+        rust_details << "Rusts: #{rusts.join(', ')} train#{'s' if rusts.size > 1}" if rusts.any?
 
         obsoletes = all_trains.select do |t|
           Array(t.obsolete_on).map(&:to_s).include?(train.sym.to_s) || Array(t.obsolete_on).map(&:to_s).include?(train.name.to_s)
@@ -230,7 +229,7 @@ module View
                        elsif train.respond_to?(:variants) && train.variants && !train.variants.empty?
                          train.variants.map { |k, v| [k, v[:price] || train.price] }.to_h
                        else
-                         { (train.name || train.sym) => train.price }
+                         { train.name || train.sym => train.price }
                        end
 
             variants.each do |v_name, v_price|
