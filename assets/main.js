@@ -56932,7 +56932,9 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
   self.$require("view/game/part/city_slot");
   
   try {
-    self.$require("view/game/part/future_revenue")
+    
+    self.$require("view/game/part/location_name");
+    self.$require("view/game/part/future_revenue");
   } catch ($err) {
     if (Opal.rescue($err, [$$('LoadError')])) {
       try {
@@ -57259,7 +57261,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             });
           }
         })($nesting[0], $$$($$('Snabberb'), 'Component'));
-        return (function($base, $super) {
+        (function($base, $super) {
           var self = $klass($base, $super, 'FutureRevenue');
 
           
@@ -57268,6 +57270,52 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
 
             return self.$h("g")
           })
+        })($nesting[0], $$('Base'));
+        return (function($base, $super) {
+          var self = $klass($base, $super, 'LocationName');
+
+          
+          if ($truthy(self['$method_defined?']("orig_render"))) {
+            return nil
+          } else {
+            
+            $alias(self, "orig_render", "render");
+            return $def(self, '$render', function $$render() {
+              var self = this, rendered = nil;
+
+              
+              rendered = self.$orig_render();
+              
+              function enlargeLocation(vnode) {
+                if (!vnode) return;
+                if (Array.isArray(vnode)) {
+                  for (var i = 0; i < vnode.length; i++) enlargeLocation(vnode[i]);
+                  return;
+                }
+                var sel = vnode.sel || '';
+                if (typeof sel === 'string' && (sel === 'text' || sel.indexOf('text.') === 0 || sel.indexOf('text#') === 0)) {
+                  if (!vnode.data) vnode.data = {};
+                  if (!vnode.data.attrs) vnode.data.attrs = {};
+                  if (!vnode.data.style) vnode.data.style = {};
+
+                  var cur = parseFloat(vnode.data.style['font-size'] || vnode.data.attrs['font-size']) || 11;
+                  var newSize = (cur * 1.35).toFixed(1) + 'px';
+
+                  vnode.data.attrs['font-size'] = newSize;
+                  vnode.data.style['font-size'] = newSize;
+                  vnode.data.style['font-weight'] = 'bold';
+                }
+                if (vnode.children && Array.isArray(vnode.children)) {
+                  for (var j = 0; j < vnode.children.length; j++) {
+                    enlargeLocation(vnode.children[j]);
+                  }
+                }
+              }
+              enlargeLocation(rendered);
+            ;
+              return rendered;
+            });
+          }
         })($nesting[0], $$('Base'));
       })($nesting[0], $nesting)
     })($nesting[0], $nesting)
