@@ -16,6 +16,174 @@ begin
 rescue LoadError
 end
 
+# // --- START FIX ---
+module Lib
+  module TileLayAnimation
+    def self.hook
+      {
+        update: lambda do |old_vnode, vnode|
+          %x{
+            var oldV = #{old_vnode};
+            var newV = #{vnode};
+            if (!oldV || !newV || !oldV.elm || !newV.elm) return;
+
+            var oldAttrs = (oldV.data && oldV.data.attrs) ? oldV.data.attrs : null;
+            var newAttrs = (newV.data && newV.data.attrs) ? newV.data.attrs : null;
+            if (!oldAttrs || !newAttrs) return;
+
+            var oldState = oldAttrs['data-tile-state'];
+            var newState = newAttrs['data-tile-state'];
+
+            // Only trigger when a tile change or rotation is confirmed
+            if (!oldState || !newState || oldState === newState) return;
+
+            var hexContainer = newV.elm;
+            var baseHex = hexContainer.firstElementChild;
+            var transformStr = hexContainer.getAttribute('data-transform') || '';
+
+            var origTransform = baseHex ? (baseHex.getAttribute('data-orig-transform') || baseHex.getAttribute('transform') || transformStr) : transformStr;
+            if (baseHex && !baseHex.getAttribute('data-orig-transform')) {
+              baseHex.setAttribute('data-orig-transform', origTransform);
+            }
+
+            // Bring hex container forward in SVG stacking context during animation
+            if (hexContainer.parentNode) {
+              hexContainer.parentNode.appendChild(hexContainer);
+            }
+
+            var poly = hexContainer.querySelector('.hex-highlight-poly');
+            var pointsStr = poly ? poly.getAttribute('points') : '';
+            if (!pointsStr) pointsStr = '-50,0 -25,-43.3 25,-43.3 50,0 25,43.3 -25,43.3';
+
+            // Create shockwave container inside hex local coordinates
+            var shockwaveGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            shockwaveGroup.setAttribute('transform', transformStr);
+            shockwaveGroup.setAttribute('pointer-events', 'none');
+
+            // Shockwave 1: High-energy cyan expansion
+            var poly1 = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            poly1.setAttribute('points', pointsStr);
+            poly1.setAttribute('fill', '#00ffff');
+            poly1.setAttribute('fill-opacity', '0');
+            poly1.setAttribute('stroke', '#00ffff');
+            poly1.setAttribute('stroke-width', '0');
+            poly1.setAttribute('stroke-opacity', '0');
+
+            // Shockwave 2: Outer luminous echo wave
+            var poly2 = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            poly2.setAttribute('points', pointsStr);
+            poly2.setAttribute('fill', 'none');
+            poly2.setAttribute('stroke', '#ffffff');
+            poly2.setAttribute('stroke-width', '0');
+            poly2.setAttribute('stroke-opacity', '0');
+            poly2.style.filter = 'drop-shadow(0 0 8px #00ffff)';
+
+            shockwaveGroup.appendChild(poly1);
+            shockwaveGroup.appendChild(poly2);
+            hexContainer.appendChild(shockwaveGroup);
+
+            var startTime = performance.now();
+            var slamDuration = 420;
+            var totalDuration = 1600;
+
+            function frame(now) {
+              var elapsed = now - startTime;
+
+              // 1. Tile Fly-In & Drop-Slam
+              if (baseHex && elapsed <= slamDuration) {
+                var s = 1.0;
+                if (elapsed < 240) {
+                  var p = elapsed / 240;
+                  s = 2.2 - (1.28 * p * p);
+                  baseHex.style.filter = 'drop-shadow(0px 22px 16px rgba(0,0,0,0.75)) brightness(' + (1.2 + 0.3 * p) + ')';
+                } else if (elapsed < 330) {
+                  var p2 = (elapsed - 240) / 90;
+                  s = 0.92 + 0.16 * Math.sin(p2 * Math.PI / 2);
+                  baseHex.style.filter = 'drop-shadow(0px 0px 14px #00ffff) brightness(' + (1.6 - 0.4 * p2) + ')';
+                } else {
+                  var p3 = (elapsed - 330) / 90;
+                  s = 1.08 - 0.08 * p3;
+                  baseHex.style.filter = 'drop-shadow(0px 0px ' + (14 * (1 - p3)) + 'px #00ffff) brightness(' + (1.2 - 0.2 * p3) + ')';
+                }
+                baseHex.setAttribute('transform', origTransform + ' scale(' + s.toFixed(3) + ')');
+              } else if (baseHex && baseHex.getAttribute('data-orig-transform') && elapsed > slamDuration) {
+                baseHex.setAttribute('transform', origTransform);
+                baseHex.style.filter = '';
+              }
+
+              // 2. Radiating Shockwave Ring 1 (Cyan Energy Burst)
+              var w1Start = 240;
+              var w1Dur = 740;
+              if (elapsed >= w1Start && elapsed <= (w1Start + w1Dur)) {
+                var pw1 = (elapsed - w1Start) / w1Dur;
+                var sw1 = 1.0 + 1.8 * (1 - Math.pow(1 - pw1, 3));
+                var op1 = Math.max(0, 1.0 - pw1);
+                poly1.setAttribute('transform', 'scale(' + sw1.toFixed(3) + ')');
+                poly1.setAttribute('stroke-width', (10 * (1 - pw1 * 0.7)).toFixed(1));
+                poly1.setAttribute('stroke-opacity', op1.toFixed(3));
+                poly1.setAttribute('fill-opacity', (0.35 * op1).toFixed(3));
+              } else {
+                poly1.setAttribute('stroke-opacity', '0');
+                poly1.setAttribute('fill-opacity', '0');
+              }
+
+              // 3. Radiating Shockwave Ring 2 (White/Cyan Echo Wave)
+              var w2Start = 360;
+              var w2Dur = 900;
+              if (elapsed >= w2Start && elapsed <= (w2Start + w2Dur)) {
+                var pw2 = (elapsed - w2Start) / w2Dur;
+                var sw2 = 1.0 + 2.4 * (1 - Math.pow(1 - pw2, 3));
+                var op2 = Math.max(0, 0.9 - pw2 * 0.9);
+                poly2.setAttribute('transform', 'scale(' + sw2.toFixed(3) + ')');
+                poly2.setAttribute('stroke-width', (8 * (1 - pw2 * 0.8)).toFixed(1));
+                poly2.setAttribute('stroke-opacity', op2.toFixed(3));
+              } else {
+                poly2.setAttribute('stroke-opacity', '0');
+              }
+
+              // 4. Hex Border Beacon Pulse
+              if (poly) {
+                if (elapsed >= 420 && elapsed < 1500) {
+                  var pulse = (Math.sin((elapsed - 420) / 1080 * Math.PI * 4) + 1) / 2;
+                  poly.setAttribute('stroke', '#00ffff');
+                  poly.setAttribute('stroke-width', '8');
+                  poly.setAttribute('fill', '#00ffff');
+                  poly.setAttribute('fill-opacity', (0.15 + 0.3 * pulse).toFixed(3));
+                } else if (elapsed >= 1500) {
+                  var origStroke = poly.getAttribute('data-orig-stroke') || 'transparent';
+                  var origWidth = poly.getAttribute('data-orig-width') || '0';
+                  var origFill = poly.getAttribute('data-orig-fill') || 'transparent';
+                  var origFillOpacity = poly.getAttribute('data-orig-fill-opacity') || '0';
+                  poly.setAttribute('stroke', origStroke);
+                  poly.setAttribute('stroke-width', origWidth);
+                  poly.setAttribute('fill', origFill);
+                  poly.setAttribute('fill-opacity', origFillOpacity);
+                }
+              }
+
+              if (elapsed < totalDuration) {
+                window.requestAnimationFrame(frame);
+              } else {
+                if (shockwaveGroup.parentNode) {
+                  shockwaveGroup.parentNode.removeChild(shockwaveGroup);
+                }
+                if (baseHex) {
+                  baseHex.setAttribute('transform', origTransform);
+                  baseHex.style.filter = '';
+                  baseHex.removeAttribute('data-orig-transform');
+                }
+              }
+            }
+
+            window.requestAnimationFrame(frame);
+          }
+        end,
+      }
+    end
+  end
+end
+# // --- END FIX ---
+
 module View
   module Game
     module Part
@@ -117,17 +285,6 @@ module View
           h(:g)
         end
       end
-
-      # class Revenue < Base
-      #   needs :game, default: nil, store: true
-
-      #   unless method_defined?(:orig_render)
-      #     alias orig_render render
-      #     def render
-      #       orig_render
-      #     end
-      #   end
-      # end
     end
   end
 end
@@ -136,6 +293,7 @@ module View
   module Game
     class DashboardMap < Snabberb::Component
       include Lib::Settings
+
       needs :game, store: true
       needs :tile_selector, default: nil, store: true
       needs :selected_route, default: nil, store: true
@@ -229,14 +387,10 @@ module View
         target_tile = tile || hex.tile
         if @game.respond_to?(:upgrade_cost)
           begin
-            # upgrade_cost expects both the acting entity and the spender.
-            # Passing only three arguments leaves spender nil in 1817, where
-            # the cost logic dereferences spender.name.
-            base_cost += (@game.upgrade_cost(target_tile, hex, current_entity, current_entity) || 0)
+            base_cost += @game.upgrade_cost(target_tile, hex, current_entity, current_entity) || 0
           rescue ArgumentError
-            # Compatibility with games whose upgrade_cost still has three arguments.
             begin
-              base_cost += (@game.upgrade_cost(target_tile, hex, current_entity) || 0)
+              base_cost += @game.upgrade_cost(target_tile, hex, current_entity) || 0
             rescue StandardError
             end
           rescue StandardError
@@ -248,7 +402,7 @@ module View
             tile_lay = step.get_tile_lay(current_entity)
             if tile_lay
               extra = hex.tile.color == :white ? (tile_lay[:cost] || 0) : (tile_lay[:upgrade_cost] || 0)
-              base_cost += (extra || 0)
+              base_cost += extra || 0
             end
           rescue Exception
           end
@@ -395,9 +549,6 @@ module View
         entity_or_entities = combo_entities.empty? ? current_entity : [current_entity, *combo_entities].compact
         actions = step && current_entity ? (step.actions(current_entity) || []) : []
 
-        # Initial company bids are processed by the engine before map placement.
-        # This map reacts only to actions subsequently exposed by the engine.
-
         selected_hex = @tile_selector&.hex
         @hexes << @hexes.delete(selected_hex) if @hexes.include?(selected_hex)
 
@@ -444,7 +595,7 @@ module View
           border_color = is_hovered ? '#00ffff' : nil
 
           x, y = Hex.coordinates(hex, @start_pos)
-          transform_str = "translate(#{x}, #{y})#{hex.layout == :pointy ? ' rotate(30)' : ''}"
+          transform_str = "translate(#{x}, #{y})#{' rotate(30)' if hex.layout == :pointy}"
 
           overlays = []
 
@@ -555,14 +706,20 @@ module View
               *overlays,
             ]),
           ]
+
+          # // --- START FIX ---
           g_props = {
             key: "dash-g-#{hex.id}",
             attrs: {
               id: "hex-#{hex.id}",
               class: "map-hex-container hex-#{hex.id}",
               'data-hex': hex.id.to_s,
+              'data-tile-state': "#{hex.tile.name}-#{hex.tile.color}-#{hex.tile.rotation}",
+              'data-transform': transform_str,
             },
+            hook: Lib::TileLayAnimation.hook,
           }
+          # // --- END FIX ---
 
           h(:g, g_props, hex_children)
         end
