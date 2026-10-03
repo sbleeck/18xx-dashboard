@@ -224,7 +224,7 @@ module View
       }.freeze
 
       def active_corporations(corporations)
-        corporations.select { |c| c.floated? && !c.closed? }
+        corporations.reject(&:closed?)
       end
 
       def box_style_1d

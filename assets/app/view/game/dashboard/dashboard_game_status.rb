@@ -144,66 +144,89 @@ module View
         active_player_nth = active_player_index ? active_player_index + 2 : -1
 
         css = <<~CSS
-          :root {
-            --font-money: 'Courier New', monospace;
-            --font-standard: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            --color-money-text: #4c1d95;
-            --accent-action-color: #2563eb;
-            --opacity-unopened-row: 0.45;
-            --bg-active-row: #ffffff;
-            --bg-market-zone: #e6f4ea;
-            --bg-corporate-zone: #f3e8ff;
-            --action-buy-edge: #16a34a;
-            --action-sell-edge: #dc2626;
-            --shadow-card: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+                    :root {
+                      --font-money: 'Courier New', monospace;
+                      --font-standard: "Helvetica Neue", Helvetica, Arial, sans-serif;
+                      --color-money-text: #4c1d95;
+                      --accent-action-color: #2563eb;
+                      --opacity-unopened-row: 0.45;
+                      --bg-active-row: #ffffff;
+                      --bg-market-zone: #e6f4ea;
+                      --bg-corporate-zone: #f3e8ff;
+                      --action-buy-edge: #16a34a;
+                      --action-sell-edge: #dc2626;
+                      --shadow-card: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+                    }
+                    #spreadsheet table { border-collapse: collapse; border: 3px solid #333333; background-color: #{COLOR_INACTIVE}; }
+                    #spreadsheet th, #spreadsheet td { border: 1px solid #b3b3b3 !important; vertical-align: middle !important; padding: 4px 2px !important; }
+                    #spreadsheet thead tr:last-child th { border-bottom: 3px solid #333333 !important; }
+                    #spreadsheet tr.last-player-row th, #spreadsheet tr.last-player-row td { border-bottom: 3px solid #333333 !important; }
+                    #spreadsheet tr.last-minor-row th, #spreadsheet tr.last-minor-row td { border-bottom: 3px solid #333333 !important; }
+                    .thick-right { border-right: 3px solid #333333 !important; }
+                    .no-border { border: none !important; }
+                    .money-value, .padded_number { text-align: right !important; padding-left: 0.45rem !important; padding-right: 0.45rem !important; box-sizing: border-box !important; }
+                    .money-value { min-width: 4.35rem !important; width: 4.35rem !important; font-family: var(--font-money) !important; font-weight: bold !important; color: var(--color-money-text) !important; font-variant-numeric: tabular-nums !important; }
+                    #spreadsheet .market-shares-col, #spreadsheet .market-price-col { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; box-sizing: border-box !important; }
+                    #spreadsheet .market-shares-col { text-align: center !important; }
+                    #spreadsheet thead th.header-market { background-color: var(--bg-market-zone) !important; color: #111827 !important; }
+                    #spreadsheet thead th.header-corporate { background-color: #e9d5ff !important; color: #4c1d95 !important; }
+                    #spreadsheet thead th.header-player, #spreadsheet thead th.header-symbol { background-color: #e5e7eb !important; color: #111827 !important; }
+                    .game-card { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 3.5rem; height: 1.45rem; font-size: 0.85rem; padding: 0 4px; margin: 2px; border: 1px solid #888888; border-radius: 4px; background-color: #fdfbf7; color: #000000; box-shadow: var(--shadow-card); transition: transform 0.1s ease; font-family: var(--font-standard); }
+                    .game-card.clickable:hover { cursor: pointer; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+                    .game-card.action-sell { border: 2px solid var(--action-sell-edge) !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 1px var(--action-sell-edge) !important; }
+                    .game-card.action-buy { border: 2px solid var(--action-buy-edge) !important; background-color: #e6f4ea !important; box-shadow: 0 0 0 1px var(--action-buy-edge) !important; }
+                    .sell-restricted { text-decoration: line-through !important; opacity: 0.5 !important; cursor: not-allowed !important; }
+                    .token-bond { display: inline-block; width: 12px; height: 12px; background-color: #b91c1c; border-radius: 2px; }
+                    .align-top { vertical-align: top !important; }
+                    tr.active-turn-focus { background-color: var(--bg-active-row) !important; }
+                    tr.active-turn-focus th, tr.active-turn-focus td { box-shadow: inset 0 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
+                    tr.active-turn-focus th:first-child, tr.active-turn-focus td:first-child { box-shadow: inset 3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
+                    tr.active-turn-focus th:last-child, tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
+
+                    tr.company-row-unfloated > *:not(.actionable-cell), tr.company-row-closed > *:not(.actionable-cell) {
+                      opacity: var(--opacity-unopened-row) !important;
+                      filter: grayscale(40%) !important;
+                    }
+
+                    tr.active-turn-focus { opacity: 1 !important; filter: none !important; }
+                    tr.active-turn-focus > th:not(:first-child), tr.active-turn-focus > td:not(:first-child),
+                    tr.active-turn-focus > td.column-zone-market, tr.active-turn-focus > td.column-zone-corporate {
+                      background-color: #ffffff !important; opacity: 1 !important; filter: none !important;
+                    }
+                    tr.operated-this-or > th:not(:first-child), tr.operated-this-or > td:not(:first-child),
+                    tr.operated-this-or > td.column-zone-market, tr.operated-this-or > td.column-zone-corporate {
+                      background-color: #eeeeee !important; color: #6b7280 !important;
+                    }
+                    #spreadsheet tbody tr > *:nth-child(#{active_player_nth}) {
+                     background-color: #ffffff !important; opacity: 1 !important; filter: none !important;
+                    }
+                    #spreadsheet thead th { font-weight: 700 !important; }
+                    #spreadsheet th.header-cash, #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }
+                    #spreadsheet th.header-trains, #spreadsheet td.corporation-trains { min-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; white-space: nowrap !important; }
+                    .status-corp-wrapper:hover { z-index: 99999; }
+                    .status-corp-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .cmd-company-tooltip { display: none !important; }
+
+                    .share-card-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+          .share-card-wrapper[title]:not([title=""]):hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: calc(100% + 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.95);
+            color: #ffffff;
+            font-family: var(--font-standard);
+            font-size: 0.85rem;
+            font-weight: bold;
+            line-height: 1.2;
+            padding: 4px 8px;
+            border-radius: 5px;
+            white-space: pre;
+            pointer-events: none;
+            z-index: 99999;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.35);
           }
-          #spreadsheet table { border-collapse: collapse; border: 3px solid #333333; background-color: #{COLOR_INACTIVE}; }
-          #spreadsheet th, #spreadsheet td { border: 1px solid #b3b3b3 !important; vertical-align: middle !important; padding: 4px 2px !important; }
-          #spreadsheet thead tr:last-child th { border-bottom: 3px solid #333333 !important; }
-          #spreadsheet tr.last-player-row th, #spreadsheet tr.last-player-row td { border-bottom: 3px solid #333333 !important; }
-          #spreadsheet tr.last-minor-row th, #spreadsheet tr.last-minor-row td { border-bottom: 3px solid #333333 !important; }
-          .thick-right { border-right: 3px solid #333333 !important; }
-          .no-border { border: none !important; }
-          .money-value, .padded_number { text-align: right !important; padding-left: 0.45rem !important; padding-right: 0.45rem !important; box-sizing: border-box !important; }
-          .money-value { min-width: 4.35rem !important; width: 4.35rem !important; font-family: var(--font-money) !important; font-weight: bold !important; color: var(--color-money-text) !important; font-variant-numeric: tabular-nums !important; }
-          #spreadsheet .market-shares-col, #spreadsheet .market-price-col { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; box-sizing: border-box !important; }
-          #spreadsheet .market-shares-col { text-align: center !important; }
-          #spreadsheet thead th.header-market { background-color: var(--bg-market-zone) !important; color: #111827 !important; }
-          #spreadsheet thead th.header-corporate { background-color: #e9d5ff !important; color: #4c1d95 !important; }
-          #spreadsheet thead th.header-player, #spreadsheet thead th.header-symbol { background-color: #e5e7eb !important; color: #111827 !important; }
-          .game-card { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 3.5rem; height: 1.45rem; font-size: 0.85rem; padding: 0 4px; margin: 2px; border: 1px solid #888888; border-radius: 4px; background-color: #fdfbf7; color: #000000; box-shadow: var(--shadow-card); transition: transform 0.1s ease; font-family: var(--font-standard); }
-          .game-card.clickable:hover { cursor: pointer; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-          .game-card.action-sell { border: 2px solid var(--action-sell-edge) !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 1px var(--action-sell-edge) !important; }
-          .game-card.action-buy { border: 2px solid var(--action-buy-edge) !important; background-color: #e6f4ea !important; box-shadow: 0 0 0 1px var(--action-buy-edge) !important; }
-          .sell-restricted { text-decoration: line-through !important; opacity: 0.5 !important; cursor: not-allowed !important; }
-          .token-bond { display: inline-block; width: 12px; height: 12px; background-color: #b91c1c; border-radius: 2px; }
-          .align-top { vertical-align: top !important; }
-          tr.active-turn-focus { background-color: var(--bg-active-row) !important; }
-          tr.active-turn-focus th, tr.active-turn-focus td { box-shadow: inset 0 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
-          tr.active-turn-focus th:first-child, tr.active-turn-focus td:first-child { box-shadow: inset 3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
-          tr.active-turn-focus th:last-child, tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
-          tr.company-row-unfloated, tr.company-row-closed { opacity: var(--opacity-unopened-row) !important; filter: grayscale(40%) !important; }
-          tr.company-row-unfloated:hover, tr.company-row-closed:hover { opacity: 1 !important; filter: none !important; }
-          tr.active-turn-focus:hover { opacity: 1 !important; }
-          .column-zone-market { background-color: var(--bg-market-zone) !important; }
-          .column-zone-corporate { background-color: var(--bg-corporate-zone) !important; }
-          tr.active-turn-focus { opacity: 1 !important; filter: none !important; }
-          tr.active-turn-focus > th:not(:first-child), tr.active-turn-focus > td:not(:first-child),
-          tr.active-turn-focus > td.column-zone-market, tr.active-turn-focus > td.column-zone-corporate {
-            background-color: #ffffff !important; opacity: 1 !important; filter: none !important;
-          }
-          tr.operated-this-or > th:not(:first-child), tr.operated-this-or > td:not(:first-child),
-          tr.operated-this-or > td.column-zone-market, tr.operated-this-or > td.column-zone-corporate {
-            background-color: #eeeeee !important; color: #6b7280 !important;
-          }
-          #spreadsheet tbody tr > *:nth-child(#{active_player_nth}) {
-            background-color: #ffffff !important; opacity: 1 !important; filter: none !important;
-          }
-          #spreadsheet thead th { font-weight: 700 !important; }
-          #spreadsheet th.header-cash, #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }
-          #spreadsheet th.header-trains, #spreadsheet td.corporation-trains { width: 14.4rem !important; min-width: 14.4rem !important; max-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; }
-          .status-corp-wrapper:hover { z-index: 99999; }
-          .status-corp-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .cmd-company-tooltip { display: none !important; }
+
         CSS
 
         Lib::CardAnimation.check_and_animate(@game, has_treasury_column?)
@@ -691,20 +714,10 @@ module View
         tr_props[:hook] = Lib::RowAnimation.hook(corporation.id)
 
         row_classes = []
-        president_sold = corporation.respond_to?(:owner) && corporation.owner ? true : false
-        president_available = if corporation.respond_to?(:minor?) && corporation.minor?
-                                !president_sold
-                              elsif corporation.respond_to?(:available?)
-                                corporation.available?
-                              elsif @game.respond_to?(:corporation_available?)
-                                @game.corporation_available?(corporation)
-                              else
-                                true
-                              end
+        is_closed = corporation.respond_to?(:closed?) && corporation.closed?
+        row_classes << 'company-row-closed' if is_closed
+        row_classes << 'company-row-unfloated' if is_unfloated && !is_closed
 
-        should_grey_unfloated = @game.round.operating? ? is_unfloated : (is_unfloated && !(president_available || president_sold))
-
-        row_classes << 'company-row-unfloated' if should_grey_unfloated
         visual_current = @game.round.operating? && corporation == visual_operating_entity
         row_classes << 'operated-this-or' if operated_this_or?(corporation, current_round)
         row_classes << 'active-turn-focus' if visual_current
@@ -779,7 +792,9 @@ module View
                                                                         })
             end
 
-            treasury_cards << render_railcard("#{treasury_percent}%", classes, click_handler, nil, dropdowns)
+            card = render_railcard("#{treasury_percent}%", classes, click_handler, nil, dropdowns)
+            treasury_hover = share_denomination_tooltip(t_shares, corporation)
+            treasury_cards << h(:div, { attrs: { class: 'share-card-wrapper', title: treasury_hover } }, [card])
           end
 
           treasury << h('td.column-zone-corporate', {
@@ -941,7 +956,12 @@ module View
                                      card_classes << 'clickable' if click_handler
                                      card_props = { attrs: { class: card_classes.join(' ') } }
                                      card_props[:on] = { click: click_handler } if click_handler
-                                     h(:td, { style: { backgroundColor: bg_color, textAlign: 'center' } }, [h(:div, card_props, '100%')])
+
+                                     minor_card = h(:div, card_props, '100%')
+                                     minor_hover = share_denomination_tooltip(player_shares, corporation)
+                                     wrapped_minor = h(:div, { attrs: { class: 'share-card-wrapper', title: minor_hover } }, [minor_card])
+                                     h(:td, { style: { backgroundColor: bg_color, textAlign: 'center' } }, [wrapped_minor])
+
                                    else
                                      h(:td, { style: { backgroundColor: bg_color } }, '')
                                    end
@@ -1130,6 +1150,8 @@ module View
                 end
 
                 card = render_railcard(text, card_classes, click_handler, nil, dropdowns)
+                player_hover = n_shares.zero? ? '' : share_denomination_tooltip(player_shares, corporation)
+                card = h(:div, { attrs: { class: 'share-card-wrapper', title: player_hover } }, [card])
                 card = h(:span, { style: { visibility: 'hidden', display: 'inline-block' } }, [card]) if n_shares.zero?
                 players_row_content << h(:td, { attrs: { id: "player_shares_#{p.id}_#{corporation.id}" }, style: { backgroundColor: bg_color, textAlign: 'center', position: 'relative' } }, [card])
               end
@@ -1298,7 +1320,9 @@ module View
                                                                                              })
           end
 
-          pool_cell_children << render_railcard(pool_share_text, classes, pool_click_handler, nil, dropdowns)
+          pool_card = render_railcard(pool_share_text, classes, pool_click_handler, nil, dropdowns)
+          pool_hover = share_denomination_tooltip(pool_shares, corporation)
+          pool_cell_children << h(:div, { attrs: { class: 'share-card-wrapper', title: pool_hover } }, [pool_card])
         end
 
         ipo_share_text = n_ipo_shares.positive? ? "#{n_ipo_shares * 10}%" : ''
@@ -1496,7 +1520,16 @@ module View
             dropdowns << render_choice_menu('Buy from IPO:', options, cancel_handler)
           end
 
-          ipo_cell_children << render_railcard(ipo_share_text, card_classes, ipo_click_handler, nil, dropdowns)
+          ipo_card = render_railcard(ipo_share_text, card_classes, ipo_click_handler, nil, dropdowns)
+          ipo_actual_shares = if corporation.respond_to?(:ipo_shares) && corporation.ipo_shares
+                                corporation.ipo_shares
+                              elsif @game.separate_treasury?
+                                @game.bank.shares_of(corporation)
+                              else
+                                corporation.shares_of(corporation)
+                              end
+          ipo_hover = share_denomination_tooltip(ipo_actual_shares, corporation)
+          ipo_cell_children << h(:div, { attrs: { class: 'share-card-wrapper', title: ipo_hover } }, [ipo_card])
         end
 
         border_style = "1px solid #{color_for(:font2)}"
@@ -1510,13 +1543,15 @@ module View
         clean_market_price = corporation.share_price && is_operating ? @game.format_currency(corporation.share_price.price) : ''
         clean_par_price = corporation.par_price ? @game.format_currency(corporation.par_price.price) : ''
 
+        pool_cell_class = "td.column-zone-market.market-shares-col#{'.actionable-cell' if player_can_buy_pool || corporation_can_redeem_pool}"
         pool_row_content = [
-          h('td.column-zone-market.market-shares-col', { attrs: { id: "pool_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center', borderLeft: border_style } }, pool_cell_children),
+          h(pool_cell_class, { attrs: { id: "pool_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center', borderLeft: border_style } }, pool_cell_children),
           h('td.padded_number.column-zone-market.money-value.market-price-col', { style: market_style.merge(borderRight: border_style) }, clean_market_price),
         ]
 
+        bank_cell_class = "td.column-zone-market.market-shares-col#{'.actionable-cell' if ipo_click_handler}"
         bank_row_content = [
-          h('td.column-zone-market.market-shares-col', { attrs: { id: "ipo_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center' } }, ipo_cell_children),
+          h(bank_cell_class, { attrs: { id: "ipo_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center' } }, ipo_cell_children),
           h('td.padded_number.column-zone-market.money-value.market-price-col', { style: { borderRight: border_style } }, clean_par_price),
         ]
 
@@ -1575,8 +1610,15 @@ module View
           render_railcard(t.obsolete ? "(#{t.name})" : t.name, card_classes, train_click_handler, nil, menu_dropdown, wrapper_id)
         end
 
-        limit = begin; @game.train_limit(corporation); rescue StandardError; corporation.trains.size; end
-        limit = corporation.trains.size if limit < corporation.trains.size
+        raw_limit = begin
+          @game.train_limit(corporation)
+        rescue StandardError
+          4
+        end
+        raw_limit = 4 if raw_limit.nil? || (raw_limit.respond_to?(:infinite?) && raw_limit.infinite?)
+        limit = [raw_limit.to_i, 4].min
+        empty_count = [[limit - corporation.trains.size, 0].max, 4].min
+
         empty_count = [limit - corporation.trains.size, 0].max
         empty_count.times do |slot_index|
           attrs = { class: 'empty-train-slot' }
@@ -1705,6 +1747,39 @@ module View
         end
 
         h(:div, { attrs: { id: "tokens_#{corporation.id}" }, style: { display: 'flex', flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' } }, [h(:style, tooltip_style), *token_icons])
+      end
+
+      def share_denomination_tooltip(shares, corporation)
+        shares_list = Array(shares).compact
+        return '' if shares_list.empty?
+
+        counts = Hash.new(0)
+        shares_list.each do |share|
+          raw_pct = if share.respond_to?(:percent) && share.percent
+                      share.percent
+                    elsif corporation&.respond_to?(:share_percent) && corporation.share_percent
+                      corporation.share_percent
+                    else
+                      10
+                    end
+          counts[raw_pct] += 1
+        end
+
+        return '' if counts.empty?
+
+        entries = counts.sort_by { |pct, _| -pct }.map do |pct, count|
+          pct_str = (pct.to_f % 1).zero? ? "#{pct.to_i}%" : "#{pct.to_f.round(1)}%"
+          "#{count} x #{pct_str}"
+        end
+
+        case entries.size
+        when 1
+          entries.first
+        when 2
+          entries.join(' and ')
+        else
+          "#{entries[0...-1].join(', ')} and #{entries.last}"
+        end
       end
 
       def exec_short_shares(source_selector, player, corporation)
