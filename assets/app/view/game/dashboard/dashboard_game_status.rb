@@ -159,6 +159,7 @@ module View
         CSS
 
         Lib::CardAnimation.check_and_animate(@game, has_treasury_column?)
+        Lib::MarkerAnimation.check_and_animate(@game)
 
         h(:div, [
           h('div#spreadsheet', { style: { overflow: 'auto', marginTop: '1rem' } }, [
@@ -1590,20 +1591,20 @@ module View
         )
 
         h(:tr, tr_props, [
-h(:th, name_props, [major_card].compact),
-*row_content,
+          h(:th, name_props, [major_card].compact),
+          *row_content,
         ])
       end
 
       def render_unplaced_tokens(corporation)
-        return h(:span, '') unless corporation.respond_to?(:tokens)
+        return h(:span, { attrs: { id: "tokens_#{corporation.id}" } }, '') unless corporation.respond_to?(:tokens)
 
         unplaced = corporation.tokens.select do |t|
           has_hex = t.respond_to?(:hex) && t.hex
           is_placed = t.respond_to?(:placed?) && t.placed?
           !has_hex && !is_placed
         end
-        return h(:span, '') if unplaced.empty?
+        return h(:span, { attrs: { id: "tokens_#{corporation.id}" } }, '') if unplaced.empty?
 
         logo_src = begin; setting_for(:simple_logos, @game) ? corporation.simple_logo : corporation.logo; rescue StandardError; nil; end
 
@@ -1655,7 +1656,7 @@ h(:th, name_props, [major_card].compact),
           end
         end
 
-        h(:div, { style: { display: 'flex', flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' } }, [h(:style, tooltip_style), *token_icons])
+        h(:div, { attrs: { id: "tokens_#{corporation.id}" }, style: { display: 'flex', flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' } }, [h(:style, tooltip_style), *token_icons])
       end
 
       def exec_short_shares(source_selector, player, corporation)
