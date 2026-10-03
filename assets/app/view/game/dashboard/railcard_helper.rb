@@ -416,10 +416,18 @@ module View
 
         def major_corporation?(entity)
           return false unless entity
-          return false if minor_entity?(entity)
 
-          (entity.respond_to?(:corporation?) && entity.corporation?) ||
-            (defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation))
+          is_corporation = (entity.respond_to?(:corporation?) && entity.corporation?) ||
+                           (defined?(Engine::Corporation) && entity.is_a?(Engine::Corporation))
+          return false unless is_corporation
+
+          # If the entity has an explicit logo or operates as a corporation (like 1846 minors),
+          # retain major display status so logos and status cards render correctly.
+          has_logo = entity.respond_to?(:logo) && entity.logo && !entity.logo.to_s.empty?
+          return true if has_logo
+
+          # Otherwise exclude entities explicitly tagged as pure minors without corporate logos
+          !minor_entity?(entity)
         end
 
         def build_entity_tooltip(entity, price: nil)
@@ -472,7 +480,7 @@ module View
         end
 
         def render_major_railcard(corporation, click_handler = nil, card_classes = ['major-railcard'], wrapper_id = nil)
-          return nil unless major_corporation?(corporation)
+          return nil unless major_corporation?(corporation) || minor_entity?(corporation)
 
           classes = Array(card_classes).compact.map(&:to_s)
           classes << 'major-railcard' unless classes.include?('major-railcard')
