@@ -54587,6 +54587,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           active_player_nth = ($truthy(active_player_index) ? ($rb_plus(active_player_index, 2)) : (-1));
           css = ":root {\n" + "  --font-money: 'Courier New', monospace;\n" + "  --font-standard: \"Helvetica Neue\", Helvetica, Arial, sans-serif;\n" + "  --color-money-text: #4c1d95;\n" + "  --accent-action-color: #2563eb;\n" + "  --opacity-unopened-row: 0.45;\n" + "  --bg-active-row: #ffffff;\n" + "  --bg-market-zone: #e6f4ea;\n" + "  --bg-corporate-zone: #f3e8ff;\n" + "  --action-buy-edge: #16a34a;\n" + "  --action-sell-edge: #dc2626;\n" + "  --shadow-card: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);\n" + "}\n" + "#spreadsheet table { border-collapse: collapse; border: 3px solid #333333; background-color: " + ($$('COLOR_INACTIVE')) + "; }\n" + "#spreadsheet th, #spreadsheet td { border: 1px solid #b3b3b3 !important; vertical-align: middle !important; padding: 4px 2px !important; }\n" + "#spreadsheet thead tr:last-child th { border-bottom: 3px solid #333333 !important; }\n" + "#spreadsheet tr.last-player-row th, #spreadsheet tr.last-player-row td { border-bottom: 3px solid #333333 !important; }\n" + "#spreadsheet tr.last-minor-row th, #spreadsheet tr.last-minor-row td { border-bottom: 3px solid #333333 !important; }\n" + ".thick-right { border-right: 3px solid #333333 !important; }\n" + ".no-border { border: none !important; }\n" + ".money-value, .padded_number { text-align: right !important; padding-left: 0.45rem !important; padding-right: 0.45rem !important; box-sizing: border-box !important; }\n" + ".money-value { min-width: 4.35rem !important; width: 4.35rem !important; font-family: var(--font-money) !important; font-weight: bold !important; color: var(--color-money-text) !important; font-variant-numeric: tabular-nums !important; }\n" + "#spreadsheet .market-shares-col, #spreadsheet .market-price-col { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; box-sizing: border-box !important; }\n" + "#spreadsheet .market-shares-col { text-align: center !important; }\n" + "#spreadsheet thead th.header-market { background-color: var(--bg-market-zone) !important; color: #111827 !important; }\n" + "#spreadsheet thead th.header-corporate { background-color: #e9d5ff !important; color: #4c1d95 !important; }\n" + "#spreadsheet thead th.header-player, #spreadsheet thead th.header-symbol { background-color: #e5e7eb !important; color: #111827 !important; }\n" + ".game-card { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 3.5rem; height: 1.45rem; font-size: 0.85rem; padding: 0 4px; margin: 2px; border: 1px solid #888888; border-radius: 4px; background-color: #fdfbf7; color: #000000; box-shadow: var(--shadow-card); transition: transform 0.1s ease; font-family: var(--font-standard); }\n" + ".game-card.clickable:hover { cursor: pointer; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }\n" + ".game-card.action-sell { border: 2px solid var(--action-sell-edge) !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 1px var(--action-sell-edge) !important; }\n" + ".game-card.action-buy { border: 2px solid var(--action-buy-edge) !important; background-color: #e6f4ea !important; box-shadow: 0 0 0 1px var(--action-buy-edge) !important; }\n" + ".sell-restricted { text-decoration: line-through !important; opacity: 0.5 !important; cursor: not-allowed !important; }\n" + ".token-bond { display: inline-block; width: 12px; height: 12px; background-color: #b91c1c; border-radius: 2px; }\n" + ".align-top { vertical-align: top !important; }\n" + "tr.active-turn-focus { background-color: var(--bg-active-row) !important; }\n" + "tr.active-turn-focus th, tr.active-turn-focus td { box-shadow: inset 0 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }\n" + "tr.active-turn-focus th:first-child, tr.active-turn-focus td:first-child { box-shadow: inset 3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }\n" + "tr.active-turn-focus th:last-child, tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }\n" + "tr.company-row-unfloated, tr.company-row-closed { opacity: var(--opacity-unopened-row) !important; filter: grayscale(40%) !important; }\n" + "tr.company-row-unfloated:hover, tr.company-row-closed:hover { opacity: 1 !important; filter: none !important; }\n" + "tr.active-turn-focus:hover { opacity: 1 !important; }\n" + ".column-zone-market { background-color: var(--bg-market-zone) !important; }\n" + ".column-zone-corporate { background-color: var(--bg-corporate-zone) !important; }\n" + "tr.active-turn-focus { opacity: 1 !important; filter: none !important; }\n" + "tr.active-turn-focus > th:not(:first-child), tr.active-turn-focus > td:not(:first-child),\n" + "tr.active-turn-focus > td.column-zone-market, tr.active-turn-focus > td.column-zone-corporate {\n" + "  background-color: #ffffff !important; opacity: 1 !important; filter: none !important;\n" + "}\n" + "tr.operated-this-or > th:not(:first-child), tr.operated-this-or > td:not(:first-child),\n" + "tr.operated-this-or > td.column-zone-market, tr.operated-this-or > td.column-zone-corporate {\n" + "  background-color: #eeeeee !important; color: #6b7280 !important;\n" + "}\n" + "#spreadsheet tbody tr > *:nth-child(" + (active_player_nth) + ") {\n" + "  background-color: #ffffff !important; opacity: 1 !important; filter: none !important;\n" + "}\n" + "#spreadsheet thead th { font-weight: 700 !important; }\n" + "#spreadsheet th.header-cash, #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }\n" + "#spreadsheet th.header-trains, #spreadsheet td.corporation-trains { width: 14.4rem !important; min-width: 14.4rem !important; max-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; }\n" + ".status-corp-wrapper:hover { z-index: 99999; }\n" + ".status-corp-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .cmd-company-tooltip { display: none !important; }\n";
           $$$($$('Lib'), 'CardAnimation').$check_and_animate(self.game, self['$has_treasury_column?']());
+          $$$($$('Lib'), 'MarkerAnimation').$check_and_animate(self.game);
           return self.$h("div", [self.$h("div#spreadsheet", (new Map([["style", (new Map([["overflow", "auto"], ["marginTop", "1rem"]]))]])), [self.$h("style", css), self.$render_corporation_table()])]);
         });
         
@@ -56182,7 +56183,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
 
           
           if (!$truthy(corporation['$respond_to?']("tokens"))) {
-            return self.$h("span", "")
+            return self.$h("span", (new Map([["attrs", (new Map([["id", "tokens_" + (corporation.$id())]]))]])), "")
           };
           unplaced = $send(corporation.$tokens(), 'select', [], function $$111(t){var has_hex = nil, $ret_or_1 = nil, is_placed = nil;
 
@@ -56196,7 +56197,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
               return $ret_or_1
             };});
           if ($truthy(unplaced['$empty?']())) {
-            return self.$h("span", "")
+            return self.$h("span", (new Map([["attrs", (new Map([["id", "tokens_" + (corporation.$id())]]))]])), "")
           };
           logo_src = (function() { try {
             if ($truthy(self.$setting_for("simple_logos", self.game))) {
@@ -56245,7 +56246,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
               div_style = (new Map([["width", "20px"], ["height", "20px"], ["borderRadius", "50%"], ["boxSizing", "border-box"], ["display", "block"], ["border", "1px solid #333"], ["lineHeight", "18px"], ["textAlign", "center"], ["backgroundColor", ($truthy(($ret_or_1 = corporation.$color())) ? ($ret_or_1) : ("#4169e1"))], ["color", ($truthy(($ret_or_1 = corporation.$text_color())) ? ($ret_or_1) : ("#fff"))], ["fontSize", "0.55rem"], ["fontWeight", "bold"], ["pointerEvents", "none"]]));
               return self.$h("div", wrapper_props, [self.$h("div", (new Map([["style", div_style]])), corporation.$id().$to_s()['$[]']($range(0, 2, false)))]);
             };}, {$$s: self});
-          return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["justifyContent", "center"], ["flexWrap", "wrap"]]))]])), [self.$h("style", tooltip_style)].concat($to_a(token_icons)));
+          return self.$h("div", (new Map([["attrs", (new Map([["id", "tokens_" + (corporation.$id())]]))], ["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["justifyContent", "center"], ["flexWrap", "wrap"]]))]])), [self.$h("style", tooltip_style)].concat($to_a(token_icons)));
         });
         
         $def(self, '$exec_short_shares', function $$exec_short_shares(source_selector, player, corporation) {
@@ -57991,6 +57992,359 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
       })($nesting[0], $$$($$('Snabberb'), 'Component'), $nesting)
     })($nesting[0], $nesting)
   })($nesting[0], $nesting);
+};
+
+Opal.modules["view/game/dashboard/dashboard_marker_animation"] = function(Opal) {/* Generated by Opal 1.8.2 */
+  var $module = Opal.module, $truthy = Opal.truthy, $defs = Opal.defs, $not = Opal.not, $range = Opal.range, $nesting = [], nil = Opal.nil;
+
+  Opal.add_stubs('last_action,respond_to?,last,actions,id,object_id,resolve_action,[],to_s,!,nil?,split,name,class,include?,token,downcase,city,entity,corporation?,corporation,owner,hex,empty?,logo,simple_logo,color,text_color,upcase');
+  return (function($base, $parent_nesting) {
+    var self = $module($base, 'Lib');
+
+    var $nesting = [self].concat($parent_nesting);
+
+    return (function($base) {
+      var self = $module($base, 'MarkerAnimation');
+
+      
+      
+      $defs(self, '$check_and_animate', function $$check_and_animate(game) {
+        var $a, $b, self = this, action = nil, current_id = nil, info = nil, info_corp_id = nil, $ret_or_1 = nil, info_hex_id = nil, info_color = nil, info_text_color = nil, info_token_text = nil, info_logo = nil, info_source = nil, info_target = nil, game_id = nil;
+
+        
+        if (!$truthy(game)) {
+          return nil
+        };
+        action = (($truthy(game['$respond_to?']("last_action")) && ($truthy(game.$last_action()))) ? (game.$last_action()) : (($truthy(game['$respond_to?']("actions")) && ($truthy(($a = game.$actions(), ($a === nil || $a == null) ? nil : $a.$last())))) ? (game.$actions().$last()) : nil));
+        current_id = ($truthy(($b = action, ($b === nil || $b == null) ? nil : $b['$respond_to?']("id"))) ? (action.$id()) : ($truthy(action) ? (action.$object_id()) : (0)));
+        info = ($truthy(action) ? (self.$resolve_action(game, action)) : (nil));
+        info_corp_id = ($truthy(($ret_or_1 = info)) ? (info['$[]']("corp_id")) : ($ret_or_1));
+        info_hex_id = ($truthy(($ret_or_1 = info)) ? (info['$[]']("hex_id")) : ($ret_or_1));
+        info_color = ($truthy(($ret_or_1 = info)) ? (info['$[]']("color")) : ($ret_or_1));
+        info_text_color = ($truthy(($ret_or_1 = info)) ? (info['$[]']("text_color")) : ($ret_or_1));
+        info_token_text = ($truthy(($ret_or_1 = info)) ? (info['$[]']("token_text")) : ($ret_or_1));
+        info_logo = ($truthy(($ret_or_1 = info)) ? (info['$[]']("logo")) : ($ret_or_1));
+        info_source = ($truthy(($ret_or_1 = info)) ? (info['$[]']("source_sel")) : ($ret_or_1));
+        info_target = ($truthy(($ret_or_1 = info)) ? (info['$[]']("target_sel")) : ($ret_or_1));
+        game_id = (($truthy(game['$respond_to?']("id")) && ($truthy(game.$id()))) ? (game.$id().$to_s()) : ("default"));
+        
+    if (typeof window === 'undefined') return;
+
+    var actId = current_id;
+    var gameId = game_id;
+    var trackerKey = '_marker_anim_last_act_' + gameId;
+    var cacheKey = '_marker_anim_cache_' + gameId;
+
+    if (!window[cacheKey]) {
+      window[cacheKey] = {};
+    }
+
+    var cache = window[cacheKey];
+    var prevActId = window[trackerKey];
+
+    var newData = null;
+
+    if (info['$nil?']()['$!']()) {
+      newData = {
+        corp_id: info_corp_id,
+        hex_id: info_hex_id,
+        color: info_color,
+        text_color: info_text_color,
+        token_text: info_token_text,
+        logo: info_logo,
+        source_sel: info_source,
+        target_sel: info_target
+      };
+
+      if (!cache[actId]) {
+        cache[actId] = newData;
+      }
+    }
+
+    if (prevActId === undefined) {
+      window[trackerKey] = actId;
+      return;
+    }
+
+    if (prevActId === actId) {
+      return;
+    }
+
+    var isForward = actId > prevActId;
+    var activeData = isForward ? (cache[actId] || newData) : cache[prevActId];
+
+    window[trackerKey] = actId;
+
+    if (!activeData) return;
+
+    var fromSel = isForward ? activeData.source_sel : activeData.target_sel;
+    var toSel = isForward ? activeData.target_sel : activeData.source_sel;
+
+    window.requestAnimationFrame(function() {
+      setTimeout(function() {
+        var sanitize = function(sel) {
+          if (!sel || sel.indexOf('#') !== 0) return sel;
+          var tokens = sel.split(' ');
+          var rawId = tokens[0].substring(1);
+          var safeId = '#' + (window.CSS && window.CSS.escape ? window.CSS.escape(rawId) : rawId);
+          tokens[0] = safeId;
+          return tokens.join(' ');
+        };
+
+        var getElm = function(selector, isHex) {
+          if (!selector) return null;
+          var el = document.querySelector(selector);
+          if (!el && selector.indexOf(' ') !== -1) {
+            el = document.querySelector(selector.split(' ')[0]);
+          }
+          if (!el && isHex) {
+            var rawHex = selector.replace(/^#hex-/, '');
+            el = document.getElementById('hex-' + rawHex) ||
+                 document.getElementById('hex-' + rawHex.toUpperCase()) ||
+                 document.querySelector('.hex-' + rawHex) ||
+                 document.querySelector('.hex-' + rawHex.toUpperCase());
+          }
+          if (!el && !isHex && selector.indexOf('#tokens_') !== -1) {
+            var corp = selector.replace(/^#tokens_/, '');
+            el = document.querySelector('#tokens_cell_' + corp) ||
+                 document.querySelector('#status_major_' + corp);
+          }
+          return el;
+        };
+
+        var fromEl = getElm(sanitize(fromSel), !isForward);
+        var toEl = getElm(sanitize(toSel), isForward);
+
+        if (!fromEl || !toEl) return;
+
+        var fromRect = fromEl.getBoundingClientRect();
+        var toRect = toEl.getBoundingClientRect();
+
+        if (fromRect.width === 0 || toRect.width === 0) return;
+
+        var targetCitySlot = toEl.querySelector ? (
+          toEl.querySelector('.token-' + activeData.corp_id) ||
+          toEl.querySelector('circle[r]') ||
+          toEl.querySelector('.city-slot')
+        ) : null;
+
+        var targetRect = targetCitySlot ? targetCitySlot.getBoundingClientRect() : toRect;
+
+        var markerSize = 44;
+        var startX = fromRect.left + (fromRect.width / 2) - (markerSize / 2);
+        var startY = fromRect.top + (fromRect.height / 2) - (markerSize / 2);
+        var endX = targetRect.left + (targetRect.width / 2) - (markerSize / 2);
+        var endY = targetRect.top + (targetRect.height / 2) - (markerSize / 2);
+
+        var flying = document.createElement('div');
+        flying.className = 'flying-marker-token';
+        flying.style.position = 'fixed';
+        flying.style.left = startX + 'px';
+        flying.style.top = startY + 'px';
+        flying.style.width = markerSize + 'px';
+        flying.style.height = markerSize + 'px';
+        flying.style.borderRadius = '50%';
+        flying.style.boxSizing = 'border-box';
+        flying.style.display = 'flex';
+        flying.style.alignItems = 'center';
+        flying.style.justifyContent = 'center';
+        flying.style.backgroundColor = activeData.color || '#4169e1';
+        flying.style.color = activeData.text_color || '#ffffff';
+        flying.style.border = '3px solid #ffffff';
+        flying.style.fontFamily = '"Helvetica Neue", Arial, sans-serif';
+        flying.style.fontSize = '0.92rem';
+        flying.style.fontWeight = '900';
+        flying.style.textAlign = 'center';
+        flying.style.zIndex = '9999999';
+        flying.style.pointerEvents = 'none';
+        flying.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5), 0 0 20px ' + (activeData.color || '#00ffff');
+
+        if (activeData.logo) {
+          var img = document.createElement('img');
+          img.src = activeData.logo;
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.borderRadius = '50%';
+          img.style.objectFit = 'contain';
+          img.style.pointerEvents = 'none';
+          flying.appendChild(img);
+        } else {
+          flying.innerText = activeData.token_text || activeData.corp_id || 'TOK';
+        }
+
+        document.body.appendChild(flying);
+
+        var startTime = performance.now();
+        var flightDuration = 560;
+        var slamDuration = 280;
+        var totalDuration = flightDuration + slamDuration;
+        var slamTriggered = false;
+
+        function triggerHexSlamAndShockwave() {
+          if (slamTriggered) return;
+          slamTriggered = true;
+
+          // 1. Seismic Hex Shake
+          var shakeStart = performance.now();
+          var shakeDur = 340;
+
+          function shakeStep(now) {
+            var shakeElapsed = now - shakeStart;
+            if (shakeElapsed < shakeDur) {
+              var decay = 1 - (shakeElapsed / shakeDur);
+              var sx = (Math.sin(shakeElapsed * 0.12) * 8 * decay).toFixed(2);
+              var sy = (Math.cos(shakeElapsed * 0.14) * 6 * decay).toFixed(2);
+              toEl.style.transform = 'translate(' + sx + 'px, ' + sy + 'px)';
+              window.requestAnimationFrame(shakeStep);
+            } else {
+              toEl.style.transform = '';
+            }
+          }
+          window.requestAnimationFrame(shakeStep);
+
+          // 2. Cyan Shockwave Ripple
+          var poly = toEl.querySelector('.hex-highlight-poly');
+          var pointsStr = poly ? poly.getAttribute('points') : '';
+          if (!pointsStr) pointsStr = '-50,0 -25,-43.3 25,-43.3 50,0 25,43.3 -25,43.3';
+
+          var transformStr = toEl.getAttribute('data-transform') || '';
+          var shockGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          shockGroup.setAttribute('transform', transformStr);
+          shockGroup.setAttribute('pointer-events', 'none');
+
+          var shockPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          shockPoly.setAttribute('points', pointsStr);
+          shockPoly.setAttribute('fill', '#00ffff');
+          shockPoly.setAttribute('fill-opacity', '0.45');
+          shockPoly.setAttribute('stroke', '#00ffff');
+          shockPoly.setAttribute('stroke-width', '10');
+          shockPoly.setAttribute('stroke-opacity', '1.0');
+          shockPoly.style.filter = 'drop-shadow(0 0 12px #00ffff)';
+
+          shockGroup.appendChild(shockPoly);
+          toEl.appendChild(shockGroup);
+
+          var waveStart = performance.now();
+          var waveDur = 550;
+
+          function waveStep(now) {
+            var waveElapsed = now - waveStart;
+            if (waveElapsed < waveDur) {
+              var pw = waveElapsed / waveDur;
+              var sw = 1.0 + 2.2 * (1 - Math.pow(1 - pw, 3));
+              var op = Math.max(0, 1.0 - pw);
+              shockPoly.setAttribute('transform', 'scale(' + sw.toFixed(3) + ')');
+              shockPoly.setAttribute('stroke-opacity', op.toFixed(3));
+              shockPoly.setAttribute('fill-opacity', (0.35 * op).toFixed(3));
+              shockPoly.setAttribute('stroke-width', (10 * (1 - pw * 0.7)).toFixed(1));
+              window.requestAnimationFrame(waveStep);
+            } else {
+              if (shockGroup.parentNode) shockGroup.parentNode.removeChild(shockGroup);
+            }
+          }
+          window.requestAnimationFrame(waveStep);
+
+          // 3. Hex Border Flash
+          if (poly) {
+            poly.setAttribute('stroke', '#00ffff');
+            poly.setAttribute('stroke-width', '10');
+            poly.setAttribute('fill', '#00ffff');
+            poly.setAttribute('fill-opacity', '0.35');
+            setTimeout(function() {
+              poly.setAttribute('stroke', poly.getAttribute('data-orig-stroke') || 'transparent');
+              poly.setAttribute('stroke-width', poly.getAttribute('data-orig-width') || '0');
+              poly.setAttribute('fill', poly.getAttribute('data-orig-fill') || 'transparent');
+              poly.setAttribute('fill-opacity', poly.getAttribute('data-orig-fill-opacity') || '0');
+            }, 550);
+          }
+        }
+
+        function frame(now) {
+          var elapsed = now - startTime;
+
+          if (elapsed <= flightDuration) {
+            var p = elapsed / flightDuration;
+            var ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+            var arcY = Math.sin(p * Math.PI) * 110;
+
+            var curX = startX + (endX - startX) * ease;
+            var curY = startY + (endY - startY) * ease - arcY;
+
+            var scale = 1.0;
+            if (p < 0.65) {
+              scale = 1.0 + 2.6 * Math.sin((p / 0.65) * Math.PI / 2);
+            } else {
+              var pLand = (p - 0.65) / 0.35;
+              scale = 3.6 - 2.75 * pLand;
+            }
+
+            var rot = Math.sin(p * Math.PI) * 18;
+            var shadowSize = 15 + 40 * Math.sin(p * Math.PI);
+
+            flying.style.left = curX.toFixed(1) + 'px';
+            flying.style.top = curY.toFixed(1) + 'px';
+            flying.style.transform = 'scale(' + scale.toFixed(3) + ') rotate(' + rot.toFixed(1) + 'deg)';
+            flying.style.boxShadow = '0 ' + (shadowSize * 0.8).toFixed(1) + 'px ' + shadowSize.toFixed(1) +
+                                    'px rgba(0,0,0,0.65), 0 0 ' + (shadowSize * 0.9).toFixed(1) + 'px #00ffff';
+
+            window.requestAnimationFrame(frame);
+          } else if (elapsed <= totalDuration) {
+            triggerHexSlamAndShockwave();
+
+            var slamP = (elapsed - flightDuration) / slamDuration;
+            var settleScale = 0.85 + 0.25 * Math.sin(slamP * Math.PI);
+            var opacity = Math.max(0, 1.0 - (slamP * 1.6));
+
+            flying.style.left = endX.toFixed(1) + 'px';
+            flying.style.top = endY.toFixed(1) + 'px';
+            flying.style.transform = 'scale(' + settleScale.toFixed(3) + ')';
+            flying.style.opacity = opacity.toFixed(2);
+
+            window.requestAnimationFrame(frame);
+          } else {
+            triggerHexSlamAndShockwave();
+            if (flying.parentNode) {
+              flying.parentNode.removeChild(flying);
+            }
+          }
+        }
+
+        window.requestAnimationFrame(frame);
+      }, 35);
+    });
+  ;
+      });
+      return $defs(self, '$resolve_action', function $$resolve_action(_game, action) {
+        var $a, $b, $c, $d, $e, $f, $g, action_name = nil, valid_actions = nil, is_token_action = nil, $ret_or_1 = nil, $ret_or_2 = nil, $ret_or_3 = nil, $ret_or_4 = nil, entity = nil, token = nil, corp = nil, corp_id = nil, city = nil, hex = nil, hex_id = nil, logo = nil, color = nil, text_color = nil, token_text = nil;
+
+        
+        action_name = action.$class().$name().$split("::").$last();
+        valid_actions = ["PlaceToken", "HexToken", "LayToken", "PlaceHomeToken", "HomeToken"];
+        is_token_action = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = valid_actions['$include?'](action_name))) ? ($ret_or_2) : (($truthy(($ret_or_3 = ($truthy(($ret_or_4 = action['$respond_to?']("token"))) ? (action.$token()) : ($ret_or_4)))) ? (action_name.$downcase()['$include?']("token")) : ($ret_or_3)))))) ? ($ret_or_1) : (($truthy(($ret_or_2 = ($truthy(($ret_or_3 = action['$respond_to?']("city"))) ? (action.$city()) : ($ret_or_3)))) ? (action_name.$downcase()['$include?']("token")) : ($ret_or_2))));
+        if (!$truthy(is_token_action)) {
+          return nil
+        };
+        entity = ($truthy(action['$respond_to?']("entity")) ? (action.$entity()) : (nil));
+        token = ($truthy(action['$respond_to?']("token")) ? (action.$token()) : (nil));
+        corp = (($truthy(($a = entity, ($a === nil || $a == null) ? nil : $a['$respond_to?']("corporation?"))) && ($truthy(entity['$corporation?']()))) ? (entity) : (($truthy(($b = token, ($b === nil || $b == null) ? nil : $b['$respond_to?']("corporation"))) && ($truthy(token.$corporation()))) ? (token.$corporation()) : ((($truthy(($d = entity, ($d === nil || $d == null) ? nil : $d['$respond_to?']("owner"))) && ($truthy(($c = entity.$owner(), ($c === nil || $c == null) ? nil : $c['$respond_to?']("corporation?"))))) && ($truthy(entity.$owner()['$corporation?']()))) ? (entity.$owner()) : (entity))));
+        if (!$truthy(corp)) {
+          return nil
+        };
+        corp_id = ($truthy(corp['$respond_to?']("id")) ? (corp.$id().$to_s()) : (corp.$to_s()));
+        city = ($truthy(action['$respond_to?']("city")) ? (action.$city()) : (nil));
+        hex = (($truthy(($e = city, ($e === nil || $e == null) ? nil : $e['$respond_to?']("hex"))) && ($truthy(city.$hex()))) ? (city.$hex()) : (($truthy(action['$respond_to?']("hex")) && ($truthy(action.$hex()))) ? (action.$hex()) : (($truthy(($f = token, ($f === nil || $f == null) ? nil : $f['$respond_to?']("hex"))) && ($truthy(token.$hex()))) ? (token.$hex()) : nil)));
+        hex_id = ($truthy(($g = hex, ($g === nil || $g == null) ? nil : $g['$respond_to?']("id"))) ? (hex.$id().$to_s()) : ($truthy(hex) ? (hex.$to_s()) : nil));
+        if (!($truthy(hex_id) && ($not(hex_id['$empty?']())))) {
+          return nil
+        };
+        logo = (($truthy(corp['$respond_to?']("logo")) && ($truthy(corp.$logo()))) ? (corp.$logo()) : (($truthy(corp['$respond_to?']("simple_logo")) && ($truthy(corp.$simple_logo()))) ? (corp.$simple_logo()) : nil));
+        color = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = corp['$respond_to?']("color"))) ? (corp.$color()) : ($ret_or_2)))) ? ($ret_or_1) : ("#4169e1"));
+        text_color = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = corp['$respond_to?']("text_color"))) ? (corp.$text_color()) : ($ret_or_2)))) ? ($ret_or_1) : ("#ffffff"));
+        token_text = corp_id['$[]']($range(0, 2, false)).$upcase();
+        return (new Map([["id", ($truthy(($ret_or_1 = action.$id())) ? ($ret_or_1) : (action.$object_id()))], ["corp_id", corp_id], ["hex_id", hex_id], ["color", color], ["text_color", text_color], ["token_text", token_text], ["logo", logo], ["source_sel", "#tokens_" + (corp_id)], ["target_sel", "#hex-" + (hex_id)]]));
+      });
+    })($nesting[0])
+  })($nesting[0], $nesting)
 };
 
 Opal.modules["view/game/dashboard/dashboard_money_animation"] = function(Opal) {/* Generated by Opal 1.8.2 */
@@ -64089,7 +64443,7 @@ Opal.modules["view/game/dashboard/par_prompt_overlay"] = function(Opal) {/* Gene
 Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generated by Opal 1.8.2 */
   var $module = Opal.module, $const_set = Opal.const_set, $truthy = Opal.truthy, $def = Opal.def, $send = Opal.send, $not = Opal.not, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $rb_minus = Opal.rb_minus, $neqeq = Opal.neqeq, $rb_lt = Opal.rb_lt, $rb_gt = Opal.rb_gt, $kwrestargs = Opal.kwrestargs, $rb_times = Opal.rb_times, $to_a = Opal.to_a, $get_kwarg = Opal.get_kwarg, $slice = Opal.slice, $extract_kwargs = Opal.extract_kwargs, $alias = Opal.alias, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,respond_to?,minor?,is_a?,==,to_s,type,include?,minors,all_abilities,concat,abilities,Array,each,const_defined?,class,sym,name,find,[],<<,uniq,compact,hexes,hex,id,coordinates,corporation,corporation_by_id,minor,minor_by_id,city,corporation?,tokens,map,any?,desc,scan,hex_by_id,upcase,to_proc,h,!,empty?,strip,join,owner,description,capitalize,tr,format_currency,value,revenue,resolve_target_hexes,nil?,zero?,discount,min_bid,-,!=,min_price,render_company_tooltip,to_i,<,>,lambda,[]=,update,call,minor_entity?,company?,build_company_tooltip,major_corporation?,render_corp_tooltip,color,text_color,share_percent,*,abs,positive?,render_short_railcard,first,split,sub,companies,corporations,merge!,render_ghost_short_railcard');
+  Opal.add_stubs('require,respond_to?,minor?,is_a?,==,to_s,type,include?,minors,all_abilities,concat,abilities,Array,each,const_defined?,class,sym,name,find,[],<<,uniq,compact,hexes,hex,id,coordinates,corporation,corporation_by_id,minor,minor_by_id,city,corporation?,tokens,map,any?,desc,scan,hex_by_id,upcase,to_proc,h,!,empty?,strip,join,owner,description,capitalize,tr,format_currency,value,revenue,resolve_target_hexes,nil?,zero?,discount,min_bid,-,!=,min_price,render_company_tooltip,to_i,<,>,lambda,[]=,update,call,logo,minor_entity?,company?,build_company_tooltip,major_corporation?,render_corp_tooltip,color,text_color,share_percent,*,abs,positive?,render_short_railcard,first,split,sub,companies,corporations,merge!,render_ghost_short_railcard');
   
   self.$require("view/game/corporation");
   return (function($base, $parent_nesting) {
@@ -64461,25 +64815,21 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
           }, -6);
           
           $def(self, '$major_corporation?', function $RailcardHelper_major_corporation$ques$12(entity) {
-            var $a, $b, self = this, $ret_or_1 = nil, $ret_or_2 = nil;
+            var $a, $b, self = this, is_corporation = nil, $ret_or_1 = nil, $ret_or_2 = nil, has_logo = nil;
 
             
             if (!$truthy(entity)) {
               return false
             };
-            if ($truthy(self['$minor_entity?'](entity))) {
+            is_corporation = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = entity['$respond_to?']("corporation?"))) ? (entity['$corporation?']()) : ($ret_or_2)))) ? ($ret_or_1) : (($truthy(($ret_or_2 = (($b = $$('Engine', 'skip_raise')) && ($a = $$$($b, 'Corporation', 'skip_raise')) ? 'constant' : nil))) ? (entity['$is_a?']($$$($$('Engine'), 'Corporation'))) : ($ret_or_2))));
+            if (!$truthy(is_corporation)) {
               return false
             };
-            if ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = entity['$respond_to?']("corporation?"))) ? (entity['$corporation?']()) : ($ret_or_2))))) {
-              return $ret_or_1
-            } else {
-              
-              if ($truthy(($ret_or_2 = (($b = $$('Engine', 'skip_raise')) && ($a = $$$($b, 'Corporation', 'skip_raise')) ? 'constant' : nil)))) {
-                return entity['$is_a?']($$$($$('Engine'), 'Corporation'))
-              } else {
-                return $ret_or_2
-              };
+            has_logo = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = entity['$respond_to?']("logo"))) ? (entity.$logo()) : ($ret_or_2)))) ? (entity.$logo().$to_s()['$empty?']()['$!']()) : ($ret_or_1));
+            if ($truthy(has_logo)) {
+              return true
             };
+            return self['$minor_entity?'](entity)['$!']();
           });
           
           $def(self, '$build_entity_tooltip', function $$build_entity_tooltip(entity, $kwargs) {
@@ -64526,7 +64876,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             if (click_handler == null) click_handler = nil;
             if (card_classes == null) card_classes = ["major-railcard"];
             if (wrapper_id == null) wrapper_id = nil;
-            if (!$truthy(self['$major_corporation?'](corporation))) {
+            if (!($truthy(self['$major_corporation?'](corporation)) || ($truthy(self['$minor_entity?'](corporation))))) {
               return nil
             };
             classes = $send(self.$Array(card_classes).$compact(), 'map', [], "to_s".$to_proc());
