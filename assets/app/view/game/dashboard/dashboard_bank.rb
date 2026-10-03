@@ -59,42 +59,172 @@ module View
         current_entity
       end
 
-      def train_available_count(train, variant_name = nil)
+      def train_available_count(train, variant_name = nil, from_pool: false)
         return '∞' if train.respond_to?(:unlimited) && train.unlimited
+        return 0 if train.respond_to?(:rusted) && train.rusted
 
-        if @game.depot.discarded.include?(train)
-          @game.depot.discarded.count { |t| t.name == train.name || t.sym == train.sym }
+        if from_pool || @game.depot.discarded.include?(train)
+          @game.depot.discarded.count do |t|
+            (!t.respond_to?(:rusted) || !t.rusted) && (t.name == train.name || t.sym == train.sym)
+          end
         else
           count = @game.depot.upcoming.count do |t|
-            t.name == train.name || t.sym == train.sym ||
-              (variant_name && t.respond_to?(:variants) && t.variants&.key?(variant_name))
+            (!t.respond_to?(:rusted) || !t.rusted) &&
+              (t.name == train.name || t.sym == train.sym ||
+                (variant_name && t.respond_to?(:variants) && t.variants&.key?(variant_name)))
           end
-          count = 1 if count.zero? && train.owner == @game.depot
+          count = 1 if count.zero? && train.owner == @game.depot && !@game.depot.discarded.include?(train)
           count
         end
       end
 
-      def available_depot_trains
+      def depot_pool_trains
         return [] unless @game.respond_to?(:depot) && @game.depot
+
+        discarded = @game.depot.respond_to?(:discarded) ? (@game.depot.discarded || []) : []
+        discarded.reject { |t| t.respond_to?(:rusted) && t.rusted }
+                 .select { |t| train_available_count(t, from_pool: true).to_s != '0' }
+                 .uniq(&:name)
+      end
+
+      def depot_fresh_trains
+        return [] unless @game.respond_to?(:depot) && @game.depot
+
+        upcoming = @game.depot.respond_to?(:upcoming) ? (@game.depot.upcoming || []) : []
+        upcoming = upcoming.reject { |t| t.respond_to?(:rusted) && t.rusted }
+        return [] if upcoming.empty?
+
+        discarded = @game.depot.respond_to?(:discarded) ? (@game.depot.discarded || []) : []
+
+        # Retain buyable step view across turns if available
+        step = @game.round.active_step
+        buy_step = step if step&.respond_to?(:buyable_trains)
+        buy_step = @game.round.steps.find { |s| s.respond_to?(:buyable_trains) } if !buy_step && @game.round.respond_to?(:steps)
+
+        if buy_step
+          entity = active_entity || (@game.respond_to?(:current_entity) ? @game.current_entity : nil) || @game.corporations&.first
+          if entity
+            begin
+              buyable = buy_step.buyable_trains(entity) || []
+              fresh = buyable.select do |t|
+                !discarded.include?(t) &&
+                  (upcoming.include?(t) || ((t.respond_to?(:from_depot?) && t.from_depot?) || t.owner == @game.depot))
+              end
+              fresh = fresh.reject { |t| t.respond_to?(:rusted) && t.rusted }
+              return fresh.uniq(&:name) if fresh.any?
+            rescue StandardError
+            end
+          end
+        end
+
+        [upcoming.first].compact.uniq(&:name)
+      end
+
+      def render_train_cells(item, type, index)
+        train = item[:train]
+        variant_name = item[:variant_name]
+        price = item[:price]
 
         step = @game.round.active_step
         train_buyable_step = step&.current_actions&.include?('buy_train')
+        card_classes = %w[game-card card-train]
+        click_handler = nil
 
-        if train_buyable_step && active_entity&.corporation? && step.respond_to?(:buyable_trains)
-          buyable = step.buyable_trains(active_entity) || []
-          depot_trains = buyable.select do |t|
-            (t.respond_to?(:from_depot?) && t.from_depot?) ||
-              t.owner == @game.depot ||
-              t.owner == @game.bank ||
-              @game.depot.upcoming.include?(t) ||
-              (@game.depot.respond_to?(:discarded) && @game.depot.discarded.include?(t))
+        if train_buyable_step && active_entity&.corporation?
+          can_afford = active_entity.cash >= price || active_entity.trains.empty?
+
+          if can_afford
+            card_classes << 'action-buy'
+            card_classes << 'clickable'
+            click_handler = lambda {
+              variant_str = variant_name.to_s
+              if @train_handler
+                @train_handler.call(train, price, variant_str)
+              else
+                process_action(Engine::Action::BuyTrain.new(
+                  active_entity,
+                  train: train,
+                  price: price,
+                  variant: (variant_str == train.name.to_s ? nil : variant_str)
+                ))
+              end
+            }
           end
-          return depot_trains.uniq(&:name) if depot_trains.any?
         end
 
-        discarded = @game.depot.respond_to?(:discarded) ? (@game.depot.discarded || []) : []
-        upcoming = @game.depot.respond_to?(:upcoming) ? (@game.depot.upcoming || []) : []
-        (discarded + [upcoming.first]).compact.uniq(&:name)
+        available_count = train_available_count(train, variant_name, from_pool: (type == 'pool'))
+        dom_id = "bank_train_#{type}_#{train.id}_#{variant_name.to_s.tr('/', '_')}"
+        card_el = render_railcard(variant_name.to_s, card_classes, click_handler, entity: train)
+
+        card_td = h('td.left', { key: "#{dom_id}_card", style: { padding: '4px 6px', verticalAlign: 'middle' } }, [
+          h(:div, { attrs: { id: dom_id }, style: { display: 'inline-flex', alignItems: 'center' } }, [card_el]),
+        ])
+
+        info_td = h('td.right', { key: "#{dom_id}_info", style: { padding: '4px 6px', verticalAlign: 'middle', whiteSpace: 'nowrap' } }, [
+          h(:span,
+            { style: { fontFamily: FONT_MONEY, color: COLOR_MONEY, fontSize: '0.85rem', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' } }, @game.format_currency(price)),
+          h(:span, { style: { fontFamily: FONT_STD, color: '#555555', fontSize: '0.75rem', marginLeft: '4px' } },
+            "(#{available_count})"),
+        ])
+
+        [card_td, info_td]
+      end
+
+      def render_empty_train_cells(type, index)
+        [
+          h('td.left', { key: "empty_#{type}_card_#{index}", style: { padding: '4px 6px', verticalAlign: 'middle' } }, ''),
+          h('td.right',
+            { key: "empty_#{type}_info_#{index}", style: { padding: '4px 6px', verticalAlign: 'middle', whiteSpace: 'nowrap' } }, ''),
+        ]
+      end
+
+      def render_trains_table
+        pool_trains = depot_pool_trains
+        fresh_trains = depot_fresh_trains
+
+        return nil if pool_trains.empty? && fresh_trains.empty?
+
+        pool_items = []
+        pool_trains.each do |train|
+          variants = if train.respond_to?(:names_to_prices) && train.names_to_prices && !train.names_to_prices.empty?
+                       train.names_to_prices
+                     else
+                       { train.name => train.price }
+                     end
+          variants.each { |variant_name, price| pool_items << { train: train, variant_name: variant_name, price: price } }
+        end
+
+        fresh_items = []
+        fresh_trains.each do |train|
+          variants = if train.respond_to?(:names_to_prices) && train.names_to_prices && !train.names_to_prices.empty?
+                       train.names_to_prices
+                     else
+                       { train.name => train.price }
+                     end
+          variants.each { |variant_name, price| fresh_items << { train: train, variant_name: variant_name, price: price } }
+        end
+
+        return nil if pool_items.empty? && fresh_items.empty?
+
+        max_rows = [pool_items.size, fresh_items.size].max
+
+        trs = [
+          h(:tr, { key: 'bank_trains_header' }, [
+            h(:th,
+              { attrs: { colspan: 2 }, style: { width: '50%', textAlign: 'center', fontFamily: FONT_STD, fontSize: '0.8rem', fontWeight: 'bold' } }, 'Pool'),
+            h(:th,
+              { attrs: { colspan: 2 }, style: { width: '50%', textAlign: 'center', fontFamily: FONT_STD, fontSize: '0.8rem', fontWeight: 'bold' } }, 'Fresh'),
+          ]),
+        ]
+
+        max_rows.times do |i|
+          p_cells = pool_items[i] ? render_train_cells(pool_items[i], 'pool', i) : render_empty_train_cells('pool', i)
+          f_cells = fresh_items[i] ? render_train_cells(fresh_items[i], 'fresh', i) : render_empty_train_cells('fresh', i)
+
+          trs << h(:tr, { key: "bank_trains_row_#{i}" }, [p_cells[0], p_cells[1], f_cells[0], f_cells[1]])
+        end
+
+        h(:table, trs)
       end
 
       def render
@@ -125,6 +255,9 @@ module View
             width: 100% !important;
             margin: 0 !important;
           }
+          #bank table + table {
+            margin-top: 4px !important;
+          }
           #bank th, #bank td {
             border: 1px solid #c0e0ca !important;
             vertical-align: middle !important;
@@ -153,7 +286,8 @@ module View
           h('div.title', title_props, 'The Bank'),
           h(:div, { style: { padding: '0.3rem 0.4rem 0.4rem', backgroundColor: COLOR_BANK_GREEN } }, [
             render_bank_table,
-          ]),
+            render_trains_table,
+          ].compact),
         ])
       end
 
@@ -355,8 +489,6 @@ module View
             h('td.right', { style: { fontFamily: FONT_MONEY, color: COLOR_MONEY } }, @game.other_bank_info.last.to_s),
           ])
         end
-
-        trs.concat(render_bank_train_rows)
 
         h(:table, trs)
       end
