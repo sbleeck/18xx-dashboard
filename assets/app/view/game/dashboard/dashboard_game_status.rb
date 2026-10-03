@@ -78,6 +78,54 @@ module View
       end
 
       def display_players
+        return @display_players if @cached_game == @game && @display_players
+
+        @cached_game = @game
+        @display_players = initial_players
+      end
+
+      def initial_players
+        # 1. Resolve from @game_data which maintains initial game creation order
+        if @game_data
+          raw_players = @game_data['players'] || @game_data[:players]
+          if raw_players&.any?
+            ordered = raw_players.map do |pd|
+              if pd.is_a?(Hash)
+                p_id = pd['id'] || pd[:id]
+                p_name = pd['name'] || pd[:name]
+                @game.players.find { |p| (p_id && p.id == p_id) || (p_name && p.name == p_name) }
+              elsif pd.respond_to?(:id) && pd.respond_to?(:name)
+                @game.players.find { |p| p.id == pd.id || p.name == pd.name }
+              else
+                p_str = pd.to_s
+                @game.players.find { |p| p.name == p_str || p.id.to_s == p_str }
+              end
+            end.compact
+
+            return ordered if ordered.size == @game.players.size
+          end
+        end
+
+        # 2. Check engine methods for initial players if exposed
+        %i[init_players initial_players original_players].each do |m|
+          if @game.respond_to?(m)
+            res = @game.public_send(m)
+            return res if res&.size == @game.players.size
+          end
+        end
+
+        # 3. Check engine instance variables
+        %i[@init_players @initial_players @original_players].each do |iv|
+          res = @game.instance_variable_get(iv)
+          return res if res&.size == @game.players.size
+        end
+
+        # 4. Check if player IDs represent 0-indexed initial seat numbers
+        if @game.players.all? { |p| p.id.is_a?(Integer) }
+          sorted = @game.players.sort_by(&:id)
+          return sorted if sorted.first&.id&.zero? || sorted.map(&:id) == (0...@game.players.size).to_a
+        end
+
         @game.players
       end
 
