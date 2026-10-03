@@ -705,7 +705,7 @@ module View
               portal.id = 'railcard-portal';
               document.body.appendChild(portal);
             }
-            portal.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
+portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
 
             var styleEl = document.createElement('style');
             styleEl.innerHTML = '.short-railcard { background-color: #fee2e2 !important; color: #991b1b !important; } .ghost-short-card { opacity: 0.35 !important; border: 1.5px dotted #dc2626 !important; background-color: transparent !important; box-shadow: none !important; color: #dc2626 !important; } .ghost-short-card:hover { opacity: 0.85 !important; background-color: rgba(254, 226, 226, 0.35) !important; transform: translateY(-1px); }';
@@ -724,6 +724,38 @@ module View
               }
             };
 
+            var positionPortal = function(e, p) {
+              if (!p || p.style.display === 'none') return;
+              var marginX = 14;
+              var marginY = 14;
+              var rect = p.getBoundingClientRect();
+              var w = rect.width || 320;
+              var h = rect.height || 180;
+              var vw = window.innerWidth;
+              var vh = window.innerHeight;
+
+              var x = e.clientX + marginX;
+              var y = e.clientY + marginY;
+
+              if (x + w > vw - 10) {
+                x = e.clientX - w - marginX;
+              }
+              if (x < 10) {
+                x = Math.max(10, vw - w - 10);
+              }
+
+              if (y + h > vh - 10) {
+                y = e.clientY - h - marginY;
+              }
+              if (y < 10) {
+                y = Math.max(10, vh - h - 10);
+              }
+
+              p.style.left = x + 'px';
+              p.style.top = y + 'px';
+              p.style.transform = 'none';
+            };
+
             document.addEventListener('mouseover', function(e) {
               var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
               if (wrapper) {
@@ -733,6 +765,7 @@ module View
                   if (p) {
                     p.innerHTML = tt.innerHTML;
                     p.style.display = 'block';
+                    positionPortal(e, p);
                   }
                   var hexAttr = tt.getAttribute('data-hexes');
                   if (hexAttr && typeof window !== 'undefined' && window.highlightMapHexes) {
@@ -744,6 +777,18 @@ module View
                 }
               } else {
                 hidePortal();
+              }
+            });
+
+            document.addEventListener('mousemove', function(e) {
+              var p = document.getElementById('railcard-portal');
+              if (p && p.style.display !== 'none') {
+                var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
+                if (wrapper) {
+                  positionPortal(e, p);
+                } else {
+                  hidePortal();
+                }
               }
             });
 

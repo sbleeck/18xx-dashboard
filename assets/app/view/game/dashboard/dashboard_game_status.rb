@@ -816,7 +816,11 @@ module View
         end
         extra << h('td.column-zone-corporate', { attrs: { id: "loans_#{corporation.id}" } }, [render_loan_dots(corporation)]) if @game.total_loans&.nonzero?
 
-        pool_shares = @game.share_pool.shares_by_corporation[corporation] || []
+        pool_shares = if @game.share_pool.respond_to?(:shares_of)
+                        @game.share_pool.shares_of(corporation)
+                      else
+                        @game.share_pool.shares_by_corporation[corporation] || []
+                      end
         valid_pool_shares = []
         if active_player && step.respond_to?(:can_buy?)
           valid_pool_shares = pool_shares.select do |share|
@@ -995,9 +999,10 @@ module View
                 }
                 if Lib::Storage["short_choice_menu_#{corporation.id}"] == p.id
                   share_val = corporation.share_price ? @game.format_currency(corporation.share_price.price) : ''
+                  short_unit_pct = corporation.respond_to?(:share_percent) && corporation.share_percent ? corporation.share_percent : 10
                   options = [
                     {
-                      label: "Buy to Cover 10% (-#{share_val})",
+                      label: "Buy to Cover #{short_unit_pct}% (-#{share_val})",
                       action: lambda { |_event|
                         `event.stopPropagation()`
                         Lib::Storage["short_choice_menu_#{corporation.id}"] = nil
@@ -1006,7 +1011,7 @@ module View
                       },
                     },
                     {
-                      label: "Short Additional 10% (+#{share_val})",
+                      label: "Short Additional #{short_unit_pct}% (+#{share_val})",
                       action: lambda { |_event|
                         `event.stopPropagation()`
                         Lib::Storage["short_choice_menu_#{corporation.id}"] = nil
@@ -1015,6 +1020,7 @@ module View
                       },
                     },
                   ]
+
                   dropdowns << render_choice_menu("Position for #{corporation.name}:", options, lambda {
                     Lib::Storage["short_choice_menu_#{corporation.id}"] = nil
                     update
@@ -1070,7 +1076,13 @@ module View
               if n_shares.zero? && !can_buy_from_player && !can_redeem_from_director && !just_sold
                 players_row_content << h(:td, { attrs: { id: "player_shares_#{p.id}_#{corporation.id}" }, style: { backgroundColor: bg_color } }, '')
               else
-                percent = raw_percent.positive? ? raw_percent : (n_shares * 10)
+                base_share_pct = corporation.respond_to?(:share_percent) && corporation.share_percent ? corporation.share_percent : 10
+                holding_percent = if player_shares.any?
+                                    player_shares.sum { |s| s.respond_to?(:percent) ? s.percent : base_share_pct }
+                                  else
+                                    n_shares * base_share_pct
+                                  end
+                percent = raw_percent.positive? ? raw_percent : holding_percent
                 is_president = corporation.respond_to?(:president?) && corporation.president?(p)
                 text = n_shares.zero? ? '0%' : "#{percent}%#{'P' if is_president}"
                 text = '0%' if text.to_s.empty?
@@ -1160,7 +1172,11 @@ module View
         end
 
         n_market_shares = num_shares_of(@game.share_pool, corporation)
-        pool_shares = @game.share_pool.shares_by_corporation[corporation] || []
+        pool_shares = if @game.share_pool.respond_to?(:shares_of)
+                        @game.share_pool.shares_of(corporation)
+                      else
+                        @game.share_pool.shares_by_corporation[corporation] || []
+                      end
         pool_redeem_bundles = (explicit_redeem_bundles + all_redeemable_bundles)
           .uniq { |bundle| bundle.respond_to?(:percent) ? bundle.percent : bundle.object_id }
           .select { |bundle| bundle_from_pool?(bundle, corporation) }
@@ -1196,10 +1212,19 @@ module View
                                           "#ipo_shares_#{corporation.id}"
                                         end
 
-        pool_share_text = if corporation.minor? || n_market_shares.zero?
+        base_share_pct = corporation.respond_to?(:share_percent) && corporation.share_percent ? corporation.share_percent : 10
+        pool_percent = pool_shares.sum do |share|
+          if share.respond_to?(:percent)
+            share.percent
+          else
+            base_share_pct
+          end
+        end
+
+        pool_share_text = if corporation.minor? || pool_percent.zero?
                             ''
                           else
-                            "#{'*' if corporation.respond_to?(:receivership?) && corporation.receivership?}#{n_market_shares * 10}%"
+                            "#{'*' if corporation.respond_to?(:receivership?) && corporation.receivership?}#{pool_percent}%"
                           end
         pool_click_handler = nil
         if player_can_buy_pool && corporation_can_redeem_pool
@@ -1305,7 +1330,7 @@ module View
                 },
               },
               {
-                label: "Sell Short 10% (+#{share_val})",
+                label: "Sell Short #{corporation.respond_to?(:share_percent) && corporation.share_percent ? corporation.share_percent : 10}% (+#{share_val})",
                 action: lambda { |_event|
                   `event.stopPropagation()`
                   Lib::Storage['pool_action_menu_corp'] = nil
@@ -1320,12 +1345,53 @@ module View
                                                                                              })
           end
 
+          if Lib::Storage['buy_pool_menu_corp'] == corporation.id && !valid_pool_shares.empty?
+            options = valid_pool_shares.uniq { |share| share.to_bundle.percent }.map do |share|
+              bundle = share.to_bundle
+              {
+                label: "Buy #{bundle.percent}%",
+                action: lambda { |_event|
+                  `event.stopPropagation()`
+                  Lib::Storage['buy_pool_menu_corp'] = nil
+                  source_selector = "#pool_shares_#{corporation.id} .game-card"
+                  exec_buy_shares(source_selector, active_player, bundle, corporation.id)
+                },
+              }
+            end
+            cancel_handler = lambda {
+              Lib::Storage['buy_pool_menu_corp'] = nil
+              update
+            }
+            dropdowns << render_choice_menu('Buy from Pool:', options, cancel_handler)
+          end
+
           pool_card = render_railcard(pool_share_text, classes, pool_click_handler, nil, dropdowns)
           pool_hover = share_denomination_tooltip(pool_shares, corporation)
           pool_cell_children << h(:div, { attrs: { class: 'share-card-wrapper', title: pool_hover } }, [pool_card])
         end
 
-        ipo_share_text = n_ipo_shares.positive? ? "#{n_ipo_shares * 10}%" : ''
+        ipo_actual_shares = if corporation.minor?
+                              []
+                            elsif corporation.respond_to?(:ipo_shares) && corporation.ipo_shares
+                              corporation.ipo_shares
+                            elsif @game.separate_treasury?
+                              @game.bank.shares_of(corporation)
+                            elsif corporation.respond_to?(:shares_of)
+                              corporation.shares_of(corporation)
+                            else
+                              []
+                            end
+        base_share_pct = corporation.respond_to?(:share_percent) && corporation.share_percent ? corporation.share_percent : 10
+        ipo_percent = if corporation.minor? || n_ipo_shares <= 0
+                        0
+                      elsif ipo_actual_shares.respond_to?(:any?) && ipo_actual_shares.any?
+                        total = ipo_actual_shares.sum { |s| s.respond_to?(:percent) ? s.percent : base_share_pct }
+                        total -= num_reserved_shares(corporation) * base_share_pct if num_reserved_shares(corporation).positive?
+                        [total, 0].max
+                      else
+                        n_ipo_shares * base_share_pct
+                      end
+        ipo_share_text = corporation.minor? || ipo_percent.zero? || n_ipo_shares <= 0 ? '' : "#{ipo_percent}%"
         ipo_click_handler = nil
         valid_ipo_shares = []
 
@@ -1503,7 +1569,7 @@ module View
                                                                       })
           end
           if Lib::Storage['buy_ipo_menu_corp'] == corporation.id && !valid_ipo_shares.empty?
-            options = valid_ipo_shares.map do |share|
+            options = valid_ipo_shares.uniq { |share| share.to_bundle.percent }.map do |share|
               {
                 label: "Buy #{share.to_bundle.percent}%",
                 action: lambda { |_event|
@@ -1521,13 +1587,7 @@ module View
           end
 
           ipo_card = render_railcard(ipo_share_text, card_classes, ipo_click_handler, nil, dropdowns)
-          ipo_actual_shares = if corporation.respond_to?(:ipo_shares) && corporation.ipo_shares
-                                corporation.ipo_shares
-                              elsif @game.separate_treasury?
-                                @game.bank.shares_of(corporation)
-                              else
-                                corporation.shares_of(corporation)
-                              end
+
           ipo_hover = share_denomination_tooltip(ipo_actual_shares, corporation)
           ipo_cell_children << h(:div, { attrs: { class: 'share-card-wrapper', title: ipo_hover } }, [ipo_card])
         end
@@ -1751,7 +1811,7 @@ module View
 
       def share_denomination_tooltip(shares, corporation)
         shares_list = Array(shares).compact
-        return '' if shares_list.empty?
+        return '' if shares_list.size <= 1
 
         counts = Hash.new(0)
         shares_list.each do |share|
@@ -1765,7 +1825,7 @@ module View
           counts[raw_pct] += 1
         end
 
-        return '' if counts.empty?
+        return '' if counts.empty? || counts.values.sum <= 1
 
         entries = counts.sort_by { |pct, _| -pct }.map do |pct, count|
           pct_str = (pct.to_f % 1).zero? ? "#{pct.to_i}%" : "#{pct.to_f.round(1)}%"
@@ -2120,18 +2180,30 @@ module View
       def exec_sell_shares(source_selector, player, target_bundle, corporation_id)
         bundle = target_bundle[:bundle]
         shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
+        percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
+
+        %x{
+    if (typeof window !== 'undefined') {
+      window._railcard_pending_source = #{source_selector};
+    }
+  }
+
         process_action(
           Engine::Action::SellShares.new(
             player,
+            bundle: bundle,
             shares: shares,
             share_price: (bundle.share_price if bundle.respond_to?(:share_price)),
-            percent: (bundle.percent if bundle.respond_to?(:percent))
+            percent: percent
           )
         )
       end
 
       def exec_buy_shares(source_selector, player, bnd, corporation_id)
-        shares = bnd.respond_to?(:shares) ? bnd.shares : [bnd]
+        bundle = bnd.respond_to?(:to_bundle) && !bnd.respond_to?(:num_shares) ? bnd.to_bundle : bnd
+        shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
+        percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
+        share_price = bundle.respond_to?(:share_price) ? bundle.share_price : nil
 
         %x{
     if (typeof window !== 'undefined') {
@@ -2142,15 +2214,19 @@ module View
         process_action(
           Engine::Action::BuyShares.new(
             player,
+            bundle: bundle,
             shares: shares,
-            share_price: (bnd.share_price if bnd.respond_to?(:share_price)),
-            percent: (bnd.percent if bnd.respond_to?(:percent))
+            share_price: share_price,
+            percent: percent
           )
         )
       end
 
       def exec_buy_shares_simple(source_selector, player, bnd, corporation_id)
-        shares = bnd.respond_to?(:shares) ? bnd.shares : [bnd]
+        bundle = bnd.respond_to?(:to_bundle) && !bnd.respond_to?(:num_shares) ? bnd.to_bundle : bnd
+        shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
+        percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
+        share_price = bundle.respond_to?(:share_price) ? bundle.share_price : nil
 
         %x{
     if (typeof window !== 'undefined') {
@@ -2161,9 +2237,10 @@ module View
         process_action(
           Engine::Action::BuyShares.new(
             player,
+            bundle: bundle,
             shares: shares,
-            share_price: (bnd.share_price if bnd.respond_to?(:share_price)),
-            percent: (bnd.percent if bnd.respond_to?(:percent))
+            share_price: share_price,
+            percent: percent
           )
         )
       end

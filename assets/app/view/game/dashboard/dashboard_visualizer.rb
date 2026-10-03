@@ -899,7 +899,7 @@ module View
                     style: {
                       position: 'absolute',
                       top: '8px',
-                      right: '8px',
+                      right: '18px',
                       zIndex: 30,
                       display: 'flex',
                     },
