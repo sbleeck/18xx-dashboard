@@ -144,88 +144,87 @@ module View
         active_player_nth = active_player_index ? active_player_index + 2 : -1
 
         css = <<~CSS
-                    :root {
-                      --font-money: 'Courier New', monospace;
-                      --font-standard: "Helvetica Neue", Helvetica, Arial, sans-serif;
-                      --color-money-text: #4c1d95;
-                      --accent-action-color: #2563eb;
-                      --opacity-unopened-row: 0.45;
-                      --bg-active-row: #ffffff;
-                      --bg-market-zone: #e6f4ea;
-                      --bg-corporate-zone: #f3e8ff;
-                      --action-buy-edge: #16a34a;
-                      --action-sell-edge: #dc2626;
-                      --shadow-card: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-                    }
-                    #spreadsheet table { border-collapse: collapse; border: 3px solid #333333; background-color: #{COLOR_INACTIVE}; }
-                    #spreadsheet th, #spreadsheet td { border: 1px solid #b3b3b3 !important; vertical-align: middle !important; padding: 4px 2px !important; }
-                    #spreadsheet thead tr:last-child th { border-bottom: 3px solid #333333 !important; }
-                    #spreadsheet tr.last-player-row th, #spreadsheet tr.last-player-row td { border-bottom: 3px solid #333333 !important; }
-                    #spreadsheet tr.last-minor-row th, #spreadsheet tr.last-minor-row td { border-bottom: 3px solid #333333 !important; }
-                    .thick-right { border-right: 3px solid #333333 !important; }
-                    .no-border { border: none !important; }
-                    .money-value, .padded_number { text-align: right !important; padding-left: 0.45rem !important; padding-right: 0.45rem !important; box-sizing: border-box !important; }
-                    .money-value { min-width: 4.35rem !important; width: 4.35rem !important; font-family: var(--font-money) !important; font-weight: bold !important; color: var(--color-money-text) !important; font-variant-numeric: tabular-nums !important; }
-                    #spreadsheet .market-shares-col, #spreadsheet .market-price-col { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; box-sizing: border-box !important; }
-                    #spreadsheet .market-shares-col { text-align: center !important; }
-                    #spreadsheet thead th.header-market { background-color: var(--bg-market-zone) !important; color: #111827 !important; }
-                    #spreadsheet thead th.header-corporate { background-color: #e9d5ff !important; color: #4c1d95 !important; }
-                    #spreadsheet thead th.header-player, #spreadsheet thead th.header-symbol { background-color: #e5e7eb !important; color: #111827 !important; }
-                    .game-card { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 3.5rem; height: 1.45rem; font-size: 0.85rem; padding: 0 4px; margin: 2px; border: 1px solid #888888; border-radius: 4px; background-color: #fdfbf7; color: #000000; box-shadow: var(--shadow-card); transition: transform 0.1s ease; font-family: var(--font-standard); }
-                    .game-card.clickable:hover { cursor: pointer; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-                    .game-card.action-sell { border: 2px solid var(--action-sell-edge) !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 1px var(--action-sell-edge) !important; }
-                    .game-card.action-buy { border: 2px solid var(--action-buy-edge) !important; background-color: #e6f4ea !important; box-shadow: 0 0 0 1px var(--action-buy-edge) !important; }
-                    .sell-restricted { text-decoration: line-through !important; opacity: 0.5 !important; cursor: not-allowed !important; }
-                    .token-bond { display: inline-block; width: 12px; height: 12px; background-color: #b91c1c; border-radius: 2px; }
-                    .align-top { vertical-align: top !important; }
-                    tr.active-turn-focus { background-color: var(--bg-active-row) !important; }
-                    tr.active-turn-focus th, tr.active-turn-focus td { box-shadow: inset 0 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
-                    tr.active-turn-focus th:first-child, tr.active-turn-focus td:first-child { box-shadow: inset 3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
-                    tr.active-turn-focus th:last-child, tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
+                              :root {
+                                --font-money: 'Courier New', monospace;
+                                --font-standard: "Helvetica Neue", Helvetica, Arial, sans-serif;
+                                --color-money-text: #4c1d95;
+                                --accent-action-color: #2563eb;
+                                --opacity-unopened-row: 0.45;
+                                --bg-active-row: #ffffff;
+                                --bg-market-zone: #e6f4ea;
+                                --bg-corporate-zone: #f3e8ff;
+                                --action-buy-edge: #16a34a;
+                                --action-sell-edge: #dc2626;
+                                --shadow-card: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+                              }
+                              #spreadsheet table { border-collapse: collapse; border: 3px solid #333333; background-color: #{COLOR_INACTIVE}; }
+                              #spreadsheet th, #spreadsheet td { border: 1px solid #b3b3b3 !important; vertical-align: middle !important; padding: 4px 2px !important; }
+                              #spreadsheet thead tr:last-child th { border-bottom: 3px solid #333333 !important; }
+                              #spreadsheet tr.last-player-row th, #spreadsheet tr.last-player-row td { border-bottom: 3px solid #333333 !important; }
+                              #spreadsheet tr.last-minor-row th, #spreadsheet tr.last-minor-row td { border-bottom: 3px solid #333333 !important; }
+                              .thick-right { border-right: 3px solid #333333 !important; }
+                              .no-border { border: none !important; }
+                              .money-value, .padded_number { text-align: right !important; padding-left: 0.45rem !important; padding-right: 0.45rem !important; box-sizing: border-box !important; }
+                              .money-value { min-width: 4.35rem !important; width: 4.35rem !important; font-family: var(--font-money) !important; font-weight: bold !important; color: var(--color-money-text) !important; font-variant-numeric: tabular-nums !important; }
+                              #spreadsheet .market-shares-col, #spreadsheet .market-price-col { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; box-sizing: border-box !important; }
+                              #spreadsheet .market-shares-col { text-align: center !important; }
+                              #spreadsheet thead th.header-market { background-color: var(--bg-market-zone) !important; color: #111827 !important; }
+                              #spreadsheet thead th.header-corporate { background-color: #e9d5ff !important; color: #4c1d95 !important; }
+                              #spreadsheet thead th.header-player, #spreadsheet thead th.header-symbol { background-color: #e5e7eb !important; color: #111827 !important; }
+                              .game-card { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 3.5rem; height: 1.45rem; font-size: 0.85rem; padding: 0 4px; margin: 2px; border: 1px solid #888888; border-radius: 4px; background-color: #fdfbf7; color: #000000; box-shadow: var(--shadow-card); transition: transform 0.1s ease; font-family: var(--font-standard); }
+                              .game-card.clickable:hover { cursor: pointer; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+                              .game-card.action-sell { border: 2px solid var(--action-sell-edge) !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 1px var(--action-sell-edge) !important; }
+                              .game-card.action-buy { border: 2px solid var(--action-buy-edge) !important; background-color: #e6f4ea !important; box-shadow: 0 0 0 1px var(--action-buy-edge) !important; }
+                              .sell-restricted { text-decoration: line-through !important; opacity: 0.5 !important; cursor: not-allowed !important; }
+                              .token-bond { display: inline-block; width: 12px; height: 12px; background-color: #b91c1c; border-radius: 2px; }
+                              .align-top { vertical-align: top !important; }
+                              tr.active-turn-focus { background-color: var(--bg-active-row) !important; }
+                              tr.active-turn-focus th, tr.active-turn-focus td { box-shadow: inset 0 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
+                              tr.active-turn-focus th:first-child, tr.active-turn-focus td:first-child { box-shadow: inset 3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
+                              tr.active-turn-focus th:last-child, tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
 
-                    tr.company-row-unfloated > *:not(.actionable-cell), tr.company-row-closed > *:not(.actionable-cell) {
-                      opacity: var(--opacity-unopened-row) !important;
-                      filter: grayscale(40%) !important;
-                    }
+          tr.company-row-unfloated, tr.company-row-closed { opacity: var(--opacity-unopened-row) !important; filter: grayscale(40%) !important; }
+                              tr.company-row-unfloated:hover, tr.company-row-closed:hover { opacity: 1 !important; filter: none !important; }
+                              tr.active-turn-focus:hover { opacity: 1 !important; }
 
-                    tr.active-turn-focus { opacity: 1 !important; filter: none !important; }
-                    tr.active-turn-focus > th:not(:first-child), tr.active-turn-focus > td:not(:first-child),
-                    tr.active-turn-focus > td.column-zone-market, tr.active-turn-focus > td.column-zone-corporate {
-                      background-color: #ffffff !important; opacity: 1 !important; filter: none !important;
-                    }
-                    tr.operated-this-or > th:not(:first-child), tr.operated-this-or > td:not(:first-child),
-                    tr.operated-this-or > td.column-zone-market, tr.operated-this-or > td.column-zone-corporate {
-                      background-color: #eeeeee !important; color: #6b7280 !important;
-                    }
-                    #spreadsheet tbody tr > *:nth-child(#{active_player_nth}) {
-                     background-color: #ffffff !important; opacity: 1 !important; filter: none !important;
-                    }
-                    #spreadsheet thead th { font-weight: 700 !important; }
-                    #spreadsheet th.header-cash, #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }
-                    #spreadsheet th.header-trains, #spreadsheet td.corporation-trains { min-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; white-space: nowrap !important; }
-                    .status-corp-wrapper:hover { z-index: 99999; }
-                    .status-corp-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .cmd-company-tooltip { display: none !important; }
+                              tr.active-turn-focus { opacity: 1 !important; filter: none !important; }
+                              tr.active-turn-focus > th:not(:first-child), tr.active-turn-focus > td:not(:first-child),
+                              tr.active-turn-focus > td.column-zone-market, tr.active-turn-focus > td.column-zone-corporate {
+                                background-color: #ffffff !important; opacity: 1 !important; filter: none !important;
+                              }
+                              tr.operated-this-or > th:not(:first-child), tr.operated-this-or > td:not(:first-child),
+                              tr.operated-this-or > td.column-zone-market, tr.operated-this-or > td.column-zone-corporate {
+                                background-color: #eeeeee !important; color: #6b7280 !important;
+                              }
+                              #spreadsheet tbody tr > *:nth-child(#{active_player_nth}) {
+                               background-color: #ffffff !important; opacity: 1 !important; filter: none !important;
+                              }
+                              #spreadsheet thead th { font-weight: 700 !important; }
+                              #spreadsheet th.header-cash, #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }
+                              #spreadsheet th.header-trains, #spreadsheet td.corporation-trains { min-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; white-space: nowrap !important; }
+                              .status-corp-wrapper:hover { z-index: 99999; }
+                              .status-corp-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .cmd-company-tooltip { display: none !important; }
 
-                    .share-card-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; }
-          .share-card-wrapper[title]:not([title=""]):hover::after {
-            content: attr(title);
-            position: absolute;
-            bottom: calc(100% + 4px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.95);
-            color: #ffffff;
-            font-family: var(--font-standard);
-            font-size: 0.85rem;
-            font-weight: bold;
-            line-height: 1.2;
-            padding: 4px 8px;
-            border-radius: 5px;
-            white-space: pre;
-            pointer-events: none;
-            z-index: 99999;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.35);
-          }
+                              .share-card-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+                    .share-card-wrapper[title]:not([title=""]):hover::after {
+                      content: attr(title);
+                      position: absolute;
+                      bottom: calc(100% + 4px);
+                      left: 50%;
+                      transform: translateX(-50%);
+                      background: rgba(15, 23, 42, 0.95);
+                      color: #ffffff;
+                      font-family: var(--font-standard);
+                      font-size: 0.85rem;
+                      font-weight: bold;
+                      line-height: 1.2;
+                      padding: 4px 8px;
+                      border-radius: 5px;
+                      white-space: pre;
+                      pointer-events: none;
+                      z-index: 99999;
+                      box-shadow: 0 3px 6px rgba(0,0,0,0.35);
+                    }
 
         CSS
 
@@ -714,10 +713,20 @@ module View
         tr_props[:hook] = Lib::RowAnimation.hook(corporation.id)
 
         row_classes = []
-        is_closed = corporation.respond_to?(:closed?) && corporation.closed?
-        row_classes << 'company-row-closed' if is_closed
-        row_classes << 'company-row-unfloated' if is_unfloated && !is_closed
+        president_sold = corporation.respond_to?(:owner) && corporation.owner ? true : false
+        president_available = if corporation.respond_to?(:minor?) && corporation.minor?
+                                !president_sold
+                              elsif corporation.respond_to?(:available?)
+                                corporation.available?
+                              elsif @game.respond_to?(:corporation_available?)
+                                @game.corporation_available?(corporation)
+                              else
+                                true
+                              end
 
+        should_grey_unfloated = @game.round.operating? ? is_unfloated : (is_unfloated && !(president_available || president_sold))
+
+        row_classes << 'company-row-unfloated' if should_grey_unfloated
         visual_current = @game.round.operating? && corporation == visual_operating_entity
         row_classes << 'operated-this-or' if operated_this_or?(corporation, current_round)
         row_classes << 'active-turn-focus' if visual_current
@@ -1603,15 +1612,13 @@ module View
         clean_market_price = corporation.share_price && is_operating ? @game.format_currency(corporation.share_price.price) : ''
         clean_par_price = corporation.par_price ? @game.format_currency(corporation.par_price.price) : ''
 
-        pool_cell_class = "td.column-zone-market.market-shares-col#{'.actionable-cell' if player_can_buy_pool || corporation_can_redeem_pool}"
         pool_row_content = [
-          h(pool_cell_class, { attrs: { id: "pool_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center', borderLeft: border_style } }, pool_cell_children),
-          h('td.padded_number.column-zone-market.money-value.market-price-col', { style: market_style.merge(borderRight: border_style) }, clean_market_price),
-        ]
+            h('td.column-zone-market.market-shares-col', { attrs: { id: "pool_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center', borderLeft: border_style } }, pool_cell_children),
+            h('td.padded_number.column-zone-market.money-value.market-price-col', { style: market_style.merge(borderRight: border_style) }, clean_market_price),
+          ]
 
-        bank_cell_class = "td.column-zone-market.market-shares-col#{'.actionable-cell' if ipo_click_handler}"
         bank_row_content = [
-          h(bank_cell_class, { attrs: { id: "ipo_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center' } }, ipo_cell_children),
+          h('td.column-zone-market.market-shares-col', { attrs: { id: "ipo_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center' } }, ipo_cell_children),
           h('td.padded_number.column-zone-market.money-value.market-price-col', { style: { borderRight: border_style } }, clean_par_price),
         ]
 
