@@ -915,6 +915,12 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
           has_dropdown = !dropdown_items.empty?
 
           is_train = classes.include?('card-train') || wrapper_id.to_s.include?('train')
+          # // --- START FIX ---
+          if is_train && !classes.include?('card-train')
+            classes << 'card-train'
+            classes_str = classes.join(' ')
+          end
+          # // --- END FIX ---
 
           style_props = {
             minWidth: '3.2rem',
@@ -939,13 +945,24 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
             attrs: { class: classes_str },
             style: style_props,
           }
+          # // --- START FIX ---
+          card_props[:attrs][:id] = clean_wrapper_id if has_wrapper_id
+          # // --- END FIX ---
           card_props[:on] = { click: click_handler } if is_clickable
 
-          needs_wrapper = has_tooltip || has_dropdown || has_wrapper_id || has_wrapper_classes
+          # // --- DELETE ---
+          # needs_wrapper = has_tooltip || has_dropdown || has_wrapper_id || has_wrapper_classes
+          # // --- START FIX ---
+          needs_wrapper = has_tooltip || has_dropdown || (!is_train && has_wrapper_id) || has_wrapper_classes
+          # // --- END FIX ---
 
           if needs_wrapper
             w_attrs = {}
-            w_attrs[:id] = clean_wrapper_id if has_wrapper_id
+            # // --- DELETE ---
+            # w_attrs[:id] = clean_wrapper_id if has_wrapper_id
+            # // --- START FIX ---
+            w_attrs[:id] = clean_wrapper_id if has_wrapper_id && !is_train
+            # // --- END FIX ---
             w_attrs[:class] = clean_wrapper_classes if has_wrapper_classes
 
             children = []

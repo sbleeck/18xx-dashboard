@@ -669,11 +669,14 @@ module View
                        first_idx = visited_stops_with_route.first[2]
                        (first_route.respond_to?(:color) && first_route.color) || screaming_palette[first_idx % screaming_palette.size]
                      else
-                       '#888888'
+                       '#cbd5e1'
                      end
 
-        # Hex height is 87 (flat) or 100 (pointy); half the height is ~44-48px
-        font_size = hex.layout == :pointy ? 48 : 44
+        text_str = total_rev.to_s
+
+        font_size = 72
+        pill_w = [(text_str.length * 48) + 32, 84].max
+        pill_h = 76
 
         h(:g, {
             attrs: {
@@ -682,37 +685,52 @@ module View
             },
             style: { pointerEvents: 'none' },
           }, [
-          # Meme font black outline / stroke
-          h(:text, {
+          # Contrast isolation pill to block background tracks, circles, and tokens
+          h(:rect, {
               attrs: {
-                x: '0',
-                y: '0',
-                'text-anchor': 'middle',
-                'dominant-baseline': 'central',
-                fill: '#000000',
-                stroke: '#000000',
-                'stroke-width': '7',
-                'stroke-linejoin': 'round',
-                'font-family': 'Impact, "Arial Black", sans-serif',
-                'font-size': "#{font_size}px",
-                'font-weight': '900',
-                'pointer-events': 'none',
+                x: (-pill_w / 2.0).round(1).to_s,
+                y: (-pill_h / 2.0).round(1).to_s,
+                width: pill_w.to_s,
+                height: pill_h.to_s,
+                # // --- START FIX ---
+                # // --- DELETE --- rx: '8',
+                # // --- DELETE --- ry: '8',
+                rx: '14',
+                ry: '14',
+                # // --- END FIX ---
+                fill: '#0f172a',
+                'fill-opacity': is_visited ? '0.85' : '0.65',
+                stroke: is_visited ? fill_color : '#475569',
+                # // --- START FIX ---
+                # // --- DELETE --- 'stroke-width': is_visited ? '2' : '1',
+                'stroke-width': is_visited ? '3.5' : '2',
+                # // --- END FIX ---
               },
-            }, total_rev.to_s),
-          # Meme font colored or grey fill
+            }),
+          # Un-choked Impact meme number with paint-order back-fill
           h(:text, {
               attrs: {
                 x: '0',
-                y: '0',
+                y: '1',
                 'text-anchor': 'middle',
                 'dominant-baseline': 'central',
                 fill: fill_color,
+                stroke: '#000000',
+                # // --- START FIX ---
+                # // --- DELETE --- 'stroke-width': '4.5',
+                'stroke-width': '8',
+                # // --- END FIX ---
+                'stroke-linejoin': 'round',
+                'paint-order': 'stroke fill',
                 'font-family': 'Impact, "Arial Black", sans-serif',
                 'font-size': "#{font_size}px",
                 'font-weight': '900',
                 'pointer-events': 'none',
               },
-            }, total_rev.to_s),
+              style: {
+                paintOrder: 'stroke fill',
+              },
+            }, text_str),
         ])
       end
 
