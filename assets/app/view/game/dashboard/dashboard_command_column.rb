@@ -1964,6 +1964,20 @@ module View
         return nil unless entity && step
 
         entity_actions = actions_for(entity)
+        player_actions = active_player ? actions_for(active_player) : []
+
+        step_actions =
+          if step.respond_to?(:current_actions)
+            step.current_actions || []
+          else
+            []
+          end
+
+        available_actions =
+          (entity_actions + player_actions + step_actions)
+            .compact
+            .map(&:to_s)
+            .uniq
 
         issuable_bundles = begin
           bundles = if step.respond_to?(:issuable_shares)
@@ -2004,21 +2018,21 @@ module View
         rows = []
 
         can_issue = (
-          entity_actions &
-          %w[
-            issue_shares
-            reissue_shares
-            reissue
-            corporate_sell_shares
-            sell_shares
-          ]
+          available_actions &
+                  %w[
+                    issue_shares
+                    reissue_shares
+                    reissue
+                    corporate_sell_shares
+                    sell_shares
+                  ]
         ).any?
 
         if issuable_bundles.any? && can_issue
           issue_buttons = issuable_bundles.map do |raw_bundle|
             bundle =
               if defined?(Engine::ShareBundle) &&
-              raw_bundle.is_a?(Engine::ShareBundle)
+                 raw_bundle.is_a?(Engine::ShareBundle)
                 raw_bundle
               elsif raw_bundle.respond_to?(:to_bundle)
                 raw_bundle.to_bundle
@@ -2026,7 +2040,7 @@ module View
                 Engine::ShareBundle.new(Array(raw_bundle))
               end
 
-            shares = bundle.shares
+            shares = bundle.shares.flatten.compact
             num = bundle.num_shares
 
             shares =
@@ -2104,12 +2118,6 @@ module View
                   end
                 )
               ).uniq
-
-              action_kwargs = {
-                shares: bundle.shares,
-                share_price: share_price,
-                percent: percent,
-              }.compact
 
               if all_actions.include?('reissue_shares') &&
   defined?(Engine::Action::ReissueShares)
@@ -2243,7 +2251,7 @@ module View
           []
         end || []
 
-        can_redeem = (entity_actions & %w[redeem redeem_shares corporate_buy_shares buy_shares]).any?
+        can_redeem = (available_actions & %w[redeem redeem_shares corporate_buy_shares buy_shares]).any?
         if redeemable_bundles.any? && can_redeem
           redeem_buttons = redeemable_bundles.map do |raw_bundle|
             bundle = if raw_bundle.is_a?(Engine::ShareBundle)

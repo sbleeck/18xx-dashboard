@@ -589,6 +589,31 @@ module View
         end
       end
 
+      def status_bundle_key(bundle)
+        shares =
+          if bundle.respond_to?(:shares)
+            bundle.shares
+          elsif bundle.respond_to?(:id)
+            [bundle]
+          else
+            []
+          end
+
+        share_ids = shares.compact.map do |share|
+          share.respond_to?(:id) ? share.id.to_s : share.object_id.to_s
+        end.sort
+
+        owner = bundle_owner(bundle)
+        owner_key =
+          if owner&.respond_to?(:id)
+            owner.id.to_s
+          else
+            owner&.object_id.to_s
+          end
+
+        [owner_key, share_ids]
+      end
+
       def status_issuable_bundles(step, corporation)
         bundles = status_step_bundles(step, :issuable_shares, corporation)
         bundles = status_step_bundles(step, :issuable_bundles, corporation) if bundles.empty?
@@ -620,7 +645,7 @@ module View
           bundles = shares.map(&:to_bundle).select { |bundle| step.can_sell?(corporation, bundle) }
         end
         bundles.compact.map { |item| item.respond_to?(:to_bundle) && !item.respond_to?(:num_shares) ? item.to_bundle : item }
-          .uniq { |bundle| bundle.respond_to?(:percent) ? bundle.percent : bundle.object_id }
+.uniq { |bundle| status_bundle_key(bundle) }
       end
 
       def explicit_redeemable_bundles(step, corporation)
@@ -634,7 +659,7 @@ module View
           end
         end
         bundles.compact.map { |item| item.respond_to?(:to_bundle) && !item.respond_to?(:num_shares) ? item.to_bundle : item }
-          .uniq { |bundle| bundle.respond_to?(:percent) ? bundle.percent : bundle.object_id }
+.uniq { |bundle| status_bundle_key(bundle) }
       end
 
       def status_redeemable_bundles(step, corporation)
@@ -653,7 +678,7 @@ module View
           bundles = shares.map(&:to_bundle).select { |bundle| step.can_buy?(corporation, bundle) }
         end
         bundles.compact.map { |item| item.respond_to?(:to_bundle) && !item.respond_to?(:num_shares) ? item.to_bundle : item }
-          .uniq { |bundle| bundle.respond_to?(:percent) ? bundle.percent : bundle.object_id }
+.uniq { |bundle| status_bundle_key(bundle) }
       end
 
       def bundle_owner(bundle)
@@ -1216,7 +1241,7 @@ module View
                         @game.share_pool.shares_by_corporation[corporation] || []
                       end
         pool_redeem_bundles = (explicit_redeem_bundles + all_redeemable_bundles)
-          .uniq { |bundle| bundle.respond_to?(:percent) ? bundle.percent : bundle.object_id }
+.uniq { |bundle| status_bundle_key(bundle) }
           .select { |bundle| bundle_from_pool?(bundle, corporation) }
         if pool_redeem_bundles.empty? && explicit_redeem_bundles.any? && step.respond_to?(:can_buy?)
           pool_redeem_bundles = pool_shares.map(&:to_bundle).select do |bundle|
@@ -2127,20 +2152,70 @@ module View
         process_action(action)
       end
 
-      def exec_redeem_share_bundle(corporation, bundle, corp_actions = nil, source_selector = nil, target_selector = nil)
+      def exec_redeem_share_bundle(
+        corporation,
+        bundle,
+        corp_actions = nil,
+        source_selector = nil,
+        target_selector = nil
+      )
         actions = corp_actions || status_corporation_actions(corporation)
-        shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
-        share_price = bundle.respond_to?(:share_price) ? bundle.share_price : corporation.share_price
-        percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
-        action = if actions.include?('redeem_shares') && defined?(Engine::Action::RedeemShares)
-                   Engine::Action::RedeemShares.new(corporation, bundle: bundle)
-                 elsif actions.include?('redeem') && defined?(Engine::Action::Redeem)
-                   Engine::Action::Redeem.new(corporation, bundle: bundle)
-                 elsif actions.include?('corporate_buy_shares') && defined?(Engine::Action::CorporateBuyShares)
-                   Engine::Action::CorporateBuyShares.new(corporation, bundle: bundle)
-                 else
-                   Engine::Action::BuyShares.new(corporation, bundle: bundle)
-                 end
+
+        bundle =
+          if defined?(Engine::ShareBundle) &&
+             bundle.is_a?(Engine::ShareBundle)
+            bundle
+          elsif bundle.respond_to?(:to_bundle)
+            bundle.to_bundle
+          else
+            Engine::ShareBundle.new(Array(bundle))
+          end
+
+        shares = bundle.shares.flatten.compact
+        share_price =
+          if bundle.respond_to?(:share_price) && bundle.share_price
+            bundle.share_price
+          else
+            corporation.share_price
+          end
+        percent =
+          if bundle.respond_to?(:percent)
+            bundle.percent
+          else
+            shares.sum(&:percent)
+          end
+
+        action_kwargs = {
+          shares: shares,
+          share_price: share_price,
+          percent: percent,
+        }.compact
+
+        action =
+          if actions.include?('redeem_shares') &&
+             defined?(Engine::Action::RedeemShares)
+            Engine::Action::RedeemShares.new(
+              corporation,
+              **action_kwargs
+            )
+          elsif actions.include?('redeem') &&
+                defined?(Engine::Action::Redeem)
+            Engine::Action::Redeem.new(
+              corporation,
+              **action_kwargs
+            )
+          elsif actions.include?('corporate_buy_shares') &&
+                defined?(Engine::Action::CorporateBuyShares)
+            Engine::Action::CorporateBuyShares.new(
+              corporation,
+              bundle: bundle
+            )
+          else
+            Engine::Action::BuyShares.new(
+              corporation,
+              bundle: bundle
+            )
+          end
 
         process_action(action)
       end
