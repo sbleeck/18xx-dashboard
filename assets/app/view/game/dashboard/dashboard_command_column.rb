@@ -58,6 +58,7 @@ module View
       SCREAMING_PALETTE = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff'].freeze
       needs :game, store: true
       needs :game_data, store: true, default: nil
+      needs :user, store: true, default: nil
       needs :routes, store: true, default: []
       needs :selected_route, store: true, default: nil
       needs :last_routed_action_id, store: true, default: nil
@@ -98,6 +99,23 @@ module View
         rescue NotImplementedError, StandardError
           nil
         end
+      end
+
+      def my_turn?
+        return true if @game_data && (@game_data[:mode] == :hotseat || @game_data['mode'] == 'hotseat')
+
+        user_id = @user&.dig('id') || @user&.dig(:id)
+        return true unless user_id
+
+        if @game.respond_to?(:active_players_id) && @game.active_players_id&.any?
+          return @game.active_players_id.map(&:to_s).include?(user_id.to_s)
+        end
+
+        p = active_player
+        p_id = p&.respond_to?(:id) ? p.id : nil
+        return p_id.to_s == user_id.to_s if p_id
+
+        false
       end
 
       def corporate_action_entities
@@ -820,8 +838,7 @@ module View
 
         if actions.include?('pass')
           advance_disabled = false
-          advance_color = '#fd7e14'
-          advance_text_color = '#fff'
+
           advance_action = -> { process_action(Engine::Action::Pass.new(entity)) }
 
           case phase
@@ -846,13 +863,11 @@ module View
             else
               rem_val = remaining_subsidiary_cost(step, entity)
               advance_text = rem_val && rem_val.positive? ? "OK (Pay #{@game.format_currency(rem_val)})" : 'OK'
-              advance_color = '#16a34a'
             end
           end
         elsif phase == :run_routes && actions.include?('run_routes') && !@cmd_router_running
           advance_disabled = false
-          advance_color = '#fd7e14'
-          advance_text_color = '#fff'
+
           advance_text = "Submit #{formatted_revenue}"
           advance_action = lambda {
             routes_to_submit = active_routes
@@ -866,8 +881,7 @@ module View
           dividend_options = step.respond_to?(:dividend_options) ? step.dividend_options(entity).map(&:to_s) : []
           if actions.include?('payout') || dividend_options.include?('payout') || actions.include?('dividend')
             advance_disabled = false
-            advance_color = '#28a745'
-            advance_text_color = '#fff'
+
             advance_text = 'Pay Out Full'
             advance_action = lambda {
               process_action(Engine::Action::Dividend.new(
@@ -876,6 +890,15 @@ module View
                 extra_revenue: current_revenue - base_revenue
               ))
             }
+          end
+        end
+        unless advance_disabled
+          if my_turn?
+            advance_color = '#16a34a'
+            advance_text_color = '#ffffff'
+          else
+            advance_color = '#64748b'
+            advance_text_color = '#ffffff'
           end
         end
 

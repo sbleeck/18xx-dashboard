@@ -1034,7 +1034,7 @@ module View
             h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
               h(:div, { attrs: { id: 'command-space-top' }, style: { flex: '0 0 9rem', minHeight: '6.5rem', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' } }, [
                 h(:div, { attrs: { id: 'command-scroll-viewport' }, style: { padding: '1.45rem 0.25rem 0.2rem', height: '100%', minHeight: '0', boxSizing: 'border-box', overflow: 'hidden' } }, [
-                  h(View::Game::DashboardCommandColumn, game: @game),
+h(View::Game::DashboardCommandColumn, game: @game, user: @user),
                 ]),
               ]),
 
