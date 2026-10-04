@@ -287,6 +287,45 @@ module View
         end
       end
 
+      class Revenue < Base
+        unless method_defined?(:orig_render)
+          alias orig_render render
+
+          def render
+            rendered = orig_render
+            %x{
+              function enlargeRevenue(vnode) {
+                if (!vnode) return;
+                if (Array.isArray(vnode)) {
+                  for (var i = 0; i < vnode.length; i++) enlargeRevenue(vnode[i]);
+                  return;
+                }
+                var sel = vnode.sel || '';
+                if (typeof sel === 'string' && (sel === 'text' || sel.indexOf('text.') === 0 || sel.indexOf('text#') === 0)) {
+                  if (!vnode.data) vnode.data = {};
+                  if (!vnode.data.attrs) vnode.data.attrs = {};
+                  if (!vnode.data.style) vnode.data.style = {};
+
+                  var cur = parseFloat(vnode.data.style['font-size'] || vnode.data.attrs['font-size']) || 11;
+                  var newSize = (cur * 1.35).toFixed(1) + 'px';
+
+                  vnode.data.attrs['font-size'] = newSize;
+                  vnode.data.style['font-size'] = newSize;
+                  vnode.data.style['font-weight'] = 'bold';
+                }
+                if (vnode.children && Array.isArray(vnode.children)) {
+                  for (var j = 0; j < vnode.children.length; j++) {
+                    enlargeRevenue(vnode.children[j]);
+                  }
+                }
+              }
+              enlargeRevenue(#{rendered});
+            }
+            rendered
+          end
+        end
+      end
+
       class LocationName < Base
         unless method_defined?(:orig_render)
           alias orig_render render
