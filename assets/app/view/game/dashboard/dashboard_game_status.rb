@@ -275,11 +275,9 @@ module View
             box-shadow: 0 3px 6px rgba(0,0,0,0.35);
           }
 
-          # // --- START FIX ---
           .game-card.president-card {
             font-weight: bold !important;
           }
-          # // --- END FIX ---
 
         CSS
 
@@ -1206,9 +1204,7 @@ module View
                 text = '0%' if text.to_s.empty?
 
                 card_classes = ['game-card']
-                # // --- START FIX ---
                 card_classes << 'president-card' if is_president && !n_shares.zero?
-                # // --- END FIX ---
                 card_classes << 'action-sell' if can_sell
                 card_classes << 'action-buy' if can_buy_from_player || can_redeem_from_director
                 card_classes << 'clickable' if click_handler
@@ -1681,25 +1677,20 @@ module View
           end
         end
 
-        # // --- START FIX ---
         ipo_is_director = !corporation.minor? &&
                           (!corporation.respond_to?(:ipoed) || !corporation.ipoed) &&
                           (!corporation.respond_to?(:owner) || !corporation.owner) &&
                           corp_available
-        # // --- END FIX ---
 
         ipo_cell_children = []
         unless ipo_share_text.empty?
           card_classes = ['game-card']
-          # // --- START FIX ---
           card_classes << 'president-card' if ipo_is_director
-          # // --- END FIX ---
           card_classes << 'action-sell' if issue_from_ipo
           card_classes << 'action-buy' if ipo_click_handler && !issue_from_ipo
           card_classes << 'clickable' if ipo_click_handler
 
           dropdowns = []
-          # // --- START FIX ---
           if ipo_is_director
             dropdowns << h(:span, {
                              attrs: { class: 'director-star' },
@@ -1721,7 +1712,6 @@ module View
                              },
                            }, '★')
           end
-          # // --- END FIX ---
           if Lib::Storage['issue_ipo_menu_corp'] == corporation.id && issue_from_ipo
             options = (ipo_issuable_bundles || issuable_bundles).map do |bundle|
               pct = bundle.respond_to?(:percent) ? bundle.percent : bundle.shares.sum(&:percent)

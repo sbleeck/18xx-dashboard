@@ -58,7 +58,7 @@ module View
       SCREAMING_PALETTE = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff'].freeze
       needs :game, store: true
       needs :game_data, store: true, default: nil
-      needs :user, store: true, default: nil
+      needs :user, default: nil
       needs :routes, store: true, default: []
       needs :selected_route, store: true, default: nil
       needs :last_routed_action_id, store: true, default: nil
@@ -102,18 +102,34 @@ module View
       end
 
       def my_turn?
-        return true if @game_data && (@game_data[:mode] == :hotseat || @game_data['mode'] == 'hotseat')
+        is_hotseat = @game_data && (@game_data[:mode] == :hotseat || @game_data['mode'] == 'hotseat')
+        return true if is_hotseat
 
         user_id = @user&.dig('id') || @user&.dig(:id)
-        return true unless user_id
+        user_name = @user&.dig('name') || @user&.dig(:name)
+        return false unless user_id || user_name
 
         if @game.respond_to?(:active_players_id) && @game.active_players_id&.any?
-          return @game.active_players_id.map(&:to_s).include?(user_id.to_s)
+          active_ids = @game.active_players_id.map(&:to_s)
+          return true if user_id && active_ids.include?(user_id.to_s)
+          return true if user_name && active_ids.include?(user_name.to_s)
         end
 
         p = active_player
-        p_id = p&.respond_to?(:id) ? p.id : nil
-        return p_id.to_s == user_id.to_s if p_id
+        if p
+          p_name = (p.respond_to?(:name) && p.name ? p.name.to_s : '')
+          p_id = (p.respond_to?(:id) && p.id ? p.id.to_s : '')
+
+          return true if user_name && !p_name.empty? && p_name.casecmp(user_name.to_s).zero?
+          return true if user_id && !p_id.empty? && p_id == user_id.to_s
+
+          players_list = @game_data && (@game_data['players'] || @game_data[:players])
+          if players_list.is_a?(Array)
+            my_rec = players_list.find { |h| (h['id'] || h[:id]).to_s == user_id.to_s }
+            rec_name = my_rec&.dig('name') || my_rec&.dig(:name)
+            return true if rec_name && !p_name.empty? && p_name.casecmp(rec_name.to_s).zero?
+          end
+        end
 
         false
       end

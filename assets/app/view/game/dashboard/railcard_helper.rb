@@ -343,20 +343,14 @@ module View
 
             var overlay = document.createElement('div');
             overlay.id = 'railcard-dialog-portal';
-            // --- START FIX ---
-            // --- DELETE --- overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:2147483647;box-sizing:border-box;';
             overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;display:flex;align-items:center;justify-content:center;z-index:2147483647;box-sizing:border-box;';
-            // --- END FIX ---
 
             var box = document.createElement('div');
             box.style.cssText = 'background:#ffffff;border:2px solid #333333;border-radius:8px;padding:1.5rem;box-shadow:0px 12px 36px rgba(0,0,0,0.6);color:#000000;min-width:280px;max-width:90vw;text-align:center;box-sizing:border-box;';
 
             var titleEl = document.createElement('div');
-            // --- START FIX ---
-            // --- DELETE --- titleEl.style.cssText = 'font-size:0.95rem;font-weight:bold;margin-bottom:0.8rem;color:#111;word-break:break-word;';
             titleEl.style.cssText = 'font-size:0.95rem;font-weight:bold;margin-bottom:0.8rem;color:#111;word-break:break-word;cursor:move;user-select:none;';
             titleEl.title = 'Drag to move';
-            // --- END FIX ---
             titleEl.innerText = #{title};
             box.appendChild(titleEl);
 

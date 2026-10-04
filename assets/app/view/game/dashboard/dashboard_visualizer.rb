@@ -1031,10 +1031,10 @@ module View
               transition: 'background-color 0.3s ease, border 0.3s ease',
             },
           }, [
-            h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
+h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
               h(:div, { attrs: { id: 'command-space-top' }, style: { flex: '0 0 9rem', minHeight: '6.5rem', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' } }, [
                 h(:div, { attrs: { id: 'command-scroll-viewport' }, style: { padding: '1.45rem 0.25rem 0.2rem', height: '100%', minHeight: '0', boxSizing: 'border-box', overflow: 'hidden' } }, [
-h(View::Game::DashboardCommandColumn, game: @game, user: @user),
+                  h(View::Game::DashboardCommandColumn, game: @game, user: @user, game_data: @game_data),
                 ]),
               ]),
 
@@ -1109,28 +1109,28 @@ h(View::Game::DashboardCommandColumn, game: @game, user: @user),
               ]),
             ]),
 
-            h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
+h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
 
-            h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
-              h(:div, {
-                  attrs: { id: 'temporal-hub' },
-                  style: {
-                    flex: '0 0 3.75rem',
-                    minHeight: '3.25rem',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'flex-start',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    backgroundColor: '#f8f9fa',
-                    padding: '0 0.65rem',
-                    boxSizing: 'border-box',
-                    overflow: 'hidden',
-                    gap: '0.65rem',
-                  },
-                }, [
-                h(:style, {}, '
+h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
+  h(:div, {
+      attrs: { id: 'temporal-hub' },
+      style: {
+        flex: '0 0 3.75rem',
+        minHeight: '3.25rem',
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        border: '1px solid #ccc',
+        borderRadius: '4px',
+        backgroundColor: '#f8f9fa',
+        padding: '0 0.65rem',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        gap: '0.65rem',
+      },
+    }, [
+    h(:style, {}, '
                   /* Target the div children directly to account for prepended style tags */
                   #command-space-top #dashboard-command-panel-bar > div:first-of-type {
                     display: none !important;
@@ -1148,46 +1148,46 @@ h(View::Game::DashboardCommandColumn, game: @game, user: @user),
                     overflow: visible !important;
                   }
                 '),
-                render_active_turn_card,
-                h(:div, {
-                    attrs: { class: 'entity-order-content' },
-                    style: {
-                      flex: '1 1 auto',
-                      minWidth: '0',
-                      height: '2.5rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      overflow: 'hidden',
-                    },
-                  }, [
-                  if @game.respond_to?(:finished?) && @game.finished?
-                    h(View::Game::DashboardEntityOrder, round: nil)
-                  else
-                    h(View::Game::DashboardEntityOrder, round: @game.round)
-                  end,
-                ]),
-              ].compact),
+    render_active_turn_card,
+    h(:div, {
+        attrs: { class: 'entity-order-content' },
+        style: {
+          flex: '1 1 auto',
+          minWidth: '0',
+          height: '2.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          overflow: 'hidden',
+        },
+      }, [
+      if @game.respond_to?(:finished?) && @game.finished?
+        h(View::Game::DashboardEntityOrder, round: nil)
+      else
+        h(View::Game::DashboardEntityOrder, round: @game.round)
+      end,
+    ]),
+  ].compact),
 
-              h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
+  h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
 
-              h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
-                h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
-                  h(View::Game::DashboardGameStatus, game: @game),
-                ]),
-              ]),
+  h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
+    h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
+      h(View::Game::DashboardGameStatus, game: @game),
+    ]),
+  ]),
 
-              h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
+  h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
-              h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
-                render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
-                h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
-                  h(View::Game::DashboardStockMarket, game: @game),
-                ]),
-              ]),
-            ]),
-            render_par_overlay,
-            render_tile_manifest_overlay,
-            h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
+  h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
+    render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
+    h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
+      h(View::Game::DashboardStockMarket, game: @game),
+    ]),
+  ]),
+]),
+render_par_overlay,
+render_tile_manifest_overlay,
+h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
         ].compact)
       end
     end

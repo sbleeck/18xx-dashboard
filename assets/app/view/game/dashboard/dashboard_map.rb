@@ -17,7 +17,6 @@ begin
 rescue LoadError
 end
 
-# // --- START FIX ---
 module Lib
   module TileLayAnimation
     def self.hook
@@ -183,7 +182,6 @@ module Lib
     end
   end
 end
-# // --- END FIX ---
 
 module View
   module Game
@@ -567,6 +565,157 @@ module View
         nil
       end
 
+      def stop_revenue_value(stop, route = nil)
+        val = nil
+
+        if route && stop
+          if route.respond_to?(:revenue_for)
+            begin
+              r = route.revenue_for(stop)
+              val = r if r.is_a?(Numeric) && r.positive?
+            rescue StandardError, ArgumentError
+            end
+          end
+          if val.nil? && stop.respond_to?(:route_revenue)
+            begin
+              train = route.respond_to?(:train) ? route.train : nil
+              r = stop.route_revenue(route, train)
+              val = r if r.is_a?(Numeric) && r.positive?
+            rescue StandardError, ArgumentError
+            end
+          end
+        end
+
+        if val.nil? && stop.respond_to?(:revenue)
+          begin
+            r = stop.revenue
+            if r.is_a?(Numeric)
+              val = r
+            elsif r.is_a?(Hash)
+              phase_name = @game.phase&.name if @game.respond_to?(:phase)
+              val = r[phase_name] || r.values.last
+            end
+          rescue ArgumentError
+            begin
+              r = stop.revenue([])
+              val = r if r.is_a?(Numeric)
+            rescue StandardError
+            end
+          rescue StandardError
+          end
+        end
+
+        if val.nil? && stop.respond_to?(:base_revenue)
+          begin
+            r = stop.base_revenue
+            val = r if r.is_a?(Numeric)
+          rescue StandardError
+          end
+        end
+
+        val.to_i
+      end
+
+      def hex_meme_revenue_overlay(hex, x, y, routes)
+        return nil unless routes&.any? && hex&.tile
+
+        tile = hex.tile
+        tile_stops = if tile.respond_to?(:stops) && tile.stops&.any?
+                       tile.stops
+                     elsif tile.respond_to?(:cities) && tile.cities&.any?
+                       tile.cities
+                     else
+                       []
+                     end
+        return nil if tile_stops.empty?
+
+        screaming_palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff', '#ffea00', '#ff4500']
+        visited_stops_with_route = []
+
+        routes.each_with_index do |route, r_idx|
+          r_stops = if route.respond_to?(:visited_stops) && route.visited_stops&.any?
+                      route.visited_stops
+                    elsif route.respond_to?(:stops) && route.stops
+                      route.stops
+                    else
+                      []
+                    end
+
+          tile_stops.each do |ts|
+            matches = r_stops.include?(ts) ||
+                      r_stops.any? do |rs|
+                        rs == ts ||
+                          (rs.respond_to?(:hex) && rs.hex == hex) ||
+                          (rs.respond_to?(:tile) && rs.tile&.hex == hex)
+                      end
+            if matches && visited_stops_with_route.none? { |v_ts, _, _| v_ts == ts }
+              visited_stops_with_route << [ts, route, r_idx]
+            end
+          end
+        end
+
+        is_visited = visited_stops_with_route.any?
+
+        total_rev = if is_visited
+                      visited_stops_with_route.sum { |ts, r, _| stop_revenue_value(ts, r) }
+                    else
+                      tile_stops.sum { |ts| stop_revenue_value(ts, nil) }
+                    end
+
+        return nil if total_rev <= 0
+
+        fill_color = if is_visited
+                       first_route = visited_stops_with_route.first[1]
+                       first_idx = visited_stops_with_route.first[2]
+                       (first_route.respond_to?(:color) && first_route.color) || screaming_palette[first_idx % screaming_palette.size]
+                     else
+                       '#888888'
+                     end
+
+        # Hex height is 87 (flat) or 100 (pointy); half the height is ~44-48px
+        font_size = hex.layout == :pointy ? 48 : 44
+
+        h(:g, {
+            attrs: {
+              transform: "translate(#{x}, #{y})",
+              class: 'hex-revenue-meme',
+            },
+            style: { pointerEvents: 'none' },
+          }, [
+          # Meme font black outline / stroke
+          h(:text, {
+              attrs: {
+                x: '0',
+                y: '0',
+                'text-anchor': 'middle',
+                'dominant-baseline': 'central',
+                fill: '#000000',
+                stroke: '#000000',
+                'stroke-width': '7',
+                'stroke-linejoin': 'round',
+                'font-family': 'Impact, "Arial Black", sans-serif',
+                'font-size': "#{font_size}px",
+                'font-weight': '900',
+                'pointer-events': 'none',
+              },
+            }, total_rev.to_s),
+          # Meme font colored or grey fill
+          h(:text, {
+              attrs: {
+                x: '0',
+                y: '0',
+                'text-anchor': 'middle',
+                'dominant-baseline': 'central',
+                fill: fill_color,
+                'font-family': 'Impact, "Arial Black", sans-serif',
+                'font-size': "#{font_size}px",
+                'font-weight': '900',
+                'pointer-events': 'none',
+              },
+            }, total_rev.to_s),
+        ])
+      end
+
       def render
         return h(:div, []) if (@layout = @game.layout) == :none
 
@@ -786,7 +935,8 @@ module View
             ]),
           ]
 
-          # // --- START FIX ---
+          meme_overlay = hex_meme_revenue_overlay(hex, x, y, routes)
+          hex_children << meme_overlay if meme_overlay
           g_props = {
             key: "dash-g-#{hex.id}",
             attrs: {
@@ -798,7 +948,6 @@ module View
             },
             hook: Lib::TileLayAnimation.hook,
           }
-          # // --- END FIX ---
 
           h(:g, g_props, hex_children)
         end
