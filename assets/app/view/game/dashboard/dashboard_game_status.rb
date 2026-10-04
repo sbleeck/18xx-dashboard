@@ -595,7 +595,11 @@ module View
       def status_corporation_actions(corporation)
         actions = status_actions_for(corporation)
         owner = corporation.respond_to?(:owner) ? corporation.owner : nil
-        actions.concat(status_actions_for(owner)) if owner && owner == active_player
+
+        if owner && owner == active_player
+          owner_actions = status_actions_for(owner).select { |a| a.start_with?('corporate_') }
+          actions.concat(owner_actions)
+        end
         actions.uniq
       end
 
@@ -640,6 +644,10 @@ module View
       end
 
       def status_issuable_bundles(step, corporation)
+        actions = status_corporation_actions(corporation)
+        issue_actions = %w[issue_shares reissue_shares reissue corporate_sell_shares issue sell_shares]
+        return [] unless (actions & issue_actions).any?
+
         bundles = status_step_bundles(step, :issuable_shares, corporation)
         bundles = status_step_bundles(step, :issuable_bundles, corporation) if bundles.empty?
         if bundles.empty? && @game.respond_to?(:issuable_shares)
