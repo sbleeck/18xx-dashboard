@@ -1131,15 +1131,16 @@ module View
                   },
                 }, [
                 h(:style, {}, '
-                  #command-space-top > div > div > div:first-child {
+                  /* Target the div children directly to account for prepended style tags */
+                  #command-space-top #dashboard-command-panel-bar > div:first-of-type {
                     display: none !important;
                   }
-                  #command-space-top > div > div > div:nth-child(2) {
+                  #command-space-top #dashboard-command-panel-bar > div:nth-of-type(2) {
                     flex: 1 1 auto !important;
                     min-width: 0 !important;
                     border-left: none !important;
                   }
-                  #command-space-top > div > div > div:nth-child(3) {
+                  #command-space-top #dashboard-command-panel-bar > div:nth-of-type(3) {
                     flex: 0 0 28% !important;
                     min-width: 15.5rem !important;
                     max-width: none !important;
