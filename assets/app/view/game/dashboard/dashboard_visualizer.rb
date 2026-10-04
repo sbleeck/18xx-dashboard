@@ -260,9 +260,98 @@ module View
         user_id = @user&.dig('id') || @user&.dig(:id)
         is_my_turn = is_hotseat || (user_id && @game.respond_to?(:active_players_id) && @game.active_players_id&.map(&:to_s)&.include?(user_id.to_s))
 
-        card_bg = is_my_turn ? '#16a34a' : '#ffffff'
+        round = @game.round
+        is_stock = (round.respond_to?(:stock?) && round.stock?) || round.class.name.to_s.include?('Stock')
+
+        acting_entity = active_entity
+        acting_corp = if acting_entity && begin
+          acting_entity.corporation? || acting_entity.minor?
+        rescue StandardError
+          false
+        end
+                        acting_entity
+                      elsif round.respond_to?(:current_entity) && begin
+                        round.current_entity&.corporation? || round.current_entity&.minor?
+                      rescue StandardError
+                        false
+                      end
+                        round.current_entity
+                      end
+
+        corp_marker = nil
+        if !is_stock && acting_corp
+          logo_src = begin
+            (acting_corp.respond_to?(:simple_logo) && acting_corp.simple_logo) ||
+              (acting_corp.respond_to?(:logo) && acting_corp.logo)
+          rescue StandardError
+            nil
+          end
+
+          corp_color = acting_corp.respond_to?(:color) && acting_corp.color ? acting_corp.color : '#2563eb'
+          corp_text_color = acting_corp.respond_to?(:text_color) && acting_corp.text_color ? acting_corp.text_color : '#ffffff'
+          corp_id = if acting_corp.respond_to?(:id)
+                      acting_corp.id.to_s
+                    else
+                      (acting_corp.respond_to?(:name) ? acting_corp.name.to_s : '')
+                    end
+
+          marker_content = if logo_src
+                             h(:img, {
+                                 attrs: { src: logo_src, alt: corp_id },
+                                 style: {
+                                   width: '100%',
+                                   height: '100%',
+                                   display: 'block',
+                                   borderRadius: '50%',
+                                   objectFit: 'contain',
+                                 },
+                               })
+                           else
+                             h(:span, {
+                                 style: {
+                                   lineHeight: '26px',
+                                   fontSize: '0.72rem',
+                                   fontWeight: 'bold',
+                                   color: corp_text_color,
+                                 },
+                               }, corp_id[0..3])
+                           end
+
+          corp_marker = h(:div, {
+                            attrs: { class: 'active-turn-corp-marker', title: acting_corp.name.to_s },
+                            style: {
+                              width: '28px',
+                              height: '28px',
+                              minWidth: '28px',
+                              borderRadius: '50%',
+                              backgroundColor: corp_color,
+                              border: '2px solid #ffffff',
+                              boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                              flexShrink: '0',
+                              marginRight: '0.55rem',
+                            },
+                          }, [marker_content])
+        end
+
+        card_bg = is_my_turn ? '#16a34a' : '#f1f5f9'
         card_text_color = is_my_turn ? '#ffffff' : '#0f172a'
-        card_border = is_my_turn ? '1px solid #15803d' : '1px solid #cbd5e1'
+        card_border = is_my_turn ? '2px solid #15803d' : '2px solid #94a3b8'
+        card_shadow = is_my_turn ? '0 2px 8px rgba(22, 163, 74, 0.4)' : '0 1px 3px rgba(0, 0, 0, 0.08)'
+        display_label = is_my_turn ? "★ YOUR TURN (#{player_label})" : player_label
+
+        card_children = []
+        card_children << corp_marker if corp_marker
+        card_children << h(:span, {
+                             style: {
+                               whiteSpace: 'nowrap',
+                               overflow: 'hidden',
+                               textOverflow: 'ellipsis',
+                             },
+                           }, display_label)
 
         h(:div, {
             attrs: {
@@ -275,15 +364,16 @@ module View
               justifyContent: 'center',
               flex: '0 0 auto',
               alignSelf: 'center',
-              height: '2.5rem',
-              minHeight: '2.5rem',
-              maxHeight: '2.5rem',
-              padding: '0 0.85rem',
-              borderRadius: '4px',
+              height: '2.85rem',
+              minHeight: '2.85rem',
+              maxHeight: '2.85rem',
+              padding: '0 1rem',
+              borderRadius: '6px',
               backgroundColor: card_bg,
               color: card_text_color,
               border: card_border,
-              fontSize: '1.1rem',
+              boxShadow: card_shadow,
+              fontSize: '1.15rem',
               fontWeight: 'bold',
               fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
               letterSpacing: '0.5px',
@@ -292,10 +382,10 @@ module View
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              transition: 'background-color 0.2s ease, color 0.2s ease',
+              transition: 'background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease',
               flexShrink: '0',
             },
-          }, player_label)
+          }, card_children)
       end
 
       def render
@@ -338,19 +428,48 @@ module View
         game_storage_id = @game.respond_to?(:id) ? @game.id : 'default'
 
         is_hotseat = @game_data && @game_data[:mode] == :hotseat
-        is_player = @user && @game.players.any? { |p| p.id.to_s == @user.dig('id').to_s }
-        is_my_turn = is_hotseat || (@user && @game.active_players_id.include?(@user.dig('id')))
+        user_id = @user&.dig('id') || @user&.dig(:id)
+        is_my_turn = is_hotseat || (user_id && @game.respond_to?(:active_players_id) && @game.active_players_id&.map(&:to_s)&.include?(user_id.to_s))
+
+        round = @game.round
+        is_stock = (round.respond_to?(:stock?) && round.stock?) || round.class.name.to_s.include?('Stock')
+        acting_ent = active_entity
+        acting_corp = if acting_ent && begin
+          acting_ent.corporation? || acting_ent.minor?
+        rescue StandardError
+          false
+        end
+                        acting_ent
+                      elsif round.respond_to?(:current_entity) && begin
+                        round.current_entity&.corporation? || round.current_entity&.minor?
+                      rescue StandardError
+                        false
+                      end
+                        round.current_entity
+                      end
+
+        corp_ribbon_text = (!is_stock && acting_corp&.respond_to?(:name) ? acting_corp.name.to_s : '')
+        player_ribbon_text = begin
+          p = active_player
+          if p&.respond_to?(:name)
+            p.name.to_s
+          else
+            (p&.respond_to?(:id) ? p.id.to_s : '')
+          end
+        rescue StandardError
+          ''
+        end
 
         frame_bg = '#ffffff'
         frame_border = 'none'
 
-        if is_player && !is_hotseat
+        if @user && !is_hotseat
           if is_my_turn
             frame_bg = '#dcfce7'
             frame_border = '4px solid #16a34a'
           else
-            frame_bg = '#e2e8f0'
-            frame_border = '4px solid #64748b'
+            frame_bg = '#f1f5f9'
+            frame_border = '4px solid #94a3b8'
           end
         end
 
@@ -358,14 +477,12 @@ module View
             hook: {
               insert: lambda {
                         Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
-                        # Reset window scroll to origin so hard reloads do not clip the top navbar
                         `window.scrollTo(0, 0)`
                         `document.body.style.overflow = 'hidden'`
                         `document.body.style.margin = '0'`
                         `document.body.style.padding = '0'`
                         `document.body.style.backgroundColor = '#{frame_bg}'`
                         `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'hidden', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', height: '100vh', backgroundColor: '#{frame_bg}', transition: 'background-color 0.3s ease' })`
-                        # Make #game a flex column hosting the menu bar and dashboard in natural flow
                         `document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 36px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 36px)' })`
 
                         %x(
@@ -375,45 +492,97 @@ module View
                             menuStyleTag.id = 'dashboard-menu-overrides';
                             document.head.appendChild(menuStyleTag);
                           }
-                          /* Target #game > div:first-child directly instead of unattached #menu */
                           menuStyleTag.innerHTML = '' +
                             '#app > div:first-child, nav, #nav { margin-bottom: 0 !important; flex: 0 0 auto !important; } ' +
                             '#game > div:first-child { ' +
-                            '  height: 26px !important; ' +
-                            '  min-height: 26px !important; ' +
-                            '  max-height: 26px !important; ' +
-                            '  line-height: 26px !important; ' +
-                            '  margin: 0 !important; ' +
-                            '  padding: 0 0.5rem !important; ' +
-                            '  display: flex !important; ' +
-                            '  flex-direction: row !important; ' +
-                            '  align-items: center !important; ' +
-                            '  gap: 0.15rem !important; ' +
-                            '  flex: 0 0 26px !important; ' +
-                            '  box-sizing: border-box !important; ' +
-                            '  overflow-x: auto !important; ' +
-                            '  overflow-y: hidden !important; ' +
-                            '  border: none !important; ' +
+                            '  height: 26px !important; min-height: 26px !important; max-height: 26px !important; line-height: 26px !important; ' +
+                            '  margin: 0 !important; padding: 0 0.5rem !important; display: flex !important; flex-direction: row !important; ' +
+                            '  align-items: center !important; gap: 0.15rem !important; flex: 0 0 26px !important; box-sizing: border-box !important; ' +
+                            '  overflow-x: auto !important; overflow-y: hidden !important; border: none !important; ' +
                             '} ' +
                             '#game > div:first-child a, #game > div:first-child span { ' +
-                            '  font-size: 0.78rem !important; ' +
-                            '  font-weight: 500 !important; ' +
-                            '  line-height: 26px !important; ' +
-                            '  padding: 0 0.45rem !important; ' +
-                            '  color: #1a1a1a !important; ' +
-                            '  text-decoration: none !important; ' +
-                            '  display: inline-flex !important; ' +
-                            '  align-items: center !important; ' +
-                            '  border-radius: 3px !important; ' +
-                            '  transition: background-color 0.15s ease !important; ' +
+                            '  font-size: 0.78rem !important; font-weight: 500 !important; line-height: 26px !important; padding: 0 0.45rem !important; ' +
+                            '  color: #1a1a1a !important; text-decoration: none !important; display: inline-flex !important; align-items: center !important; ' +
+                            '  border-radius: 3px !important; transition: background-color 0.15s ease !important; ' +
                             '} ' +
                             '#game > div:first-child a:hover { background-color: rgba(0, 0, 0, 0.12) !important; } ' +
                             '#game > div:first-child a.active, #game > div:first-child .active { ' +
-                            '  font-weight: 700 !important; ' +
-                            '  background-color: rgba(0, 0, 0, 0.18) !important; ' +
-                            '  box-shadow: inset 0 -2px 0 0 #000000 !important; ' +
+                            '  font-weight: 700 !important; background-color: rgba(0, 0, 0, 0.18) !important; box-shadow: inset 0 -2px 0 0 #000000 !important; ' +
                             '} ' +
-                            '#game > div:first-child a u, #game > div:first-child span u { text-decoration: underline !important; }';
+                            '#game > div:first-child a u, #game > div:first-child span u { text-decoration: underline !important; } ' +
+                            '@keyframes frame-ripple-anim { ' +
+                            '  0% { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.95); } ' +
+                            '  50% { box-shadow: inset 0 0 24px 6px rgba(255, 255, 255, 0.9); } ' +
+                            '  100% { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0); } ' +
+                            '} ' +
+                            '.frame-turn-ripple { animation: frame-ripple-anim 0.4s ease-out !important; } ' +
+                            '@keyframes frame-ignition-anim { ' +
+                            '  0% { box-shadow: inset 0 0 0 0 rgba(22, 163, 74, 0.8), 0 0 0 rgba(22, 163, 74, 0.8); } ' +
+                            '  40% { box-shadow: inset 0 0 32px 8px rgba(34, 197, 94, 0.95), 0 0 24px 6px rgba(34, 197, 94, 0.7); } ' +
+                            '  100% { box-shadow: inset 0 0 14px 2px rgba(22, 163, 74, 0.45); } ' +
+                            '} ' +
+                            '.frame-ignition { animation: frame-ignition-anim 0.6s cubic-bezier(0.16, 1, 0.3, 1) !important; } ' +
+                            '@keyframes frame-myturn-breath { ' +
+                            '  0% { box-shadow: inset 0 0 8px 1px rgba(22, 163, 74, 0.3); } ' +
+                            '  50% { box-shadow: inset 0 0 16px 3px rgba(22, 163, 74, 0.55); } ' +
+                            '  100% { box-shadow: inset 0 0 8px 1px rgba(22, 163, 74, 0.3); } ' +
+                            '} ' +
+                            '.frame-my-turn { border: 4px solid #16a34a !important; animation: frame-myturn-breath 3s ease-in-out infinite !important; } ' +
+                            '@keyframes frame-opponent-breath { ' +
+                            '  0% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.15); } ' +
+                            '  50% { box-shadow: inset 0 0 12px rgba(100, 116, 139, 0.35); } ' +
+                            '  100% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.15); } ' +
+                            '} ' +
+                            '.frame-opponent-turn { border: 4px solid #94a3b8 !important; animation: frame-opponent-breath 3.5s ease-in-out infinite !important; } ' +
+                            '#turn-notification-ribbon { ' +
+                            '  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 999999; ' +
+                            '  padding: 8px 24px; border-radius: 20px; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; ' +
+                            '  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.5px; pointer-events: none; ' +
+                            '  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28); display: none; ' +
+                            '} ' +
+                            '@keyframes ribbon-slide-fade { ' +
+                            '  0% { opacity: 0; transform: translate(-50%, -18px) scale(0.96); } ' +
+                            '  15% { opacity: 0.95; transform: translate(-50%, 0) scale(1); } ' +
+                            '  75% { opacity: 0.95; transform: translate(-50%, 0) scale(1); } ' +
+                            '  100% { opacity: 0; transform: translate(-50%, -10px) scale(0.98); } ' +
+                            '} ' +
+                            '.ribbon-animate { animation: ribbon-slide-fade 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards !important; } ' +
+                            '.ribbon-my-turn { background-color: rgba(22, 163, 74, 0.94) !important; color: #ffffff !important; border: 1px solid #15803d !important; } ' +
+                            '.ribbon-opponent-turn { background-color: rgba(30, 41, 59, 0.92) !important; color: #f8fafc !important; border: 1px solid #475569 !important; }';
+
+                          window.notifyTurnAlert = function(isMine, pName, cName, isInitial) {
+                            var cleanTitle = document.title.replace(/^[🟢⏳]\s*\[.*?\]\s*/, '');
+                            document.title = (isMine ? '🟢 [YOUR TURN] ' : ('⏳ [' + pName + '] ')) + cleanTitle;
+
+                            var frame = document.getElementById('viz-master-frame');
+                            if (frame) {
+                              frame.classList.remove('frame-turn-ripple', 'frame-ignition', 'frame-my-turn', 'frame-opponent-turn');
+                              void frame.offsetWidth;
+                              if (!isInitial) frame.classList.add('frame-turn-ripple');
+                              if (isMine) {
+                                if (!isInitial) frame.classList.add('frame-ignition');
+                                frame.classList.add('frame-my-turn');
+                              } else {
+                                frame.classList.add('frame-opponent-turn');
+                              }
+                            }
+
+                            if (!isInitial && pName) {
+                              var ribbon = document.getElementById('turn-notification-ribbon');
+                              if (ribbon) {
+                                var msg = isMine ? ('★ YOUR TURN — ' + (cName ? cName + ' (' + pName + ')' : pName)) : ('▶ ' + (cName ? cName + ': ' : '') + pName + ' is Operating');
+                                ribbon.textContent = msg;
+                                ribbon.className = (isMine ? 'ribbon-my-turn' : 'ribbon-opponent-turn') + ' ribbon-animate';
+                                ribbon.style.display = 'block';
+                                clearTimeout(window._turnRibbonTimer);
+                                window._turnRibbonTimer = setTimeout(function() {
+                                  if (ribbon) ribbon.style.display = 'none';
+                                }, 1800);
+                              }
+                            }
+                          };
+
+                          window.notifyTurnAlert(#{is_my_turn ? true : false}, #{player_ribbon_text}, #{corp_ribbon_text}, true);
                         )
 
                         %x(window.init18xxResizers = function() {
@@ -822,13 +991,22 @@ module View
                            prev_id = Lib::Storage["viz_last_act_#{game_storage_id}"]&.to_i || 0
                            curr_id = last_action_id.to_i
 
-                           animate_last_action(last_action) if curr_id > prev_id && prev_id.positive?
+                           if curr_id > prev_id && prev_id.positive?
+                             animate_last_action(last_action)
+                             %x(
+                               if (window.notifyTurnAlert) {
+                                 window.notifyTurnAlert(#{is_my_turn ? true : false}, #{player_ribbon_text}, #{corp_ribbon_text}, false);
+                               }
+                             )
+                           end
                            Lib::Storage["viz_last_act_#{game_storage_id}"] = curr_id
                          },
               destroy: lambda {
                          %x(
                            var menuStyle = document.getElementById('dashboard-menu-overrides');
                            if (menuStyle) menuStyle.remove();
+                           var ribbon = document.getElementById('turn-notification-ribbon');
+                           if (ribbon) ribbon.remove();
                          )
                          `document.body.style.backgroundColor = ''`
                          `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '', backgroundColor: '', transition: '' })`
@@ -934,8 +1112,6 @@ module View
             h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
 
             h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
-
-              # // --- START FIX ---
               h(:div, {
                   attrs: { id: 'temporal-hub' },
                   style: {
@@ -955,7 +1131,6 @@ module View
                   },
                 }, [
                 h(:style, {}, '
-                  /* The current player now lives in the turn-order canvas. */
                   #command-space-top > div > div > div:first-child {
                     display: none !important;
                   }
@@ -991,25 +1166,6 @@ module View
                   end,
                 ]),
               ].compact),
-              # // --- END FIX ---
-              # // --- DELETE --- # h(:div, { attrs: { id: 'temporal-hub' }, style: { flex: '0 0 6.5rem', display: 'flex', flexDirection: 'row', alignItems: 'stretch', justifyContent: 'flex-start', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#f8f9fa', padding: '0', minHeight: '4.75rem', boxSizing: 'border-box', overflowX: 'auto', overflowY: 'hidden' } }, [
-              # // --- DELETE --- #   h(:style, {}, '
-              # // --- DELETE --- #     #command-space-top > div > div > div:first-child { display: none !important; }
-              # // --- DELETE --- #     #command-space-top > div > div > div:nth-child(2) { flex: 1 1 auto !important; min-width: 0 !important; border-left: none !important; }
-              # // --- DELETE --- #     #command-space-top > div > div > div:nth-child(3) { flex: 0 0 28% !important; min-width: 15.5rem !important; max-width: none !important; box-sizing: border-box !important; overflow: visible !important; }
-              # // --- DELETE --- #   '),
-              # // --- DELETE --- #   render_active_turn_card,
-              # // --- DELETE --- #   h(:div, { attrs: { class: 'entity-order-content' }, style: { flex: '1 1 auto', minWidth: '0', height: '100%', position: 'relative', overflowX: 'auto', overflowY: 'hidden' } }, [
-              # // --- DELETE --- #     h(:style, {}, '
-              # // --- DELETE --- #       #temporal-hub .entity-order-content > div { position: absolute !important; left: 0 !important; right: auto !important; bottom: 0.45rem !important; top: auto !important; width: max-content !important; height: auto !important; min-height: 0 !important; margin: 0 !important; }
-              # // --- DELETE --- #     '),
-              # // --- DELETE --- #     if @game.respond_to?(:finished?) && @game.finished?
-              # // --- DELETE --- #       h(View::Game::DashboardEntityOrder, round: nil)
-              # // --- DELETE --- #     else
-              # // --- DELETE --- #       h(View::Game::DashboardEntityOrder, round: @game.round)
-              # // --- DELETE --- #     end,
-              # // --- DELETE --- #   ]),
-              # // --- DELETE --- # ].compact),
 
               h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
 
@@ -1030,6 +1186,7 @@ module View
             ]),
             render_par_overlay,
             render_tile_manifest_overlay,
+            h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
         ].compact)
       end
     end

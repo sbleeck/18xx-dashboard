@@ -2017,19 +2017,40 @@ module View
         if issuable_bundles.any? && can_issue
           issue_buttons = issuable_bundles.map do |raw_bundle|
             bundle =
-              if raw_bundle.respond_to?(:to_bundle) &&
-                 !raw_bundle.respond_to?(:num_shares)
+              if defined?(Engine::ShareBundle) &&
+              raw_bundle.is_a?(Engine::ShareBundle)
+                raw_bundle
+              elsif raw_bundle.respond_to?(:to_bundle)
                 raw_bundle.to_bundle
               else
-                raw_bundle
+                Engine::ShareBundle.new(Array(raw_bundle))
               end
 
+            shares = bundle.shares
+            num = bundle.num_shares
+
             shares =
-              if bundle.respond_to?(:shares)
+              if defined?(Engine::ShareBundle) &&
+              bundle.is_a?(Engine::ShareBundle)
                 bundle.shares
+              elsif bundle.respond_to?(:shares)
+                bundle.shares
+              elsif bundle.is_a?(Array)
+                bundle.flat_map do |item|
+                  if defined?(Engine::ShareBundle) &&
+                  item.is_a?(Engine::ShareBundle)
+                    item.shares
+                  elsif item.respond_to?(:shares)
+                    item.shares
+                  else
+                    item
+                  end
+                end
               else
                 [bundle]
               end
+
+            shares = shares.flatten.compact
 
             num =
               if bundle.respond_to?(:num_shares)
@@ -2085,42 +2106,42 @@ module View
               ).uniq
 
               action_kwargs = {
-                shares: shares,
+                shares: bundle.shares,
                 share_price: share_price,
                 percent: percent,
-              }
+              }.compact
 
               if all_actions.include?('reissue_shares') &&
-                 defined?(Engine::Action::ReissueShares)
+  defined?(Engine::Action::ReissueShares)
                 process_action(
-                  Engine::Action::ReissueShares.new(
-                    acting_entity,
-                    **action_kwargs
-                  )
-                )
+                Engine::Action::ReissueShares.new(
+                acting_entity,
+                shares: shares
+              )
+              )
               elsif all_actions.include?('issue_shares') &&
-                    defined?(Engine::Action::IssueShares)
+  defined?(Engine::Action::IssueShares)
                 process_action(
-                  Engine::Action::IssueShares.new(
-                    acting_entity,
-                    **action_kwargs
-                  )
-                )
+                Engine::Action::IssueShares.new(
+                acting_entity,
+                shares: shares
+              )
+              )
               elsif all_actions.include?('corporate_sell_shares') &&
-                    defined?(Engine::Action::CorporateSellShares)
+  defined?(Engine::Action::CorporateSellShares)
                 process_action(
-                  Engine::Action::CorporateSellShares.new(
-                    acting_entity,
-                    **action_kwargs
-                  )
-                )
+                Engine::Action::CorporateSellShares.new(
+                acting_entity,
+                shares: shares
+              )
+              )
               else
                 process_action(
-                  Engine::Action::SellShares.new(
-                    acting_entity,
-                    **action_kwargs
-                  )
-                )
+                Engine::Action::SellShares.new(
+                acting_entity,
+                shares: shares
+              )
+              )
               end
             end
 
@@ -2225,7 +2246,13 @@ module View
         can_redeem = (entity_actions & %w[redeem redeem_shares corporate_buy_shares buy_shares]).any?
         if redeemable_bundles.any? && can_redeem
           redeem_buttons = redeemable_bundles.map do |raw_bundle|
-            bundle = raw_bundle.respond_to?(:to_bundle) && !raw_bundle.respond_to?(:num_shares) ? raw_bundle.to_bundle : raw_bundle
+            bundle = if raw_bundle.is_a?(Engine::ShareBundle)
+                       raw_bundle
+                     elsif raw_bundle.respond_to?(:to_bundle)
+                       raw_bundle.to_bundle
+                     else
+                       Engine::ShareBundle.new(Array(raw_bundle))
+                     end
             num = if bundle.respond_to?(:num_shares)
                     bundle.num_shares
                   else
@@ -2242,6 +2269,14 @@ module View
                       0
                     end
 
+            share_price = if bundle.respond_to?(:share_price) && bundle.share_price
+                            bundle.share_price
+                          elsif entity.respond_to?(:share_price)
+                            entity.share_price
+                          end
+
+            percent = (bundle.percent if bundle.respond_to?(:percent))
+
             owner_label = if bundle.respond_to?(:owner) && bundle.owner && bundle.owner != @game.share_pool
                             " (#{bundle.owner.name})"
                           else
@@ -2254,15 +2289,20 @@ module View
               acting_entity = entity.respond_to?(:corporation?) && entity.corporation? ? entity : (@game.current_entity || current_entity)
               all_actions = (actions_for(acting_entity) + actions_for(entity) + (step.respond_to?(:current_actions) ? (step.current_actions || []) : [])).uniq
 
-              if all_actions.include?('redeem_shares') && defined?(Engine::Action::RedeemShares)
-                process_action(Engine::Action::RedeemShares.new(acting_entity, bundle: bundle))
-              elsif all_actions.include?('redeem') && defined?(Engine::Action::Redeem)
-                process_action(Engine::Action::Redeem.new(acting_entity, bundle: bundle))
-              elsif all_actions.include?('corporate_buy_shares') && defined?(Engine::Action::CorporateBuyShares)
-                process_action(Engine::Action::CorporateBuyShares.new(acting_entity, bundle: bundle))
-              else
-                process_action(Engine::Action::BuyShares.new(acting_entity, bundle: bundle))
+              action_kwargs = {
+                shares: bundle.shares,
+                share_price: share_price,
+                percent: percent,
+              }.compact
 
+              if all_actions.include?('redeem_shares') && defined?(Engine::Action::RedeemShares)
+                process_action(Engine::Action::RedeemShares.new(acting_entity, **action_kwargs))
+              elsif all_actions.include?('redeem') && defined?(Engine::Action::Redeem)
+                process_action(Engine::Action::Redeem.new(acting_entity, **action_kwargs))
+              elsif all_actions.include?('corporate_buy_shares') && defined?(Engine::Action::CorporateBuyShares)
+                process_action(Engine::Action::CorporateBuyShares.new(acting_entity, **action_kwargs))
+              else
+                process_action(Engine::Action::BuyShares.new(acting_entity, **action_kwargs))
               end
             }
 
