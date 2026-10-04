@@ -2243,6 +2243,14 @@ module View
         shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
         share_price = (bundle.respond_to?(:share_price) && bundle.share_price) || corporation.share_price
         percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
+
+        %x{
+          if (typeof window !== 'undefined') {
+            window._railcard_pending_source = #{source_selector};
+            window._railcard_pending_target = #{target_selector};
+          }
+        }
+
         action = if actions.include?('issue_shares') && defined?(Engine::Action::IssueShares)
                    Engine::Action::IssueShares.new(corporation, shares: shares)
                  elsif actions.include?('issue') && defined?(Engine::Action::Issue)
@@ -2303,6 +2311,13 @@ module View
           share_price: share_price,
           percent: percent,
         }.compact
+
+        %x{
+          if (typeof window !== 'undefined') {
+            window._railcard_pending_source = #{source_selector};
+            window._railcard_pending_target = #{target_selector};
+          }
+        }
 
         action =
           if actions.include?('redeem_shares') &&

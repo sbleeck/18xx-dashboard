@@ -292,7 +292,6 @@ module Lib
     def self.transfer_val(transfer, key)
       return nil if transfer.nil?
 
-      # 1. If it's a Ruby Hash or responds to []
       if transfer.respond_to?(:[])
         begin
           val = transfer[key.to_s] || transfer[key.to_sym]
@@ -301,7 +300,6 @@ module Lib
         end
       end
 
-      # 2. If it's an Opal Hash (ES6 Map) or plain JS Object
       res = nil
       %x{
         var t = #{transfer};
@@ -332,12 +330,14 @@ module Lib
                  (bundle&.respond_to?(:shares) ? bundle.shares : [])
                end
 
-      corp = if bundle&.respond_to?(:corporation)
+      corp = if bundle&.respond_to?(:corporation) && bundle.corporation
                bundle.corporation
-             elsif action.respond_to?(:corporation)
+             elsif action.respond_to?(:corporation) && action.corporation
                action.corporation
-             elsif shares.any? && shares.first.respond_to?(:corporation)
+             elsif shares.any? && shares.first.respond_to?(:corporation) && shares.first.corporation
                shares.first.corporation
+             elsif entity&.respond_to?(:corporation?) && entity.corporation?
+               entity
              end
       corp_id = corp&.id
 
@@ -349,88 +349,141 @@ module Lib
       delta = 10
 
       pending_transfer = nil
-      %x{
-        if (typeof window !== 'undefined' && window._railcard_pending_transfer) {
-          #{pending_transfer = `window._railcard_pending_transfer`};
-          window._railcard_pending_transfer = null;
-        }
-      }
+      pending_source = nil
+      pending_target = nil
 
       %x{
-  if (typeof window !== 'undefined') {
-    window._railcard_pending_transfer = null;
-  }
-}
+        if (typeof window !== 'undefined') {
+          if (window._railcard_pending_transfer) {
+            #{pending_transfer = `window._railcard_pending_transfer`};
+            window._railcard_pending_transfer = null;
+          }
+          if (window._railcard_pending_source) {
+            #{pending_source = `window._railcard_pending_source`};
+            window._railcard_pending_source = null;
+          }
+          if (window._railcard_pending_target) {
+            #{pending_target = `window._railcard_pending_target`};
+            window._railcard_pending_target = null;
+          }
+        }
+      }
 
       case action_name
       when 'BuyShares'
         if entity && corp_id
-          is_share = true
-          pct = if bundle&.respond_to?(:percent)
-                  bundle.percent
-                else
-                  shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
-                end
-          pct = 10 if pct.to_i <= 0
-          delta = pct
-          card_text = "#{delta}%"
+          if entity.respond_to?(:corporation?) && entity.corporation?
+            is_share = true
+            pct = if bundle&.respond_to?(:percent)
+                    bundle.percent
+                  elsif shares.any?
+                    shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
+                  else
+                    corp&.respond_to?(:share_percent) && corp.share_percent ? corp.share_percent : 10
+                  end
+            pct = 10 if pct.to_i <= 0
+            delta = pct
+            card_text = "#{delta}%"
 
-          target_sel = "#player_shares_#{entity.id}_#{corp_id}"
-
-          pending_source = nil
-          %x{
-            if (typeof window !== 'undefined' && window._railcard_pending_source) {
-              #{pending_source = `window._railcard_pending_source`};
-              window._railcard_pending_source = null;
-            }
-          }
-
-          %x{
-if (typeof window !== 'undefined') {
-window._railcard_pending_source = null;
-}
-}
-          if pending_source
-            source_sel = pending_source.to_s.sub(/ \.game-card\z/, '')
-          else
-            from_pool = false
-
-            if action.respond_to?(:source) && action.source == 'pool'
-              from_pool = true
-            elsif bundle && bundle.owner == game.share_pool
-              from_pool = true
-            elsif shares.any? && game.share_pool.shares_by_corporation[corp]&.include?(shares.first)
-              from_pool = true
-            end
-
-            source_sel = if from_pool
-                           "#pool_shares_#{corp_id}"
-                         elsif bundle&.owner == corp || (shares.any? && shares.first.owner == corp)
+            target_sel = if pending_target && (!pending_target.to_s.include?('treasury') || has_treasury)
+                           pending_target.to_s.sub(/ \.game-card\z/, '')
+                         else
                            has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
-                         elsif bundle&.owner&.player? && bundle.owner != entity
+                         end
+
+            source_sel = if pending_source
+                           pending_source.to_s.sub(/ \.game-card\z/, '')
+                         elsif bundle&.owner&.player?
                            "#player_shares_#{bundle.owner.id}_#{corp_id}"
-                         elsif shares.any? && shares.first.owner&.player? && shares.first.owner != entity
+                         elsif shares.any? && shares.first.owner&.player?
                            "#player_shares_#{shares.first.owner.id}_#{corp_id}"
                          else
-                           "#ipo_shares_#{corp_id}"
+                           "#pool_shares_#{corp_id}"
                          end
-          end
+          else
+            is_share = true
+            pct = if bundle&.respond_to?(:percent)
+                    bundle.percent
+                  else
+                    shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
+                  end
+            pct = 10 if pct.to_i <= 0
+            delta = pct
+            card_text = "#{delta}%"
 
+            target_sel = "#player_shares_#{entity.id}_#{corp_id}"
+
+            if pending_source
+              source_sel = pending_source.to_s.sub(/ \.game-card\z/, '')
+            else
+              from_pool = false
+
+              if action.respond_to?(:source) && action.source == 'pool'
+                from_pool = true
+              elsif bundle && bundle.owner == game.share_pool
+                from_pool = true
+              elsif shares.any? && game.share_pool.shares_by_corporation[corp]&.include?(shares.first)
+                from_pool = true
+              end
+
+              source_sel = if from_pool
+                             "#pool_shares_#{corp_id}"
+                           elsif bundle&.owner == corp || (shares.any? && shares.first.owner == corp)
+                             has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
+                           elsif bundle&.owner&.player? && bundle.owner != entity
+                             "#player_shares_#{bundle.owner.id}_#{corp_id}"
+                           elsif shares.any? && shares.first.owner&.player? && shares.first.owner != entity
+                             "#player_shares_#{shares.first.owner.id}_#{corp_id}"
+                           else
+                             "#ipo_shares_#{corp_id}"
+                           end
+            end
+          end
         end
       when 'SellShares'
         if entity && corp_id
-          is_share = true
-          pct = if bundle&.respond_to?(:percent)
-                  bundle.percent
-                else
-                  shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
-                end
-          pct = 10 if pct.to_i <= 0
-          delta = pct
-          card_text = "#{delta}%"
+          if entity.respond_to?(:corporation?) && entity.corporation?
+            is_share = true
+            pct = if bundle&.respond_to?(:percent)
+                    bundle.percent
+                  elsif shares.any?
+                    shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
+                  else
+                    corp&.respond_to?(:share_percent) && corp.share_percent ? corp.share_percent : 10
+                  end
+            pct = 10 if pct.to_i <= 0
+            delta = pct
+            card_text = "#{delta}%"
 
-          source_sel = "#player_shares_#{entity.id}_#{corp_id}"
-          target_sel = "#pool_shares_#{corp_id}"
+            source_sel = if pending_source
+                           pending_source.to_s.sub(/ \.game-card\z/, '')
+                         else
+                           has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
+                         end
+
+            target_sel = if pending_target
+                           pending_target.to_s.sub(/ \.game-card\z/, '')
+                         else
+                           "#pool_shares_#{corp_id}"
+                         end
+          else
+            is_share = true
+            pct = if bundle&.respond_to?(:percent)
+                    bundle.percent
+                  else
+                    shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
+                  end
+            pct = 10 if pct.to_i <= 0
+            delta = pct
+            card_text = "#{delta}%"
+
+            source_sel = if pending_source
+                           pending_source.to_s.sub(/ \.game-card\z/, '')
+                         else
+                           "#player_shares_#{entity.id}_#{corp_id}"
+                         end
+            target_sel = "#pool_shares_#{corp_id}"
+          end
         end
       when 'Short'
         if entity && corp_id
@@ -477,16 +530,64 @@ window._railcard_pending_source = null;
       when 'IssueShares', 'Issue', 'CorporateSellShares', 'ReissueShares', 'Reissue'
         if corp_id
           is_share = true
-          card_text = '10%'
-          source_sel = has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
-          target_sel = "#pool_shares_#{corp_id}"
+          pct = if bundle&.respond_to?(:percent)
+                  bundle.percent
+                elsif shares.any?
+                  shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
+                elsif action.respond_to?(:percent) && action.percent
+                  action.percent
+                else
+                  corp&.respond_to?(:share_percent) && corp.share_percent ? corp.share_percent : 10
+                end
+          pct = 10 if pct.to_i <= 0
+          delta = pct
+          card_text = "#{delta}%"
+
+          source_sel = if pending_source
+                         pending_source.to_s.sub(/ \.game-card\z/, '')
+                       elsif has_treasury && (bundle&.owner == corp || (shares.any? && shares.first.owner == corp))
+                         "#treasury_shares_#{corp_id}"
+                       else
+                         has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
+                       end
+
+          target_sel = if pending_target
+                         pending_target.to_s.sub(/ \.game-card\z/, '')
+                       else
+                         "#pool_shares_#{corp_id}"
+                       end
         end
       when 'RedeemShares', 'Redeem', 'CorporateBuyShares'
         if corp_id
           is_share = true
-          card_text = '10%'
-          source_sel = "#pool_shares_#{corp_id}"
-          target_sel = has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
+          pct = if bundle&.respond_to?(:percent)
+                  bundle.percent
+                elsif shares.any?
+                  shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
+                elsif action.respond_to?(:percent) && action.percent
+                  action.percent
+                else
+                  corp&.respond_to?(:share_percent) && corp.share_percent ? corp.share_percent : 10
+                end
+          pct = 10 if pct.to_i <= 0
+          delta = pct
+          card_text = "#{delta}%"
+
+          source_sel = if pending_source
+                         pending_source.to_s.sub(/ \.game-card\z/, '')
+                       elsif bundle&.owner&.player?
+                         "#player_shares_#{bundle.owner.id}_#{corp_id}"
+                       elsif shares.any? && shares.first.owner&.player?
+                         "#player_shares_#{shares.first.owner.id}_#{corp_id}"
+                       else
+                         "#pool_shares_#{corp_id}"
+                       end
+
+          target_sel = if pending_target && (!pending_target.to_s.include?('treasury') || has_treasury)
+                         pending_target.to_s.sub(/ \.game-card\z/, '')
+                       else
+                         has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
+                       end
         end
       when 'BuyCompany'
         if entity
