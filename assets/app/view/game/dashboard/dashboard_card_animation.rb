@@ -289,6 +289,39 @@ module Lib
   }
     end
 
+    def self.transfer_val(transfer, key)
+      return nil if transfer.nil?
+
+      # 1. If it's a Ruby Hash or responds to []
+      if transfer.respond_to?(:[])
+        begin
+          val = transfer[key.to_s] || transfer[key.to_sym]
+          return val unless val.nil?
+        rescue StandardError
+        end
+      end
+
+      # 2. If it's an Opal Hash (ES6 Map) or plain JS Object
+      res = nil
+      %x{
+        var t = #{transfer};
+        if (t) {
+          if (typeof t.get === 'function') {
+            var v = t.get(#{key});
+            if (v === undefined || v === null) {
+              v = t.get(#{key.to_sym});
+            }
+            if (v !== undefined && v !== null) {
+              #{res = `v`};
+            }
+          } else if (t[#{key}] !== undefined && t[#{key}] !== null) {
+            #{res = `t[#{key}]`};
+          }
+        }
+      }
+      res
+    end
+
     def self.resolve_action(game, action, has_treasury)
       action_name = action.class.name.split('::').last
       entity = action.respond_to?(:entity) ? action.entity : nil
@@ -315,7 +348,13 @@ module Lib
       is_train = false
       delta = 10
 
-      pending_transfer = `typeof window !== 'undefined' ? window._railcard_pending_transfer : null`
+      pending_transfer = nil
+      %x{
+        if (typeof window !== 'undefined' && window._railcard_pending_transfer) {
+          #{pending_transfer = `window._railcard_pending_transfer`};
+          window._railcard_pending_transfer = null;
+        }
+      }
 
       %x{
   if (typeof window !== 'undefined') {
@@ -338,7 +377,13 @@ module Lib
 
           target_sel = "#player_shares_#{entity.id}_#{corp_id}"
 
-          pending_source = `typeof window !== 'undefined' ? window._railcard_pending_source : null`
+          pending_source = nil
+          %x{
+            if (typeof window !== 'undefined' && window._railcard_pending_source) {
+              #{pending_source = `window._railcard_pending_source`};
+              window._railcard_pending_source = null;
+            }
+          }
 
           %x{
 if (typeof window !== 'undefined') {
@@ -406,21 +451,19 @@ window._railcard_pending_source = null;
           target_sel = "#train_drop_#{entity.id}"
 
           if pending_transfer
-            source_type = `#{pending_transfer}["source_type"]`
-            source_id = `#{pending_transfer}["source_id"]`
-            item_id = `#{pending_transfer}["item_id"]`
-            variant = `#{pending_transfer}["variant"]`
+            source_type = transfer_val(pending_transfer, :source_type)&.to_s
+            source_id = transfer_val(pending_transfer, :source_id)&.to_s
+            item_id = transfer_val(pending_transfer, :item_id)&.to_s
+            variant = transfer_val(pending_transfer, :variant)&.to_s
 
-            item_id = item_id.to_s
-            safe_variant = variant.to_s.tr('/', '_')
+            safe_variant = variant ? variant.tr('/', '_') : ''
 
             source_sel =
-              case source_type.to_s
-              when 'train_pool'
+              if item_id && source_type == 'train_pool'
                 "#bank_train_pool_#{item_id}_#{safe_variant}"
-              when 'train_fresh'
+              elsif item_id && source_type == 'train_fresh'
                 "#bank_train_fresh_#{item_id}_#{safe_variant}"
-              when 'corporation'
+              elsif item_id && source_id && source_type == 'corporation'
                 "#train_wrapper_#{source_id}_#{item_id}"
               else
                 '#extra_cards'
@@ -453,13 +496,12 @@ window._railcard_pending_source = null;
           target_sel = "#companies_#{entity.id}"
 
           if pending_transfer
-            source_type = `#{pending_transfer}["source_type"]`
-            source_id = `#{pending_transfer}["source_id"]`
-            item_id = `#{pending_transfer}["item_id"]`
+            source_type = transfer_val(pending_transfer, :source_type)&.to_s
+            source_id = transfer_val(pending_transfer, :source_id)&.to_s
+            item_id = transfer_val(pending_transfer, :item_id)&.to_s
 
             source_sel =
-              case source_type.to_s
-              when 'player', 'corporation'
+              if source_id && item_id && %w[player corporation].include?(source_type)
                 "#company_wrapper_#{source_id}_#{item_id}"
               else
                 '#extra_cards'
