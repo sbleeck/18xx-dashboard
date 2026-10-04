@@ -343,13 +343,20 @@ module View
 
             var overlay = document.createElement('div');
             overlay.id = 'railcard-dialog-portal';
-            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:2147483647;box-sizing:border-box;';
+            // --- START FIX ---
+            // --- DELETE --- overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:2147483647;box-sizing:border-box;';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;display:flex;align-items:center;justify-content:center;z-index:2147483647;box-sizing:border-box;';
+            // --- END FIX ---
 
             var box = document.createElement('div');
             box.style.cssText = 'background:#ffffff;border:2px solid #333333;border-radius:8px;padding:1.5rem;box-shadow:0px 12px 36px rgba(0,0,0,0.6);color:#000000;min-width:280px;max-width:90vw;text-align:center;box-sizing:border-box;';
 
             var titleEl = document.createElement('div');
-            titleEl.style.cssText = 'font-size:0.95rem;font-weight:bold;margin-bottom:0.8rem;color:#111;word-break:break-word;';
+            // --- START FIX ---
+            // --- DELETE --- titleEl.style.cssText = 'font-size:0.95rem;font-weight:bold;margin-bottom:0.8rem;color:#111;word-break:break-word;';
+            titleEl.style.cssText = 'font-size:0.95rem;font-weight:bold;margin-bottom:0.8rem;color:#111;word-break:break-word;cursor:move;user-select:none;';
+            titleEl.title = 'Drag to move';
+            // --- END FIX ---
             titleEl.innerText = #{title};
             box.appendChild(titleEl);
 
@@ -401,6 +408,45 @@ module View
 
             overlay.onclick = function(e) {
               if (e.target === overlay) { cancelBtn.click(); }
+            };
+
+            box.onmousedown = function(e) {
+              if (e.target === inputEl || e.target === confirmBtn || e.target === cancelBtn) return;
+              e.preventDefault();
+
+              var rect = box.getBoundingClientRect();
+              box.style.position = 'fixed';
+              box.style.left = rect.left + 'px';
+              box.style.top = rect.top + 'px';
+              box.style.transform = 'none';
+              box.style.margin = '0';
+              overlay.style.display = 'block';
+
+              var startX = e.clientX;
+              var startY = e.clientY;
+              var initialLeft = rect.left;
+              var initialTop = rect.top;
+
+              var onMouseMove = function(moveEvent) {
+                var dx = moveEvent.clientX - startX;
+                var dy = moveEvent.clientY - startY;
+                var newLeft = initialLeft + dx;
+                var newTop = initialTop + dy;
+
+                newLeft = Math.max(10, Math.min(window.innerWidth - box.offsetWidth - 10, newLeft));
+                newTop = Math.max(10, Math.min(window.innerHeight - box.offsetHeight - 10, newTop));
+
+                box.style.left = newLeft + 'px';
+                box.style.top = newTop + 'px';
+              };
+
+              var onMouseUp = function() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+              };
+
+              document.addEventListener('mousemove', onMouseMove);
+              document.addEventListener('mouseup', onMouseUp);
             };
 
             overlay.appendChild(box);
