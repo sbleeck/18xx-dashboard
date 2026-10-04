@@ -129,7 +129,7 @@ module View
         @game.players
       end
 
-      def render
+def render
         @spreadsheet_sort_by = Lib::Storage['spreadsheet_sort_by']
         @spreadsheet_sort_order = Lib::Storage['spreadsheet_sort_order']
         @hide_not_floated = Lib::Storage['spreadsheet_hide_not_floated']
@@ -192,7 +192,7 @@ module View
                     tr.active-turn-focus th:first-child, tr.active-turn-focus td:first-child { box-shadow: inset 3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
                     tr.active-turn-focus th:last-child, tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
 
-                    /* Only corporations that are not open are greyed out. */
+                     /* Only corporations that are not open are greyed out, preserving the company column */
                     #spreadsheet tbody tr.company-row-unfloated > th:not(.major-corporation-cell),
                     #spreadsheet tbody tr.company-row-unfloated > td,
                     #spreadsheet tbody tr.company-row-closed > th:not(.major-corporation-cell),
@@ -211,19 +211,9 @@ module View
                       filter: none !important;
                     }
 
-                    /* The current corporation row is white, except the corporation badge and the director cell. */
+                 /* The current corporation row is white, but the company cell never loses its color */
                     #spreadsheet tbody tr.active-turn-focus > th:not(.major-corporation-cell),
-                    #spreadsheet tbody tr.active-turn-focus > td:not(.is-director-cell) {
-                      background-color: #ffffff !important;
-                      color: #000000 !important;
-                      opacity: 1 !important;
-                      filter: none !important;
-                    }
-
-                    /* The current player's complete column is white, except the corporation badge and director cell. */
-                    #spreadsheet tbody tr.company-row-unfloated > *:nth-child(#{active_player_nth}):not(.major-corporation-cell):not(.is-director-cell),
-                    #spreadsheet tbody tr.company-row-closed > *:nth-child(#{active_player_nth}):not(.major-corporation-cell):not(.is-director-cell),
-                    #spreadsheet tbody tr > *:nth-child(#{active_player_nth}):not(.major-corporation-cell):not(.is-director-cell) {
+                    #spreadsheet tbody tr.active-turn-focus > td {
                       background-color: #ffffff !important;
                       color: #000000 !important;
                       opacity: 1 !important;
@@ -231,12 +221,33 @@ module View
                     }
 
                     /* The corporation cell strictly retains its corporate identity color */
-                    #spreadsheet tbody tr > th.major-corporation-cell,
-                    #spreadsheet tbody tr.active-turn-focus > th.major-corporation-cell {
+                    #spreadsheet tbody tr th.major-corporation-cell,
+                    #spreadsheet tbody tr.active-turn-focus th.major-corporation-cell {
                       opacity: 1 !important;
                       filter: none !important;
                     }
 
+                    /* Remove black borders from the first column and its cards */
+                    #spreadsheet th.major-corporation-cell,
+                    #spreadsheet th.header-symbol {
+                      border-left: none !important;
+                      border-right: 1px solid #b3b3b3 !important;
+                    }
+                    #spreadsheet th.major-corporation-cell .major-railcard,
+                    #spreadsheet th.major-corporation-cell .game-card {
+                      border: none !important;
+                      box-shadow: none !important;
+                    }
+
+                    /* The current player's complete column is always white. */
+                    #spreadsheet tbody tr.company-row-unfloated > *:nth-child(#{active_player_nth}),
+                    #spreadsheet tbody tr.company-row-closed > *:nth-child(#{active_player_nth}),
+                    #spreadsheet tbody tr > *:nth-child(#{active_player_nth}) {
+                      background-color: #ffffff !important;
+                      color: #000000 !important;
+                      opacity: 1 !important;
+                      filter: none !important;
+                    }
                     #spreadsheet thead th { font-weight: 700 !important; }
                     #spreadsheet th.header-cash, #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }
                     #spreadsheet th.header-trains, #spreadsheet td.corporation-trains { min-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; white-space: nowrap !important; }
@@ -262,30 +273,6 @@ module View
             pointer-events: none;
             z-index: 99999;
             box-shadow: 0 3px 6px rgba(0,0,0,0.35);
-          }
-
-          /* Smart gold background tint for the director share cell */
-          #spreadsheet tbody tr td.is-director-cell,
-          #spreadsheet tbody tr.active-turn-focus td.is-director-cell,
-          #spreadsheet tbody tr td.is-director-cell:nth-child(#{active_player_nth}) {
-            background-color: #fef3c7 !important;
-            transition: background-color 0.15s ease, box-shadow 0.15s ease;
-          }
-
-          /* Cross-Lighting: hovering the major cell highlights the director share */
-          #spreadsheet tr:has(.major-corporation-cell:hover) td.is-director-cell {
-            background-color: #fde68a !important;
-            box-shadow: inset 0 0 0 2px #d97706, 0 1px 5px rgba(217, 119, 6, 0.4) !important;
-          }
-
-          /* Cross-Lighting: hovering the director cell illuminates the company header */
-          #spreadsheet tr:has(td.is-director-cell:hover) .major-corporation-cell {
-            filter: brightness(1.15);
-          }
-
-          .game-card.president-card {
-            border: 1.5px solid #d97706 !important;
-            font-weight: 700 !important;
           }
 
         CSS
@@ -745,7 +732,7 @@ module View
         corporation.operating_history.keys.include?(current_round)
       end
 
-      def render_corporation(corporation, _operating_order, current_round, is_last_minor = false)
+def render_corporation(corporation, _operating_order, current_round, is_last_minor = false)
         return '' if @hide_not_floated && !@game.operating_order.include?(corporation)
 
         step = @game.round.active_step
@@ -819,17 +806,12 @@ module View
 
         tr_props[:attrs][:class] = row_classes.join(' ') unless row_classes.empty?
 
-        corp_bg = corporation.color || '#ffffff'
-        corp_fg = corporation.text_color || begin
-          contrast_on(corp_bg)
-        rescue StandardError
-          '#000000'
-        end
+            corp_bg = corporation.color || '#ffffff'
         name_props = {
-          attrs: { class: 'major-corporation-cell thick-right' },
+          attrs: { class: 'major-corporation-cell' },
           style: {
             backgroundColor: corp_bg,
-            color: corp_fg,
+            border: 'none !important',
             padding: '0 !important',
             textAlign: 'center',
             verticalAlign: 'middle',
@@ -1055,7 +1037,7 @@ module View
 
           if corporation.minor?
             players_row_content << if corporation.owner == p
-                                     card_classes = %w[game-card president-card]
+                                     card_classes = ['game-card']
                                      card_classes << 'action-sell' if can_sell
                                      card_classes << 'action-buy' if can_buy_from_player
                                      card_classes << 'clickable' if click_handler
@@ -1063,30 +1045,29 @@ module View
                                      card_props[:on] = { click: click_handler } if click_handler
 
                                      star_marker = h(:span, {
-                                                       attrs: { class: 'director-marker' },
-                                                       style: {
-                                                         position: 'absolute',
-                                                         top: '-4px',
-                                                         right: '-4px',
-                                                         width: '12px',
-                                                         height: '12px',
-                                                         backgroundColor: '#d97706',
-                                                         color: '#ffffff',
-                                                         fontSize: '0.6rem',
-                                                         lineHeight: '12px',
-                                                         textAlign: 'center',
-                                                         borderRadius: '50%',
-                                                         boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                                                         pointerEvents: 'none',
-                                                         zIndex: '2',
-                                                       },
-                                                     }, '★')
+                                       attrs: { class: 'director-star' },
+                                       style: {
+                                         position: 'absolute',
+                                         top: '-4px',
+                                         right: '-4px',
+                                         width: '13px',
+                                         height: '13px',
+                                         backgroundColor: '#d97706',
+                                         color: '#ffffff',
+                                         fontSize: '0.62rem',
+                                         lineHeight: '13px',
+                                         textAlign: 'center',
+                                         borderRadius: '50%',
+                                         boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                                         pointerEvents: 'none',
+                                         zIndex: '2',
+                                       },
+                                     }, '★')
 
                                      minor_card = h(:div, card_props, '100%')
                                      minor_hover = share_denomination_tooltip(player_shares, corporation)
                                      wrapped_minor = h(:div, { attrs: { class: 'share-card-wrapper', title: minor_hover } }, [minor_card, star_marker])
-
-                                     h('td.is-director-cell', { style: { backgroundColor: '#fef3c7', textAlign: 'center', position: 'relative' } }, [wrapped_minor])
+                                     h(:td, { style: { backgroundColor: bg_color, textAlign: 'center' } }, [wrapped_minor])
 
                                    else
                                      h(:td, { style: { backgroundColor: bg_color } }, '')
@@ -1206,12 +1187,11 @@ module View
                                   end
                 percent = raw_percent.positive? ? raw_percent : holding_percent
 
-                is_president = (corporation.respond_to?(:president?) && corporation.president?(p)) || (corporation.respond_to?(:owner) && corporation.owner == p)
+                    is_president = (corporation.respond_to?(:president?) && corporation.president?(p)) || (corporation.respond_to?(:owner) && corporation.owner == p)
                 text = n_shares.zero? ? '0%' : "#{percent}%"
                 text = '0%' if text.to_s.empty?
 
                 card_classes = ['game-card']
-                card_classes << 'president-card' if is_president && !n_shares.zero?
                 card_classes << 'action-sell' if can_sell
                 card_classes << 'action-buy' if can_buy_from_player || can_redeem_from_director
                 card_classes << 'clickable' if click_handler
@@ -1219,24 +1199,24 @@ module View
 
                 if is_president && !n_shares.zero?
                   dropdowns << h(:span, {
-                                   attrs: { class: 'director-marker' },
-                                   style: {
-                                     position: 'absolute',
-                                     top: '-4px',
-                                     right: '-4px',
-                                     width: '12px',
-                                     height: '12px',
-                                     backgroundColor: '#d97706',
-                                     color: '#ffffff',
-                                     fontSize: '0.6rem',
-                                     lineHeight: '12px',
-                                     textAlign: 'center',
-                                     borderRadius: '50%',
-                                     boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                                     pointerEvents: 'none',
-                                     zIndex: '2',
-                                   },
-                                 }, '★')
+                    attrs: { class: 'director-star' },
+                    style: {
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      width: '13px',
+                      height: '13px',
+                      backgroundColor: '#d97706',
+                      color: '#ffffff',
+                      fontSize: '0.62rem',
+                      lineHeight: '13px',
+                      textAlign: 'center',
+                      borderRadius: '50%',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                      pointerEvents: 'none',
+                      zIndex: '2',
+                    },
+                  }, '★')
                 end
 
                 if just_sold
@@ -1311,14 +1291,7 @@ module View
                 player_hover = n_shares.zero? ? '' : share_denomination_tooltip(player_shares, corporation)
                 card = h(:div, { attrs: { class: 'share-card-wrapper', title: player_hover } }, [card])
                 card = h(:span, { style: { visibility: 'hidden', display: 'inline-block' } }, [card]) if n_shares.zero?
-
-                td_classes = is_president && !n_shares.zero? ? 'is-director-cell' : nil
-                td_bg = is_president && !n_shares.zero? ? '#fef3c7' : bg_color
-
-                players_row_content << h("td#{".#{td_classes}" if td_classes}", {
-                                           attrs: { id: "player_shares_#{p.id}_#{corporation.id}" },
-                                           style: { backgroundColor: td_bg, textAlign: 'center', position: 'relative' },
-                                         }, [card])
+                players_row_content << h(:td, { attrs: { id: "player_shares_#{p.id}_#{corporation.id}" }, style: { backgroundColor: bg_color, textAlign: 'center', position: 'relative' } }, [card])
               end
             end
           end
