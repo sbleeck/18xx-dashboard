@@ -193,9 +193,9 @@ module View
                     tr.active-turn-focus th:last-child, tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
 
                     /* Only corporations that are not open are greyed out. */
-                    #spreadsheet tbody tr.company-row-unfloated > th,
+                    #spreadsheet tbody tr.company-row-unfloated > th:not(.major-corporation-cell),
                     #spreadsheet tbody tr.company-row-unfloated > td,
-                    #spreadsheet tbody tr.company-row-closed > th,
+                    #spreadsheet tbody tr.company-row-closed > th:not(.major-corporation-cell),
                     #spreadsheet tbody tr.company-row-closed > td {
                       background-color: var(--color-inactive) !important;
                       color: #6b7280 !important;
@@ -211,24 +211,32 @@ module View
                       filter: none !important;
                     }
 
-                    /* The current corporation row is always fully white. */
-                    #spreadsheet tbody tr.active-turn-focus > th,
-                    #spreadsheet tbody tr.active-turn-focus > td {
+                    /* The current corporation row is white, except the corporation badge and the director cell. */
+                    #spreadsheet tbody tr.active-turn-focus > th:not(.major-corporation-cell),
+                    #spreadsheet tbody tr.active-turn-focus > td:not(.is-director-cell) {
                       background-color: #ffffff !important;
                       color: #000000 !important;
                       opacity: 1 !important;
                       filter: none !important;
                     }
 
-                    /* The current player's complete column is always white. */
-                    #spreadsheet tbody tr.company-row-unfloated > *:nth-child(#{active_player_nth}),
-                    #spreadsheet tbody tr.company-row-closed > *:nth-child(#{active_player_nth}),
-                    #spreadsheet tbody tr > *:nth-child(#{active_player_nth}) {
+                    /* The current player's complete column is white, except the corporation badge and director cell. */
+                    #spreadsheet tbody tr.company-row-unfloated > *:nth-child(#{active_player_nth}):not(.major-corporation-cell):not(.is-director-cell),
+                    #spreadsheet tbody tr.company-row-closed > *:nth-child(#{active_player_nth}):not(.major-corporation-cell):not(.is-director-cell),
+                    #spreadsheet tbody tr > *:nth-child(#{active_player_nth}):not(.major-corporation-cell):not(.is-director-cell) {
                       background-color: #ffffff !important;
                       color: #000000 !important;
                       opacity: 1 !important;
                       filter: none !important;
                     }
+
+                    /* The corporation cell strictly retains its corporate identity color */
+                    #spreadsheet tbody tr > th.major-corporation-cell,
+                    #spreadsheet tbody tr.active-turn-focus > th.major-corporation-cell {
+                      opacity: 1 !important;
+                      filter: none !important;
+                    }
+
                     #spreadsheet thead th { font-weight: 700 !important; }
                     #spreadsheet th.header-cash, #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }
                     #spreadsheet th.header-trains, #spreadsheet td.corporation-trains { min-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; white-space: nowrap !important; }
@@ -254,6 +262,30 @@ module View
             pointer-events: none;
             z-index: 99999;
             box-shadow: 0 3px 6px rgba(0,0,0,0.35);
+          }
+
+          /* Smart gold background tint for the director share cell */
+          #spreadsheet tbody tr td.is-director-cell,
+          #spreadsheet tbody tr.active-turn-focus td.is-director-cell,
+          #spreadsheet tbody tr td.is-director-cell:nth-child(#{active_player_nth}) {
+            background-color: #fef3c7 !important;
+            transition: background-color 0.15s ease, box-shadow 0.15s ease;
+          }
+
+          /* Cross-Lighting: hovering the major cell highlights the director share */
+          #spreadsheet tr:has(.major-corporation-cell:hover) td.is-director-cell {
+            background-color: #fde68a !important;
+            box-shadow: inset 0 0 0 2px #d97706, 0 1px 5px rgba(217, 119, 6, 0.4) !important;
+          }
+
+          /* Cross-Lighting: hovering the director cell illuminates the company header */
+          #spreadsheet tr:has(td.is-director-cell:hover) .major-corporation-cell {
+            filter: brightness(1.15);
+          }
+
+          .game-card.president-card {
+            border: 1.5px solid #d97706 !important;
+            font-weight: 700 !important;
           }
 
         CSS
@@ -787,9 +819,17 @@ module View
 
         tr_props[:attrs][:class] = row_classes.join(' ') unless row_classes.empty?
 
+        corp_bg = corporation.color || '#ffffff'
+        corp_fg = corporation.text_color || begin
+          contrast_on(corp_bg)
+        rescue StandardError
+          '#000000'
+        end
         name_props = {
-          attrs: { class: 'major-corporation-cell' },
+          attrs: { class: 'major-corporation-cell thick-right' },
           style: {
+            backgroundColor: corp_bg,
+            color: corp_fg,
             padding: '0 !important',
             textAlign: 'center',
             verticalAlign: 'middle',
@@ -1015,17 +1055,38 @@ module View
 
           if corporation.minor?
             players_row_content << if corporation.owner == p
-                                     card_classes = ['game-card']
+                                     card_classes = %w[game-card president-card]
                                      card_classes << 'action-sell' if can_sell
                                      card_classes << 'action-buy' if can_buy_from_player
                                      card_classes << 'clickable' if click_handler
                                      card_props = { attrs: { class: card_classes.join(' ') } }
                                      card_props[:on] = { click: click_handler } if click_handler
 
+                                     star_marker = h(:span, {
+                                                       attrs: { class: 'director-marker' },
+                                                       style: {
+                                                         position: 'absolute',
+                                                         top: '-4px',
+                                                         right: '-4px',
+                                                         width: '12px',
+                                                         height: '12px',
+                                                         backgroundColor: '#d97706',
+                                                         color: '#ffffff',
+                                                         fontSize: '0.6rem',
+                                                         lineHeight: '12px',
+                                                         textAlign: 'center',
+                                                         borderRadius: '50%',
+                                                         boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                                                         pointerEvents: 'none',
+                                                         zIndex: '2',
+                                                       },
+                                                     }, '★')
+
                                      minor_card = h(:div, card_props, '100%')
                                      minor_hover = share_denomination_tooltip(player_shares, corporation)
-                                     wrapped_minor = h(:div, { attrs: { class: 'share-card-wrapper', title: minor_hover } }, [minor_card])
-                                     h(:td, { style: { backgroundColor: bg_color, textAlign: 'center' } }, [wrapped_minor])
+                                     wrapped_minor = h(:div, { attrs: { class: 'share-card-wrapper', title: minor_hover } }, [minor_card, star_marker])
+
+                                     h('td.is-director-cell', { style: { backgroundColor: '#fef3c7', textAlign: 'center', position: 'relative' } }, [wrapped_minor])
 
                                    else
                                      h(:td, { style: { backgroundColor: bg_color } }, '')
@@ -1144,15 +1205,39 @@ module View
                                     n_shares * base_share_pct
                                   end
                 percent = raw_percent.positive? ? raw_percent : holding_percent
-                is_president = corporation.respond_to?(:president?) && corporation.president?(p)
-                text = n_shares.zero? ? '0%' : "#{percent}%#{'P' if is_president}"
+
+                is_president = (corporation.respond_to?(:president?) && corporation.president?(p)) || (corporation.respond_to?(:owner) && corporation.owner == p)
+                text = n_shares.zero? ? '0%' : "#{percent}%"
                 text = '0%' if text.to_s.empty?
 
                 card_classes = ['game-card']
+                card_classes << 'president-card' if is_president && !n_shares.zero?
                 card_classes << 'action-sell' if can_sell
                 card_classes << 'action-buy' if can_buy_from_player || can_redeem_from_director
                 card_classes << 'clickable' if click_handler
                 dropdowns = []
+
+                if is_president && !n_shares.zero?
+                  dropdowns << h(:span, {
+                                   attrs: { class: 'director-marker' },
+                                   style: {
+                                     position: 'absolute',
+                                     top: '-4px',
+                                     right: '-4px',
+                                     width: '12px',
+                                     height: '12px',
+                                     backgroundColor: '#d97706',
+                                     color: '#ffffff',
+                                     fontSize: '0.6rem',
+                                     lineHeight: '12px',
+                                     textAlign: 'center',
+                                     borderRadius: '50%',
+                                     boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                                     pointerEvents: 'none',
+                                     zIndex: '2',
+                                   },
+                                 }, '★')
+                end
 
                 if just_sold
                   dropdowns << h(:span, {
@@ -1226,7 +1311,14 @@ module View
                 player_hover = n_shares.zero? ? '' : share_denomination_tooltip(player_shares, corporation)
                 card = h(:div, { attrs: { class: 'share-card-wrapper', title: player_hover } }, [card])
                 card = h(:span, { style: { visibility: 'hidden', display: 'inline-block' } }, [card]) if n_shares.zero?
-                players_row_content << h(:td, { attrs: { id: "player_shares_#{p.id}_#{corporation.id}" }, style: { backgroundColor: bg_color, textAlign: 'center', position: 'relative' } }, [card])
+
+                td_classes = is_president && !n_shares.zero? ? 'is-director-cell' : nil
+                td_bg = is_president && !n_shares.zero? ? '#fef3c7' : bg_color
+
+                players_row_content << h("td#{".#{td_classes}" if td_classes}", {
+                                           attrs: { id: "player_shares_#{p.id}_#{corporation.id}" },
+                                           style: { backgroundColor: td_bg, textAlign: 'center', position: 'relative' },
+                                         }, [card])
               end
             end
           end
@@ -1665,9 +1757,9 @@ module View
         clean_par_price = corporation.par_price ? @game.format_currency(corporation.par_price.price) : ''
 
         pool_row_content = [
-            h('td.column-zone-market.market-shares-col', { attrs: { id: "pool_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center', borderLeft: border_style } }, pool_cell_children),
-            h('td.padded_number.column-zone-market.money-value.market-price-col', { style: market_style.merge(borderRight: border_style) }, clean_market_price),
-          ]
+          h('td.column-zone-market.market-shares-col', { attrs: { id: "pool_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center', borderLeft: border_style } }, pool_cell_children),
+          h('td.padded_number.column-zone-market.money-value.market-price-col', { style: market_style.merge(borderRight: border_style) }, clean_market_price),
+        ]
 
         bank_row_content = [
           h('td.column-zone-market.ipo-zone.market-shares-col', { attrs: { id: "ipo_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center' } }, ipo_cell_children),
