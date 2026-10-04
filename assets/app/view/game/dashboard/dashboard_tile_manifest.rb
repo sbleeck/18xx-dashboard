@@ -16,6 +16,13 @@ module View
         needs :tile_selector, default: nil, store: true
         needs :on_close, default: nil
 
+        # Force tile names/numbers to always be visible in all browsers
+        def setting_for(key, _game = nil)
+          return false if key.to_s == 'hide_tile_names'
+
+          super
+        end
+
         def render_tile_selector(remaining, tile, shift: 0)
           return [] unless @tile_selector
           return [] if @tile_selector.role != :tile_page || @tile_selector.hex&.tile&.name != tile.name
@@ -60,34 +67,6 @@ module View
           }
 
           [h(:div, parent_props, [h(:div, props, [selector])])]
-        end
-
-        def render_toggle_button
-          setting_key = @hide_tile_names || :hide_tile_names
-          toggle = lambda do
-            toggle_setting(setting_key)
-            update
-          end
-
-          props = {
-            attrs: { type: 'button', title: 'Toggle tile numbers' },
-            style: {
-              padding: '0 8px',
-              height: '1.6rem',
-              fontSize: '0.78rem',
-              fontWeight: '600',
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              border: '1px solid #cbd5e1',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            },
-            on: {
-              click: toggle,
-            },
-          }
-
-          h(:button, props, "Tile Names #{setting_for(setting_key, @game) ? '❌' : '✅'}")
         end
 
         def render_tile_manifest
@@ -315,7 +294,6 @@ module View
           dialog_style[:maxHeight] = is_minimized ? 'auto' : '82vh'
 
           header_controls = [
-            render_toggle_button,
             h(:button, {
                 attrs: { type: 'button', title: is_minimized ? 'Expand overlay' : 'Minimize overlay' },
                 style: {
