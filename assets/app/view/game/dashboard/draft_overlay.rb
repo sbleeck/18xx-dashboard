@@ -23,13 +23,18 @@ module View
         COLOR_MONEY = '#4c1d95'
 
         needs :game, store: true
+        needs :actor, default: nil
 
         def resolve_pending_par(step, entity, actions)
           pending = nil
           %i[corporation_pending_par corporation par_corporation parring target_corporation].each do |m|
             next unless step.respond_to?(m)
 
-            val = step.send(m)
+            val = begin
+              step.send(m)
+            rescue StandardError
+              nil
+            end
             pending = val if val
             break if pending
           end
@@ -56,7 +61,12 @@ module View
 
             if !transacted_company && @game.respond_to?(:actions) && @game.actions&.any?
               last_act = @game.actions.last
-              transacted_company = last_act.company if last_act.respond_to?(:company) && last_act.company
+              last_company = begin
+                last_act.company if last_act.respond_to?(:company)
+              rescue StandardError
+                nil
+              end
+              transacted_company = last_company if last_company
             end
 
             if transacted_company
@@ -122,6 +132,8 @@ module View
           end
 
           has_par ? pending : nil
+        rescue StandardError
+          nil
         end
 
         def current_entity
@@ -134,20 +146,18 @@ module View
 
         def render
           step = @game.round.active_step
-          entity = current_entity
+          entity = @actor || current_entity
           return h(:div) unless step && entity
+          return h(:div) if entity.is_a?(Engine::Bank)
 
           actions = begin
             @game.round.actions_for(entity)
           rescue StandardError
             step.current_actions || []
           end || []
-          # A draft may temporarily become a real auction. At that point,
-          # stop rendering the draft table and hand control to the normal
-          # multi-player bidding overlay.
-          if step.respond_to?(:auctioning) && step.auctioning && (actions.include?('bid') || actions.include?('pass'))
-            return h(BiddingOverlay, game: @game)
-          end
+
+          # Overlay selection belongs exclusively to DashboardVisualizer.
+          # DraftOverlay renders only the multi-item draft/selection table.
 
           pending_corp = resolve_pending_par(step, entity, actions)
 

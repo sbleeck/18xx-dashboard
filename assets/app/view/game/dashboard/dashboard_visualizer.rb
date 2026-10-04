@@ -11,12 +11,27 @@ require 'view/game/dashboard/dashboard_stock_market'
 require 'view/game/history_and_undo'
 require 'view/game/dashboard/par_prompt_overlay'
 require 'view/game/dashboard/draft_overlay'
+require 'view/game/dashboard/bidding_overlay'
 require 'view/game/dashboard/dashboard_tile_manifest'
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
 module Engine
   class Minor
     def ipoed
+      false
+    end
+  end
+
+  # Dashboard compatibility: auction views may inspect the owner of an
+  # auction item as though it were a corporation-bearing entity. In games
+  # such as 1837 that owner can legitimately be the bank. The bank has no
+  # corporation, so expose that fact as nil instead of raising NoMethodError.
+  class Bank
+    def corporation
+      nil
+    end
+
+    def corporation?
       false
     end
   end
@@ -105,27 +120,72 @@ module View
           on_close: close_handler)
       end
 
+      def auction_actor(step)
+        candidates = []
+
+        candidates.concat(Array(step.active_entities)) if step.respond_to?(:active_entities)
+
+        candidates << step.current_entity if step.respond_to?(:current_entity)
+        candidates << @game.round.current_entity if @game.round.respond_to?(:current_entity)
+        candidates << @game.current_entity if @game.respond_to?(:current_entity)
+
+        if @game.respond_to?(:active_players_id)
+          Array(@game.active_players_id).each do |active_id|
+            player = @game.players.find { |p| p.id.to_s == active_id.to_s }
+            candidates << player if player
+          end
+        end
+
+        candidates.concat(@game.players || [])
+        candidates = candidates.compact.uniq.reject { |candidate| candidate.is_a?(Engine::Bank) }
+
+        candidates.find do |candidate|
+          candidate.respond_to?(:player?) && candidate.player? &&
+            begin
+              (@game.round.actions_for(candidate) || []).any?
+            rescue StandardError
+              false
+            end
+        end || candidates.find { |candidate| candidate.respond_to?(:player?) && candidate.player? }
+      end
+
       def render_global_auction_overlay
         step = @game.round&.active_step
         return nil unless step
 
-        actions =
-          begin
-            @game.round.actions_for(
-              step.current_entity || @game.current_entity
-            )
-          rescue StandardError
-            []
-          end
+        round_name = @game.round.class.name.to_s
+        step_name = step.class.name.to_s
+        is_draft_or_auction =
+          round_name.match?(/Draft|Auction/i) ||
+          step_name.match?(/Draft|Auction|Waterfall|Initial/i) ||
+          (step.respond_to?(:draft?) && step.draft?)
 
-        show_overlay =
-          @game.round.class.name =~ /Auction/i ||
-          step.class.name =~ /Auction/i
+        return nil unless is_draft_or_auction
 
-        return nil unless show_overlay
+        actor = auction_actor(step)
+        return nil unless actor
 
-        h(View::Game::Dashboard::DraftOverlay,
-          game: @game)
+        actions = begin
+          @game.round.actions_for(actor) || []
+        rescue StandardError
+          []
+        end
+
+        auction_target = begin
+          step.auctioning if step.respond_to?(:auctioning)
+        rescue StandardError
+          nil
+        end
+
+        if auction_target && (actions.include?('bid') || actions.include?('pass'))
+          h(::View::Game::Dashboard::BiddingOverlay,
+            game: @game,
+            bidder: actor)
+        else
+          h(::View::Game::Dashboard::DraftOverlay,
+            game: @game,
+            actor: actor)
+        end
       end
 
       def render_zoom_controls(panel_id, position_styles = {})

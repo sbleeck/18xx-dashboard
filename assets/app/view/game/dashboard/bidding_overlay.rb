@@ -17,6 +17,7 @@ module View
         include View::Game::Dashboard::RailcardHelper
 
         needs :game, store: true
+        needs :bidder, default: nil
 
         FONT_MONEY = '"Courier New", Courier, monospace'
         PRICE_STEP = 5
@@ -26,9 +27,32 @@ module View
         end
 
         def entity
-          step&.current_entity ||
-            (@game.round.respond_to?(:current_entity) ? @game.round.current_entity : nil) ||
-            @game.current_entity
+          return @bidder if @bidder && !@bidder.is_a?(Engine::Bank)
+
+          candidates = []
+          candidates.concat(Array(step.active_entities)) if step&.respond_to?(:active_entities)
+          candidates << step.current_entity if step&.respond_to?(:current_entity)
+          candidates << @game.round.current_entity if @game.round.respond_to?(:current_entity)
+          candidates << @game.current_entity if @game.respond_to?(:current_entity)
+
+          if @game.respond_to?(:active_players_id)
+            Array(@game.active_players_id).each do |active_id|
+              player = @game.players.find { |p| p.id.to_s == active_id.to_s }
+              candidates << player if player
+            end
+          end
+
+          candidates.concat(@game.players || [])
+          candidates = candidates.compact.uniq.reject { |candidate| candidate.is_a?(Engine::Bank) }
+
+          candidates.find do |candidate|
+            candidate.respond_to?(:player?) && candidate.player? &&
+              begin
+                (@game.round.actions_for(candidate) || []).any?
+              rescue StandardError
+                false
+              end
+          end || candidates.find { |candidate| candidate.respond_to?(:player?) && candidate.player? }
         rescue NotImplementedError, StandardError
           nil
         end
@@ -64,9 +88,11 @@ module View
                  else
                    bids
                  end
-          Array(list).compact.select do |bid|
-            !bid.respond_to?(:corporation) || bid.corporation.nil? || bid.corporation == item
-          end
+          # Do not call bid.corporation here. Some auction actions use the
+          # bank as their action entity, and Engine::Action::Bid#corporation
+          # delegates to entity.corporation, which raises for Engine::Bank.
+          # The step has already selected the bid list for this target.
+          Array(list).compact
         rescue StandardError
           []
         end
@@ -107,7 +133,7 @@ module View
 
         def company_color(item)
           color = item.respond_to?(:color) ? item.color : nil
-          color = item.respond_to?(:background_color) ? item.background_color : color
+          color = item.background_color if item.respond_to?(:background_color)
           color || '#f8fafc'
         rescue StandardError
           '#f8fafc'
@@ -227,7 +253,7 @@ module View
             p_highest = p_bids.max_by { |b| bid_price(b) }
 
             is_current = (p == current_entity)
-            is_winner = (p == winner_bidder && p_highest)
+            is_winner = p == winner_bidder && p_highest
 
             bg_color = is_current ? '#eff6ff' : '#ffffff'
             border = is_current ? '2px solid #3b82f6' : '1px solid #e2e8f0'
