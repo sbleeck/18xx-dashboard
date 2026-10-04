@@ -51493,7 +51493,6 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
   self.$require("view/game/round/operating");
   self.$require("view/game/dashboard/actions_monitor_overlay");
   self.$require("view/game/dashboard/manual_route_overlay");
-  self.$require("view/game/dashboard/draft_overlay");
   self.$require("view/game/dashboard/history_overlay");
   self.$require("view/game/dashboard/move_history_overlay");
   (function($base, $super) {
@@ -54151,8 +54150,6 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
           if ($eqeqeq($$$($$$($$('Engine'), 'Round'), 'Stock'), ($ret_or_1 = self.game.$round()))) {
             if ($truthy(actions['$include?']("assign"))) {
               return self.$render_assign_step(step, ($truthy(($ret_or_2 = ($ad = step, ($ad === nil || $ad == null) ? nil : $ad.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions)
-            } else if ($truthy(is_draft_or_auction)) {
-              return self.$h($$$($$$($$$($$('View'), 'Game'), 'Dashboard'), 'DraftOverlay'), (new Map([["game", self.game]])))
             } else if ($truthy(actions['$include?']("choose"))) {
               return self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($ae = step, ($ae === nil || $ae == null) ? nil : $ae.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())))
             } else {
@@ -54179,8 +54176,6 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
             is_pure_merger_step = ($truthy(($ret_or_2 = step.$class().$name()['$=~'](/Merge/i))) ? ($ret_or_2) : (($truthy(($ret_or_3 = actions['$include?']("merge"))) ? (actions['$&'](["lay_tile", "place_token", "run_routes", "dividend", "buy_train"])['$empty?']()) : ($ret_or_3))));
             if ($truthy(is_pure_merger_step)) {
               return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [self.$render_merger_step(step, ($truthy(($ret_or_2 = ($ag = step, ($ag === nil || $ag == null) ? nil : $ag.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions)].$compact())
-            } else if ($truthy(is_draft_or_auction)) {
-              return self.$h($$$($$$($$$($$('View'), 'Game'), 'Dashboard'), 'DraftOverlay'), (new Map([["game", self.game]])))
             } else {
               
               components = [];
@@ -54386,8 +54381,6 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
             } else {
               return self.$h($$$($$('Round'), 'Choices'), (new Map([["game", self.game]])))
             }
-          } else if (($eqeqeq($$$($$$($$('Engine'), 'Round'), 'Auction'), $ret_or_1) || ($eqeqeq($$$($$$($$('Engine'), 'Round'), 'Draft'), $ret_or_1)))) {
-            return self.$h($$$($$$($$$($$('View'), 'Game'), 'Dashboard'), 'DraftOverlay'), (new Map([["game", self.game]])))
           } else if ($eqeqeq($$$($$$($$('Engine'), 'Round'), 'Merger'), $ret_or_1)) {
             if ((($not(["buy_train", "scrap_train", "reassign_trains"]['$&'](actions)['$empty?']()) && ($truthy(self.game['$train_actions_always_use_operating_round_view?']()))) && ($not(($truthy(($ret_or_2 = ($bo = step, ($bo === nil || $bo == null) ? nil : $bo.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()))['$is_a?']($$$($$('Engine'), 'Bank')))))) {
               return self.$h($$$($$('Round'), 'Operating'), (new Map([["game", self.game]])))
@@ -54404,8 +54397,6 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
             } else {
               return self.$h($$$($$('Round'), 'Merger'), (new Map([["game", self.game]])))
             }
-          } else if ($truthy(is_draft_or_auction)) {
-            return self.$h($$$($$$($$$($$('View'), 'Game'), 'Dashboard'), 'DraftOverlay'), (new Map([["game", self.game]])))
           } else if ($truthy(actions['$include?']("assign"))) {
             if ($truthy(($ret_or_2 = self.$render_assign_step(step, ($truthy(($ret_or_3 = ($br = step, ($br === nil || $br == null) ? nil : $br.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
               return $ret_or_2
@@ -54416,8 +54407,6 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
             
             choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($bs = step, ($bs === nil || $bs == null) ? nil : $bs.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
             return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [choice_item].$compact());
-          } else if ($truthy(self.game.$round()['$unordered?']())) {
-            return self.$h($$$($$('Round'), 'Unordered'), (new Map([["game", self.game], ["user", nil]])))
           } else if ($truthy(self.game.$round()['$unordered?']())) {
             return self.$h($$$($$('Round'), 'Unordered'), (new Map([["game", self.game], ["user", nil]])))
           } else if ($truthy(($ret_or_2 = self.$render_generic_fallback(step, ($truthy(($ret_or_3 = ($bt = step, ($bt === nil || $bt == null) ? nil : $bt.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
@@ -58151,90 +58140,68 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             if (!btn) btn = document.getElementById('meme-revenue-toggle-btn');
             if (!btn) return;
             var isActive = active;
-            btn.style.fontWeight = '900';
-            btn.style.fontSize = '16px';
+            btn.style.fontWeight = 'bold';
+            btn.style.fontSize = '14px';
             btn.style.cursor = 'pointer';
-            btn.style.width = '32px';
-            btn.style.height = '32px';
-            btn.style.padding = '0';
-            btn.style.lineHeight = '1';
-            btn.style.border = '1px solid ' + (isActive ? '#059669' : '#dbdbdb');
-            btn.style.borderRadius = '4px';
-            btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
-            btn.style.display = 'inline-flex';
-            btn.style.alignItems = 'center';
-            btn.style.justifyContent = 'center';
             btn.style.boxSizing = 'border-box';
             btn.style.visibility = 'visible';
             btn.style.opacity = '1';
+            btn.style.lineHeight = '1';
             btn.setAttribute('role', 'checkbox');
             btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
             if (isActive) {
               btn.style.backgroundColor = '#10b981';
               btn.style.color = '#ffffff';
+              btn.style.borderColor = '#059669';
             } else {
               btn.style.backgroundColor = '#ffffff';
               btn.style.color = '#363636';
+              btn.style.borderColor = '#dbdbdb';
             }
           };
 
           window.__positionMemeRevenueBtn = function(btn) {
             if (!btn) return;
 
-            var resetBtn = Array.from(document.querySelectorAll('button')).find(function(b) {
+            // Locate any of the zoom panel buttons (+, -, o / ↺)
+            var allButtons = Array.from(document.querySelectorAll('button'));
+            var zoomBtn = allButtons.find(function(b) {
+              if (b.id === 'meme-revenue-toggle-btn') return false;
               var t = (b.textContent || '').trim();
-              return t === '↺' || t === '↻' || t === '⟲' || t.toLowerCase() === 'reset';
+              return t === '+' || t === '-' || t === '−' || t === 'o' || t === '↺' || t === '⟲' || t === '↻';
             });
 
-            var zoomInBtn = Array.from(document.querySelectorAll('button')).find(function(b) {
-              var t = (b.textContent || '').trim();
-              return t === '+' || t === '🔍' || b.getAttribute('title') === 'Zoom In';
-            });
+            if (zoomBtn && zoomBtn.parentElement) {
+              var parent = zoomBtn.parentElement;
 
-            var scaler = document.getElementById('scaler') ||
-                         document.querySelector('.scaler') ||
-                         document.querySelector('.map-scaler');
+              // Ensure the $ button is appended directly inside the same button box
+              if (btn.parentElement !== parent) {
+                parent.appendChild(btn);
+              }
 
+              // Match dimensions and margins from the sibling buttons
+              btn.style.position = 'static';
+              btn.style.display = 'inline-flex';
+              btn.style.alignItems = 'center';
+              btn.style.justifyContent = 'center';
+              btn.style.width = zoomBtn.offsetWidth ? (zoomBtn.offsetWidth + 'px') : '28px';
+              btn.style.height = zoomBtn.offsetHeight ? (zoomBtn.offsetHeight + 'px') : '28px';
+              btn.style.marginLeft = '4px';
+              btn.style.border = '1px solid #dbdbdb';
+              btn.style.borderRadius = '4px';
+              btn.style.padding = '0';
+              btn.style.zIndex = 'auto';
+              return;
+            }
+
+            // Fallback if the panel hasn't rendered yet
+            if (btn.parentElement !== document.body) {
+              document.body.appendChild(btn);
+            }
             btn.style.position = 'fixed';
             btn.style.zIndex = '999999';
-
-            if (resetBtn) {
-              var rRect = resetBtn.getBoundingClientRect();
-              if (rRect.width > 0 && rRect.height > 0) {
-                if (zoomInBtn) {
-                  var zRect = zoomInBtn.getBoundingClientRect();
-                  if (Math.abs(zRect.left - rRect.left) < 12) {
-                    btn.style.top = (rRect.bottom + 6) + 'px';
-                    btn.style.left = rRect.left + 'px';
-                    return;
-                  }
-                }
-                btn.style.top = rRect.top + 'px';
-                btn.style.left = (rRect.right + 6) + 'px';
-                return;
-              }
-            }
-
-            if (zoomInBtn) {
-              var zRect = zoomInBtn.getBoundingClientRect();
-              if (zRect.width > 0 && zRect.height > 0) {
-                btn.style.top = zRect.top + 'px';
-                btn.style.left = (zRect.right + 6) + 'px';
-                return;
-              }
-            }
-
-            if (scaler) {
-              var sRect = scaler.getBoundingClientRect();
-              if (sRect.width > 0 && sRect.height > 0) {
-                btn.style.top = (sRect.top + 8) + 'px';
-                btn.style.left = (sRect.right + 8) + 'px';
-                return;
-              }
-            }
-
-            btn.style.top = '64px';
-            btn.style.left = '16px';
+            btn.style.top = '10px';
+            btn.style.left = '10px';
           };
 
           window.__ensureMemeRevenueBtn = function() {
@@ -58253,10 +58220,6 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   window.__toggleMemeRevenue();
                 }
               });
-            }
-
-            if (btn.parentNode !== document.body) {
-              document.body.appendChild(btn);
             }
 
             window.__positionMemeRevenueBtn(btn);
@@ -58280,12 +58243,6 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                 window.__positionMemeRevenueBtn(b);
               }
             });
-            window.addEventListener('scroll', function() {
-              var b = document.getElementById('meme-revenue-toggle-btn');
-              if (b && window.__positionMemeRevenueBtn) {
-                window.__positionMemeRevenueBtn(b);
-              }
-            }, true);
           }
         ;
         });
@@ -61215,7 +61172,7 @@ Opal.modules["view/game/dashboard/dashboard_upcoming_trains"] = function(Opal) {
 Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Generated by Opal 1.8.2 */
   var $module = Opal.module, $klass = Opal.klass, $return_val = Opal.return_val, $def = Opal.def, $truthy = Opal.truthy, $send = Opal.send, $lambda = Opal.lambda, $not = Opal.not, $range = Opal.range, $rb_gt = Opal.rb_gt, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,needs,include,current_entity,active_step,round,active_entity,player?,player,respond_to?,owner,first,active_entities,any?,active_players_id,find,players,==,to_s,id,[],corporation_by_id,corporations,lambda,[]=,update,h,active_player,merge,include?,store,is_a?,type,entity,dig,bundle,corporation,fly,train,name,company,empty?,map,to_proc,stock?,class,corporation?,minor?,!,simple_logo,logo,color,text_color,<<,finished?,raw_actions,last,fetch,to_i,positive?,>,animate_last_action,compact,render_zoom_controls,render_active_turn_card,render_par_overlay,render_tile_manifest_overlay');
+  Opal.add_stubs('require,needs,include,current_entity,active_step,round,active_entity,player?,player,respond_to?,owner,first,active_entities,any?,active_players_id,find,players,==,to_s,id,[],corporation_by_id,corporations,lambda,[]=,update,h,active_player,actions_for,auctioning,!,include?,=~,name,class,merge,store,is_a?,type,entity,dig,bundle,corporation,fly,train,company,empty?,map,to_proc,stock?,corporation?,minor?,simple_logo,logo,color,text_color,<<,finished?,raw_actions,last,fetch,to_i,positive?,>,animate_last_action,compact,render_zoom_controls,render_active_turn_card,render_global_auction_overlay,render_par_overlay,render_tile_manifest_overlay');
   
   self.$require("view/game/actionable");
   self.$require("view/game/dashboard/dashboard_command_column");
@@ -61225,6 +61182,7 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
   self.$require("view/game/dashboard/dashboard_stock_market");
   self.$require("view/game/history_and_undo");
   self.$require("view/game/dashboard/par_prompt_overlay");
+  self.$require("view/game/dashboard/draft_overlay");
   self.$require("view/game/dashboard/dashboard_tile_manifest");
   (function($base, $parent_nesting) {
     var self = $module($base, 'Engine');
@@ -61369,6 +61327,30 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
             $$$($$('Lib'), 'Storage')['$[]=']("dashboard_tile_manifest", false);
             return self.$update();}, {$$s: self});
           return self.$h($$$($$$($$$($$$('View'), 'Game'), 'Dashboard'), 'TileManifest'), (new Map([["game", self.game], ["tile_selector", self.tile_selector], ["on_close", close_handler]])));
+        });
+        
+        $def(self, '$render_global_auction_overlay', function $$render_global_auction_overlay() {
+          var $a, self = this, step = nil, actions = nil, $ret_or_1 = nil, show_overlay = nil, $ret_or_2 = nil, $ret_or_3 = nil;
+
+          
+          step = ($a = self.game.$round(), ($a === nil || $a == null) ? nil : $a.$active_step());
+          if (!$truthy(step)) {
+            return nil
+          };
+          actions = (function() { try {
+            return self.game.$round().$actions_for(($truthy(($ret_or_1 = step.$current_entity())) ? ($ret_or_1) : (self.game.$current_entity())))
+          } catch ($err) {
+            if (Opal.rescue($err, [$$('StandardError')])) {
+              try {
+                return []
+              } finally { Opal.pop_exception($err); }
+            } else { throw $err; }
+          }})();
+          show_overlay = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = step['$respond_to?']("auctioning"))) ? (step.$auctioning()) : ($ret_or_2)))) ? ($ret_or_1) : (($truthy(($ret_or_2 = actions['$include?']("par")['$!']())) ? (($truthy(($ret_or_3 = step.$class().$name()['$=~'](/Waterfall|Draft|Auction|Initial/i))) ? ($ret_or_3) : (self.game.$round().$class().$name()['$=~'](/Draft|Auction/i)))) : ($ret_or_2))));
+          if (!$truthy(show_overlay)) {
+            return nil
+          };
+          return self.$h($$$($$$($$$($$('View'), 'Game'), 'Dashboard'), 'DraftOverlay'), (new Map([["game", self.game]])));
         });
         
         $def(self, '$render_zoom_controls', function $$render_zoom_controls(panel_id, position_styles) {
@@ -62184,7 +62166,7 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
 
             
             $$$($$('Lib'), 'Storage')['$[]=']("dashboard_tile_manifest", $$$($$('Lib'), 'Storage')['$[]']("dashboard_tile_manifest")['$!']());
-            return self.$update();}, {$$s: self})]]))]])), "Show Remaining Tiles")])])]), self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-v-main"]]))], ["style", (new Map([["flex", "0 0 0.75rem"], ["cursor", "col-resize"], ["zIndex", 10]]))]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "col-right"]]))], ["style", (new Map([["flex", "1 1 auto"], ["display", "flex"], ["flexDirection", "column"], ["height", "100%"], ["maxHeight", "100%"], ["overflow", "hidden"], ["gap", "0.5rem"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "temporal-hub"]]))], ["style", (new Map([["flex", "0 0 3.75rem"], ["minHeight", "3.25rem"], ["display", "flex"], ["flexDirection", "row"], ["alignItems", "center"], ["justifyContent", "flex-start"], ["border", "1px solid #ccc"], ["borderRadius", "4px"], ["backgroundColor", "#f8f9fa"], ["padding", "0 0.65rem"], ["boxSizing", "border-box"], ["overflow", "hidden"], ["gap", "0.65rem"]]))]])), [self.$h("style", (new Map()), "\n" + "                  /* Target the div children directly to account for prepended style tags */\n" + "                  #command-space-top #dashboard-command-panel-bar > div:first-of-type {\n" + "                    display: none !important;\n" + "                  }\n" + "                  #command-space-top #dashboard-command-panel-bar > div:nth-of-type(2) {\n" + "                    flex: 1 1 auto !important;\n" + "                    min-width: 0 !important;\n" + "                    border-left: none !important;\n" + "                  }\n" + "                  #command-space-top #dashboard-command-panel-bar > div:nth-of-type(3) {\n" + "                    flex: 0 0 28% !important;\n" + "                    min-width: 15.5rem !important;\n" + "                    max-width: none !important;\n" + "                    box-sizing: border-box !important;\n" + "                    overflow: visible !important;\n" + "                  }\n" + "                "), self.$render_active_turn_card(), self.$h("div", (new Map([["attrs", (new Map([["class", "entity-order-content"]]))], ["style", (new Map([["flex", "1 1 auto"], ["minWidth", "0"], ["height", "2.5rem"], ["display", "flex"], ["alignItems", "center"], ["overflow", "hidden"]]))]])), [(($truthy(self.game['$respond_to?']("finished?")) && ($truthy(self.game['$finished?']()))) ? (self.$h($$$($$$($$('View'), 'Game'), 'DashboardEntityOrder'), (new Map([["round", nil]])))) : (self.$h($$$($$$($$('View'), 'Game'), 'DashboardEntityOrder'), (new Map([["round", self.game.$round()]])))))])].$compact()), self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-h-entity-ledger"], ["title", "Drag to resize Entity Order"]]))], ["style", (new Map([["flex", "0 0 0.5rem"], ["minHeight", "0.5rem"], ["cursor", "row-resize"], ["zIndex", 10], ["backgroundColor", "transparent"], ["borderRadius", "0"]]))]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "panel-ledger"]]))], ["style", (new Map([["flex", "1 1 auto"], ["overflow", "auto"], ["border", "1px solid #ccc"], ["padding", "0.4rem"], ["borderRadius", "4px"], ["backgroundColor", "#fff"], ["boxSizing", "border-box"]]))]])), [self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["width", "max-content"], ["minWidth", "100%"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardGameStatus'), (new Map([["game", self.game]])))])]), self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-h-ledger-market"]]))], ["style", (new Map([["flex", "0 0 0.5rem"], ["cursor", "row-resize"], ["zIndex", 10]]))]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "panel-market"]]))], ["style", (new Map([["flex", "1 1 auto"], ["minHeight", "12rem"], ["overflow", "hidden"], ["border", "1px solid #ccc"], ["padding", "0.5rem"], ["borderRadius", "4px"], ["backgroundColor", "#fff"], ["boxSizing", "border-box"], ["position", "relative"]]))]])), [self.$render_zoom_controls("panel-market", (new Map([["top", "6px"], ["right", "6px"]]))), self.$h("div", (new Map([["attrs", (new Map([["class", "scaler-content"]]))], ["style", (new Map([["position", "absolute"], ["top", "0"], ["left", "0"], ["display", "flex"], ["flexDirection", "column"], ["width", "max-content"], ["height", "max-content"], ["transformOrigin", "top left"], ["margin", "0"], ["padding", "0"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardStockMarket'), (new Map([["game", self.game]])))])])]), self.$render_par_overlay(), self.$render_tile_manifest_overlay(), self.$h("div", (new Map([["attrs", (new Map([["id", "turn-notification-ribbon"]]))]])))].$compact());
+            return self.$update();}, {$$s: self})]]))]])), "Show Remaining Tiles")])])]), self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-v-main"]]))], ["style", (new Map([["flex", "0 0 0.75rem"], ["cursor", "col-resize"], ["zIndex", 10]]))]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "col-right"]]))], ["style", (new Map([["flex", "1 1 auto"], ["display", "flex"], ["flexDirection", "column"], ["height", "100%"], ["maxHeight", "100%"], ["overflow", "hidden"], ["gap", "0.5rem"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "temporal-hub"]]))], ["style", (new Map([["flex", "0 0 3.75rem"], ["minHeight", "3.25rem"], ["display", "flex"], ["flexDirection", "row"], ["alignItems", "center"], ["justifyContent", "flex-start"], ["border", "1px solid #ccc"], ["borderRadius", "4px"], ["backgroundColor", "#f8f9fa"], ["padding", "0 0.65rem"], ["boxSizing", "border-box"], ["overflow", "hidden"], ["gap", "0.65rem"]]))]])), [self.$h("style", (new Map()), "\n" + "                  /* Target the div children directly to account for prepended style tags */\n" + "                  #command-space-top #dashboard-command-panel-bar > div:first-of-type {\n" + "                    display: none !important;\n" + "                  }\n" + "                  #command-space-top #dashboard-command-panel-bar > div:nth-of-type(2) {\n" + "                    flex: 1 1 auto !important;\n" + "                    min-width: 0 !important;\n" + "                    border-left: none !important;\n" + "                  }\n" + "                  #command-space-top #dashboard-command-panel-bar > div:nth-of-type(3) {\n" + "                    flex: 0 0 28% !important;\n" + "                    min-width: 15.5rem !important;\n" + "                    max-width: none !important;\n" + "                    box-sizing: border-box !important;\n" + "                    overflow: visible !important;\n" + "                  }\n" + "                "), self.$render_active_turn_card(), self.$h("div", (new Map([["attrs", (new Map([["class", "entity-order-content"]]))], ["style", (new Map([["flex", "1 1 auto"], ["minWidth", "0"], ["height", "2.5rem"], ["display", "flex"], ["alignItems", "center"], ["overflow", "hidden"]]))]])), [(($truthy(self.game['$respond_to?']("finished?")) && ($truthy(self.game['$finished?']()))) ? (self.$h($$$($$$($$('View'), 'Game'), 'DashboardEntityOrder'), (new Map([["round", nil]])))) : (self.$h($$$($$$($$('View'), 'Game'), 'DashboardEntityOrder'), (new Map([["round", self.game.$round()]])))))])].$compact()), self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-h-entity-ledger"], ["title", "Drag to resize Entity Order"]]))], ["style", (new Map([["flex", "0 0 0.5rem"], ["minHeight", "0.5rem"], ["cursor", "row-resize"], ["zIndex", 10], ["backgroundColor", "transparent"], ["borderRadius", "0"]]))]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "panel-ledger"]]))], ["style", (new Map([["flex", "1 1 auto"], ["overflow", "auto"], ["border", "1px solid #ccc"], ["padding", "0.4rem"], ["borderRadius", "4px"], ["backgroundColor", "#fff"], ["boxSizing", "border-box"]]))]])), [self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["width", "max-content"], ["minWidth", "100%"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardGameStatus'), (new Map([["game", self.game]])))])]), self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-h-ledger-market"]]))], ["style", (new Map([["flex", "0 0 0.5rem"], ["cursor", "row-resize"], ["zIndex", 10]]))]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "panel-market"]]))], ["style", (new Map([["flex", "1 1 auto"], ["minHeight", "12rem"], ["overflow", "hidden"], ["border", "1px solid #ccc"], ["padding", "0.5rem"], ["borderRadius", "4px"], ["backgroundColor", "#fff"], ["boxSizing", "border-box"], ["position", "relative"]]))]])), [self.$render_zoom_controls("panel-market", (new Map([["top", "6px"], ["right", "6px"]]))), self.$h("div", (new Map([["attrs", (new Map([["class", "scaler-content"]]))], ["style", (new Map([["position", "absolute"], ["top", "0"], ["left", "0"], ["display", "flex"], ["flexDirection", "column"], ["width", "max-content"], ["height", "max-content"], ["transformOrigin", "top left"], ["margin", "0"], ["padding", "0"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardStockMarket'), (new Map([["game", self.game]])))])])]), self.$render_global_auction_overlay(), self.$render_par_overlay(), self.$render_tile_manifest_overlay(), self.$h("div", (new Map([["attrs", (new Map([["id", "turn-notification-ribbon"]]))]])))].$compact());
         });
       })($nesting[0], $$$($$('Snabberb'), 'Component'), $nesting)
     })($nesting[0], $nesting)
