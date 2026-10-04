@@ -129,7 +129,7 @@ module View
         @game.players
       end
 
-def render
+      def render
         @spreadsheet_sort_by = Lib::Storage['spreadsheet_sort_by']
         @spreadsheet_sort_order = Lib::Storage['spreadsheet_sort_order']
         @hide_not_floated = Lib::Storage['spreadsheet_hide_not_floated']
@@ -192,7 +192,7 @@ def render
                     tr.active-turn-focus th:first-child, tr.active-turn-focus td:first-child { box-shadow: inset 3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
                     tr.active-turn-focus th:last-child, tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
 
-                     /* Only corporations that are not open are greyed out, preserving the company column */
+                    /* Only corporations that are not open are greyed out, preserving the company column */
                     #spreadsheet tbody tr.company-row-unfloated > th:not(.major-corporation-cell),
                     #spreadsheet tbody tr.company-row-unfloated > td,
                     #spreadsheet tbody tr.company-row-closed > th:not(.major-corporation-cell),
@@ -211,7 +211,7 @@ def render
                       filter: none !important;
                     }
 
-                 /* The current corporation row is white, but the company cell never loses its color */
+                    /* The current corporation row is white, but the company cell never loses its color */
                     #spreadsheet tbody tr.active-turn-focus > th:not(.major-corporation-cell),
                     #spreadsheet tbody tr.active-turn-focus > td {
                       background-color: #ffffff !important;
@@ -271,9 +271,15 @@ def render
             border-radius: 5px;
             white-space: pre;
             pointer-events: none;
-            z-index: 99999;
+            zIndex: 99999;
             box-shadow: 0 3px 6px rgba(0,0,0,0.35);
           }
+
+          # // --- START FIX ---
+          .game-card.president-card {
+            font-weight: bold !important;
+          }
+          # // --- END FIX ---
 
         CSS
 
@@ -732,7 +738,7 @@ def render
         corporation.operating_history.keys.include?(current_round)
       end
 
-def render_corporation(corporation, _operating_order, current_round, is_last_minor = false)
+      def render_corporation(corporation, _operating_order, current_round, is_last_minor = false)
         return '' if @hide_not_floated && !@game.operating_order.include?(corporation)
 
         step = @game.round.active_step
@@ -806,7 +812,7 @@ def render_corporation(corporation, _operating_order, current_round, is_last_min
 
         tr_props[:attrs][:class] = row_classes.join(' ') unless row_classes.empty?
 
-            corp_bg = corporation.color || '#ffffff'
+        corp_bg = corporation.color || '#ffffff'
         name_props = {
           attrs: { class: 'major-corporation-cell' },
           style: {
@@ -1037,7 +1043,7 @@ def render_corporation(corporation, _operating_order, current_round, is_last_min
 
           if corporation.minor?
             players_row_content << if corporation.owner == p
-                                     card_classes = ['game-card']
+                                     card_classes = %w[game-card president-card]
                                      card_classes << 'action-sell' if can_sell
                                      card_classes << 'action-buy' if can_buy_from_player
                                      card_classes << 'clickable' if click_handler
@@ -1045,24 +1051,24 @@ def render_corporation(corporation, _operating_order, current_round, is_last_min
                                      card_props[:on] = { click: click_handler } if click_handler
 
                                      star_marker = h(:span, {
-                                       attrs: { class: 'director-star' },
-                                       style: {
-                                         position: 'absolute',
-                                         top: '-4px',
-                                         right: '-4px',
-                                         width: '13px',
-                                         height: '13px',
-                                         backgroundColor: '#d97706',
-                                         color: '#ffffff',
-                                         fontSize: '0.62rem',
-                                         lineHeight: '13px',
-                                         textAlign: 'center',
-                                         borderRadius: '50%',
-                                         boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                                         pointerEvents: 'none',
-                                         zIndex: '2',
-                                       },
-                                     }, '★')
+                                                       attrs: { class: 'director-star' },
+                                                       style: {
+                                                         position: 'absolute',
+                                                         top: '-4px',
+                                                         right: '-4px',
+                                                         width: '13px',
+                                                         height: '13px',
+                                                         backgroundColor: '#d97706',
+                                                         color: '#ffffff',
+                                                         fontSize: '0.62rem',
+                                                         lineHeight: '13px',
+                                                         textAlign: 'center',
+                                                         borderRadius: '50%',
+                                                         boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                                                         pointerEvents: 'none',
+                                                         zIndex: '2',
+                                                       },
+                                                     }, '★')
 
                                      minor_card = h(:div, card_props, '100%')
                                      minor_hover = share_denomination_tooltip(player_shares, corporation)
@@ -1187,11 +1193,14 @@ def render_corporation(corporation, _operating_order, current_round, is_last_min
                                   end
                 percent = raw_percent.positive? ? raw_percent : holding_percent
 
-                    is_president = (corporation.respond_to?(:president?) && corporation.president?(p)) || (corporation.respond_to?(:owner) && corporation.owner == p)
+                is_president = (corporation.respond_to?(:president?) && corporation.president?(p)) || (corporation.respond_to?(:owner) && corporation.owner == p)
                 text = n_shares.zero? ? '0%' : "#{percent}%"
                 text = '0%' if text.to_s.empty?
 
                 card_classes = ['game-card']
+                # // --- START FIX ---
+                card_classes << 'president-card' if is_president && !n_shares.zero?
+                # // --- END FIX ---
                 card_classes << 'action-sell' if can_sell
                 card_classes << 'action-buy' if can_buy_from_player || can_redeem_from_director
                 card_classes << 'clickable' if click_handler
@@ -1199,24 +1208,24 @@ def render_corporation(corporation, _operating_order, current_round, is_last_min
 
                 if is_president && !n_shares.zero?
                   dropdowns << h(:span, {
-                    attrs: { class: 'director-star' },
-                    style: {
-                      position: 'absolute',
-                      top: '-4px',
-                      right: '-4px',
-                      width: '13px',
-                      height: '13px',
-                      backgroundColor: '#d97706',
-                      color: '#ffffff',
-                      fontSize: '0.62rem',
-                      lineHeight: '13px',
-                      textAlign: 'center',
-                      borderRadius: '50%',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                      pointerEvents: 'none',
-                      zIndex: '2',
-                    },
-                  }, '★')
+                                   attrs: { class: 'director-star' },
+                                   style: {
+                                     position: 'absolute',
+                                     top: '-4px',
+                                     right: '-4px',
+                                     width: '13px',
+                                     height: '13px',
+                                     backgroundColor: '#d97706',
+                                     color: '#ffffff',
+                                     fontSize: '0.62rem',
+                                     lineHeight: '13px',
+                                     textAlign: 'center',
+                                     borderRadius: '50%',
+                                     boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                                     pointerEvents: 'none',
+                                     zIndex: '2',
+                                   },
+                                 }, '★')
                 end
 
                 if just_sold
@@ -1664,14 +1673,47 @@ def render_corporation(corporation, _operating_order, current_round, is_last_min
           end
         end
 
+        # // --- START FIX ---
+        ipo_is_director = !corporation.minor? &&
+                          (!corporation.respond_to?(:ipoed) || !corporation.ipoed) &&
+                          (!corporation.respond_to?(:owner) || !corporation.owner) &&
+                          corp_available
+        # // --- END FIX ---
+
         ipo_cell_children = []
         unless ipo_share_text.empty?
           card_classes = ['game-card']
+          # // --- START FIX ---
+          card_classes << 'president-card' if ipo_is_director
+          # // --- END FIX ---
           card_classes << 'action-sell' if issue_from_ipo
           card_classes << 'action-buy' if ipo_click_handler && !issue_from_ipo
           card_classes << 'clickable' if ipo_click_handler
 
           dropdowns = []
+          # // --- START FIX ---
+          if ipo_is_director
+            dropdowns << h(:span, {
+                             attrs: { class: 'director-star' },
+                             style: {
+                               position: 'absolute',
+                               top: '-4px',
+                               right: '-4px',
+                               width: '13px',
+                               height: '13px',
+                               backgroundColor: '#d97706',
+                               color: '#ffffff',
+                               fontSize: '0.62rem',
+                               lineHeight: '13px',
+                               textAlign: 'center',
+                               borderRadius: '50%',
+                               boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                               pointerEvents: 'none',
+                               zIndex: '2',
+                             },
+                           }, '★')
+          end
+          # // --- END FIX ---
           if Lib::Storage['issue_ipo_menu_corp'] == corporation.id && issue_from_ipo
             options = (ipo_issuable_bundles || issuable_bundles).map do |bundle|
               pct = bundle.respond_to?(:percent) ? bundle.percent : bundle.shares.sum(&:percent)
