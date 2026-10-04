@@ -438,18 +438,46 @@ module View
         step = @game.round.active_step
         entity = current_entity
         entity_id = entity&.id
-        is_move_history_open = @show_move_history == true || Lib::Storage['cmd_move_history_overlay'] == true || Lib::Storage['cmd_move_history_overlay'] == 'true'
-        is_history_open = @show_history_overlay == true || Lib::Storage['cmd_history_overlay'] == true || Lib::Storage['cmd_history_overlay'] == 'true'
-        preserve_command_panel = is_move_history_open || is_history_open
 
-        if !preserve_command_panel && Lib::Storage['cmd_last_entity_id']&.to_s != entity_id&.to_s
+        price_dialog_style = h(:style, {}, '
+          .modal-overlay,
+          .dialog-overlay,
+          .price-dialog-overlay,
+          .snabberb-modal-overlay {
+            background: transparent !important;
+            background-color: transparent !important;
+            backdrop-filter: none !important;
+          }
+        ')
+
+        is_move_history_open =
+          @show_move_history == true ||
+          Lib::Storage['cmd_move_history_overlay'] == true ||
+          Lib::Storage['cmd_move_history_overlay'] == 'true'
+
+        is_history_open =
+          @show_history_overlay == true ||
+          Lib::Storage['cmd_history_overlay'] == true ||
+          Lib::Storage['cmd_history_overlay'] == 'true'
+
+        preserve_command_panel =
+          is_move_history_open || is_history_open
+
+        if !preserve_command_panel &&
+           Lib::Storage['cmd_last_entity_id']&.to_s != entity_id&.to_s
           Lib::Storage['cmd_last_entity_id'] = entity_id
           @routes = []
           store(:routes, @routes, skip: true)
           store(:show_manual_routes, false, skip: true)
         end
 
-        last_action = @game.respond_to?(:raw_actions) && @game.raw_actions ? @game.raw_actions.last : nil
+        last_action =
+          if @game.respond_to?(:raw_actions) && @game.raw_actions
+            @game.raw_actions.last
+          else
+            nil
+          end
+
         last_action_id = if last_action.is_a?(Hash)
                            last_action['id'] || last_action[:id] || 0
                          elsif last_action.respond_to?(:id)
@@ -1147,7 +1175,7 @@ module View
               overflow: 'visible',
               pointerEvents: 'auto',
             },
-          }, [zone_1, zone_2, zone_3, *overlays].compact)
+          }, [price_dialog_style, zone_1, zone_2, zone_3, *overlays].compact)
       end
 
       def render_merger_step(step, entity, actions)
