@@ -119,14 +119,8 @@ module View
           end
 
         show_overlay =
-          (step.respond_to?(:auctioning) && step.auctioning) ||
-          (
-            !actions.include?('par') &&
-            (
-              step.class.name =~ /Waterfall|Draft|Auction|Initial/i ||
-              (@game.round.class.name =~ /Draft|Auction/i)
-            )
-          )
+          @game.round.class.name =~ /Auction/i ||
+          step.class.name =~ /Auction/i
 
         return nil unless show_overlay
 
