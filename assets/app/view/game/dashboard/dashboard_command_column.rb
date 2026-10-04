@@ -2034,6 +2034,7 @@ module View
               if defined?(Engine::ShareBundle) &&
                  raw_bundle.is_a?(Engine::ShareBundle)
                 raw_bundle
+
               elsif raw_bundle.respond_to?(:to_bundle)
                 raw_bundle.to_bundle
               else
@@ -2041,31 +2042,6 @@ module View
               end
 
             shares = bundle.shares.flatten.compact
-            num = bundle.num_shares
-
-            shares =
-              if defined?(Engine::ShareBundle) &&
-              bundle.is_a?(Engine::ShareBundle)
-                bundle.shares
-              elsif bundle.respond_to?(:shares)
-                bundle.shares
-              elsif bundle.is_a?(Array)
-                bundle.flat_map do |item|
-                  if defined?(Engine::ShareBundle) &&
-                  item.is_a?(Engine::ShareBundle)
-                    item.shares
-                  elsif item.respond_to?(:shares)
-                    item.shares
-                  else
-                    item
-                  end
-                end
-              else
-                [bundle]
-              end
-
-            shares = shares.flatten.compact
-
             num =
               if bundle.respond_to?(:num_shares)
                 bundle.num_shares
@@ -2075,6 +2051,7 @@ module View
 
             price =
               if bundle.respond_to?(:price)
+
                 bundle.price
               elsif bundle.respond_to?(:share_price) && bundle.share_price
                 bundle.share_price.price * num
@@ -2190,9 +2167,8 @@ module View
 
           corp_tag = @game.round.stock? ? " (#{entity.name})" : ''
           rows << render_action_row("Issue#{corp_tag}:", issue_buttons)
-
         elsif (
-          entity_actions &
+          available_actions &
           %w[
             issue_shares
             reissue_shares
@@ -2325,12 +2301,11 @@ module View
 
           corp_tag = @game.round.stock? ? " (#{entity.name})" : ''
           rows << render_action_row("Redeem#{corp_tag}:", redeem_buttons)
-        elsif (entity_actions & %w[redeem redeem_shares]).any?
+        elsif (available_actions & %w[redeem redeem_shares]).any?
           rows << render_action_row('Redeem:', [
             h(:span, { style: { color: '#888', fontStyle: 'italic', fontSize: '0.85rem' } }, 'No redeemable shares available'),
           ])
         end
-
         return nil if rows.empty?
 
         h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' } }, rows.compact)

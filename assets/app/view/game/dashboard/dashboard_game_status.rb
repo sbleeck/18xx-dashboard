@@ -719,16 +719,14 @@ module View
         step = @game.round.active_step
         is_active_row = (active_entity == corporation)
 
-        # Corporate share actions must be advertised for the corporation itself.
-        # Do not infer them from available bundles, helper methods, or owner actions.
-        corp_actions = status_actions_for(corporation)
+        # Include actions exposed through either the corporation or its
+        # controlling player.
+        corp_actions = status_corporation_actions(corporation)
 
         corporation_controlled =
           is_active_row ||
           (corporation.respond_to?(:owner) && corporation.owner == active_player)
-
         issuable_bundles = status_issuable_bundles(step, corporation)
-
         issue_command =
           (corp_actions & %w[
             issue_shares
@@ -1241,7 +1239,7 @@ module View
                         @game.share_pool.shares_by_corporation[corporation] || []
                       end
         pool_redeem_bundles = (explicit_redeem_bundles + all_redeemable_bundles)
-.uniq { |bundle| status_bundle_key(bundle) }
+      .uniq { |bundle| status_bundle_key(bundle) }
           .select { |bundle| bundle_from_pool?(bundle, corporation) }
         if pool_redeem_bundles.empty? && explicit_redeem_bundles.any? && step.respond_to?(:can_buy?)
           pool_redeem_bundles = pool_shares.map(&:to_bundle).select do |bundle|
