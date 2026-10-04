@@ -213,9 +213,6 @@ module View
                 attrs: { attributeName: 'stroke-opacity', values: '0.35;1.0;0.35', dur: '1.4s', repeatCount: 'indefinite' }),
             ])
 
-            # CitySlot#render may return an array of VNodes. Never insert that array as
-            # a single child: Snabbdom will treat the Ruby/Opal array as a VNode and
-            # createElm will try to attach `elm` to a non-extensible object.
             rendered_children = `Array.isArray(#{rendered})` ? rendered : [rendered]
             h(:g, {}, [*rendered_children, highlight].compact)
           end
@@ -381,6 +378,7 @@ module View
       needs :routes, default: [], store: true
       needs :historical_laid_hexes, default: nil, store: true
       needs :historical_routes, default: [], store: true
+      needs :show_meme_revenue, default: false, store: true
 
       EDGE_LENGTH = 50
       SIDE_TO_SIDE = 87
@@ -565,6 +563,172 @@ module View
         nil
       end
 
+      def show_meme_revenue?
+        return @show_meme_revenue unless @show_meme_revenue.nil?
+
+        Lib::Storage['show_meme_revenue'] || false
+      end
+
+      def toggle_meme_revenue
+        new_val = !show_meme_revenue?
+        Lib::Storage['show_meme_revenue'] = new_val
+        store(:show_meme_revenue, new_val)
+      end
+
+      def install_revenue_button_bridge
+        active = show_meme_revenue?
+        %x{
+          var selfRef = #{self};
+
+          window.__toggleMemeRevenue = function() {
+            if (selfRef && selfRef.$toggle_meme_revenue) {
+              selfRef.$toggle_meme_revenue();
+            }
+          };
+
+          window.__updateMemeBtnState = function(btn) {
+            if (!btn) btn = document.getElementById('meme-revenue-toggle-btn');
+            if (!btn) return;
+            var isActive = #{active};
+            btn.style.fontWeight = '900';
+            btn.style.fontSize = '16px';
+            btn.style.cursor = 'pointer';
+            btn.style.width = '32px';
+            btn.style.height = '32px';
+            btn.style.padding = '0';
+            btn.style.lineHeight = '1';
+            btn.style.border = '1px solid ' + (isActive ? '#059669' : '#dbdbdb');
+            btn.style.borderRadius = '4px';
+            btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+            btn.style.display = 'inline-flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.boxSizing = 'border-box';
+            btn.style.visibility = 'visible';
+            btn.style.opacity = '1';
+            btn.setAttribute('role', 'checkbox');
+            btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
+            if (isActive) {
+              btn.style.backgroundColor = '#10b981';
+              btn.style.color = '#ffffff';
+            } else {
+              btn.style.backgroundColor = '#ffffff';
+              btn.style.color = '#363636';
+            }
+          };
+
+          window.__positionMemeRevenueBtn = function(btn) {
+            if (!btn) return;
+
+            var resetBtn = Array.from(document.querySelectorAll('button')).find(function(b) {
+              var t = (b.textContent || '').trim();
+              return t === '↺' || t === '↻' || t === '⟲' || t.toLowerCase() === 'reset';
+            });
+
+            var zoomInBtn = Array.from(document.querySelectorAll('button')).find(function(b) {
+              var t = (b.textContent || '').trim();
+              return t === '+' || t === '🔍' || b.getAttribute('title') === 'Zoom In';
+            });
+
+            var scaler = document.getElementById('scaler') ||
+                         document.querySelector('.scaler') ||
+                         document.querySelector('.map-scaler');
+
+            btn.style.position = 'fixed';
+            btn.style.zIndex = '999999';
+
+            if (resetBtn) {
+              var rRect = resetBtn.getBoundingClientRect();
+              if (rRect.width > 0 && rRect.height > 0) {
+                if (zoomInBtn) {
+                  var zRect = zoomInBtn.getBoundingClientRect();
+                  if (Math.abs(zRect.left - rRect.left) < 12) {
+                    btn.style.top = (rRect.bottom + 6) + 'px';
+                    btn.style.left = rRect.left + 'px';
+                    return;
+                  }
+                }
+                btn.style.top = rRect.top + 'px';
+                btn.style.left = (rRect.right + 6) + 'px';
+                return;
+              }
+            }
+
+            if (zoomInBtn) {
+              var zRect = zoomInBtn.getBoundingClientRect();
+              if (zRect.width > 0 && zRect.height > 0) {
+                btn.style.top = zRect.top + 'px';
+                btn.style.left = (zRect.right + 6) + 'px';
+                return;
+              }
+            }
+
+            if (scaler) {
+              var sRect = scaler.getBoundingClientRect();
+              if (sRect.width > 0 && sRect.height > 0) {
+                btn.style.top = (sRect.top + 8) + 'px';
+                btn.style.left = (sRect.right + 8) + 'px';
+                return;
+              }
+            }
+
+            btn.style.top = '64px';
+            btn.style.left = '16px';
+          };
+
+          window.__ensureMemeRevenueBtn = function() {
+            var btn = document.getElementById('meme-revenue-toggle-btn');
+
+            if (!btn) {
+              btn = document.createElement('button');
+              btn.id = 'meme-revenue-toggle-btn';
+              btn.className = 'button';
+              btn.textContent = '$';
+              btn.setAttribute('title', 'Toggle Route Revenue Overlays');
+              btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.__toggleMemeRevenue) {
+                  window.__toggleMemeRevenue();
+                }
+              });
+            }
+
+            if (btn.parentNode !== document.body) {
+              document.body.appendChild(btn);
+            }
+
+            window.__positionMemeRevenueBtn(btn);
+            window.__updateMemeBtnState(btn);
+          };
+
+          window.__ensureMemeRevenueBtn();
+
+          if (!window.__meme_btn_observer_installed) {
+            window.__meme_btn_observer_installed = true;
+            var obs = new MutationObserver(function() {
+              if (window.__ensureMemeRevenueBtn) {
+                window.__ensureMemeRevenueBtn();
+              }
+            });
+            obs.observe(document.body, { childList: true, subtree: true });
+
+            window.addEventListener('resize', function() {
+              var b = document.getElementById('meme-revenue-toggle-btn');
+              if (b && window.__positionMemeRevenueBtn) {
+                window.__positionMemeRevenueBtn(b);
+              }
+            });
+            window.addEventListener('scroll', function() {
+              var b = document.getElementById('meme-revenue-toggle-btn');
+              if (b && window.__positionMemeRevenueBtn) {
+                window.__positionMemeRevenueBtn(b);
+              }
+            }, true);
+          }
+        }
+      end
+
       def stop_revenue_value(stop, route = nil)
         val = nil
 
@@ -617,6 +781,7 @@ module View
       end
 
       def hex_meme_revenue_overlay(hex, x, y, routes)
+        return nil unless show_meme_revenue?
         return nil unless routes&.any? && hex&.tile
 
         tile = hex.tile
@@ -673,7 +838,6 @@ module View
                      end
 
         text_str = total_rev.to_s
-
         font_size = 72
         pill_w = [(text_str.length * 48) + 32, 84].max
         pill_h = 76
@@ -685,29 +849,20 @@ module View
             },
             style: { pointerEvents: 'none' },
           }, [
-          # Contrast isolation pill to block background tracks, circles, and tokens
           h(:rect, {
               attrs: {
                 x: (-pill_w / 2.0).round(1).to_s,
                 y: (-pill_h / 2.0).round(1).to_s,
                 width: pill_w.to_s,
                 height: pill_h.to_s,
-                # // --- START FIX ---
-                # // --- DELETE --- rx: '8',
-                # // --- DELETE --- ry: '8',
                 rx: '14',
                 ry: '14',
-                # // --- END FIX ---
                 fill: '#0f172a',
                 'fill-opacity': is_visited ? '0.85' : '0.65',
                 stroke: is_visited ? fill_color : '#475569',
-                # // --- START FIX ---
-                # // --- DELETE --- 'stroke-width': is_visited ? '2' : '1',
                 'stroke-width': is_visited ? '3.5' : '2',
-                # // --- END FIX ---
               },
             }),
-          # Un-choked Impact meme number with paint-order back-fill
           h(:text, {
               attrs: {
                 x: '0',
@@ -716,10 +871,7 @@ module View
                 'dominant-baseline': 'central',
                 fill: fill_color,
                 stroke: '#000000',
-                # // --- START FIX ---
-                # // --- DELETE --- 'stroke-width': '4.5',
                 'stroke-width': '8',
-                # // --- END FIX ---
                 'stroke-linejoin': 'round',
                 'paint-order': 'stroke fill',
                 'font-family': 'Impact, "Arial Black", sans-serif',
@@ -736,6 +888,8 @@ module View
 
       def render
         return h(:div, []) if (@layout = @game.layout) == :none
+
+        install_revenue_button_bridge
 
         @hexes = @show_starting_map ? @game.clone([]).hexes : @game.hexes.dup
 
@@ -955,6 +1109,7 @@ module View
 
           meme_overlay = hex_meme_revenue_overlay(hex, x, y, routes)
           hex_children << meme_overlay if meme_overlay
+
           g_props = {
             key: "dash-g-#{hex.id}",
             attrs: {
@@ -1119,7 +1274,6 @@ module View
 
       def render_map(width, height)
         h(:svg, { attrs: { id: 'map', width: width.to_s, height: height.to_s } }, [
-
           h(:defs, [
             h(:pattern, {
                 attrs: {

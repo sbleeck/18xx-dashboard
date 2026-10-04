@@ -913,8 +913,10 @@ module View
             advance_color = '#16a34a'
             advance_text_color = '#ffffff'
           else
-            advance_color = '#64748b'
+            advance_color = '#808080'
             advance_text_color = '#ffffff'
+
+            `console.log("NOT MY TURN", #{active_player&.name}, #{@user&.dig('name')})`
           end
         end
 
