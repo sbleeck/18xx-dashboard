@@ -52104,7 +52104,7 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
         });
         
         $def(self, '$render', function $$render() {
-          var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $n, $o, $p, $q, $r, $s, $t, $u, $v, $w, $x, $y, $z, $aa, $ab, $ac, $ad, $ae, $af, $ag, $ah, $ai, self = this, step = nil, entity = nil, entity_id = nil, price_dialog_style = nil, is_move_history_open = nil, $ret_or_1 = nil, $ret_or_2 = nil, is_history_open = nil, preserve_command_panel = nil, last_action = nil, last_action_id = nil, actions = nil, is_draft = nil, $ret_or_3 = nil, is_home_token = nil, phase = nil, is_acq = nil, player_name = nil, bg_color = nil, text_color = nil, base_revenue = nil, operating = nil, storage_key = nil, last_base_key = nil, current_revenue = nil, formatted_revenue = nil, game_finished = nil, is_draft_round = nil, is_stock_round = nil, player_display_name = nil, zone_1 = nil, phase_labels = nil, phase_text = nil, logo_src = nil, logo_element = nil, show_manual_routes = nil, zone_2_content = nil, spinner_items = nil, raw_options = nil, options = nil, half_kind = nil, ground_truth_actions = nil, e = nil, zone_2 = nil, advance_text = nil, advance_color = nil, advance_text_color = nil, advance_disabled = nil, advance_action = nil, offer_for_sale = nil, rem_val = nil, dividend_options = nil, has_abilities = nil, zone_3 = nil, current_action_id = nil, routed_token = nil, overlays = nil, close_move_hist = nil, close_hist = nil;
+          var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $n, $o, $p, $q, $r, $s, $t, $u, $v, $w, $x, $y, $z, $aa, $ab, $ac, $ad, $ae, $af, $ag, $ah, $ai, $aj, $ak, self = this, step = nil, entity = nil, entity_id = nil, price_dialog_style = nil, is_move_history_open = nil, $ret_or_1 = nil, $ret_or_2 = nil, is_history_open = nil, preserve_command_panel = nil, last_action = nil, last_action_id = nil, actions = nil, is_draft = nil, $ret_or_3 = nil, is_home_token = nil, phase = nil, is_acq = nil, player_name = nil, bg_color = nil, text_color = nil, base_revenue = nil, operating = nil, storage_key = nil, last_base_key = nil, current_revenue = nil, formatted_revenue = nil, game_finished = nil, is_draft_round = nil, is_stock_round = nil, player_display_name = nil, zone_1 = nil, phase_labels = nil, phase_text = nil, logo_src = nil, logo_element = nil, show_manual_routes = nil, zone_2_content = nil, spinner_items = nil, raw_options = nil, options = nil, half_kind = nil, ground_truth_actions = nil, e = nil, zone_2 = nil, advance_text = nil, advance_color = nil, advance_text_color = nil, advance_disabled = nil, advance_action = nil, offer_for_sale = nil, rem_val = nil, dividend_options = nil, has_abilities = nil, zone_3 = nil, current_action_id = nil, routed_token = nil, overlays = nil, close_move_hist = nil, close_hist = nil;
 
           
           step = self.game.$round().$active_step();
@@ -52422,8 +52422,9 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
               advance_text_color = "#ffffff";
             } else {
               
-              advance_color = "#64748b";
+              advance_color = "#808080";
               advance_text_color = "#ffffff";
+              console.log("NOT MY TURN", ($ah = self.$active_player(), ($ah === nil || $ah == null) ? nil : $ah.$name()), ($ai = self.user, ($ai === nil || $ai == null) ? nil : $ai.$dig("name")));
             }
           };
           has_abilities = (function() {if ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = game_finished['$!']())) ? (actions['$include?']("choose")['$!']()) : ($ret_or_3)))) ? (entity) : ($ret_or_2))))) {
@@ -52475,12 +52476,12 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
             self.$store("show_history_overlay", new_val);
             return self.$update();}, {$$s: self})]]))]])), "⏱ Hist")])])]);
           current_action_id = (($truthy(self.game['$respond_to?']("raw_actions")) && ($truthy(self.game.$raw_actions()))) ? (self.game.$raw_actions().$size()) : (last_action_id));
-          routed_token = "" + (($ah = entity, ($ah === nil || $ah == null) ? nil : $ah.$id())) + "_" + (current_action_id);
+          routed_token = "" + (($aj = entity, ($aj === nil || $aj == null) ? nil : $aj.$id())) + "_" + (current_action_id);
           if ((($eqeq(phase, "run_routes") && ($neqeq(self.last_routed_action_id, routed_token))) && ($not(self.cmd_router_running)))) {
             
             self.$store("last_routed_action_id", routed_token, (new Map([["skip", true]])));
             self.$store("cmd_router_running", true, (new Map([["skip", false]])));
-            if ($truthy(($ai = self.routes, ($ai === nil || $ai == null) ? nil : $ai['$any?']()))) {
+            if ($truthy(($ak = self.routes, ($ak === nil || $ak == null) ? nil : $ak['$any?']()))) {
               $send(self.routes, 'each', [], "reset!".$to_proc())
             };
             if ($truthy(self.game['$respond_to?']("reset_adjustable_trains!"))) {
@@ -52512,7 +52513,7 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
                 if ($truthy(r_timeout['$zero?']())) {
                   r_timeout = 10000
                 };
-                router.$compute(router_entity, (new Map([["routes", []], ["path_timeout", p_timeout], ["route_timeout", r_timeout], ["callback", $send(self, 'lambda', [], function $$41(computed_routes){var $aj, $ak, self = $$41.$$s == null ? this : $$41.$$s, routes_list = nil, auto_rev = nil;
+                router.$compute(router_entity, (new Map([["routes", []], ["path_timeout", p_timeout], ["route_timeout", r_timeout], ["callback", $send(self, 'lambda', [], function $$41(computed_routes){var $al, $am, self = $$41.$$s == null ? this : $$41.$$s, routes_list = nil, auto_rev = nil;
 
                   
                   if (computed_routes == null) computed_routes = nil;
@@ -52536,8 +52537,8 @@ Opal.modules["view/game/dashboard/dashboard_command_column"] = function(Opal) {/
                         } finally { Opal.pop_exception($err); }
                       } else { throw $err; }
                     };});
-                  storage_key = "rev_override_" + (($aj = entity, ($aj === nil || $aj == null) ? nil : $aj.$id()));
-                  last_base_key = "last_base_rev_" + (($ak = entity, ($ak === nil || $ak == null) ? nil : $ak.$id()));
+                  storage_key = "rev_override_" + (($al = entity, ($al === nil || $al == null) ? nil : $al.$id()));
+                  last_base_key = "last_base_rev_" + (($am = entity, ($am === nil || $am == null) ? nil : $am.$id()));
                   $$$($$('Lib'), 'Storage')['$[]='](storage_key, auto_rev);
                   $$$($$('Lib'), 'Storage')['$[]='](last_base_key, auto_rev);
                   self.$store("cmd_router_running", false);
@@ -57359,7 +57360,7 @@ Opal.modules["view/game/dashboard/dashboard_loan_animation"] = function(Opal) {/
 Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated by Opal 1.8.2 */
   var $module = Opal.module, $send = Opal.send, $defs = Opal.defs, $klass = Opal.klass, $truthy = Opal.truthy, $alias = Opal.alias, $to_a = Opal.to_a, $def = Opal.def, $not = Opal.not, $neqeq = Opal.neqeq, $rb_times = Opal.rb_times, $eqeq = Opal.eqeq, $const_set = Opal.const_set, $to_ary = Opal.to_ary, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $rb_plus = Opal.rb_plus, $lambda = Opal.lambda, $rb_le = Opal.rb_le, $rb_divide = Opal.rb_divide, $eqeqeq = Opal.eqeqeq, $range = Opal.range, $rb_minus = Opal.rb_minus, $rb_lt = Opal.rb_lt, self = Opal.top, $nesting = [], $$ = Opal.$r($nesting), nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,lambda,needs,method_defined?,render,orig_render,flash_token_slot?,h,compact,!,hex,active_step,round,current_entity,actions,include?,available_hex,empty?,available_tokens,respond_to?,tokened_by?,any?,tokens,==,corporation,open_slot?,to_proc,!=,id,width_for_index,value_for_index,orig_width_for_index,*,[],to_i,orig_value_for_index,include,minmax,to_a,first,Array,tile,+,upgrade_cost,get_tile_lay,color,select,borders,cost,positive?,format_currency,exits,paths,uniq,flat_map,edges,map,a,b,edge?,border_cost,sum,edge,zero?,call,hex_neighbors,all?,active_entities,operating?,entities,revenue_for,is_a?,nil?,train,route_revenue,revenue,name,phase,last,values,base_revenue,stops,cities,each_with_index,visited_stops,each,none?,<<,stop_revenue_value,<=,%,size,to_s,max,length,/,-@,layout,hexes,clone,dup,reject,compute_axes,dashboard_current_entity,company_by_id,delete,extract_hovered_hexes,map!,upcase,coordinates,potential_tiles,hex_cost_display,===,hex_meme_revenue_overlay,rotation,hook,compact!,map_size,render_map,x,map_x,y,map_y,render_selector,unshift,role,upgradeable_tiles,all_potential_upgrades,potential_tile_colors,find,tile_valid_for_phase?,tiles,append,-,<,companies,sym,minors,corporations,city,all_abilities,concat,abilities,const_defined?,class,corporation_by_id,minor,minor_by_id,desc,scan,hex_by_id,axes');
+  Opal.add_stubs('require,lambda,needs,method_defined?,render,orig_render,flash_token_slot?,h,compact,!,hex,active_step,round,current_entity,actions,include?,available_hex,empty?,available_tokens,respond_to?,tokened_by?,any?,tokens,==,corporation,open_slot?,to_proc,!=,id,width_for_index,value_for_index,orig_width_for_index,*,[],to_i,orig_value_for_index,include,minmax,to_a,first,Array,tile,+,upgrade_cost,get_tile_lay,color,select,borders,cost,positive?,format_currency,exits,paths,uniq,flat_map,edges,map,a,b,edge?,border_cost,sum,edge,zero?,call,hex_neighbors,all?,active_entities,operating?,entities,nil?,show_meme_revenue?,[]=,store,revenue_for,is_a?,train,route_revenue,revenue,name,phase,last,values,base_revenue,stops,cities,each_with_index,visited_stops,each,none?,<<,stop_revenue_value,<=,%,size,to_s,max,length,/,-@,layout,install_revenue_button_bridge,hexes,clone,dup,reject,compute_axes,dashboard_current_entity,company_by_id,delete,extract_hovered_hexes,map!,upcase,coordinates,potential_tiles,hex_cost_display,===,hex_meme_revenue_overlay,rotation,hook,compact!,map_size,render_map,x,map_x,y,map_y,render_selector,unshift,role,upgradeable_tiles,all_potential_upgrades,potential_tile_colors,find,tile_valid_for_phase?,tiles,append,-,<,companies,sym,minors,corporations,city,all_abilities,concat,abilities,const_defined?,class,corporation_by_id,minor,minor_by_id,desc,scan,hex_by_id,axes');
   
   self.$require("../lib/storage");
   self.$require("../lib/settings");
@@ -57822,7 +57823,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
 
         var $nesting = [self].concat($parent_nesting), $$ = Opal.$r($nesting), $proto = self.$$prototype;
 
-        $proto.game = $proto.selected_company = $proto.show_starting_map = $proto.hexes = $proto.cols = $proto.rows = $proto.selected_combos = $proto.tile_selector = $proto.routes = $proto.historical_routes = $proto.scale = $proto.layout = $proto.start_pos = nil;
+        $proto.game = $proto.selected_company = $proto.show_meme_revenue = $proto.show_starting_map = $proto.hexes = $proto.cols = $proto.rows = $proto.selected_combos = $proto.tile_selector = $proto.routes = $proto.historical_routes = $proto.scale = $proto.layout = $proto.start_pos = nil;
         
         self.$include($$$($$('Lib'), 'Settings'));
         self.$needs("game", (new Map([["store", true]])));
@@ -57835,6 +57836,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
         self.$needs("routes", (new Map([["default", []], ["store", true]])));
         self.$needs("historical_laid_hexes", (new Map([["default", nil], ["store", true]])));
         self.$needs("historical_routes", (new Map([["default", []], ["store", true]])));
+        self.$needs("show_meme_revenue", (new Map([["default", false], ["store", true]])));
         $const_set($nesting[0], 'EDGE_LENGTH', 50);
         $const_set($nesting[0], 'SIDE_TO_SIDE', 87);
         $const_set($nesting[0], 'FONT_SIZE', 25);
@@ -58108,6 +58110,186 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           }
         });
         
+        $def(self, '$show_meme_revenue?', function $DashboardMap_show_meme_revenue$ques$10() {
+          var self = this, $ret_or_1 = nil;
+
+          
+          if (!$truthy(self.show_meme_revenue['$nil?']())) {
+            return self.show_meme_revenue
+          };
+          if ($truthy(($ret_or_1 = $$$($$('Lib'), 'Storage')['$[]']("show_meme_revenue")))) {
+            return $ret_or_1
+          } else {
+            return false
+          };
+        });
+        
+        $def(self, '$toggle_meme_revenue', function $$toggle_meme_revenue() {
+          var self = this, new_val = nil;
+
+          
+          new_val = self['$show_meme_revenue?']()['$!']();
+          $$$($$('Lib'), 'Storage')['$[]=']("show_meme_revenue", new_val);
+          return self.$store("show_meme_revenue", new_val);
+        });
+        
+        $def(self, '$install_revenue_button_bridge', function $$install_revenue_button_bridge() {
+          var self = this, active = nil;
+
+          
+          active = self['$show_meme_revenue?']();
+          
+          var selfRef = self;
+
+          window.__toggleMemeRevenue = function() {
+            if (selfRef && selfRef.$toggle_meme_revenue) {
+              selfRef.$toggle_meme_revenue();
+            }
+          };
+
+          window.__updateMemeBtnState = function(btn) {
+            if (!btn) btn = document.getElementById('meme-revenue-toggle-btn');
+            if (!btn) return;
+            var isActive = active;
+            btn.style.fontWeight = '900';
+            btn.style.fontSize = '16px';
+            btn.style.cursor = 'pointer';
+            btn.style.width = '32px';
+            btn.style.height = '32px';
+            btn.style.padding = '0';
+            btn.style.lineHeight = '1';
+            btn.style.border = '1px solid ' + (isActive ? '#059669' : '#dbdbdb');
+            btn.style.borderRadius = '4px';
+            btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+            btn.style.display = 'inline-flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.boxSizing = 'border-box';
+            btn.style.visibility = 'visible';
+            btn.style.opacity = '1';
+            btn.setAttribute('role', 'checkbox');
+            btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
+            if (isActive) {
+              btn.style.backgroundColor = '#10b981';
+              btn.style.color = '#ffffff';
+            } else {
+              btn.style.backgroundColor = '#ffffff';
+              btn.style.color = '#363636';
+            }
+          };
+
+          window.__positionMemeRevenueBtn = function(btn) {
+            if (!btn) return;
+
+            var resetBtn = Array.from(document.querySelectorAll('button')).find(function(b) {
+              var t = (b.textContent || '').trim();
+              return t === '↺' || t === '↻' || t === '⟲' || t.toLowerCase() === 'reset';
+            });
+
+            var zoomInBtn = Array.from(document.querySelectorAll('button')).find(function(b) {
+              var t = (b.textContent || '').trim();
+              return t === '+' || t === '🔍' || b.getAttribute('title') === 'Zoom In';
+            });
+
+            var scaler = document.getElementById('scaler') ||
+                         document.querySelector('.scaler') ||
+                         document.querySelector('.map-scaler');
+
+            btn.style.position = 'fixed';
+            btn.style.zIndex = '999999';
+
+            if (resetBtn) {
+              var rRect = resetBtn.getBoundingClientRect();
+              if (rRect.width > 0 && rRect.height > 0) {
+                if (zoomInBtn) {
+                  var zRect = zoomInBtn.getBoundingClientRect();
+                  if (Math.abs(zRect.left - rRect.left) < 12) {
+                    btn.style.top = (rRect.bottom + 6) + 'px';
+                    btn.style.left = rRect.left + 'px';
+                    return;
+                  }
+                }
+                btn.style.top = rRect.top + 'px';
+                btn.style.left = (rRect.right + 6) + 'px';
+                return;
+              }
+            }
+
+            if (zoomInBtn) {
+              var zRect = zoomInBtn.getBoundingClientRect();
+              if (zRect.width > 0 && zRect.height > 0) {
+                btn.style.top = zRect.top + 'px';
+                btn.style.left = (zRect.right + 6) + 'px';
+                return;
+              }
+            }
+
+            if (scaler) {
+              var sRect = scaler.getBoundingClientRect();
+              if (sRect.width > 0 && sRect.height > 0) {
+                btn.style.top = (sRect.top + 8) + 'px';
+                btn.style.left = (sRect.right + 8) + 'px';
+                return;
+              }
+            }
+
+            btn.style.top = '64px';
+            btn.style.left = '16px';
+          };
+
+          window.__ensureMemeRevenueBtn = function() {
+            var btn = document.getElementById('meme-revenue-toggle-btn');
+
+            if (!btn) {
+              btn = document.createElement('button');
+              btn.id = 'meme-revenue-toggle-btn';
+              btn.className = 'button';
+              btn.textContent = '$';
+              btn.setAttribute('title', 'Toggle Route Revenue Overlays');
+              btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.__toggleMemeRevenue) {
+                  window.__toggleMemeRevenue();
+                }
+              });
+            }
+
+            if (btn.parentNode !== document.body) {
+              document.body.appendChild(btn);
+            }
+
+            window.__positionMemeRevenueBtn(btn);
+            window.__updateMemeBtnState(btn);
+          };
+
+          window.__ensureMemeRevenueBtn();
+
+          if (!window.__meme_btn_observer_installed) {
+            window.__meme_btn_observer_installed = true;
+            var obs = new MutationObserver(function() {
+              if (window.__ensureMemeRevenueBtn) {
+                window.__ensureMemeRevenueBtn();
+              }
+            });
+            obs.observe(document.body, { childList: true, subtree: true });
+
+            window.addEventListener('resize', function() {
+              var b = document.getElementById('meme-revenue-toggle-btn');
+              if (b && window.__positionMemeRevenueBtn) {
+                window.__positionMemeRevenueBtn(b);
+              }
+            });
+            window.addEventListener('scroll', function() {
+              var b = document.getElementById('meme-revenue-toggle-btn');
+              if (b && window.__positionMemeRevenueBtn) {
+                window.__positionMemeRevenueBtn(b);
+              }
+            }, true);
+          }
+        ;
+        });
+        
         $def(self, '$stop_revenue_value', function $$stop_revenue_value(stop, route) {
           var $a, self = this, val = nil, r = nil, train = nil, phase_name = nil, $ret_or_1 = nil;
 
@@ -58213,6 +58395,9 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           var $a, $b, $c, $d, self = this, tile = nil, tile_stops = nil, screaming_palette = nil, visited_stops_with_route = nil, is_visited = nil, total_rev = nil, fill_color = nil, first_route = nil, first_idx = nil, $ret_or_1 = nil, $ret_or_2 = nil, text_str = nil, font_size = nil, pill_w = nil, pill_h = nil;
 
           
+          if (!$truthy(self['$show_meme_revenue?']())) {
+            return nil
+          };
           if (!($truthy(($b = routes, ($b === nil || $b == null) ? nil : $b['$any?']())) && ($truthy(($a = hex, ($a === nil || $a == null) ? nil : $a.$tile()))))) {
             return nil
           };
@@ -58223,17 +58408,17 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           };
           screaming_palette = ["#ff1493", "#00ffff", "#7fff00", "#ff00ff", "#ffea00", "#ff4500"];
           visited_stops_with_route = [];
-          $send(routes, 'each_with_index', [], function $$10(route, r_idx){var $e, r_stops = nil;
+          $send(routes, 'each_with_index', [], function $$11(route, r_idx){var $e, r_stops = nil;
 
             
             if (route == null) route = nil;
             if (r_idx == null) r_idx = nil;
             r_stops = (($truthy(route['$respond_to?']("visited_stops")) && ($truthy(($e = route.$visited_stops(), ($e === nil || $e == null) ? nil : $e['$any?']())))) ? (route.$visited_stops()) : (($truthy(route['$respond_to?']("stops")) && ($truthy(route.$stops()))) ? (route.$stops()) : ([])));
-            return $send(tile_stops, 'each', [], function $$11(ts){var matches = nil, $ret_or_1 = nil;
+            return $send(tile_stops, 'each', [], function $$12(ts){var matches = nil, $ret_or_1 = nil;
 
               
               if (ts == null) ts = nil;
-              matches = ($truthy(($ret_or_1 = r_stops['$include?'](ts))) ? ($ret_or_1) : ($send(r_stops, 'any?', [], function $$12(rs){var $f, $ret_or_2 = nil, $ret_or_3 = nil, $ret_or_4 = nil;
+              matches = ($truthy(($ret_or_1 = r_stops['$include?'](ts))) ? ($ret_or_1) : ($send(r_stops, 'any?', [], function $$13(rs){var $f, $ret_or_2 = nil, $ret_or_3 = nil, $ret_or_4 = nil;
 
                 
                 if (rs == null) rs = nil;
@@ -58247,7 +58432,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                     return $ret_or_3
                   };
                 };})));
-              if (($truthy(matches) && ($truthy($send(visited_stops_with_route, 'none?', [], function $$13(v_ts, _, __$2){
+              if (($truthy(matches) && ($truthy($send(visited_stops_with_route, 'none?', [], function $$14(v_ts, _, __$2){
                 
                 if (v_ts == null) v_ts = nil;
                 if (_ == null) _ = nil;
@@ -58258,13 +58443,13 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                 return nil
               };});});
           is_visited = visited_stops_with_route['$any?']();
-          total_rev = ($truthy(is_visited) ? ($send(visited_stops_with_route, 'sum', [], function $$14(ts, r, _){var self = $$14.$$s == null ? this : $$14.$$s;
+          total_rev = ($truthy(is_visited) ? ($send(visited_stops_with_route, 'sum', [], function $$15(ts, r, _){var self = $$15.$$s == null ? this : $$15.$$s;
 
             
             if (ts == null) ts = nil;
             if (r == null) r = nil;
             if (_ == null) _ = nil;
-            return self.$stop_revenue_value(ts, r);}, {$$s: self})) : ($send(tile_stops, 'sum', [], function $$15(ts){var self = $$15.$$s == null ? this : $$15.$$s;
+            return self.$stop_revenue_value(ts, r);}, {$$s: self})) : ($send(tile_stops, 'sum', [], function $$16(ts){var self = $$16.$$s == null ? this : $$16.$$s;
 
             
             if (ts == null) ts = nil;
@@ -58287,6 +58472,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           if ($eqeq((self.layout = self.game.$layout()), "none")) {
             return self.$h("div", [])
           };
+          self.$install_revenue_button_bridge();
           self.hexes = ($truthy(self.show_starting_map) ? (self.game.$clone([]).$hexes()) : (self.game.$hexes().$dup()));
           axes_hexes = $send(self.hexes, 'reject', [], "ignore_for_axes".$to_proc());
           self.cols = self.$compute_axes($send(axes_hexes, 'map', [], "x".$to_proc()));
@@ -58336,7 +58522,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
         ;
           step = self.game.$round().$active_step(self.selected_company);
           current_entity = self.$dashboard_current_entity(step);
-          combo_entities = $send(($truthy(($ret_or_1 = self.selected_combos)) ? ($ret_or_1) : ([])), 'map', [], function $$16(id){var self = $$16.$$s == null ? this : $$16.$$s;
+          combo_entities = $send(($truthy(($ret_or_1 = self.selected_combos)) ? ($ret_or_1) : ([])), 'map', [], function $$17(id){var self = $$17.$$s == null ? this : $$17.$$s;
             if (self.game == null) self.game = nil;
 
             
@@ -58360,7 +58546,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           selected_hex = ($truthy(hex_selected) ? (self.tile_selector.$hex()) : (nil));
           tile_chosen = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = hex_selected)) ? (self.tile_selector.$tile()) : ($ret_or_2)))) ? (self.tile_selector.$hex().$tile()['$!='](self.tile_selector.$tile())) : ($ret_or_1));
           active_tile = ($truthy(tile_chosen) ? (self.tile_selector.$tile()) : (nil));
-          $send(self.hexes, 'map!', [], function $$17(hex){var $b, $c, self = $$17.$$s == null ? this : $$17.$$s, clickable = nil, is_hovered = nil, base_hex = nil, border_color = nil, x = nil, y = nil, transform_str = nil, overlays = nil, show_building_highlight = nil, cost_str = nil, scale_factor = nil, rot_angle = nil, initial_stroke = nil, initial_width = nil, initial_fill = nil, initial_fill_opacity = nil, hex_children = nil, meme_overlay = nil, g_props = nil;
+          $send(self.hexes, 'map!', [], function $$18(hex){var $b, $c, self = $$18.$$s == null ? this : $$18.$$s, clickable = nil, is_hovered = nil, base_hex = nil, border_color = nil, x = nil, y = nil, transform_str = nil, overlays = nil, show_building_highlight = nil, cost_str = nil, scale_factor = nil, rot_angle = nil, initial_stroke = nil, initial_width = nil, initial_fill = nil, initial_fill_opacity = nil, hex_children = nil, meme_overlay = nil, g_props = nil;
             if (self.show_starting_map == null) self.show_starting_map = nil;
             if (self.opacity == null) self.opacity = nil;
             if (self.start_pos == null) self.start_pos = nil;
@@ -58435,13 +58621,13 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             tiles = step.$upgradeable_tiles(entity_or_entities, self.tile_selector.$hex());
             all_upgrades = self.game.$all_potential_upgrades(self.tile_selector.$hex().$tile(), (new Map([["selected_company", self.selected_company]])));
             phase_colors = step.$potential_tile_colors(current_entity, self.tile_selector.$hex());
-            select_tiles = $send(all_upgrades, 'map', [], function $$18(tile){var self = $$18.$$s == null ? this : $$18.$$s, real_tile = nil;
+            select_tiles = $send(all_upgrades, 'map', [], function $$19(tile){var self = $$19.$$s == null ? this : $$19.$$s, real_tile = nil;
               if (self.game == null) self.game = nil;
               if (self.tile_selector == null) self.tile_selector = nil;
 
               
               if (tile == null) tile = nil;
-              real_tile = $send(tiles, 'find', [], function $$19(t){
+              real_tile = $send(tiles, 'find', [], function $$20(t){
                 
                 if (t == null) t = nil;
                 return t.$name()['$=='](tile.$name());});
@@ -58451,7 +58637,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                 return [real_tile, nil];
               } else if ($not(self.game['$tile_valid_for_phase?'](tile, (new Map([["hex", self.tile_selector.$hex()], ["phase_color_cache", phase_colors]]))))) {
                 return [tile, "Later Phase"]
-              } else if ($truthy($send(self.game.$tiles(), 'none?', [], function $$20(t){
+              } else if ($truthy($send(self.game.$tiles(), 'none?', [], function $$21(t){
                 
                 if (t == null) t = nil;
                 return t.$name()['$=='](tile.$name());}))) {
@@ -58459,7 +58645,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               } else {
                 return nil
               };}, {$$s: self}).$compact();
-            $send(select_tiles, 'append', $to_a($send(tiles, 'map', [], function $$21(t){
+            $send(select_tiles, 'append', $to_a($send(tiles, 'map', [], function $$22(t){
               
               if (t == null) t = nil;
               return [t, nil];})));
@@ -58481,7 +58667,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           };
           target_hexes = [];
           all_companies = ($truthy(self.game['$respond_to?']("companies")) ? (($truthy(($ret_or_1 = self.game.$companies())) ? ($ret_or_1) : ([]))) : ([]));
-          hovered_company = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = $send(all_companies, 'find', [], function $$22(c){var $ret_or_3 = nil, $ret_or_4 = nil;
+          hovered_company = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = $send(all_companies, 'find', [], function $$23(c){var $ret_or_3 = nil, $ret_or_4 = nil;
 
             
             if (c == null) c = nil;
@@ -58494,7 +58680,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               } else {
                 return $ret_or_4
               };
-            };}))) ? ($ret_or_2) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(self.game.$minors(), 'find', [], function $$23(m){var $ret_or_3 = nil, $ret_or_4 = nil;
+            };}))) ? ($ret_or_2) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(self.game.$minors(), 'find', [], function $$24(m){var $ret_or_3 = nil, $ret_or_4 = nil;
 
             
             if (m == null) m = nil;
@@ -58507,7 +58693,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               } else {
                 return $ret_or_4
               };
-            };})) : nil))))) ? ($ret_or_1) : ($send(self.game.$corporations(), 'find', [], function $$24(corp){var $ret_or_3 = nil;
+            };})) : nil))))) ? ($ret_or_1) : ($send(self.game.$corporations(), 'find', [], function $$25(corp){var $ret_or_3 = nil;
 
             
             if (corp == null) corp = nil;
@@ -58524,7 +58710,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           if ($truthy(hovered_company)) {
             
             if (($truthy(hovered_company['$respond_to?']("coordinates")) && ($truthy(hovered_company.$coordinates())))) {
-              $send(self.$Array(hovered_company.$coordinates()), 'each', [], function $$25(coord){
+              $send(self.$Array(hovered_company.$coordinates()), 'each', [], function $$26(coord){
                 
                 if (coord == null) coord = nil;
                 return target_hexes['$<<'](coord.$to_s());})
@@ -58541,7 +58727,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             };
             if ($truthy(self.game.$class()['$const_defined?']("COMPANIES"))) {
               
-              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$26(c_def){
+              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$27(c_def){
                 
                 if (c_def == null) c_def = nil;
                 if ($truthy(($ret_or_1 = c_def['$[]']("sym").$to_s()['$=='](hovered_c_id)))) {
@@ -58550,12 +58736,12 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   return c_def['$[]']("name").$to_s()['$=='](hovered_c_id)
                 };});
               if (($truthy(raw_def) && ($truthy(raw_def['$[]']("abilities"))))) {
-                $send(raw_def['$[]']("abilities"), 'each', [], function $$27(raw_ab){var self = $$27.$$s == null ? this : $$27.$$s;
+                $send(raw_def['$[]']("abilities"), 'each', [], function $$28(raw_ab){var self = $$28.$$s == null ? this : $$28.$$s;
 
                   
                   if (raw_ab == null) raw_ab = nil;
                   if ($truthy(raw_ab['$[]']("hexes"))) {
-                    $send(self.$Array(raw_ab['$[]']("hexes")), 'each', [], function $$28(coord){
+                    $send(self.$Array(raw_ab['$[]']("hexes")), 'each', [], function $$29(coord){
                       
                       if (coord == null) coord = nil;
                       return target_hexes['$<<'](coord.$to_s());})
@@ -58567,13 +58753,13 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   };}, {$$s: self})
               };
             };
-            $send(abilities, 'each', [], function $$29(ab){var self = $$29.$$s == null ? this : $$29.$$s, target_corp = nil;
+            $send(abilities, 'each', [], function $$30(ab){var self = $$30.$$s == null ? this : $$30.$$s, target_corp = nil;
               if (self.game == null) self.game = nil;
 
               
               if (ab == null) ab = nil;
               if (($truthy(ab['$respond_to?']("hexes")) && ($truthy(ab.$hexes())))) {
-                $send(self.$Array(ab.$hexes()), 'each', [], function $$30(coord){
+                $send(self.$Array(ab.$hexes()), 'each', [], function $$31(coord){
                   
                   if (coord == null) coord = nil;
                   return target_hexes['$<<'](coord.$to_s());})
@@ -58582,7 +58768,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                 target_hexes['$<<'](($truthy(ab.$hex()['$respond_to?']("id")) ? (ab.$hex().$id()) : (ab.$hex())).$to_s())
               };
               if (($truthy(ab['$respond_to?']("coordinates")) && ($truthy(ab.$coordinates())))) {
-                $send(self.$Array(ab.$coordinates()), 'each', [], function $$31(coord){
+                $send(self.$Array(ab.$coordinates()), 'each', [], function $$32(coord){
                   
                   if (coord == null) coord = nil;
                   return target_hexes['$<<'](coord.$to_s());})
@@ -58596,12 +58782,12 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               if (!(($truthy(target_corp) && ($truthy(target_corp['$respond_to?']("coordinates")))) && ($truthy(target_corp.$coordinates())))) {
                 return nil
               };
-              return $send(self.$Array(target_corp.$coordinates()), 'each', [], function $$32(coord){
+              return $send(self.$Array(target_corp.$coordinates()), 'each', [], function $$33(coord){
                 
                 if (coord == null) coord = nil;
                 return target_hexes['$<<'](coord.$to_s());});}, {$$s: self});
             if (($truthy(hovered_company['$respond_to?']("desc")) && ($truthy(hovered_company.$desc())))) {
-              $send(hovered_company.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$33(h_id){var self = $$33.$$s == null ? this : $$33.$$s;
+              $send(hovered_company.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$34(h_id){var self = $$34.$$s == null ? this : $$34.$$s;
                 if (self.game == null) self.game = nil;
 
                 
@@ -66129,16 +66315,24 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
             };
             has_dropdown = dropdown_items['$empty?']()['$!']();
             is_train = ($truthy(($ret_or_1 = classes['$include?']("card-train"))) ? ($ret_or_1) : (wrapper_id.$to_s()['$include?']("train")));
+            if (($truthy(is_train) && ($not(classes['$include?']("card-train"))))) {
+              
+              classes['$<<']("card-train");
+              classes_str = classes.$join(" ");
+            };
             style_props = (new Map([["minWidth", "3.2rem"], ["height", "1.45rem"], ["padding", "0 4px"], ["margin", "2px"], ["boxSizing", "border-box"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["borderRadius", ($truthy(is_train) ? ("12px") : ("4px"))], ["fontSize", "0.85rem"], ["fontFamily", "\"Helvetica Neue\", Helvetica, Arial, sans-serif"], ["color", "#000000"], ["backgroundColor", bg_color], ["border", "2px solid " + (border_color)], ["cursor", ($truthy(is_clickable) ? ("pointer") : ("default"))], ["whiteSpace", "nowrap"]]));
             card_props = (new Map([["attrs", (new Map([["class", classes_str]]))], ["style", style_props]]));
+            if ($truthy(has_wrapper_id)) {
+              card_props['$[]']("attrs")['$[]=']("id", clean_wrapper_id)
+            };
             if ($truthy(is_clickable)) {
               card_props['$[]=']("on", (new Map([["click", click_handler]])))
             };
-            needs_wrapper = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = has_tooltip)) ? ($ret_or_3) : (has_dropdown)))) ? ($ret_or_2) : (has_wrapper_id)))) ? ($ret_or_1) : (has_wrapper_classes));
+            needs_wrapper = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = has_tooltip)) ? ($ret_or_3) : (has_dropdown)))) ? ($ret_or_2) : (($truthy(($ret_or_3 = is_train['$!']())) ? (has_wrapper_id) : ($ret_or_3)))))) ? ($ret_or_1) : (has_wrapper_classes));
             if ($truthy(needs_wrapper)) {
               
               w_attrs = (new Map());
-              if ($truthy(has_wrapper_id)) {
+              if (($truthy(has_wrapper_id) && ($not(is_train)))) {
                 w_attrs['$[]=']("id", clean_wrapper_id)
               };
               if ($truthy(has_wrapper_classes)) {
