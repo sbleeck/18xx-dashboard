@@ -462,14 +462,17 @@ module View
 
         frame_bg = '#ffffff'
         frame_border = 'none'
+        frame_class = ''
 
         if @user && !is_hotseat
           if is_my_turn
             frame_bg = '#dcfce7'
-            frame_border = '4px solid #16a34a'
+            frame_border = '6px solid #16a34a'
+            frame_class = 'frame-my-turn'
           else
             frame_bg = '#f1f5f9'
             frame_border = '4px solid #94a3b8'
+            frame_class = 'frame-opponent-turn'
           end
         end
 
@@ -510,31 +513,39 @@ module View
                             '  font-weight: 700 !important; background-color: rgba(0, 0, 0, 0.18) !important; box-shadow: inset 0 -2px 0 0 #000000 !important; ' +
                             '} ' +
                             '#game > div:first-child a u, #game > div:first-child span u { text-decoration: underline !important; } ' +
+                            '#viz-master-frame::after { ' +
+                            '  content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; ' +
+                            '  pointer-events: none; z-index: 9999; border-radius: 0; ' +
+                            '  transition: box-shadow 0.3s ease; ' +
+                            '} ' +
                             '@keyframes frame-ripple-anim { ' +
                             '  0% { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.95); } ' +
-                            '  50% { box-shadow: inset 0 0 24px 6px rgba(255, 255, 255, 0.9); } ' +
+                            '  50% { box-shadow: inset 0 0 28px 10px rgba(255, 255, 255, 0.9); } ' +
                             '  100% { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0); } ' +
                             '} ' +
-                            '.frame-turn-ripple { animation: frame-ripple-anim 0.4s ease-out !important; } ' +
+                            '.frame-turn-ripple::after { animation: frame-ripple-anim 0.45s ease-out !important; } ' +
                             '@keyframes frame-ignition-anim { ' +
-                            '  0% { box-shadow: inset 0 0 0 0 rgba(22, 163, 74, 0.8), 0 0 0 rgba(22, 163, 74, 0.8); } ' +
-                            '  40% { box-shadow: inset 0 0 32px 8px rgba(34, 197, 94, 0.95), 0 0 24px 6px rgba(34, 197, 94, 0.7); } ' +
-                            '  100% { box-shadow: inset 0 0 14px 2px rgba(22, 163, 74, 0.45); } ' +
+                            '  0% { box-shadow: inset 0 0 0 0 rgba(34, 197, 94, 0.9), 0 0 0 rgba(34, 197, 94, 0.9); } ' +
+                            '  35% { box-shadow: inset 0 0 45px 14px rgba(34, 197, 94, 0.95), inset 0 0 15px 4px #ffffff; } ' +
+                            '  100% { box-shadow: inset 0 0 18px 4px rgba(22, 163, 74, 0.5); } ' +
                             '} ' +
-                            '.frame-ignition { animation: frame-ignition-anim 0.6s cubic-bezier(0.16, 1, 0.3, 1) !important; } ' +
+                            '.frame-ignition::after { animation: frame-ignition-anim 0.75s cubic-bezier(0.16, 1, 0.3, 1) !important; } ' +
                             '@keyframes frame-myturn-breath { ' +
-                            '  0% { box-shadow: inset 0 0 8px 1px rgba(22, 163, 74, 0.3); } ' +
-                            '  50% { box-shadow: inset 0 0 16px 3px rgba(22, 163, 74, 0.55); } ' +
-                            '  100% { box-shadow: inset 0 0 8px 1px rgba(22, 163, 74, 0.3); } ' +
+                            '  0% { box-shadow: inset 0 0 10px 2px rgba(22, 163, 74, 0.45), inset 0 0 4px 1px rgba(34, 197, 94, 0.7); } ' +
+                            '  50% { box-shadow: inset 0 0 26px 8px rgba(34, 197, 94, 0.85), inset 0 0 8px 2px rgba(255, 255, 255, 0.8); } ' +
+                            '  100% { box-shadow: inset 0 0 10px 2px rgba(22, 163, 74, 0.45), inset 0 0 4px 1px rgba(34, 197, 94, 0.7); } ' +
                             '} ' +
-                            '.frame-my-turn { border: 4px solid #16a34a !important; animation: frame-myturn-breath 3s ease-in-out infinite !important; } ' +
+                            '.frame-my-turn { border: 6px solid #16a34a !important; } ' +
+                            '.frame-my-turn::after { animation: frame-myturn-breath 2.2s ease-in-out infinite !important; } ' +
                             '@keyframes frame-opponent-breath { ' +
-                            '  0% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.15); } ' +
-                            '  50% { box-shadow: inset 0 0 12px rgba(100, 116, 139, 0.35); } ' +
-                            '  100% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.15); } ' +
+                            '  0% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.2); } ' +
+                            '  50% { box-shadow: inset 0 0 12px rgba(100, 116, 139, 0.4); } ' +
+                            '  100% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.2); } ' +
                             '} ' +
-                            '.frame-opponent-turn { border: 4px solid #94a3b8 !important; animation: frame-opponent-breath 3.5s ease-in-out infinite !important; } ' +
-                            '#turn-notification-ribbon { ' +
+                            '.frame-opponent-turn { border: 4px solid #94a3b8 !important; } ' +
+                            '.frame-opponent-turn::after { animation: frame-opponent-breath 3.5s ease-in-out infinite !important; } ' +
+
+                             '#turn-notification-ribbon { ' +
                             '  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 999999; ' +
                             '  padding: 8px 24px; border-radius: 20px; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; ' +
                             '  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.5px; pointer-events: none; ' +
@@ -1013,7 +1024,10 @@ module View
                          `document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' })`
                        },
             },
-            attrs: { id: 'viz-master-frame' },
+            attrs: {
+              id: 'viz-master-frame',
+              class: frame_class,
+            },
             style: {
               display: 'flex',
               flexDirection: 'row',
