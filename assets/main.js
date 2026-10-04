@@ -61560,7 +61560,7 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
           return self.$h("div", (new Map([["attrs", (new Map([["class", "active-turn-card"], ["title", ($truthy(is_my_turn) ? ("Your turn (" + (player_label) + ")") : ("Waiting on " + (player_label)))]]))], ["style", (new Map([["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["flex", "0 0 auto"], ["alignSelf", "center"], ["height", "2.85rem"], ["minHeight", "2.85rem"], ["maxHeight", "2.85rem"], ["padding", "0 1rem"], ["borderRadius", "6px"], ["backgroundColor", card_bg], ["color", card_text_color], ["border", card_border], ["boxShadow", card_shadow], ["fontSize", "1.15rem"], ["fontWeight", "bold"], ["fontFamily", "\"Helvetica Neue\", Helvetica, Arial, sans-serif"], ["letterSpacing", "0.5px"], ["lineHeight", "1"], ["boxSizing", "border-box"], ["whiteSpace", "nowrap"], ["overflow", "hidden"], ["textOverflow", "ellipsis"], ["transition", "background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease"], ["flexShrink", "0"]]))]])), card_children);
         });
         return $def(self, '$render', function $$render() {
-          var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, self = this, last_action = nil, last_action_id = nil, $ret_or_1 = nil, $ret_or_2 = nil, game_storage_id = nil, is_hotseat = nil, user_id = nil, is_my_turn = nil, $ret_or_3 = nil, round = nil, is_stock = nil, acting_ent = nil, acting_corp = nil, corp_ribbon_text = nil, player_ribbon_text = nil, p = nil, frame_bg = nil, frame_border = nil;
+          var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, self = this, last_action = nil, last_action_id = nil, $ret_or_1 = nil, $ret_or_2 = nil, game_storage_id = nil, is_hotseat = nil, user_id = nil, is_my_turn = nil, $ret_or_3 = nil, round = nil, is_stock = nil, acting_ent = nil, acting_corp = nil, corp_ribbon_text = nil, player_ribbon_text = nil, p = nil, frame_bg = nil, frame_border = nil, frame_class = nil;
 
           
           if (($truthy(self.game['$respond_to?']("finished?")) && ($truthy(self.game['$finished?']())))) {
@@ -61623,15 +61623,18 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
           }})();
           frame_bg = "#ffffff";
           frame_border = "none";
+          frame_class = "";
           if (($truthy(self.user) && ($not(is_hotseat)))) {
             if ($truthy(is_my_turn)) {
               
               frame_bg = "#dcfce7";
-              frame_border = "4px solid #16a34a";
+              frame_border = "6px solid #16a34a";
+              frame_class = "frame-my-turn";
             } else {
               
               frame_bg = "#f1f5f9";
               frame_border = "4px solid #94a3b8";
+              frame_class = "frame-opponent-turn";
             }
           };
           return self.$h("div", (new Map([["hook", (new Map([["insert", $send(self, 'lambda', [], function $$9(){
@@ -61669,31 +61672,39 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
                             '  font-weight: 700 !important; background-color: rgba(0, 0, 0, 0.18) !important; box-shadow: inset 0 -2px 0 0 #000000 !important; ' +
                             '} ' +
                             '#game > div:first-child a u, #game > div:first-child span u { text-decoration: underline !important; } ' +
+                            '#viz-master-frame::after { ' +
+                            '  content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; ' +
+                            '  pointer-events: none; z-index: 9999; border-radius: 0; ' +
+                            '  transition: box-shadow 0.3s ease; ' +
+                            '} ' +
                             '@keyframes frame-ripple-anim { ' +
                             '  0% { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.95); } ' +
-                            '  50% { box-shadow: inset 0 0 24px 6px rgba(255, 255, 255, 0.9); } ' +
+                            '  50% { box-shadow: inset 0 0 28px 10px rgba(255, 255, 255, 0.9); } ' +
                             '  100% { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0); } ' +
                             '} ' +
-                            '.frame-turn-ripple { animation: frame-ripple-anim 0.4s ease-out !important; } ' +
+                            '.frame-turn-ripple::after { animation: frame-ripple-anim 0.45s ease-out !important; } ' +
                             '@keyframes frame-ignition-anim { ' +
-                            '  0% { box-shadow: inset 0 0 0 0 rgba(22, 163, 74, 0.8), 0 0 0 rgba(22, 163, 74, 0.8); } ' +
-                            '  40% { box-shadow: inset 0 0 32px 8px rgba(34, 197, 94, 0.95), 0 0 24px 6px rgba(34, 197, 94, 0.7); } ' +
-                            '  100% { box-shadow: inset 0 0 14px 2px rgba(22, 163, 74, 0.45); } ' +
+                            '  0% { box-shadow: inset 0 0 0 0 rgba(34, 197, 94, 0.9), 0 0 0 rgba(34, 197, 94, 0.9); } ' +
+                            '  35% { box-shadow: inset 0 0 45px 14px rgba(34, 197, 94, 0.95), inset 0 0 15px 4px #ffffff; } ' +
+                            '  100% { box-shadow: inset 0 0 18px 4px rgba(22, 163, 74, 0.5); } ' +
                             '} ' +
-                            '.frame-ignition { animation: frame-ignition-anim 0.6s cubic-bezier(0.16, 1, 0.3, 1) !important; } ' +
+                            '.frame-ignition::after { animation: frame-ignition-anim 0.75s cubic-bezier(0.16, 1, 0.3, 1) !important; } ' +
                             '@keyframes frame-myturn-breath { ' +
-                            '  0% { box-shadow: inset 0 0 8px 1px rgba(22, 163, 74, 0.3); } ' +
-                            '  50% { box-shadow: inset 0 0 16px 3px rgba(22, 163, 74, 0.55); } ' +
-                            '  100% { box-shadow: inset 0 0 8px 1px rgba(22, 163, 74, 0.3); } ' +
+                            '  0% { box-shadow: inset 0 0 10px 2px rgba(22, 163, 74, 0.45), inset 0 0 4px 1px rgba(34, 197, 94, 0.7); } ' +
+                            '  50% { box-shadow: inset 0 0 26px 8px rgba(34, 197, 94, 0.85), inset 0 0 8px 2px rgba(255, 255, 255, 0.8); } ' +
+                            '  100% { box-shadow: inset 0 0 10px 2px rgba(22, 163, 74, 0.45), inset 0 0 4px 1px rgba(34, 197, 94, 0.7); } ' +
                             '} ' +
-                            '.frame-my-turn { border: 4px solid #16a34a !important; animation: frame-myturn-breath 3s ease-in-out infinite !important; } ' +
+                            '.frame-my-turn { border: 6px solid #16a34a !important; } ' +
+                            '.frame-my-turn::after { animation: frame-myturn-breath 2.2s ease-in-out infinite !important; } ' +
                             '@keyframes frame-opponent-breath { ' +
-                            '  0% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.15); } ' +
-                            '  50% { box-shadow: inset 0 0 12px rgba(100, 116, 139, 0.35); } ' +
-                            '  100% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.15); } ' +
+                            '  0% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.2); } ' +
+                            '  50% { box-shadow: inset 0 0 12px rgba(100, 116, 139, 0.4); } ' +
+                            '  100% { box-shadow: inset 0 0 4px rgba(100, 116, 139, 0.2); } ' +
                             '} ' +
-                            '.frame-opponent-turn { border: 4px solid #94a3b8 !important; animation: frame-opponent-breath 3.5s ease-in-out infinite !important; } ' +
-                            '#turn-notification-ribbon { ' +
+                            '.frame-opponent-turn { border: 4px solid #94a3b8 !important; } ' +
+                            '.frame-opponent-turn::after { animation: frame-opponent-breath 3.5s ease-in-out infinite !important; } ' +
+
+                             '#turn-notification-ribbon { ' +
                             '  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 999999; ' +
                             '  padding: 8px 24px; border-radius: 20px; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; ' +
                             '  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.5px; pointer-events: none; ' +
@@ -62169,7 +62180,7 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
                          ;
             document.body.style.backgroundColor = '';
             document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '', backgroundColor: '', transition: '' });
-            return document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' });;})]]))], ["attrs", (new Map([["id", "viz-master-frame"]]))], ["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["flex", "1 1 auto"], ["width", "100vw"], ["height", "calc(100% - 26px)"], ["minHeight", "0"], ["boxSizing", "border-box"], ["position", "relative"], ["overflow", "hidden"], ["padding", "0.4rem 0.5rem 0.5rem 0.5rem"], ["backgroundColor", frame_bg], ["border", frame_border], ["borderTop", "none"], ["transition", "background-color 0.3s ease, border 0.3s ease"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "col-left"]]))], ["style", (new Map([["flex", "0 0 55%"], ["height", "100%"], ["minHeight", "0"], ["display", "flex"], ["flexDirection", "column"], ["overflow", "hidden"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "command-space-top"]]))], ["style", (new Map([["flex", "0 0 9rem"], ["minHeight", "6.5rem"], ["border", "1px solid #ccc"], ["borderRadius", "4px"], ["backgroundColor", "#fff"], ["display", "flex"], ["flexDirection", "column"], ["overflow", "hidden"], ["boxSizing", "border-box"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "command-scroll-viewport"]]))], ["style", (new Map([["padding", "1.45rem 0.25rem 0.2rem"], ["height", "100%"], ["minHeight", "0"], ["boxSizing", "border-box"], ["overflow", "hidden"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardCommandColumn'), (new Map([["game", self.game], ["user", self.user], ["game_data", self.game_data]])))])]), self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-h-cmd-map"]]))], ["style", (new Map([["flex", "0 0 0.5rem"], ["cursor", "row-resize"], ["zIndex", 10]]))]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "map-panel-bot"]]))], ["style", (new Map([["flex", "1 1 auto"], ["minHeight", "0"], ["boxSizing", "border-box"], ["border", "1px solid #ccc"], ["borderRadius", "4px 4px 0 0"], ["backgroundColor", "#fff"], ["overflow", "hidden"], ["position", "relative"]]))]])), [self.$render_zoom_controls("map-panel-bot", (new Map([["top", "6px"], ["left", "6px"]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "map-scroll-canvas"]]))], ["style", (new Map([["width", "100%"], ["height", "100%"], ["maxHeight", "100%"], ["minHeight", "0"], ["overflow", "auto"], ["overflowX", "auto"], ["overflowY", "auto"], ["position", "relative"], ["boxSizing", "border-box"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "map-sizer"]]))], ["style", (new Map([["position", "relative"], ["display", "block"], ["width", "100%"], ["height", "100%"], ["minWidth", "100%"], ["minHeight", "100%"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "scaler-content"]]))], ["style", (new Map([["position", "absolute"], ["top", "0"], ["left", "0"], ["width", "max-content"], ["height", "max-content"], ["transformOrigin", "top left"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardMap'), (new Map([["game", self.game], ["user", self.user]])))])])]), self.$h("div", (new Map([["attrs", (new Map([["class", "panel-manifest-control"]]))], ["style", (new Map([["position", "absolute"], ["top", "8px"], ["right", "18px"], ["zIndex", 30], ["display", "flex"]]))]])), [self.$h("button", (new Map([["attrs", (new Map([["id", "btn-show-tile-manifest"], ["type", "button"], ["title", "Toggle tile manifest overlay"]]))], ["style", (new Map([["backgroundColor", "#ffffff"], ["color", "#1e293b"], ["border", "1px solid #94a3b8"], ["borderRadius", "4px"], ["padding", "4px 9px"], ["fontSize", "0.78rem"], ["fontWeight", "bold"], ["cursor", "pointer"], ["boxShadow", "0 1px 3px rgba(0,0,0,0.2)"], ["display", "inline-flex"], ["alignItems", "center"], ["lineHeight", "1.2"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$12(){var self = $$12.$$s == null ? this : $$12.$$s;
+            return document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' });;})]]))], ["attrs", (new Map([["id", "viz-master-frame"], ["class", frame_class]]))], ["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["flex", "1 1 auto"], ["width", "100vw"], ["height", "calc(100% - 26px)"], ["minHeight", "0"], ["boxSizing", "border-box"], ["position", "relative"], ["overflow", "hidden"], ["padding", "0.4rem 0.5rem 0.5rem 0.5rem"], ["backgroundColor", frame_bg], ["border", frame_border], ["borderTop", "none"], ["transition", "background-color 0.3s ease, border 0.3s ease"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "col-left"]]))], ["style", (new Map([["flex", "0 0 55%"], ["height", "100%"], ["minHeight", "0"], ["display", "flex"], ["flexDirection", "column"], ["overflow", "hidden"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "command-space-top"]]))], ["style", (new Map([["flex", "0 0 9rem"], ["minHeight", "6.5rem"], ["border", "1px solid #ccc"], ["borderRadius", "4px"], ["backgroundColor", "#fff"], ["display", "flex"], ["flexDirection", "column"], ["overflow", "hidden"], ["boxSizing", "border-box"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "command-scroll-viewport"]]))], ["style", (new Map([["padding", "1.45rem 0.25rem 0.2rem"], ["height", "100%"], ["minHeight", "0"], ["boxSizing", "border-box"], ["overflow", "hidden"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardCommandColumn'), (new Map([["game", self.game], ["user", self.user], ["game_data", self.game_data]])))])]), self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-h-cmd-map"]]))], ["style", (new Map([["flex", "0 0 0.5rem"], ["cursor", "row-resize"], ["zIndex", 10]]))]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "map-panel-bot"]]))], ["style", (new Map([["flex", "1 1 auto"], ["minHeight", "0"], ["boxSizing", "border-box"], ["border", "1px solid #ccc"], ["borderRadius", "4px 4px 0 0"], ["backgroundColor", "#fff"], ["overflow", "hidden"], ["position", "relative"]]))]])), [self.$render_zoom_controls("map-panel-bot", (new Map([["top", "6px"], ["left", "6px"]]))), self.$h("div", (new Map([["attrs", (new Map([["id", "map-scroll-canvas"]]))], ["style", (new Map([["width", "100%"], ["height", "100%"], ["maxHeight", "100%"], ["minHeight", "0"], ["overflow", "auto"], ["overflowX", "auto"], ["overflowY", "auto"], ["position", "relative"], ["boxSizing", "border-box"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "map-sizer"]]))], ["style", (new Map([["position", "relative"], ["display", "block"], ["width", "100%"], ["height", "100%"], ["minWidth", "100%"], ["minHeight", "100%"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "scaler-content"]]))], ["style", (new Map([["position", "absolute"], ["top", "0"], ["left", "0"], ["width", "max-content"], ["height", "max-content"], ["transformOrigin", "top left"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardMap'), (new Map([["game", self.game], ["user", self.user]])))])])]), self.$h("div", (new Map([["attrs", (new Map([["class", "panel-manifest-control"]]))], ["style", (new Map([["position", "absolute"], ["top", "8px"], ["right", "18px"], ["zIndex", 30], ["display", "flex"]]))]])), [self.$h("button", (new Map([["attrs", (new Map([["id", "btn-show-tile-manifest"], ["type", "button"], ["title", "Toggle tile manifest overlay"]]))], ["style", (new Map([["backgroundColor", "#ffffff"], ["color", "#1e293b"], ["border", "1px solid #94a3b8"], ["borderRadius", "4px"], ["padding", "4px 9px"], ["fontSize", "0.78rem"], ["fontWeight", "bold"], ["cursor", "pointer"], ["boxShadow", "0 1px 3px rgba(0,0,0,0.2)"], ["display", "inline-flex"], ["alignItems", "center"], ["lineHeight", "1.2"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$12(){var self = $$12.$$s == null ? this : $$12.$$s;
 
             
             $$$($$('Lib'), 'Storage')['$[]=']("dashboard_tile_manifest", $$$($$('Lib'), 'Storage')['$[]']("dashboard_tile_manifest")['$!']());
