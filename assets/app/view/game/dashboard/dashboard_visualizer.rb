@@ -10,6 +10,7 @@ require 'view/game/dashboard/dashboard_game_status'
 require 'view/game/dashboard/dashboard_stock_market'
 require 'view/game/history_and_undo'
 require 'view/game/dashboard/par_prompt_overlay'
+require 'view/game/dashboard/draft_overlay'
 require 'view/game/dashboard/dashboard_tile_manifest'
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
@@ -102,6 +103,35 @@ module View
           game: @game,
           tile_selector: @tile_selector,
           on_close: close_handler)
+      end
+
+      def render_global_auction_overlay
+        step = @game.round&.active_step
+        return nil unless step
+
+        actions =
+          begin
+            @game.round.actions_for(
+              step.current_entity || @game.current_entity
+            )
+          rescue StandardError
+            []
+          end
+
+        show_overlay =
+          (step.respond_to?(:auctioning) && step.auctioning) ||
+          (
+            !actions.include?('par') &&
+            (
+              step.class.name =~ /Waterfall|Draft|Auction|Initial/i ||
+              (@game.round.class.name =~ /Draft|Auction/i)
+            )
+          )
+
+        return nil unless show_overlay
+
+        h(View::Game::Dashboard::DraftOverlay,
+          game: @game)
       end
 
       def render_zoom_controls(panel_id, position_styles = {})
@@ -1199,10 +1229,12 @@ h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex'
     ]),
   ]),
 ]),
+render_global_auction_overlay,
 render_par_overlay,
 render_tile_manifest_overlay,
+
 h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
-        ].compact)
+].compact)
       end
     end
   end

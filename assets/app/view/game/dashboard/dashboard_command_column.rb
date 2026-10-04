@@ -15,7 +15,6 @@ require 'view/game/dashboard/railcard_helper'
 require 'view/game/round/operating'
 require 'view/game/dashboard/actions_monitor_overlay'
 require 'view/game/dashboard/manual_route_overlay'
-require 'view/game/dashboard/draft_overlay'
 require 'view/game/dashboard/history_overlay'
 require 'view/game/dashboard/move_history_overlay'
 
@@ -3062,8 +3061,7 @@ module View
         when Engine::Round::Stock
           if actions.include?('assign')
             render_assign_step(step, step&.current_entity || current_entity, actions)
-          elsif is_draft_or_auction
-            h(View::Game::Dashboard::DraftOverlay, game: @game)
+
           elsif actions.include?('choose')
             render_generic_choice(step, step&.current_entity || current_entity)
           else
@@ -3084,8 +3082,7 @@ module View
 
           if is_pure_merger_step
             h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [render_merger_step(step, step&.current_entity || current_entity, actions)].compact)
-          elsif is_draft_or_auction
-            h(View::Game::Dashboard::DraftOverlay, game: @game)
+
           else
             components = []
             convert_track = step&.respond_to?(:conversion?) && step&.conversion?
@@ -3252,8 +3249,7 @@ module View
           else
             h(Round::Choices, game: @game)
           end
-        when Engine::Round::Auction, Engine::Round::Draft
-          h(View::Game::Dashboard::DraftOverlay, game: @game)
+
         when Engine::Round::Merger
           if !(%w[buy_train scrap_train reassign_trains] & actions).empty? &&
              @game.train_actions_always_use_operating_round_view? &&
@@ -3270,19 +3266,32 @@ module View
             h(Round::Merger, game: @game)
           end
         else
-          if is_draft_or_auction
-            h(View::Game::Dashboard::DraftOverlay, game: @game)
-          elsif actions.include?('assign')
+          if actions.include?('assign')
             render_assign_step(step, step&.current_entity || current_entity, actions) || h(:div)
           elsif actions.include?('choose')
             choice_item = render_generic_choice(step, step&.current_entity || current_entity)
-            h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [choice_item].compact)
-          elsif @game.round.unordered?
-            h(Round::Unordered, game: @game, user: nil)
+
+            h(
+              :div,
+              {
+                style: {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.15rem',
+                  width: '100%',
+                  alignItems: 'flex-start',
+                },
+              },
+              [choice_item].compact
+            )
           elsif @game.round.unordered?
             h(Round::Unordered, game: @game, user: nil)
           else
-            render_generic_fallback(step, step&.current_entity || current_entity, actions) || h(:div)
+            render_generic_fallback(
+              step,
+              step&.current_entity || current_entity,
+              actions
+            ) || h(:div)
           end
         end
       end

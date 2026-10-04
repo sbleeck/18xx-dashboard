@@ -590,90 +590,68 @@ module View
             if (!btn) btn = document.getElementById('meme-revenue-toggle-btn');
             if (!btn) return;
             var isActive = #{active};
-            btn.style.fontWeight = '900';
-            btn.style.fontSize = '16px';
+            btn.style.fontWeight = 'bold';
+            btn.style.fontSize = '14px';
             btn.style.cursor = 'pointer';
-            btn.style.width = '32px';
-            btn.style.height = '32px';
-            btn.style.padding = '0';
-            btn.style.lineHeight = '1';
-            btn.style.border = '1px solid ' + (isActive ? '#059669' : '#dbdbdb');
-            btn.style.borderRadius = '4px';
-            btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
-            btn.style.display = 'inline-flex';
-            btn.style.alignItems = 'center';
-            btn.style.justifyContent = 'center';
             btn.style.boxSizing = 'border-box';
             btn.style.visibility = 'visible';
             btn.style.opacity = '1';
+            btn.style.lineHeight = '1';
             btn.setAttribute('role', 'checkbox');
             btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
             if (isActive) {
               btn.style.backgroundColor = '#10b981';
               btn.style.color = '#ffffff';
+              btn.style.borderColor = '#059669';
             } else {
               btn.style.backgroundColor = '#ffffff';
               btn.style.color = '#363636';
+              btn.style.borderColor = '#dbdbdb';
             }
           };
 
           window.__positionMemeRevenueBtn = function(btn) {
             if (!btn) return;
 
-            var resetBtn = Array.from(document.querySelectorAll('button')).find(function(b) {
+            // Locate any of the zoom panel buttons (+, -, o / ↺)
+            var allButtons = Array.from(document.querySelectorAll('button'));
+            var zoomBtn = allButtons.find(function(b) {
+              if (b.id === 'meme-revenue-toggle-btn') return false;
               var t = (b.textContent || '').trim();
-              return t === '↺' || t === '↻' || t === '⟲' || t.toLowerCase() === 'reset';
+              return t === '+' || t === '-' || t === '−' || t === 'o' || t === '↺' || t === '⟲' || t === '↻';
             });
 
-            var zoomInBtn = Array.from(document.querySelectorAll('button')).find(function(b) {
-              var t = (b.textContent || '').trim();
-              return t === '+' || t === '🔍' || b.getAttribute('title') === 'Zoom In';
-            });
+            if (zoomBtn && zoomBtn.parentElement) {
+              var parent = zoomBtn.parentElement;
 
-            var scaler = document.getElementById('scaler') ||
-                         document.querySelector('.scaler') ||
-                         document.querySelector('.map-scaler');
+              // Ensure the $ button is appended directly inside the same button box
+              if (btn.parentElement !== parent) {
+                parent.appendChild(btn);
+              }
 
+              // Match dimensions and margins from the sibling buttons
+              btn.style.position = 'static';
+              btn.style.display = 'inline-flex';
+              btn.style.alignItems = 'center';
+              btn.style.justifyContent = 'center';
+              btn.style.width = zoomBtn.offsetWidth ? (zoomBtn.offsetWidth + 'px') : '28px';
+              btn.style.height = zoomBtn.offsetHeight ? (zoomBtn.offsetHeight + 'px') : '28px';
+              btn.style.marginLeft = '4px';
+              btn.style.border = '1px solid #dbdbdb';
+              btn.style.borderRadius = '4px';
+              btn.style.padding = '0';
+              btn.style.zIndex = 'auto';
+              return;
+            }
+
+            // Fallback if the panel hasn't rendered yet
+            if (btn.parentElement !== document.body) {
+              document.body.appendChild(btn);
+            }
             btn.style.position = 'fixed';
             btn.style.zIndex = '999999';
-
-            if (resetBtn) {
-              var rRect = resetBtn.getBoundingClientRect();
-              if (rRect.width > 0 && rRect.height > 0) {
-                if (zoomInBtn) {
-                  var zRect = zoomInBtn.getBoundingClientRect();
-                  if (Math.abs(zRect.left - rRect.left) < 12) {
-                    btn.style.top = (rRect.bottom + 6) + 'px';
-                    btn.style.left = rRect.left + 'px';
-                    return;
-                  }
-                }
-                btn.style.top = rRect.top + 'px';
-                btn.style.left = (rRect.right + 6) + 'px';
-                return;
-              }
-            }
-
-            if (zoomInBtn) {
-              var zRect = zoomInBtn.getBoundingClientRect();
-              if (zRect.width > 0 && zRect.height > 0) {
-                btn.style.top = zRect.top + 'px';
-                btn.style.left = (zRect.right + 6) + 'px';
-                return;
-              }
-            }
-
-            if (scaler) {
-              var sRect = scaler.getBoundingClientRect();
-              if (sRect.width > 0 && sRect.height > 0) {
-                btn.style.top = (sRect.top + 8) + 'px';
-                btn.style.left = (sRect.right + 8) + 'px';
-                return;
-              }
-            }
-
-            btn.style.top = '64px';
-            btn.style.left = '16px';
+            btn.style.top = '10px';
+            btn.style.left = '10px';
           };
 
           window.__ensureMemeRevenueBtn = function() {
@@ -692,10 +670,6 @@ module View
                   window.__toggleMemeRevenue();
                 }
               });
-            }
-
-            if (btn.parentNode !== document.body) {
-              document.body.appendChild(btn);
             }
 
             window.__positionMemeRevenueBtn(btn);
@@ -719,12 +693,6 @@ module View
                 window.__positionMemeRevenueBtn(b);
               }
             });
-            window.addEventListener('scroll', function() {
-              var b = document.getElementById('meme-revenue-toggle-btn');
-              if (b && window.__positionMemeRevenueBtn) {
-                window.__positionMemeRevenueBtn(b);
-              }
-            }, true);
           }
         }
       end
