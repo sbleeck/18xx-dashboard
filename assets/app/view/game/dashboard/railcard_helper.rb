@@ -717,7 +717,7 @@ module View
           )
         end
 
-        def render_railcard(text, card_classes = ['game-card'], click_handler = nil, tooltip = nil, dropdown = nil, wrapper_id = nil, wrapper_classes = nil, entity: nil)
+def render_railcard(text, card_classes = ['game-card'], click_handler = nil, tooltip = nil, dropdown = nil, wrapper_id = nil, wrapper_classes = nil, entity: nil)
           classes = []
           if card_classes
             `if (Array.isArray(#{card_classes})) {`
@@ -752,6 +752,68 @@ module View
 
           %x(
           if (typeof window !== 'undefined') {
+            // Single source of truth for the token pulse animation
+            var ensureTokenPulseStyle = function() {
+              if (!document.getElementById('corp-token-pulse-style')) {
+                var s = document.createElement('style');
+                s.id = 'corp-token-pulse-style';
+                s.innerHTML = '@keyframes stock-marker-pulse { 0% { transform: scale(1); } 50% { transform: scale(2.0); } 100% { transform: scale(1); } } ' +
+                  '.stock-market-token-highlight { animation: stock-marker-pulse 0.65s infinite ease-in-out !important; transform-origin: center center !important; transform-box: fill-box !important; z-index: 999999 !important; filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 2px #ffffff) !important; } ' +
+                  '.map-token.stock-market-token-highlight { transform-origin: center center !important; transform-box: fill-box !important; filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 3px #ffffff) !important; } ' +
+                  ':has(> .stock-market-token-highlight), :has(.stock-market-token-highlight) { z-index: 99999 !important; }';
+                document.head.appendChild(s);
+              }
+            };
+            ensureTokenPulseStyle();
+
+            window.highlightStockMarketToken = function(corpId) {
+              if (!corpId) return;
+              if (window._highlightedMarketCorp === corpId) return;
+              window.clearStockMarketTokenHighlight();
+              window._highlightedMarketCorp = corpId;
+
+              var cleanCorpId = String(corpId).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+              // 1. Highlight stock market tokens
+              var stockTokens = document.querySelectorAll(
+                '.stock-market-token[data-corp="' + cleanCorpId + '"], [id="stock-token-' + cleanCorpId + '"]'
+              );
+              for (var i = 0; i < stockTokens.length; i++) {
+                var st = stockTokens[i];
+                st.classList.add('stock-market-token-highlight');
+                var cell = st.closest('div');
+                if (cell) {
+                  cell.style.zIndex = '99999';
+                  window._elevatedMarketCell = cell;
+                }
+              }
+
+              // 2. Highlight map tokens
+              var mapTokens = document.querySelectorAll(
+                '.map-token[data-corp="' + cleanCorpId + '"], .map-token-' + cleanCorpId
+              );
+              for (var j = 0; j < mapTokens.length; j++) {
+                var mt = mapTokens[j];
+                mt.classList.add('stock-market-token-highlight');
+                var hexContainer = mt.closest('.map-hex-container');
+                if (hexContainer && hexContainer.parentNode && hexContainer.parentNode.lastElementChild !== hexContainer) {
+                  hexContainer.parentNode.appendChild(hexContainer);
+                }
+              }
+            };
+
+            window.clearStockMarketTokenHighlight = function() {
+              window._highlightedMarketCorp = null;
+              if (window._elevatedMarketCell) {
+                window._elevatedMarketCell.style.zIndex = '';
+                window._elevatedMarketCell = null;
+              }
+              var highlighted = document.querySelectorAll('.stock-market-token-highlight');
+              for (var i = 0; i < highlighted.length; i++) {
+                highlighted[i].classList.remove('stock-market-token-highlight');
+              }
+            };
+
             if (!window._railcard_portal_installed) {
               var portal = document.getElementById('railcard-portal');
               if (!portal) {
@@ -866,19 +928,16 @@ module View
               var getCertCorp = function(el) {
                 if (!el || !el.closest) return null;
 
-                // Explicitly ignore non-certificate items such as trains, tokens, and cash
                 if (el.closest('.corporation-trains, .corporation-cash, .empty-train-slot, [id^="trains_"], [id^="tokens_"]')) {
                   return null;
                 }
 
-                // Check explicit data-corp on target or closest wrapper (excluding tr)
                 var explicitCorpEl = el.closest('[data-corp]');
                 if (explicitCorpEl && !explicitCorpEl.matches('tr')) {
                   var c = explicitCorpEl.getAttribute('data-corp');
                   if (c && c !== '') return c;
                 }
 
-                // Check enclosing cell ID for player shares, pool, IPO, treasury, or major cards
                 var cell = el.closest('td[id], th[id]');
                 if (cell && cell.id) {
                   var id = cell.id;
@@ -892,7 +951,6 @@ module View
                   }
                 }
 
-                // Check enclosing table row if hovered element is a certificate or major railcard
                 var row = el.closest('tr');
                 if (row && row.getAttribute('data-corp')) {
                   if (el.closest('.share-card-wrapper, .game-card, .major-railcard, .short-card, .ghost-short-card, td.market-shares-col')) {
@@ -909,7 +967,7 @@ module View
                   if (window.highlightStockMarketToken) {
                     window.highlightStockMarketToken(corpId);
                   }
-                } else if (!e.target.closest || !e.target.closest('.stock-market-token')) {
+                } else if (!e.target.closest || !e.target.closest('.stock-market-token, .map-token')) {
                   if (window.clearStockMarketTokenHighlight) {
                     window.clearStockMarketTokenHighlight();
                   }

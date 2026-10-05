@@ -10,6 +10,7 @@ require 'view/game/token_selector'
 require 'view/game/part/track'
 require 'view/game/part/revenue'
 require 'view/game/part/city_slot'
+require 'view/game/token'
 
 begin
   require 'view/game/part/location_name'
@@ -179,6 +180,44 @@ module Lib
           }
         end,
       }
+    end
+  end
+end
+
+module View
+  module Game
+    class Token < Snabberb::Component
+      unless method_defined?(:orig_map_pulse_render)
+        alias orig_map_pulse_render render
+
+        def render
+          rendered = orig_map_pulse_render
+          corp = @corporation
+          corp ||= @token.corporation if @token.respond_to?(:corporation)
+          return rendered unless corp
+
+          corp_id = corp.id.to_s
+          %x{
+            var v = #{rendered};
+            if (v) {
+              var list = Array.isArray(v) ? v : [v];
+              for (var i = 0; i < list.length; i++) {
+                var item = list[i];
+                if (item) {
+                  if (!item.data) item.data = {};
+                  if (!item.data.attrs) item.data.attrs = {};
+                  item.data.attrs['data-corp'] = #{corp_id};
+                  var c = item.data.attrs['class'] || '';
+                  if (c.indexOf('map-token') === -1) {
+                    item.data.attrs['class'] = (c + ' map-token map-token-' + #{corp_id}).trim();
+                  }
+                }
+              }
+            }
+          }
+          rendered
+        end
+      end
     end
   end
 end
