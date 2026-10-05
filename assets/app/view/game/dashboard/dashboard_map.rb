@@ -186,6 +186,48 @@ end
 
 module View
   module Game
+    class Hex < Snabberb::Component
+      unless method_defined?(:orig_dashboard_render)
+        alias orig_dashboard_render render
+
+        def render
+          rendered = orig_dashboard_render
+          %x{
+            function removeLegacyFills(vnode) {
+              if (!vnode) return;
+              if (Array.isArray(vnode)) {
+                for (var i = vnode.length - 1; i >= 0; i--) {
+                  var child = vnode[i];
+                  if (child && child.data && child.data.attrs) {
+                    var f = (child.data.attrs['fill'] || '').toLowerCase();
+                    var s = (child.data.attrs['stroke'] || '').toLowerCase();
+                    if (f === 'red' || f === '#ff0000' || f === '#f00' || f === 'rgba(255, 0, 0, 0.5)' || f === 'rgba(255,0,0,0.5)' ||
+                        f === 'green' || f === '#00ff00' || f === '#0f0' ||
+                        s === 'red' || s === '#ff0000' || s === '#f00' ||
+                        s === 'green' || s === '#00ff00' || s === '#0f0') {
+                      vnode.splice(i, 1);
+                      continue;
+                    }
+                  }
+                  removeLegacyFills(child);
+                }
+                return;
+              }
+              if (vnode.children && Array.isArray(vnode.children)) {
+                removeLegacyFills(vnode.children);
+              }
+            }
+            removeLegacyFills(#{rendered});
+          }
+          rendered
+        end
+      end
+    end
+  end
+end
+
+module View
+  module Game
     class Token < Snabberb::Component
       unless method_defined?(:orig_map_pulse_render)
         alias orig_map_pulse_render render
@@ -988,18 +1030,23 @@ module View
           is_hovered = hovered_target_hexes.map(&:to_s).map(&:upcase).include?(hex.id.to_s.upcase)
 
           base_hex = h(
-             Hex,
-             hex: hex,
-             opacity: @show_starting_map ? 1.0 : (@opacity || 1.0),
-             entity: current_entity,
-             clickable: hex_selected ? (hex == selected_hex && clickable) : clickable,
-             actions: current_entity ? actions : [],
-             routes: routes,
-             start_pos: @start_pos,
-             highlight: false
-           )
+              Hex,
+              hex: hex,
+              opacity: @show_starting_map ? 1.0 : (@opacity || 1.0),
+              entity: current_entity,
+              clickable: hex_selected ? (hex == selected_hex && clickable) : clickable,
+              actions: current_entity ? actions : [],
+              routes: routes,
+              start_pos: @start_pos,
+              highlight: false # Disallow legacy red/green home hex fills; rely on breathing tokens and cyan bounds
+            )
 
+          # Highlighting Design System: Strict cyan highlight for untokened privates & targeted locations
           border_color = is_hovered ? '#00ffff' : nil
+          initial_stroke = border_color || 'transparent'
+          initial_width = border_color ? (Hex::HIGHLIGHT_STROKE_WIDTH + 4) : 0
+          initial_fill = is_hovered ? '#00ffff' : 'transparent'
+          initial_fill_opacity = is_hovered ? '0.35' : '0'
 
           x, y = Hex.coordinates(hex, @start_pos)
           transform_str = "translate(#{x}, #{y})#{' rotate(30)' if hex.layout == :pointy}"
@@ -1209,6 +1256,16 @@ module View
                           end
 
         if hovered_company
+          # If the hovered entity has placed tokens on the board, breathing tokens are sufficient.
+          # Suppress hex highlights completely for tokened entities.
+          has_placed = false
+          if hovered_company.respond_to?(:tokens) && hovered_company.tokens
+            has_placed = hovered_company.tokens.any? do |t|
+              (t.respond_to?(:placed?) && t.placed?) || (t.respond_to?(:city) && t.city&.hex) || (t.respond_to?(:hex) && t.hex)
+            end
+          end
+          return [] if has_placed
+
           if hovered_company.respond_to?(:coordinates) && hovered_company.coordinates
             Array(hovered_company.coordinates).each { |coord| target_hexes << coord.to_s }
           end

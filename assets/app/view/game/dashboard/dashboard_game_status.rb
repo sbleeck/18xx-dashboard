@@ -791,6 +791,10 @@ module View
         is_unfloated = corporation.respond_to?(:floated?) && !corporation.floated?
         is_directed = corporation.respond_to?(:owner) && (corporation.owner == active_player)
 
+        # Director Star Status Rule: Binary styling (Muted grey for unfloated/unopened, brand color for floated)
+        star_bg = is_unfloated ? '#6b7280' : '#d97706'
+        star_color = is_unfloated ? '#d1d5db' : '#ffffff'
+
         tr_props = tr_default_props(is_active_row)
         tr_props[:attrs] ||= {}
         tr_props[:key] = corporation.id
@@ -1065,8 +1069,8 @@ module View
                                                          right: '-4px',
                                                          width: '13px',
                                                          height: '13px',
-                                                         backgroundColor: '#d97706',
-                                                         color: '#ffffff',
+                                                         backgroundColor: star_bg,
+                                                         color: star_color,
                                                          fontSize: '0.62rem',
                                                          lineHeight: '13px',
                                                          textAlign: 'center',
@@ -1220,8 +1224,8 @@ module View
                                      right: '-4px',
                                      width: '13px',
                                      height: '13px',
-                                     backgroundColor: '#d97706',
-                                     color: '#ffffff',
+                                     backgroundColor: star_bg,
+                                     color: star_color,
                                      fontSize: '0.62rem',
                                      lineHeight: '13px',
                                      textAlign: 'center',
@@ -1701,8 +1705,8 @@ module View
                                right: '-4px',
                                width: '13px',
                                height: '13px',
-                               backgroundColor: '#d97706',
-                               color: '#ffffff',
+                               backgroundColor: star_bg,
+                               color: star_color,
                                fontSize: '0.62rem',
                                lineHeight: '13px',
                                textAlign: 'center',
@@ -1756,7 +1760,7 @@ module View
           ipo_card = render_railcard(ipo_share_text, card_classes, ipo_click_handler, nil, dropdowns)
 
           ipo_hover = share_denomination_tooltip(ipo_actual_shares, corporation)
-ipo_cell_children << h(:div, { attrs: { class: 'share-card-wrapper cert-share-card', 'data-corp': corporation.id, title: ipo_hover } }, [ipo_card])
+          ipo_cell_children << h(:div, { attrs: { class: 'share-card-wrapper cert-share-card', 'data-corp': corporation.id, title: ipo_hover } }, [ipo_card])
         end
 
         border_style = "1px solid #{color_for(:font2)}"

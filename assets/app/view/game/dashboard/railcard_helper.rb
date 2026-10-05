@@ -32,6 +32,18 @@ module View
           return [] unless target
           return [] if target.is_a?(Engine::Train) || target.respond_to?(:rusts_on)
 
+          # If the entity already has physical tokens placed on the board,
+          # return no hexes so the hex itself is not highlighted (pulsing token handles location).
+          if (target.respond_to?(:corporation?) && target.corporation?) || (target.respond_to?(:minor?) && target.minor?)
+            has_placed = false
+            if target.respond_to?(:tokens) && target.tokens
+              has_placed = target.tokens.any? do |t|
+                (t.respond_to?(:placed?) && t.placed?) || (t.respond_to?(:city) && t.city&.hex) || (t.respond_to?(:hex) && t.hex)
+              end
+            end
+            return [] if has_placed
+          end
+          
           hexes = []
           abilities = []
           abilities.concat(target.all_abilities) if target.respond_to?(:all_abilities) && target.all_abilities
@@ -717,7 +729,7 @@ module View
           )
         end
 
-def render_railcard(text, card_classes = ['game-card'], click_handler = nil, tooltip = nil, dropdown = nil, wrapper_id = nil, wrapper_classes = nil, entity: nil)
+        def render_railcard(text, card_classes = ['game-card'], click_handler = nil, tooltip = nil, dropdown = nil, wrapper_id = nil, wrapper_classes = nil, entity: nil)
           classes = []
           if card_classes
             `if (Array.isArray(#{card_classes})) {`
@@ -752,31 +764,57 @@ def render_railcard(text, card_classes = ['game-card'], click_handler = nil, too
 
           %x(
           if (typeof window !== 'undefined') {
-            // Single source of truth for the token pulse animation
+          // Single source of truth for synchronized 3-way corporate breathing animation
             var ensureTokenPulseStyle = function() {
               if (!document.getElementById('corp-token-pulse-style')) {
                 var s = document.createElement('style');
                 s.id = 'corp-token-pulse-style';
-                s.innerHTML = '@keyframes stock-marker-pulse { 0% { transform: scale(1); } 50% { transform: scale(2.0); } 100% { transform: scale(1); } } ' +
-                  '.stock-market-token-highlight { animation: stock-marker-pulse 0.65s infinite ease-in-out !important; transform-origin: center center !important; transform-box: fill-box !important; z-index: 999999 !important; filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 2px #ffffff) !important; } ' +
-                  '.map-token.stock-market-token-highlight { transform-origin: center center !important; transform-box: fill-box !important; filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 3px #ffffff) !important; } ' +
+                s.innerHTML = '@keyframes corp-breathing-sync { ' +
+                  '0% { transform: scale(1); } ' +
+                  '50% { transform: scale(1.45); } ' +
+                  '100% { transform: scale(1); } ' +
+                  '} ' +
+                  '@keyframes corp-status-card-breathing-sync { ' +
+                  '0% { transform: scale(1); } ' +
+                  '50% { transform: scale(1.15); } ' +
+                  '100% { transform: scale(1); } ' +
+                  '} ' +
+                  '.stock-market-token-highlight { ' +
+                  'animation: corp-breathing-sync 0.85s ease-in-out infinite !important; ' +
+                  'transform-origin: center center !important; ' +
+                  'transform-box: fill-box !important; ' +
+                  'z-index: 999999 !important; ' +
+                  'filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 3px #00ffff) !important; ' +
+                  '} ' +
+                  '.map-token.stock-market-token-highlight { ' +
+                  'animation: corp-breathing-sync 0.85s ease-in-out infinite !important; ' +
+                  'transform-origin: center center !important; ' +
+                  'transform-box: fill-box !important; ' +
+                  'filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 4px #00ffff) !important; ' +
+                  '} ' +
+                  '.status-corp-highlight { ' +
+                  'animation: corp-status-card-breathing-sync 0.85s ease-in-out infinite !important; ' +
+                  'transform-origin: center center !important; ' +
+                  'z-index: 99999 !important; ' +
+                  'filter: drop-shadow(0 0 6px rgba(0, 255, 255, 0.8)) !important; ' +
+                  '} ' +
                   ':has(> .stock-market-token-highlight), :has(.stock-market-token-highlight) { z-index: 99999 !important; }';
                 document.head.appendChild(s);
               }
             };
             ensureTokenPulseStyle();
 
-            window.highlightStockMarketToken = function(corpId) {
+          window.highlightStockMarketToken = function(corpId) {
               if (!corpId) return;
               if (window._highlightedMarketCorp === corpId) return;
               window.clearStockMarketTokenHighlight();
               window._highlightedMarketCorp = corpId;
 
-              var cleanCorpId = String(corpId).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+              var safeCorpAttr = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(corpId) : String(corpId).replace(/["\\]/g, '\\$&');
 
               // 1. Highlight stock market tokens
               var stockTokens = document.querySelectorAll(
-                '.stock-market-token[data-corp="' + cleanCorpId + '"], [id="stock-token-' + cleanCorpId + '"]'
+                '.stock-market-token[data-corp="' + safeCorpAttr + '"], [id="stock-token-' + safeCorpAttr + '"]'
               );
               for (var i = 0; i < stockTokens.length; i++) {
                 var st = stockTokens[i];
@@ -788,9 +826,9 @@ def render_railcard(text, card_classes = ['game-card'], click_handler = nil, too
                 }
               }
 
-              // 2. Highlight map tokens
+              // 2. Highlight map tokens (use data-corp attribute only to avoid invalid CSS class identifiers like B&O)
               var mapTokens = document.querySelectorAll(
-                '.map-token[data-corp="' + cleanCorpId + '"], .map-token-' + cleanCorpId
+                '.map-token[data-corp="' + safeCorpAttr + '"], [data-corp="' + safeCorpAttr + '"].map-token'
               );
               for (var j = 0; j < mapTokens.length; j++) {
                 var mt = mapTokens[j];
@@ -800,6 +838,14 @@ def render_railcard(text, card_classes = ['game-card'], click_handler = nil, too
                   hexContainer.parentNode.appendChild(hexContainer);
                 }
               }
+
+              // 3. Highlight status panel major railcard
+              var statusCards = document.querySelectorAll(
+                '.major-railcard[data-corp="' + safeCorpAttr + '"], .status-corp-wrapper[data-corp="' + safeCorpAttr + '"], [data-corp="' + safeCorpAttr + '"] .major-railcard'
+              );
+              for (var k = 0; k < statusCards.length; k++) {
+                statusCards[k].classList.add('status-corp-highlight');
+              }
             };
 
             window.clearStockMarketTokenHighlight = function() {
@@ -808,9 +854,13 @@ def render_railcard(text, card_classes = ['game-card'], click_handler = nil, too
                 window._elevatedMarketCell.style.zIndex = '';
                 window._elevatedMarketCell = null;
               }
-              var highlighted = document.querySelectorAll('.stock-market-token-highlight');
-              for (var i = 0; i < highlighted.length; i++) {
-                highlighted[i].classList.remove('stock-market-token-highlight');
+              var highlightedTokens = document.querySelectorAll('.stock-market-token-highlight');
+              for (var i = 0; i < highlightedTokens.length; i++) {
+                highlightedTokens[i].classList.remove('stock-market-token-highlight');
+              }
+              var highlightedCards = document.querySelectorAll('.status-corp-highlight');
+              for (var j = 0; j < highlightedCards.length; j++) {
+                highlightedCards[j].classList.remove('status-corp-highlight');
               }
             };
 
@@ -925,20 +975,42 @@ def render_railcard(text, card_classes = ['game-card'], click_handler = nil, too
             if (!window._market_token_hover_installed) {
               window._market_token_hover_installed = true;
 
-              var getCertCorp = function(el) {
+            var getCorpFromElement = function(el) {
                 if (!el || !el.closest) return null;
 
+                // 1. Stock market token or container
+                var stockToken = el.closest('.stock-market-token');
+                if (stockToken) {
+                  var stCorp = stockToken.getAttribute('data-corp');
+                  if (stCorp) return stCorp;
+                  if (stockToken.id && stockToken.id.indexOf('stock-token-') === 0) {
+                    return stockToken.id.substring(12);
+                  }
+                }
+
+                // 2. Map token
+                var mapToken = el.closest('.map-token');
+                if (mapToken) {
+                  var mtCorp = mapToken.getAttribute('data-corp');
+                  if (mtCorp) return mtCorp;
+                }
+
+                // 3. Operational columns: ignore cash/trains/empty slots
                 if (el.closest('.corporation-trains, .corporation-cash, .empty-train-slot, [id^="trains_"], [id^="tokens_"]')) {
                   return null;
                 }
 
-                var explicitCorpEl = el.closest('[data-corp]');
+                // 4. Certificates and status cards
+                var certEl = el.closest('.cert-share-card, .game-card, .major-railcard, .short-card, .ghost-short-card, .major-railcard-wrapper');
+                if (!certEl) return null;
+
+                var explicitCorpEl = certEl.closest('[data-corp]');
                 if (explicitCorpEl && !explicitCorpEl.matches('tr')) {
                   var c = explicitCorpEl.getAttribute('data-corp');
                   if (c && c !== '') return c;
                 }
 
-                var cell = el.closest('td[id], th[id]');
+                var cell = certEl.closest('td[id], th[id]');
                 if (cell && cell.id) {
                   var id = cell.id;
                   if (id.indexOf('pool_shares_') === 0) return id.substring(12);
@@ -951,23 +1023,21 @@ def render_railcard(text, card_classes = ['game-card'], click_handler = nil, too
                   }
                 }
 
-                var row = el.closest('tr');
+                var row = certEl.closest('tr');
                 if (row && row.getAttribute('data-corp')) {
-                  if (el.closest('.share-card-wrapper, .game-card, .major-railcard, .short-card, .ghost-short-card, td.market-shares-col')) {
-                    return row.getAttribute('data-corp');
-                  }
+                  return row.getAttribute('data-corp');
                 }
 
                 return null;
               };
 
               document.addEventListener('mouseover', function(e) {
-                var corpId = getCertCorp(e.target);
+                var corpId = getCorpFromElement(e.target);
                 if (corpId) {
                   if (window.highlightStockMarketToken) {
                     window.highlightStockMarketToken(corpId);
                   }
-                } else if (!e.target.closest || !e.target.closest('.stock-market-token, .map-token')) {
+                } else if (!e.target.closest || !e.target.closest('.stock-market-token, .map-token, .cert-share-card, .major-railcard')) {
                   if (window.clearStockMarketTokenHighlight) {
                     window.clearStockMarketTokenHighlight();
                   }
@@ -975,9 +1045,9 @@ def render_railcard(text, card_classes = ['game-card'], click_handler = nil, too
               });
 
               document.addEventListener('mouseout', function(e) {
-                var fromCorp = getCertCorp(e.target);
+                var fromCorp = getCorpFromElement(e.target);
                 if (fromCorp) {
-                  var toCorp = getCertCorp(e.relatedTarget);
+                  var toCorp = getCorpFromElement(e.relatedTarget);
                   if (toCorp !== fromCorp && window.clearStockMarketTokenHighlight) {
                     window.clearStockMarketTokenHighlight();
                   }
