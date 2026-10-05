@@ -795,6 +795,7 @@ module View
         tr_props[:attrs] ||= {}
         tr_props[:key] = corporation.id
         tr_props[:hook] = Lib::RowAnimation.hook(corporation.id)
+        tr_props[:attrs]['data-corp'] = corporation.id
 
         row_classes = []
         president_sold = corporation.respond_to?(:owner) && corporation.owner ? true : false
@@ -889,7 +890,7 @@ module View
 
             card = render_railcard("#{treasury_percent}%", classes, click_handler, nil, dropdowns)
             treasury_hover = share_denomination_tooltip(t_shares, corporation)
-            treasury_cards << h(:div, { attrs: { class: 'share-card-wrapper', title: treasury_hover } }, [card])
+            treasury_cards << h(:div, { attrs: { class: 'share-card-wrapper cert-share-card', 'data-corp': corporation.id, title: treasury_hover } }, [card])
           end
 
           treasury << h('td.column-zone-corporate', {
@@ -1078,7 +1079,7 @@ module View
 
                                      minor_card = h(:div, card_props, '100%')
                                      minor_hover = share_denomination_tooltip(player_shares, corporation)
-                                     wrapped_minor = h(:div, { attrs: { class: 'share-card-wrapper', title: minor_hover } }, [minor_card, star_marker])
+                                     wrapped_minor = h(:div, { attrs: { class: 'share-card-wrapper cert-share-card', 'data-corp': corporation.id, title: minor_hover } }, [minor_card, star_marker])
                                      h(:td, { style: { backgroundColor: bg_color, textAlign: 'center' } }, [wrapped_minor])
 
                                    else
@@ -1302,7 +1303,7 @@ module View
 
                 card = render_railcard(text, card_classes, click_handler, nil, dropdowns)
                 player_hover = n_shares.zero? ? '' : share_denomination_tooltip(player_shares, corporation)
-                card = h(:div, { attrs: { class: 'share-card-wrapper', title: player_hover } }, [card])
+                card = h(:div, { attrs: { class: 'share-card-wrapper cert-share-card', 'data-corp': corporation.id, title: player_hover } }, [card])
                 card = h(:span, { style: { visibility: 'hidden', display: 'inline-block' } }, [card]) if n_shares.zero?
                 players_row_content << h(:td, { attrs: { id: "player_shares_#{p.id}_#{corporation.id}" }, style: { backgroundColor: bg_color, textAlign: 'center', position: 'relative' } }, [card])
               end
@@ -1506,7 +1507,7 @@ module View
 
           pool_card = render_railcard(pool_share_text, classes, pool_click_handler, nil, dropdowns)
           pool_hover = share_denomination_tooltip(pool_shares, corporation)
-          pool_cell_children << h(:div, { attrs: { class: 'share-card-wrapper', title: pool_hover } }, [pool_card])
+          pool_cell_children << h(:div, { attrs: { class: 'share-card-wrapper cert-share-card', 'data-corp': corporation.id, title: pool_hover } }, [pool_card])
         end
 
         ipo_actual_shares = if corporation.minor?
@@ -1755,7 +1756,7 @@ module View
           ipo_card = render_railcard(ipo_share_text, card_classes, ipo_click_handler, nil, dropdowns)
 
           ipo_hover = share_denomination_tooltip(ipo_actual_shares, corporation)
-          ipo_cell_children << h(:div, { attrs: { class: 'share-card-wrapper', title: ipo_hover } }, [ipo_card])
+ipo_cell_children << h(:div, { attrs: { class: 'share-card-wrapper cert-share-card', 'data-corp': corporation.id, title: ipo_hover } }, [ipo_card])
         end
 
         border_style = "1px solid #{color_for(:font2)}"

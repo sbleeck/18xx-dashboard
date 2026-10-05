@@ -645,6 +645,70 @@ module View
       def render
         StockMarketAnimation.capture_pre_render
 
+        market_highlight_css = <<~CSS
+          @keyframes stock-marker-pulse {
+            0% {
+              transform: scale(1);
+            }
+            50% {
+              transform: scale(2.0);
+            }
+            100% {
+              transform: scale(1);
+            }
+          }
+
+          .stock-market-token-highlight {
+            animation: stock-marker-pulse 0.65s infinite ease-in-out !important;
+            transform-origin: center center !important;
+            transform-box: fill-box !important;
+            z-index: 999999 !important;
+            filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 2px #ffffff) !important;
+          }
+
+          :has(> .stock-market-token-highlight),
+          :has(.stock-market-token-highlight) {
+            z-index: 99999 !important;
+          }
+        CSS
+
+        %x{
+          if (typeof window !== 'undefined') {
+            window.highlightStockMarketToken = function(corpId) {
+              if (!corpId) return;
+              if (window._highlightedMarketCorp === corpId) return;
+              window.clearStockMarketTokenHighlight();
+              window._highlightedMarketCorp = corpId;
+
+              var allTokens = document.querySelectorAll('.stock-market-token');
+              for (var i = 0; i < allTokens.length; i++) {
+                var t = allTokens[i];
+                var tCorp = t.getAttribute('data-corp');
+                if (tCorp === corpId || t.id === 'stock-token-' + corpId) {
+                  t.classList.add('stock-market-token-highlight');
+                  var cell = t.closest('div');
+                  if (cell) {
+                    cell.style.zIndex = '99999';
+                    window._elevatedMarketCell = cell;
+                  }
+                }
+              }
+            };
+
+            window.clearStockMarketTokenHighlight = function() {
+              window._highlightedMarketCorp = null;
+              if (window._elevatedMarketCell) {
+                window._elevatedMarketCell.style.zIndex = '';
+                window._elevatedMarketCell = null;
+              }
+              var highlighted = document.querySelectorAll('.stock-market-token-highlight');
+              for (var i = 0; i < highlighted.length; i++) {
+                highlighted[i].classList.remove('stock-market-token-highlight');
+              }
+            };
+          }
+        }
+
         @space_style_2d = {
           position: 'relative',
           display: 'inline-block',
@@ -697,7 +761,7 @@ module View
           },
         }
 
-        h(:div, container_props, [grid_elm, legend_elm].compact)
+        h(:div, container_props, [h(:style, market_highlight_css), grid_elm, legend_elm].compact)
       end
     end
 

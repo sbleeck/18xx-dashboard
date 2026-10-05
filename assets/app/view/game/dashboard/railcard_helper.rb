@@ -550,6 +550,9 @@ module View
             attrs: {
               class: classes.join(' '),
               title: corporation.respond_to?(:name) ? corporation.name.to_s : text,
+              # --- START FIX ---
+              'data-corp': corporation.id,
+              # --- END FIX ---
             },
             style: {
               minWidth: '3.2rem',
@@ -579,6 +582,9 @@ module View
 
           wrapper_attrs = {
             class: 'major-railcard-wrapper status-corp-wrapper cmd-corp-wrapper',
+            # --- START FIX ---
+            'data-corp': corporation.id,
+            # --- END FIX ---
           }
           wrapper_attrs[:id] = wrapper_id if wrapper_id && !wrapper_id.to_s.empty?
 
@@ -648,6 +654,9 @@ module View
             attrs: {
               class: classes.join(' '),
               title: "#{corp_label} Short Liability: −#{short_percent}%",
+              # --- START FIX ---
+              'data-corp': corporation.id,
+              # --- END FIX ---
             },
             style: {
               minWidth: '3.5rem',
@@ -677,7 +686,11 @@ module View
           dropdown_items = Array(dropdown).compact
           return card if !wrapper_id && dropdown_items.empty?
 
-          wrapper_attrs = { class: 'short-railcard-wrapper' }
+          # --- DELETE ---
+          # wrapper_attrs = { class: 'short-railcard-wrapper' }
+          # --- START FIX ---
+          wrapper_attrs = { class: 'short-railcard-wrapper', 'data-corp': corporation.id }
+          # --- END FIX ---
           wrapper_attrs[:id] = wrapper_id if wrapper_id && !wrapper_id.to_s.empty?
 
           h(:div, {
@@ -738,112 +751,188 @@ module View
                      end
 
           %x(
-          if (typeof window !== 'undefined' && !window._railcard_portal_installed) {
-            var portal = document.getElementById('railcard-portal');
-            if (!portal) {
-              portal = document.createElement('div');
-              portal.id = 'railcard-portal';
-              document.body.appendChild(portal);
-            }
-portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
-
-            var styleEl = document.createElement('style');
-            styleEl.innerHTML = '.short-railcard { background-color: #fee2e2 !important; color: #991b1b !important; } .ghost-short-card { opacity: 0.35 !important; border: 1.5px dotted #dc2626 !important; background-color: transparent !important; box-shadow: none !important; color: #dc2626 !important; } .ghost-short-card:hover { opacity: 0.85 !important; background-color: rgba(254, 226, 226, 0.35) !important; transform: translateY(-1px); }';
-            document.head.appendChild(styleEl);
-
-            window._railcard_portal_installed = true;
-
-            var hidePortal = function() {
-              var p = document.getElementById('railcard-portal');
-              if (p && p.style.display !== 'none') {
-                p.style.display = 'none';
-                p.innerHTML = '';
+          if (typeof window !== 'undefined') {
+            if (!window._railcard_portal_installed) {
+              var portal = document.getElementById('railcard-portal');
+              if (!portal) {
+                portal = document.createElement('div');
+                portal.id = 'railcard-portal';
+                document.body.appendChild(portal);
               }
-              if (typeof window !== 'undefined' && window.clearMapHexHighlights) {
-                window.clearMapHexHighlights();
-              }
-            };
+              portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
 
-            var positionPortal = function(e, p) {
-              if (!p || p.style.display === 'none') return;
-              var marginX = 14;
-              var marginY = 14;
-              var rect = p.getBoundingClientRect();
-              var w = rect.width || 320;
-              var h = rect.height || 180;
-              var vw = window.innerWidth;
-              var vh = window.innerHeight;
+              var styleEl = document.createElement('style');
+              styleEl.innerHTML = '.short-railcard { background-color: #fee2e2 !important; color: #991b1b !important; } .ghost-short-card { opacity: 0.35 !important; border: 1.5px dotted #dc2626 !important; background-color: transparent !important; box-shadow: none !important; color: #dc2626 !important; } .ghost-short-card:hover { opacity: 0.85 !important; background-color: rgba(254, 226, 226, 0.35) !important; transform: translateY(-1px); }';
+              document.head.appendChild(styleEl);
 
-              var x = e.clientX + marginX;
-              var y = e.clientY + marginY;
+              window._railcard_portal_installed = true;
 
-              if (x + w > vw - 10) {
-                x = e.clientX - w - marginX;
-              }
-              if (x < 10) {
-                x = Math.max(10, vw - w - 10);
-              }
-
-              if (y + h > vh - 10) {
-                y = e.clientY - h - marginY;
-              }
-              if (y < 10) {
-                y = Math.max(10, vh - h - 10);
-              }
-
-              p.style.left = x + 'px';
-              p.style.top = y + 'px';
-              p.style.transform = 'none';
-            };
-
-            document.addEventListener('mouseover', function(e) {
-              var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
-              if (wrapper) {
-                var tt = wrapper.querySelector('.cmd-company-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .status-corp-tooltip');
-                if (tt) {
-                  var p = document.getElementById('railcard-portal');
-                  if (p) {
-                    p.innerHTML = tt.innerHTML;
-                    p.style.display = 'block';
-                    positionPortal(e, p);
-                  }
-                  var hexAttr = tt.getAttribute('data-hexes');
-                  if (hexAttr && typeof window !== 'undefined' && window.highlightMapHexes) {
-                    var hexList = hexAttr.split(',').filter(Boolean);
-                    if (hexList.length > 0) {
-                      window.highlightMapHexes(hexList);
-                    }
-                  }
+              var hidePortal = function() {
+                var p = document.getElementById('railcard-portal');
+                if (p && p.style.display !== 'none') {
+                  p.style.display = 'none';
+                  p.innerHTML = '';
                 }
-              } else {
-                hidePortal();
-              }
-            });
+                if (typeof window !== 'undefined' && window.clearMapHexHighlights) {
+                  window.clearMapHexHighlights();
+                }
+              };
 
-            document.addEventListener('mousemove', function(e) {
-              var p = document.getElementById('railcard-portal');
-              if (p && p.style.display !== 'none') {
+              var positionPortal = function(e, p) {
+                if (!p || p.style.display === 'none') return;
+                var marginX = 14;
+                var marginY = 14;
+                var rect = p.getBoundingClientRect();
+                var w = rect.width || 320;
+                var h = rect.height || 180;
+                var vw = window.innerWidth;
+                var vh = window.innerHeight;
+
+                var x = e.clientX + marginX;
+                var y = e.clientY + marginY;
+
+                if (x + w > vw - 10) {
+                  x = e.clientX - w - marginX;
+                }
+                if (x < 10) {
+                  x = Math.max(10, vw - w - 10);
+                }
+
+                if (y + h > vh - 10) {
+                  y = e.clientY - h - marginY;
+                }
+                if (y < 10) {
+                  y = Math.max(10, vh - h - 10);
+                }
+
+                p.style.left = x + 'px';
+                p.style.top = y + 'px';
+                p.style.transform = 'none';
+              };
+
+              document.addEventListener('mouseover', function(e) {
                 var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
                 if (wrapper) {
-                  positionPortal(e, p);
+                  var tt = wrapper.querySelector('.cmd-company-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .status-corp-tooltip');
+                  if (tt) {
+                    var p = document.getElementById('railcard-portal');
+                    if (p) {
+                      p.innerHTML = tt.innerHTML;
+                      p.style.display = 'block';
+                      positionPortal(e, p);
+                    }
+                    var hexAttr = tt.getAttribute('data-hexes');
+                    if (hexAttr && typeof window !== 'undefined' && window.highlightMapHexes) {
+                      var hexList = hexAttr.split(',').filter(Boolean);
+                      if (hexList.length > 0) {
+                        window.highlightMapHexes(hexList);
+                      }
+                    }
+                  }
                 } else {
                   hidePortal();
                 }
-              }
-            });
+              });
 
-            document.addEventListener('mouseout', function(e) {
-              var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
-              if (wrapper) {
-                var related = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
-                if (related !== wrapper) {
-                  hidePortal();
+              document.addEventListener('mousemove', function(e) {
+                var p = document.getElementById('railcard-portal');
+                if (p && p.style.display !== 'none') {
+                  var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
+                  if (wrapper) {
+                    positionPortal(e, p);
+                  } else {
+                    hidePortal();
+                  }
                 }
-              }
-            });
+              });
 
-            window.addEventListener('scroll', hidePortal, true);
-            window.addEventListener('click', hidePortal, true);
+              document.addEventListener('mouseout', function(e) {
+                var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
+                if (wrapper) {
+                  var related = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
+                  if (related !== wrapper) {
+                    hidePortal();
+                  }
+                }
+              });
+
+              window.addEventListener('scroll', hidePortal, true);
+              window.addEventListener('click', hidePortal, true);
+            }
+
+            if (!window._market_token_hover_installed) {
+              window._market_token_hover_installed = true;
+
+              var getCertCorp = function(el) {
+                if (!el || !el.closest) return null;
+
+                // Explicitly ignore non-certificate items such as trains, tokens, and cash
+                if (el.closest('.corporation-trains, .corporation-cash, .empty-train-slot, [id^="trains_"], [id^="tokens_"]')) {
+                  return null;
+                }
+
+                // Check explicit data-corp on target or closest wrapper (excluding tr)
+                var explicitCorpEl = el.closest('[data-corp]');
+                if (explicitCorpEl && !explicitCorpEl.matches('tr')) {
+                  var c = explicitCorpEl.getAttribute('data-corp');
+                  if (c && c !== '') return c;
+                }
+
+                // Check enclosing cell ID for player shares, pool, IPO, treasury, or major cards
+                var cell = el.closest('td[id], th[id]');
+                if (cell && cell.id) {
+                  var id = cell.id;
+                  if (id.indexOf('pool_shares_') === 0) return id.substring(12);
+                  if (id.indexOf('ipo_shares_') === 0) return id.substring(11);
+                  if (id.indexOf('treasury_shares_') === 0) return id.substring(16);
+                  if (id.indexOf('status_major_') === 0) return id.substring(13);
+                  if (id.indexOf('player_shares_') === 0) {
+                    var parts = id.split('_');
+                    return parts[parts.length - 1];
+                  }
+                }
+
+                // Check enclosing table row if hovered element is a certificate or major railcard
+                var row = el.closest('tr');
+                if (row && row.getAttribute('data-corp')) {
+                  if (el.closest('.share-card-wrapper, .game-card, .major-railcard, .short-card, .ghost-short-card, td.market-shares-col')) {
+                    return row.getAttribute('data-corp');
+                  }
+                }
+
+                return null;
+              };
+
+              document.addEventListener('mouseover', function(e) {
+                var corpId = getCertCorp(e.target);
+                if (corpId) {
+                  if (window.highlightStockMarketToken) {
+                    window.highlightStockMarketToken(corpId);
+                  }
+                } else if (!e.target.closest || !e.target.closest('.stock-market-token')) {
+                  if (window.clearStockMarketTokenHighlight) {
+                    window.clearStockMarketTokenHighlight();
+                  }
+                }
+              });
+
+              document.addEventListener('mouseout', function(e) {
+                var fromCorp = getCertCorp(e.target);
+                if (fromCorp) {
+                  var toCorp = getCertCorp(e.relatedTarget);
+                  if (toCorp !== fromCorp && window.clearStockMarketTokenHighlight) {
+                    window.clearStockMarketTokenHighlight();
+                  }
+                }
+              });
+
+              window.addEventListener('scroll', function() {
+                if (window.clearStockMarketTokenHighlight) window.clearStockMarketTokenHighlight();
+              }, true);
+              window.addEventListener('click', function() {
+                if (window.clearStockMarketTokenHighlight) window.clearStockMarketTokenHighlight();
+              }, true);
+            }
           }
           )
           resolved_entity = entity
@@ -915,12 +1004,10 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
           has_dropdown = !dropdown_items.empty?
 
           is_train = classes.include?('card-train') || wrapper_id.to_s.include?('train')
-          # // --- START FIX ---
           if is_train && !classes.include?('card-train')
             classes << 'card-train'
             classes_str = classes.join(' ')
           end
-          # // --- END FIX ---
 
           style_props = {
             minWidth: '3.2rem',
@@ -945,25 +1032,22 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
             attrs: { class: classes_str },
             style: style_props,
           }
-          # // --- START FIX ---
           card_props[:attrs][:id] = clean_wrapper_id if has_wrapper_id
-          # // --- END FIX ---
           card_props[:on] = { click: click_handler } if is_clickable
 
-          # // --- DELETE ---
-          # needs_wrapper = has_tooltip || has_dropdown || has_wrapper_id || has_wrapper_classes
-          # // --- START FIX ---
+          corp_id_str = nil
+          if resolved_entity && ((resolved_entity.respond_to?(:corporation?) && resolved_entity.corporation?) || (resolved_entity.respond_to?(:minor?) && resolved_entity.minor?))
+            corp_id_str = resolved_entity.id.to_s
+            card_props[:attrs]['data-corp'] = corp_id_str
+          end
+
           needs_wrapper = has_tooltip || has_dropdown || (!is_train && has_wrapper_id) || has_wrapper_classes
-          # // --- END FIX ---
 
           if needs_wrapper
             w_attrs = {}
-            # // --- DELETE ---
-            # w_attrs[:id] = clean_wrapper_id if has_wrapper_id
-            # // --- START FIX ---
             w_attrs[:id] = clean_wrapper_id if has_wrapper_id && !is_train
-            # // --- END FIX ---
             w_attrs[:class] = clean_wrapper_classes if has_wrapper_classes
+            w_attrs['data-corp'] = corp_id_str if corp_id_str
 
             children = []
             children << tooltip if has_tooltip
@@ -1000,6 +1084,9 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
             attrs: {
               class: classes.join(' '),
               title: "Sell Short #{corporation.name} (−#{share_percent}%)",
+              # --- START FIX ---
+              'data-corp': corporation.id,
+              # --- END FIX ---
             },
             style: {
               minWidth: '3.5rem',
@@ -1032,7 +1119,11 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
           return card if !wrapper_id && dropdown_items.empty?
 
           h(:div, {
-              attrs: { id: wrapper_id, class: 'ghost-short-card-wrapper' },
+              # --- DELETE ---
+              # attrs: { id: wrapper_id, class: 'ghost-short-card-wrapper' },
+              # --- START FIX ---
+              attrs: { id: wrapper_id, class: 'ghost-short-card-wrapper', 'data-corp': corporation.id },
+              # --- END FIX ---
               style: {
                 display: 'inline-flex',
                 position: 'relative',
@@ -1042,6 +1133,7 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
               },
             }, [card, *dropdown_items])
         end
+
         alias render_ghost_short_card render_ghost_short_railcard
       end
     end
