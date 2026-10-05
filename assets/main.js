@@ -55554,6 +55554,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           };
           tr_props['$[]=']("key", corporation.$id());
           tr_props['$[]=']("hook", $$$($$('Lib'), 'RowAnimation').$hook(corporation.$id()));
+          tr_props['$[]']("attrs")['$[]=']("data-corp", corporation.$id());
           row_classes = [];
           president_sold = (($truthy(corporation['$respond_to?']("owner")) && ($truthy(corporation.$owner()))) || (false));
           president_available = (($truthy(corporation['$respond_to?']("minor?")) && ($truthy(corporation['$minor?']()))) ? (president_sold['$!']()) : ($truthy(corporation['$respond_to?']("available?")) ? (corporation['$available?']()) : ($truthy(self.game['$respond_to?']("corporation_available?")) ? (self.game['$corporation_available?'](corporation)) : (true))));
@@ -55650,7 +55651,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
               };
               card = self.$render_railcard("" + (treasury_percent) + "%", classes, click_handler, nil, dropdowns);
               treasury_hover = self.$share_denomination_tooltip(t_shares, corporation);
-              treasury_cards['$<<'](self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper"], ["title", treasury_hover]]))]])), [card]));
+              treasury_cards['$<<'](self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper cert-share-card"], ["data-corp", corporation.$id()], ["title", treasury_hover]]))]])), [card]));
             };
             treasury['$<<'](self.$h("td.column-zone-corporate", (new Map([["attrs", (new Map([["id", "treasury_shares_" + (corporation.$id())]]))], ["style", (new Map([["textAlign", "center"], ["minWidth", "3.5rem"], ["position", "relative"]]))]])), treasury_cards));
           };
@@ -55803,7 +55804,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
                 return self.$exec_buy_shares(source_selector, self.$active_player(), bnd, corporation.$id());}, {$$s: self})))
             };
             if ($truthy(corporation['$minor?']())) {
-              return players_row_content['$<<'](($eqeq(corporation.$owner(), p) ? (((card_classes = ["game-card", "president-card"]), ($truthy(can_sell) ? (card_classes['$<<']("action-sell")) : nil), ($truthy(can_buy_from_player) ? (card_classes['$<<']("action-buy")) : nil), ($truthy(click_handler) ? (card_classes['$<<']("clickable")) : nil), (card_props = (new Map([["attrs", (new Map([["class", card_classes.$join(" ")]]))]]))), ($truthy(click_handler) ? (($c = ["on", (new Map([["click", click_handler]]))], $send(card_props, '[]=', $c), $c[$c.length - 1])) : nil), (star_marker = self.$h("span", (new Map([["attrs", (new Map([["class", "director-star"]]))], ["style", (new Map([["position", "absolute"], ["top", "-4px"], ["right", "-4px"], ["width", "13px"], ["height", "13px"], ["backgroundColor", "#d97706"], ["color", "#ffffff"], ["fontSize", "0.62rem"], ["lineHeight", "13px"], ["textAlign", "center"], ["borderRadius", "50%"], ["boxShadow", "0 1px 2px rgba(0,0,0,0.3)"], ["pointerEvents", "none"], ["zIndex", "2"]]))]])), "★")), (minor_card = self.$h("div", card_props, "100%")), (minor_hover = self.$share_denomination_tooltip(player_shares, corporation)), (wrapped_minor = self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper"], ["title", minor_hover]]))]])), [minor_card, star_marker])), self.$h("td", (new Map([["style", (new Map([["backgroundColor", bg_color], ["textAlign", "center"]]))]])), [wrapped_minor]))) : (self.$h("td", (new Map([["style", (new Map([["backgroundColor", bg_color]]))]])), ""))))
+              return players_row_content['$<<'](($eqeq(corporation.$owner(), p) ? (((card_classes = ["game-card", "president-card"]), ($truthy(can_sell) ? (card_classes['$<<']("action-sell")) : nil), ($truthy(can_buy_from_player) ? (card_classes['$<<']("action-buy")) : nil), ($truthy(click_handler) ? (card_classes['$<<']("clickable")) : nil), (card_props = (new Map([["attrs", (new Map([["class", card_classes.$join(" ")]]))]]))), ($truthy(click_handler) ? (($c = ["on", (new Map([["click", click_handler]]))], $send(card_props, '[]=', $c), $c[$c.length - 1])) : nil), (star_marker = self.$h("span", (new Map([["attrs", (new Map([["class", "director-star"]]))], ["style", (new Map([["position", "absolute"], ["top", "-4px"], ["right", "-4px"], ["width", "13px"], ["height", "13px"], ["backgroundColor", "#d97706"], ["color", "#ffffff"], ["fontSize", "0.62rem"], ["lineHeight", "13px"], ["textAlign", "center"], ["borderRadius", "50%"], ["boxShadow", "0 1px 2px rgba(0,0,0,0.3)"], ["pointerEvents", "none"], ["zIndex", "2"]]))]])), "★")), (minor_card = self.$h("div", card_props, "100%")), (minor_hover = self.$share_denomination_tooltip(player_shares, corporation)), (wrapped_minor = self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper cert-share-card"], ["data-corp", corporation.$id()], ["title", minor_hover]]))]])), [minor_card, star_marker])), self.$h("td", (new Map([["style", (new Map([["backgroundColor", bg_color], ["textAlign", "center"]]))]])), [wrapped_minor]))) : (self.$h("td", (new Map([["style", (new Map([["backgroundColor", bg_color]]))]])), ""))))
             } else {
               
               raw_percent = ($truthy(p['$respond_to?']("percent_of")) ? (($truthy(($ret_or_1 = p.$percent_of(corporation))) ? ($ret_or_1) : (0))) : (0));
@@ -56017,7 +56018,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
                   };
                   card = self.$render_railcard(text, card_classes, click_handler, nil, dropdowns);
                   player_hover = ($truthy(n_shares['$zero?']()) ? ("") : (self.$share_denomination_tooltip(player_shares, corporation)));
-                  card = self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper"], ["title", player_hover]]))]])), [card]);
+                  card = self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper cert-share-card"], ["data-corp", corporation.$id()], ["title", player_hover]]))]])), [card]);
                   if ($truthy(n_shares['$zero?']())) {
                     card = self.$h("span", (new Map([["style", (new Map([["visibility", "hidden"], ["display", "inline-block"]]))]])), [card])
                   };
@@ -56236,7 +56237,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             };
             pool_card = self.$render_railcard(pool_share_text, classes, pool_click_handler, nil, dropdowns);
             pool_hover = self.$share_denomination_tooltip(pool_shares, corporation);
-            pool_cell_children['$<<'](self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper"], ["title", pool_hover]]))]])), [pool_card]));
+            pool_cell_children['$<<'](self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper cert-share-card"], ["data-corp", corporation.$id()], ["title", pool_hover]]))]])), [pool_card]));
           };
           ipo_actual_shares = ($truthy(corporation['$minor?']()) ? ([]) : (($truthy(corporation['$respond_to?']("ipo_shares")) && ($truthy(corporation.$ipo_shares()))) ? (corporation.$ipo_shares()) : ($truthy(self.game['$separate_treasury?']()) ? (self.game.$bank().$shares_of(corporation)) : ($truthy(corporation['$respond_to?']("shares_of")) ? (corporation.$shares_of(corporation)) : ([])))));
           base_share_pct = (($truthy(corporation['$respond_to?']("share_percent")) && ($truthy(corporation.$share_percent()))) ? (corporation.$share_percent()) : (10));
@@ -56477,7 +56478,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             };
             ipo_card = self.$render_railcard(ipo_share_text, card_classes, ipo_click_handler, nil, dropdowns);
             ipo_hover = self.$share_denomination_tooltip(ipo_actual_shares, corporation);
-            ipo_cell_children['$<<'](self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper"], ["title", ipo_hover]]))]])), [ipo_card]));
+            ipo_cell_children['$<<'](self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper cert-share-card"], ["data-corp", corporation.$id()], ["title", ipo_hover]]))]])), [ipo_card]));
           };
           border_style = "1px solid " + (self.$color_for("font2"));
           market_style = (new Map());
@@ -60595,10 +60596,47 @@ Opal.modules["view/game/dashboard/dashboard_stock_market"] = function(Opal) {/* 
           return self.$h("div#legend", legend_props, legend_items);
         });
         return $def(self, '$render', function $$render() {
-          var self = this, grid = nil, zigzag = nil, grid_props = nil, grid_elm = nil, legend_elm = nil, container_props = nil;
+          var self = this, market_highlight_css = nil, grid = nil, zigzag = nil, grid_props = nil, grid_elm = nil, legend_elm = nil, container_props = nil;
 
           
           $$('StockMarketAnimation').$capture_pre_render();
+          market_highlight_css = "@keyframes stock-marker-pulse {\n" + "  0% {\n" + "    transform: scale(1);\n" + "  }\n" + "  50% {\n" + "    transform: scale(2.0);\n" + "  }\n" + "  100% {\n" + "    transform: scale(1);\n" + "  }\n" + "}\n" + "\n" + ".stock-market-token-highlight {\n" + "  animation: stock-marker-pulse 0.65s infinite ease-in-out !important;\n" + "  transform-origin: center center !important;\n" + "  transform-box: fill-box !important;\n" + "  z-index: 999999 !important;\n" + "  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 2px #ffffff) !important;\n" + "}\n" + "\n" + ":has(> .stock-market-token-highlight),\n" + ":has(.stock-market-token-highlight) {\n" + "  z-index: 99999 !important;\n" + "}\n";
+          
+          if (typeof window !== 'undefined') {
+            window.highlightStockMarketToken = function(corpId) {
+              if (!corpId) return;
+              if (window._highlightedMarketCorp === corpId) return;
+              window.clearStockMarketTokenHighlight();
+              window._highlightedMarketCorp = corpId;
+
+              var allTokens = document.querySelectorAll('.stock-market-token');
+              for (var i = 0; i < allTokens.length; i++) {
+                var t = allTokens[i];
+                var tCorp = t.getAttribute('data-corp');
+                if (tCorp === corpId || t.id === 'stock-token-' + corpId) {
+                  t.classList.add('stock-market-token-highlight');
+                  var cell = t.closest('div');
+                  if (cell) {
+                    cell.style.zIndex = '99999';
+                    window._elevatedMarketCell = cell;
+                  }
+                }
+              }
+            };
+
+            window.clearStockMarketTokenHighlight = function() {
+              window._highlightedMarketCorp = null;
+              if (window._elevatedMarketCell) {
+                window._elevatedMarketCell.style.zIndex = '';
+                window._elevatedMarketCell = null;
+              }
+              var highlighted = document.querySelectorAll('.stock-market-token-highlight');
+              for (var i = 0; i < highlighted.length; i++) {
+                highlighted[i].classList.remove('stock-market-token-highlight');
+              }
+            };
+          }
+        ;
           self.space_style_2d = (new Map([["position", "relative"], ["display", "inline-block"], ["padding", "" + ($$('PAD')) + "px"], ["width", "" + ($rb_minus($rb_minus($$('WIDTH_TOTAL'), $rb_times(2, $$('PAD'))), $rb_times(2, $$('BORDER')))) + "px"], ["height", "" + ($rb_minus($rb_minus($$('HEIGHT_TOTAL'), $rb_times(2, $$('PAD'))), $rb_times(2, $$('BORDER')))) + "px"], ["border", "solid " + ($$('BORDER')) + "px rgba(0,0,0,0)"], ["margin", "0"], ["verticalAlign", "top"]]));
           self.box_style_2d = self.space_style_2d.$merge((new Map([["border", "solid " + ($$('BORDER')) + "px rgba(0,0,0,0.2)"], ["color", self.$color_for("font2")]])));
           grid = ($truthy(self.game.$stock_market()['$hex_market?']()) ? (self.$grid_hex()) : ($truthy(self.game.$stock_market()['$one_d?']()) ? (($not((zigzag = self.game.$stock_market().$zigzag())['$nil?']()) ? (self.$grid_zigzag(zigzag)) : (self.$grid_1d()))) : (self.$grid_2d())));
@@ -60607,7 +60645,7 @@ Opal.modules["view/game/dashboard/dashboard_stock_market"] = function(Opal) {/* 
           legend_elm = self.$render_legend();
           $$('StockMarketAnimation').$animate_movements();
           container_props = (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["alignItems", "flex-start"], ["width", "max-content"]]))]]));
-          return self.$h("div", container_props, [grid_elm, legend_elm].$compact());
+          return self.$h("div", container_props, [self.$h("style", market_highlight_css), grid_elm, legend_elm].$compact());
         });
       })($nesting[0], $$$($$('Snabberb'), 'Component'), $nesting);
       return $const_set($nesting[0], 'DashboardStockMarket', $$('DashboardStock'));
@@ -66171,11 +66209,11 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             is_buy = classes['$include?']("action-buy");
             is_sell = classes['$include?']("action-sell");
             edge_color = ($truthy(is_buy) ? ("#16a34a") : ($truthy(is_sell) ? ("#dc2626") : ("#333333")));
-            card_props = (new Map([["attrs", (new Map([["class", classes.$join(" ")], ["title", ($truthy(corporation['$respond_to?']("name")) ? (corporation.$name().$to_s()) : (text))]]))], ["style", (new Map([["minWidth", "3.2rem"], ["height", "1.45rem"], ["padding", "0 5px"], ["margin", "0"], ["boxSizing", "border-box"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["borderRadius", "0"], ["fontSize", "0.85rem"], ["fontFamily", "\"Helvetica Neue\", Helvetica, Arial, sans-serif"], ["fontWeight", "800"], ["lineHeight", "1"], ["letterSpacing", "0"], ["color", text_color], ["backgroundColor", bg_color], ["border", "2px solid " + (edge_color)], ["boxShadow", (($truthy(is_buy) || ($truthy(is_sell))) ? ("0 0 0 1px " + (edge_color)) : ("none"))], ["cursor", ($truthy(click_handler) ? ("pointer") : ("help"))], ["whiteSpace", "nowrap"]]))]]));
+            card_props = (new Map([["attrs", (new Map([["class", classes.$join(" ")], ["title", ($truthy(corporation['$respond_to?']("name")) ? (corporation.$name().$to_s()) : (text))], ["data-corp", corporation.$id()]]))], ["style", (new Map([["minWidth", "3.2rem"], ["height", "1.45rem"], ["padding", "0 5px"], ["margin", "0"], ["boxSizing", "border-box"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["borderRadius", "0"], ["fontSize", "0.85rem"], ["fontFamily", "\"Helvetica Neue\", Helvetica, Arial, sans-serif"], ["fontWeight", "800"], ["lineHeight", "1"], ["letterSpacing", "0"], ["color", text_color], ["backgroundColor", bg_color], ["border", "2px solid " + (edge_color)], ["boxShadow", (($truthy(is_buy) || ($truthy(is_sell))) ? ("0 0 0 1px " + (edge_color)) : ("none"))], ["cursor", ($truthy(click_handler) ? ("pointer") : ("help"))], ["whiteSpace", "nowrap"]]))]]));
             if ($truthy(click_handler)) {
               card_props['$[]=']("on", (new Map([["click", click_handler]])))
             };
-            wrapper_attrs = (new Map([["class", "major-railcard-wrapper status-corp-wrapper cmd-corp-wrapper"]]));
+            wrapper_attrs = (new Map([["class", "major-railcard-wrapper status-corp-wrapper cmd-corp-wrapper"], ["data-corp", corporation.$id()]]));
             if (($truthy(wrapper_id) && ($not(wrapper_id.$to_s()['$empty?']())))) {
               wrapper_attrs['$[]=']("id", wrapper_id)
             };
@@ -66225,7 +66263,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             border_color = ($truthy(is_buy) ? ("#16a34a") : ($truthy(is_sell) ? ("#dc2626") : ($truthy(click_handler) ? ("#dc2626") : ("#f87171"))));
             box_shadow = ($truthy(is_buy) ? ("0 0 0 1px #16a34a") : (($truthy(is_sell) || (($truthy(click_handler) && ($truthy(is_sell))))) ? ("0 0 0 1px #dc2626") : ("none")));
             corp_label = ($truthy(corporation['$respond_to?']("name")) ? (corporation.$name().$to_s()) : (corporation.$id().$to_s()));
-            card_props = (new Map([["attrs", (new Map([["class", classes.$join(" ")], ["title", "" + (corp_label) + " Short Liability: −" + (short_percent) + "%"]]))], ["style", (new Map([["minWidth", "3.5rem"], ["height", "1.45rem"], ["padding", "0 6px"], ["margin", "2px"], ["boxSizing", "border-box"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["borderRadius", "4px"], ["fontSize", "0.85rem"], ["fontFamily", "\"Helvetica Neue\", Helvetica, Arial, sans-serif"], ["fontWeight", "bold"], ["lineHeight", "1"], ["color", "#991b1b"], ["backgroundColor", "#fee2e2"], ["border", "2px solid " + (border_color)], ["boxShadow", box_shadow], ["cursor", ($truthy(click_handler) ? ("pointer") : ("default"))], ["whiteSpace", "nowrap"]]))]]));
+            card_props = (new Map([["attrs", (new Map([["class", classes.$join(" ")], ["title", "" + (corp_label) + " Short Liability: −" + (short_percent) + "%"], ["data-corp", corporation.$id()]]))], ["style", (new Map([["minWidth", "3.5rem"], ["height", "1.45rem"], ["padding", "0 6px"], ["margin", "2px"], ["boxSizing", "border-box"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["borderRadius", "4px"], ["fontSize", "0.85rem"], ["fontFamily", "\"Helvetica Neue\", Helvetica, Arial, sans-serif"], ["fontWeight", "bold"], ["lineHeight", "1"], ["color", "#991b1b"], ["backgroundColor", "#fee2e2"], ["border", "2px solid " + (border_color)], ["boxShadow", box_shadow], ["cursor", ($truthy(click_handler) ? ("pointer") : ("default"))], ["whiteSpace", "nowrap"]]))]]));
             if ($truthy(click_handler)) {
               card_props['$[]=']("on", (new Map([["click", click_handler]])))
             };
@@ -66234,7 +66272,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             if (($not(wrapper_id) && ($truthy(dropdown_items['$empty?']())))) {
               return card
             };
-            wrapper_attrs = (new Map([["class", "short-railcard-wrapper"]]));
+            wrapper_attrs = (new Map([["class", "short-railcard-wrapper"], ["data-corp", corporation.$id()]]));
             if (($truthy(wrapper_id) && ($not(wrapper_id.$to_s()['$empty?']())))) {
               wrapper_attrs['$[]=']("id", wrapper_id)
             };
@@ -66259,7 +66297,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
           });
           
           $def(self, '$render_railcard', function $$render_railcard(text, $a, $b, $c, $d, $e, $f, $g) {
-            var $post_args, $kwargs, card_classes, click_handler, tooltip, dropdown, wrapper_id, wrapper_classes, entity, self = this, classes = nil, classes_str = nil, is_buy = nil, is_sell = nil, is_clickable = nil, border_color = nil, bg_color = nil, resolved_entity = nil, t_str = nil, first_part = nil, t_clean = nil, $ret_or_1 = nil, $ret_or_2 = nil, target_hexes = nil, hover_events = nil, has_tooltip = nil, valid_classes = nil, c_str = nil, has_wrapper_classes = nil, clean_wrapper_classes = nil, has_wrapper_id = nil, clean_wrapper_id = nil, dropdown_items = nil, has_dropdown = nil, is_train = nil, style_props = nil, card_props = nil, needs_wrapper = nil, $ret_or_3 = nil, w_attrs = nil, children = nil;
+            var $post_args, $kwargs, card_classes, click_handler, tooltip, dropdown, wrapper_id, wrapper_classes, entity, self = this, classes = nil, classes_str = nil, is_buy = nil, is_sell = nil, is_clickable = nil, border_color = nil, bg_color = nil, resolved_entity = nil, t_str = nil, first_part = nil, t_clean = nil, $ret_or_1 = nil, $ret_or_2 = nil, target_hexes = nil, hover_events = nil, has_tooltip = nil, valid_classes = nil, c_str = nil, has_wrapper_classes = nil, clean_wrapper_classes = nil, has_wrapper_id = nil, clean_wrapper_id = nil, dropdown_items = nil, has_dropdown = nil, is_train = nil, style_props = nil, card_props = nil, corp_id_str = nil, needs_wrapper = nil, $ret_or_3 = nil, w_attrs = nil, children = nil;
             if (self.game == null) self.game = nil;
 
             
@@ -66298,112 +66336,188 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             border_color = ($truthy(is_buy) ? ("#16a34a") : ($truthy(is_sell) ? ("#dc2626") : ("#888888")));
             bg_color = ($truthy(is_buy) ? ("#e6f4ea") : ($truthy(is_sell) ? ("#fef2f2") : ("#fdfbf7")));
             
-          if (typeof window !== 'undefined' && !window._railcard_portal_installed) {
-            var portal = document.getElementById('railcard-portal');
-            if (!portal) {
-              portal = document.createElement('div');
-              portal.id = 'railcard-portal';
-              document.body.appendChild(portal);
-            }
-portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
-
-            var styleEl = document.createElement('style');
-            styleEl.innerHTML = '.short-railcard { background-color: #fee2e2 !important; color: #991b1b !important; } .ghost-short-card { opacity: 0.35 !important; border: 1.5px dotted #dc2626 !important; background-color: transparent !important; box-shadow: none !important; color: #dc2626 !important; } .ghost-short-card:hover { opacity: 0.85 !important; background-color: rgba(254, 226, 226, 0.35) !important; transform: translateY(-1px); }';
-            document.head.appendChild(styleEl);
-
-            window._railcard_portal_installed = true;
-
-            var hidePortal = function() {
-              var p = document.getElementById('railcard-portal');
-              if (p && p.style.display !== 'none') {
-                p.style.display = 'none';
-                p.innerHTML = '';
+          if (typeof window !== 'undefined') {
+            if (!window._railcard_portal_installed) {
+              var portal = document.getElementById('railcard-portal');
+              if (!portal) {
+                portal = document.createElement('div');
+                portal.id = 'railcard-portal';
+                document.body.appendChild(portal);
               }
-              if (typeof window !== 'undefined' && window.clearMapHexHighlights) {
-                window.clearMapHexHighlights();
-              }
-            };
+              portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
 
-            var positionPortal = function(e, p) {
-              if (!p || p.style.display === 'none') return;
-              var marginX = 14;
-              var marginY = 14;
-              var rect = p.getBoundingClientRect();
-              var w = rect.width || 320;
-              var h = rect.height || 180;
-              var vw = window.innerWidth;
-              var vh = window.innerHeight;
+              var styleEl = document.createElement('style');
+              styleEl.innerHTML = '.short-railcard { background-color: #fee2e2 !important; color: #991b1b !important; } .ghost-short-card { opacity: 0.35 !important; border: 1.5px dotted #dc2626 !important; background-color: transparent !important; box-shadow: none !important; color: #dc2626 !important; } .ghost-short-card:hover { opacity: 0.85 !important; background-color: rgba(254, 226, 226, 0.35) !important; transform: translateY(-1px); }';
+              document.head.appendChild(styleEl);
 
-              var x = e.clientX + marginX;
-              var y = e.clientY + marginY;
+              window._railcard_portal_installed = true;
 
-              if (x + w > vw - 10) {
-                x = e.clientX - w - marginX;
-              }
-              if (x < 10) {
-                x = Math.max(10, vw - w - 10);
-              }
-
-              if (y + h > vh - 10) {
-                y = e.clientY - h - marginY;
-              }
-              if (y < 10) {
-                y = Math.max(10, vh - h - 10);
-              }
-
-              p.style.left = x + 'px';
-              p.style.top = y + 'px';
-              p.style.transform = 'none';
-            };
-
-            document.addEventListener('mouseover', function(e) {
-              var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
-              if (wrapper) {
-                var tt = wrapper.querySelector('.cmd-company-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .status-corp-tooltip');
-                if (tt) {
-                  var p = document.getElementById('railcard-portal');
-                  if (p) {
-                    p.innerHTML = tt.innerHTML;
-                    p.style.display = 'block';
-                    positionPortal(e, p);
-                  }
-                  var hexAttr = tt.getAttribute('data-hexes');
-                  if (hexAttr && typeof window !== 'undefined' && window.highlightMapHexes) {
-                    var hexList = hexAttr.split(',').filter(Boolean);
-                    if (hexList.length > 0) {
-                      window.highlightMapHexes(hexList);
-                    }
-                  }
+              var hidePortal = function() {
+                var p = document.getElementById('railcard-portal');
+                if (p && p.style.display !== 'none') {
+                  p.style.display = 'none';
+                  p.innerHTML = '';
                 }
-              } else {
-                hidePortal();
-              }
-            });
+                if (typeof window !== 'undefined' && window.clearMapHexHighlights) {
+                  window.clearMapHexHighlights();
+                }
+              };
 
-            document.addEventListener('mousemove', function(e) {
-              var p = document.getElementById('railcard-portal');
-              if (p && p.style.display !== 'none') {
+              var positionPortal = function(e, p) {
+                if (!p || p.style.display === 'none') return;
+                var marginX = 14;
+                var marginY = 14;
+                var rect = p.getBoundingClientRect();
+                var w = rect.width || 320;
+                var h = rect.height || 180;
+                var vw = window.innerWidth;
+                var vh = window.innerHeight;
+
+                var x = e.clientX + marginX;
+                var y = e.clientY + marginY;
+
+                if (x + w > vw - 10) {
+                  x = e.clientX - w - marginX;
+                }
+                if (x < 10) {
+                  x = Math.max(10, vw - w - 10);
+                }
+
+                if (y + h > vh - 10) {
+                  y = e.clientY - h - marginY;
+                }
+                if (y < 10) {
+                  y = Math.max(10, vh - h - 10);
+                }
+
+                p.style.left = x + 'px';
+                p.style.top = y + 'px';
+                p.style.transform = 'none';
+              };
+
+              document.addEventListener('mouseover', function(e) {
                 var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
                 if (wrapper) {
-                  positionPortal(e, p);
+                  var tt = wrapper.querySelector('.cmd-company-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .status-corp-tooltip');
+                  if (tt) {
+                    var p = document.getElementById('railcard-portal');
+                    if (p) {
+                      p.innerHTML = tt.innerHTML;
+                      p.style.display = 'block';
+                      positionPortal(e, p);
+                    }
+                    var hexAttr = tt.getAttribute('data-hexes');
+                    if (hexAttr && typeof window !== 'undefined' && window.highlightMapHexes) {
+                      var hexList = hexAttr.split(',').filter(Boolean);
+                      if (hexList.length > 0) {
+                        window.highlightMapHexes(hexList);
+                      }
+                    }
+                  }
                 } else {
                   hidePortal();
                 }
-              }
-            });
+              });
 
-            document.addEventListener('mouseout', function(e) {
-              var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
-              if (wrapper) {
-                var related = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
-                if (related !== wrapper) {
-                  hidePortal();
+              document.addEventListener('mousemove', function(e) {
+                var p = document.getElementById('railcard-portal');
+                if (p && p.style.display !== 'none') {
+                  var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
+                  if (wrapper) {
+                    positionPortal(e, p);
+                  } else {
+                    hidePortal();
+                  }
                 }
-              }
-            });
+              });
 
-            window.addEventListener('scroll', hidePortal, true);
-            window.addEventListener('click', hidePortal, true);
+              document.addEventListener('mouseout', function(e) {
+                var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
+                if (wrapper) {
+                  var related = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
+                  if (related !== wrapper) {
+                    hidePortal();
+                  }
+                }
+              });
+
+              window.addEventListener('scroll', hidePortal, true);
+              window.addEventListener('click', hidePortal, true);
+            }
+
+            if (!window._market_token_hover_installed) {
+              window._market_token_hover_installed = true;
+
+              var getCertCorp = function(el) {
+                if (!el || !el.closest) return null;
+
+                // Explicitly ignore non-certificate items such as trains, tokens, and cash
+                if (el.closest('.corporation-trains, .corporation-cash, .empty-train-slot, [id^="trains_"], [id^="tokens_"]')) {
+                  return null;
+                }
+
+                // Check explicit data-corp on target or closest wrapper (excluding tr)
+                var explicitCorpEl = el.closest('[data-corp]');
+                if (explicitCorpEl && !explicitCorpEl.matches('tr')) {
+                  var c = explicitCorpEl.getAttribute('data-corp');
+                  if (c && c !== '') return c;
+                }
+
+                // Check enclosing cell ID for player shares, pool, IPO, treasury, or major cards
+                var cell = el.closest('td[id], th[id]');
+                if (cell && cell.id) {
+                  var id = cell.id;
+                  if (id.indexOf('pool_shares_') === 0) return id.substring(12);
+                  if (id.indexOf('ipo_shares_') === 0) return id.substring(11);
+                  if (id.indexOf('treasury_shares_') === 0) return id.substring(16);
+                  if (id.indexOf('status_major_') === 0) return id.substring(13);
+                  if (id.indexOf('player_shares_') === 0) {
+                    var parts = id.split('_');
+                    return parts[parts.length - 1];
+                  }
+                }
+
+                // Check enclosing table row if hovered element is a certificate or major railcard
+                var row = el.closest('tr');
+                if (row && row.getAttribute('data-corp')) {
+                  if (el.closest('.share-card-wrapper, .game-card, .major-railcard, .short-card, .ghost-short-card, td.market-shares-col')) {
+                    return row.getAttribute('data-corp');
+                  }
+                }
+
+                return null;
+              };
+
+              document.addEventListener('mouseover', function(e) {
+                var corpId = getCertCorp(e.target);
+                if (corpId) {
+                  if (window.highlightStockMarketToken) {
+                    window.highlightStockMarketToken(corpId);
+                  }
+                } else if (!e.target.closest || !e.target.closest('.stock-market-token')) {
+                  if (window.clearStockMarketTokenHighlight) {
+                    window.clearStockMarketTokenHighlight();
+                  }
+                }
+              });
+
+              document.addEventListener('mouseout', function(e) {
+                var fromCorp = getCertCorp(e.target);
+                if (fromCorp) {
+                  var toCorp = getCertCorp(e.relatedTarget);
+                  if (toCorp !== fromCorp && window.clearStockMarketTokenHighlight) {
+                    window.clearStockMarketTokenHighlight();
+                  }
+                }
+              });
+
+              window.addEventListener('scroll', function() {
+                if (window.clearStockMarketTokenHighlight) window.clearStockMarketTokenHighlight();
+              }, true);
+              window.addEventListener('click', function() {
+                if (window.clearStockMarketTokenHighlight) window.clearStockMarketTokenHighlight();
+              }, true);
+            }
           }
           ;
             resolved_entity = entity;
@@ -66520,6 +66634,12 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
             if ($truthy(is_clickable)) {
               card_props['$[]=']("on", (new Map([["click", click_handler]])))
             };
+            corp_id_str = nil;
+            if (($truthy(resolved_entity) && ((($truthy(resolved_entity['$respond_to?']("corporation?")) && ($truthy(resolved_entity['$corporation?']()))) || (($truthy(resolved_entity['$respond_to?']("minor?")) && ($truthy(resolved_entity['$minor?']())))))))) {
+              
+              corp_id_str = resolved_entity.$id().$to_s();
+              card_props['$[]']("attrs")['$[]=']("data-corp", corp_id_str);
+            };
             needs_wrapper = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = has_tooltip)) ? ($ret_or_3) : (has_dropdown)))) ? ($ret_or_2) : (($truthy(($ret_or_3 = is_train['$!']())) ? (has_wrapper_id) : ($ret_or_3)))))) ? ($ret_or_1) : (has_wrapper_classes));
             if ($truthy(needs_wrapper)) {
               
@@ -66529,6 +66649,9 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
               };
               if ($truthy(has_wrapper_classes)) {
                 w_attrs['$[]=']("class", clean_wrapper_classes)
+              };
+              if ($truthy(corp_id_str)) {
+                w_attrs['$[]=']("data-corp", corp_id_str)
               };
               children = [];
               if ($truthy(has_tooltip)) {
@@ -66572,7 +66695,7 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
             if ($truthy(click_handler)) {
               classes['$<<']("clickable")
             };
-            card_props = (new Map([["attrs", (new Map([["class", classes.$join(" ")], ["title", "Sell Short " + (corporation.$name()) + " (−" + (share_percent) + "%)"]]))], ["style", (new Map([["minWidth", "3.5rem"], ["height", "1.45rem"], ["padding", "0 6px"], ["margin", "2px"], ["boxSizing", "border-box"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["borderRadius", "4px"], ["fontSize", "0.85rem"], ["fontFamily", "\"Helvetica Neue\", Helvetica, Arial, sans-serif"], ["fontWeight", "bold"], ["lineHeight", "1"], ["color", "#dc2626"], ["backgroundColor", "transparent"], ["border", "1.5px dotted #dc2626"], ["boxShadow", "none"], ["cursor", ($truthy(click_handler) ? ("pointer") : ("default"))], ["whiteSpace", "nowrap"], ["opacity", "0.35"], ["transition", "opacity 0.15s ease, background-color 0.15s ease, transform 0.15s ease"]]))]]));
+            card_props = (new Map([["attrs", (new Map([["class", classes.$join(" ")], ["title", "Sell Short " + (corporation.$name()) + " (−" + (share_percent) + "%)"], ["data-corp", corporation.$id()]]))], ["style", (new Map([["minWidth", "3.5rem"], ["height", "1.45rem"], ["padding", "0 6px"], ["margin", "2px"], ["boxSizing", "border-box"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["borderRadius", "4px"], ["fontSize", "0.85rem"], ["fontFamily", "\"Helvetica Neue\", Helvetica, Arial, sans-serif"], ["fontWeight", "bold"], ["lineHeight", "1"], ["color", "#dc2626"], ["backgroundColor", "transparent"], ["border", "1.5px dotted #dc2626"], ["boxShadow", "none"], ["cursor", ($truthy(click_handler) ? ("pointer") : ("default"))], ["whiteSpace", "nowrap"], ["opacity", "0.35"], ["transition", "opacity 0.15s ease, background-color 0.15s ease, transform 0.15s ease"]]))]]));
             if ($truthy(click_handler)) {
               card_props['$[]=']("on", (new Map([["click", click_handler]])))
             };
@@ -66581,7 +66704,7 @@ portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !importa
             if (($not(wrapper_id) && ($truthy(dropdown_items['$empty?']())))) {
               return card
             };
-            return self.$h("div", (new Map([["attrs", (new Map([["id", wrapper_id], ["class", "ghost-short-card-wrapper"]]))], ["style", (new Map([["display", "inline-flex"], ["position", "relative"], ["alignItems", "center"], ["justifyContent", "center"], ["verticalAlign", "middle"]]))]])), [card].concat($to_a(dropdown_items)));
+            return self.$h("div", (new Map([["attrs", (new Map([["id", wrapper_id], ["class", "ghost-short-card-wrapper"], ["data-corp", corporation.$id()]]))], ["style", (new Map([["display", "inline-flex"], ["position", "relative"], ["alignItems", "center"], ["justifyContent", "center"], ["verticalAlign", "middle"]]))]])), [card].concat($to_a(dropdown_items)));
           }, -2);
           return $alias(self, "render_ghost_short_card", "render_ghost_short_railcard");
         })($nesting[0], $nesting)
