@@ -645,6 +645,52 @@ module View
                             '.ribbon-my-turn { background-color: rgba(22, 163, 74, 0.94) !important; color: #ffffff !important; border: 1px solid #15803d !important; } ' +
                             '.ribbon-opponent-turn { background-color: rgba(30, 41, 59, 0.92) !important; color: #f8fafc !important; border: 1px solid #475569 !important; }';
 
+                            '#panel-market { isolation: isolate; } ' +
+                            '.hover-overlay, #market-hover-overlay, .market-hover-overlay, ' +
+                            '.stock-market-tooltip, .market-tooltip, [class*="hover-overlay"], [id*="hover-overlay"] { ' +
+                            '  z-index: 999999 !important; pointer-events: none !important; ' +
+                            '} ' +
+                            '#panel-market svg g.marker, #panel-market svg g.token, ' +
+                            '#panel-market .market-marker, #panel-market .token, ' +
+                            '#panel-market [class*="marker"], #panel-market [class*="token"] { ' +
+                            '  pointer-events: none !important; ' +
+                            '};';
+
+                          window.notifyTurnAlert = function(isMine, pName, cName, isInitial) {
+                            var cleanTitle = document.title.replace(/^[🟢⏳]\s*\[.*?\]\s*/, '');
+                            document.title = (isMine ? '🟢 [YOUR TURN] ' : ('⏳ [' + pName + '] ')) + cleanTitle;
+
+                            var frame = document.getElementById('viz-master-frame');
+                            if (frame) {
+                              frame.classList.remove('frame-turn-ripple', 'frame-ignition', 'frame-my-turn', 'frame-opponent-turn');
+                              void frame.offsetWidth;
+                              if (!isInitial) frame.classList.add('frame-turn-ripple');
+                              if (isMine) {
+                                if (!isInitial) frame.classList.add('frame-ignition');
+                                frame.classList.add('frame-my-turn');
+                              } else {
+                                frame.classList.add('frame-opponent-turn');
+                              }
+                            }
+
+                            var isPlayerTransition = !isInitial && pName && (window._lastTurnPlayer !== pName);
+                            window._lastTurnPlayer = pName;
+
+                            if (isPlayerTransition) {
+                              var ribbon = document.getElementById('turn-notification-ribbon');
+                              if (ribbon) {
+                                var msg = isMine ? ('★ YOUR TURN — ' + (cName ? cName + ' (' + pName + ')' : pName)) : ('▶ ' + (cName ? cName + ': ' : '') + pName + ' is Operating');
+                                ribbon.textContent = msg;
+                                ribbon.className = (isMine ? 'ribbon-my-turn' : 'ribbon-opponent-turn') + ' ribbon-animate';
+                                ribbon.style.display = 'block';
+                                clearTimeout(window._turnRibbonTimer);
+                                window._turnRibbonTimer = setTimeout(function() {
+                                  if (ribbon) ribbon.style.display = 'none';
+                                }, 1800);
+                              }
+                            }
+                          };
+
                           window.notifyTurnAlert = function(isMine, pName, cName, isInitial) {
                             var cleanTitle = document.title.replace(/^[🟢⏳]\s*\[.*?\]\s*/, '');
                             document.title = (isMine ? '🟢 [YOUR TURN] ' : ('⏳ [' + pName + '] ')) + cleanTitle;
@@ -914,9 +960,17 @@ module View
                             styleTag.id = 'dashboard-map-svg-styles';
                             document.head.appendChild(styleTag);
                           }
-                          styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
+                         styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
                                                '.scaler-content .tile__text { font-size: 0.75em !important; } ' +
                                                '.scaler-content text.number { font-size: 0.55em !important; } ' +
+                                               '#panel-market { isolation: isolate; } ' +
+                                               '#panel-market .scaler-content { z-index: 1; } ' +
+                                               '#market-hover-overlay, .market-hover-overlay, .stock-market-tooltip, [class*="hover-overlay"] { ' +
+                                               '  z-index: 9999 !important; pointer-events: none; ' +
+                                               '} ' +
+                                               '#panel-market svg g.marker, #panel-market .market-marker, #panel-market svg g[id*="marker"] { ' +
+                                               '  pointer-events: auto; z-index: 2; ' +
+                                               '} ' +
                                                '@keyframes map-hex-pulse { ' +
                                                '  0% { stroke: #ff0055; stroke-width: 8px; fill-opacity: 0.18; } ' +
                                                '  50% { stroke: #fbbf24; stroke-width: 10px; fill-opacity: 0.38; } ' +
@@ -1088,11 +1142,18 @@ module View
 
                            if curr_id > prev_id && prev_id.positive?
                              animate_last_action(last_action)
-                             %x(
-                               if (window.notifyTurnAlert) {
-                                 window.notifyTurnAlert(#{is_my_turn ? true : false}, #{player_ribbon_text}, #{corp_ribbon_text}, false);
-                               }
-                             )
+                             prev_player = Lib::Storage["viz_last_player_#{game_storage_id}"]
+                             curr_player = player_ribbon_text.to_s
+                             is_player_transition = !curr_player.empty? && (prev_player != curr_player)
+                             Lib::Storage["viz_last_player_#{game_storage_id}"] = curr_player
+
+                             if is_player_transition
+                               %x(
+                                 if (window.notifyTurnAlert) {
+                                   window.notifyTurnAlert(#{is_my_turn ? true : false}, #{player_ribbon_text}, #{corp_ribbon_text}, false);
+                                 }
+                               )
+                             end
                            end
                            Lib::Storage["viz_last_act_#{game_storage_id}"] = curr_id
                          },
