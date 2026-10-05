@@ -55526,7 +55526,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
         });
         
         $def(self, '$render_corporation', function $$render_corporation(corporation, _operating_order, current_round, is_last_minor) {
-          var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, self = this, step = nil, is_active_row = nil, corp_actions = nil, corporation_controlled = nil, $ret_or_1 = nil, $ret_or_2 = nil, issuable_bundles = nil, issue_command = nil, can_issue = nil, explicit_redeem_bundles = nil, all_redeemable_bundles = nil, redeem_command = nil, can_redeem = nil, is_unfloated = nil, is_directed = nil, tr_props = nil, row_classes = nil, president_sold = nil, president_available = nil, should_grey_unfloated = nil, visual_current = nil, corp_bg = nil, name_props = nil, treasury = nil, t_shares = nil, treasury_cards = nil, treasury_percent = nil, treasury_issuable_bundles = nil, can_issue_treasury = nil, $ret_or_3 = nil, $ret_or_4 = nil, classes = nil, dropdowns = nil, click_handler = nil, options = nil, card = nil, treasury_hover = nil, extra = nil, desc_text = nil, clean_digits = nil, pool_shares = nil, valid_pool_shares = nil, player_can_buy_pool = nil, player_can_short = nil, n_ipo_shares = nil, n_market_shares = nil, players_row_content = nil, pool_redeem_bundles = nil, affordable_pool_redeems = nil, corporation_can_redeem_pool = nil, corporation_share_destination = nil, base_share_pct = nil, pool_percent = nil, pool_share_text = nil, pool_click_handler = nil, pool_cell_children = nil, buyer_options = nil, share_val = nil, cancel_handler = nil, pool_card = nil, pool_hover = nil, ipo_actual_shares = nil, ipo_percent = nil, total = nil, ipo_share_text = nil, ipo_click_handler = nil, valid_ipo_shares = nil, player_actions = nil, is_corp = nil, corp_available = nil, can_par = nil, $ret_or_5 = nil, can_bid = nil, ipo_issuable_bundles = nil, issue_from_ipo = nil, par_prices = nil, pres_share = nil, shares_multiplier = nil, bundle = nil, player_cash = nil, ipo_shares = nil, ipo_is_director = nil, ipo_cell_children = nil, card_classes = nil, ipo_card = nil, ipo_hover = nil, border_style = nil, market_style = nil, m_color = nil, is_operating = nil, clean_market_price = nil, clean_par_price = nil, pool_row_content = nil, bank_row_content = nil, train_buyable_step = nil, train_discardable_step = nil, step_buyable_trains = nil, corp_owner = nil, same_player = nil, train_cards = nil, raw_limit = nil, limit = nil, empty_count = nil, clean_corp_cash = nil, last_rev = nil, clean_rev = nil, corporation_row_content = nil, last_run = nil, div = nil, div_kind = nil, held = nil, half_held = nil, font_color = nil, rev_class = nil, rev_props = nil, row_content = nil, major_card = nil;
+          var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, self = this, step = nil, is_active_row = nil, corp_actions = nil, corporation_controlled = nil, $ret_or_1 = nil, $ret_or_2 = nil, issuable_bundles = nil, issue_command = nil, can_issue = nil, explicit_redeem_bundles = nil, all_redeemable_bundles = nil, redeem_command = nil, can_redeem = nil, is_unfloated = nil, is_directed = nil, star_bg = nil, star_color = nil, tr_props = nil, row_classes = nil, president_sold = nil, president_available = nil, should_grey_unfloated = nil, visual_current = nil, corp_bg = nil, name_props = nil, treasury = nil, t_shares = nil, treasury_cards = nil, treasury_percent = nil, treasury_issuable_bundles = nil, can_issue_treasury = nil, $ret_or_3 = nil, $ret_or_4 = nil, classes = nil, dropdowns = nil, click_handler = nil, options = nil, card = nil, treasury_hover = nil, extra = nil, desc_text = nil, clean_digits = nil, pool_shares = nil, valid_pool_shares = nil, player_can_buy_pool = nil, player_can_short = nil, n_ipo_shares = nil, n_market_shares = nil, players_row_content = nil, pool_redeem_bundles = nil, affordable_pool_redeems = nil, corporation_can_redeem_pool = nil, corporation_share_destination = nil, base_share_pct = nil, pool_percent = nil, pool_share_text = nil, pool_click_handler = nil, pool_cell_children = nil, buyer_options = nil, share_val = nil, cancel_handler = nil, pool_card = nil, pool_hover = nil, ipo_actual_shares = nil, ipo_percent = nil, total = nil, ipo_share_text = nil, ipo_click_handler = nil, valid_ipo_shares = nil, player_actions = nil, is_corp = nil, corp_available = nil, can_par = nil, $ret_or_5 = nil, can_bid = nil, ipo_issuable_bundles = nil, issue_from_ipo = nil, par_prices = nil, pres_share = nil, shares_multiplier = nil, bundle = nil, player_cash = nil, ipo_shares = nil, ipo_is_director = nil, ipo_cell_children = nil, card_classes = nil, ipo_card = nil, ipo_hover = nil, border_style = nil, market_style = nil, m_color = nil, is_operating = nil, clean_market_price = nil, clean_par_price = nil, pool_row_content = nil, bank_row_content = nil, train_buyable_step = nil, train_discardable_step = nil, step_buyable_trains = nil, corp_owner = nil, same_player = nil, train_cards = nil, raw_limit = nil, limit = nil, empty_count = nil, clean_corp_cash = nil, last_rev = nil, clean_rev = nil, corporation_row_content = nil, last_run = nil, div = nil, div_kind = nil, held = nil, half_held = nil, font_color = nil, rev_class = nil, rev_props = nil, row_content = nil, major_card = nil;
 
           
           if (is_last_minor == null) is_last_minor = false;
@@ -55546,6 +55546,8 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           can_redeem = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = corporation_controlled)) ? (redeem_command) : ($ret_or_2)))) ? (all_redeemable_bundles['$any?']()) : ($ret_or_1));
           is_unfloated = ($truthy(($ret_or_1 = corporation['$respond_to?']("floated?"))) ? (corporation['$floated?']()['$!']()) : ($ret_or_1));
           is_directed = ($truthy(($ret_or_1 = corporation['$respond_to?']("owner"))) ? (corporation.$owner()['$=='](self.$active_player())) : ($ret_or_1));
+          star_bg = ($truthy(is_unfloated) ? ("#6b7280") : ("#d97706"));
+          star_color = ($truthy(is_unfloated) ? ("#d1d5db") : ("#ffffff"));
           tr_props = self.$tr_default_props(is_active_row);
           if ($truthy(($ret_or_1 = tr_props['$[]']("attrs")))) {
             $ret_or_1
@@ -55804,7 +55806,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
                 return self.$exec_buy_shares(source_selector, self.$active_player(), bnd, corporation.$id());}, {$$s: self})))
             };
             if ($truthy(corporation['$minor?']())) {
-              return players_row_content['$<<'](($eqeq(corporation.$owner(), p) ? (((card_classes = ["game-card", "president-card"]), ($truthy(can_sell) ? (card_classes['$<<']("action-sell")) : nil), ($truthy(can_buy_from_player) ? (card_classes['$<<']("action-buy")) : nil), ($truthy(click_handler) ? (card_classes['$<<']("clickable")) : nil), (card_props = (new Map([["attrs", (new Map([["class", card_classes.$join(" ")]]))]]))), ($truthy(click_handler) ? (($c = ["on", (new Map([["click", click_handler]]))], $send(card_props, '[]=', $c), $c[$c.length - 1])) : nil), (star_marker = self.$h("span", (new Map([["attrs", (new Map([["class", "director-star"]]))], ["style", (new Map([["position", "absolute"], ["top", "-4px"], ["right", "-4px"], ["width", "13px"], ["height", "13px"], ["backgroundColor", "#d97706"], ["color", "#ffffff"], ["fontSize", "0.62rem"], ["lineHeight", "13px"], ["textAlign", "center"], ["borderRadius", "50%"], ["boxShadow", "0 1px 2px rgba(0,0,0,0.3)"], ["pointerEvents", "none"], ["zIndex", "2"]]))]])), "★")), (minor_card = self.$h("div", card_props, "100%")), (minor_hover = self.$share_denomination_tooltip(player_shares, corporation)), (wrapped_minor = self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper cert-share-card"], ["data-corp", corporation.$id()], ["title", minor_hover]]))]])), [minor_card, star_marker])), self.$h("td", (new Map([["style", (new Map([["backgroundColor", bg_color], ["textAlign", "center"]]))]])), [wrapped_minor]))) : (self.$h("td", (new Map([["style", (new Map([["backgroundColor", bg_color]]))]])), ""))))
+              return players_row_content['$<<'](($eqeq(corporation.$owner(), p) ? (((card_classes = ["game-card", "president-card"]), ($truthy(can_sell) ? (card_classes['$<<']("action-sell")) : nil), ($truthy(can_buy_from_player) ? (card_classes['$<<']("action-buy")) : nil), ($truthy(click_handler) ? (card_classes['$<<']("clickable")) : nil), (card_props = (new Map([["attrs", (new Map([["class", card_classes.$join(" ")]]))]]))), ($truthy(click_handler) ? (($c = ["on", (new Map([["click", click_handler]]))], $send(card_props, '[]=', $c), $c[$c.length - 1])) : nil), (star_marker = self.$h("span", (new Map([["attrs", (new Map([["class", "director-star"]]))], ["style", (new Map([["position", "absolute"], ["top", "-4px"], ["right", "-4px"], ["width", "13px"], ["height", "13px"], ["backgroundColor", star_bg], ["color", star_color], ["fontSize", "0.62rem"], ["lineHeight", "13px"], ["textAlign", "center"], ["borderRadius", "50%"], ["boxShadow", "0 1px 2px rgba(0,0,0,0.3)"], ["pointerEvents", "none"], ["zIndex", "2"]]))]])), "★")), (minor_card = self.$h("div", card_props, "100%")), (minor_hover = self.$share_denomination_tooltip(player_shares, corporation)), (wrapped_minor = self.$h("div", (new Map([["attrs", (new Map([["class", "share-card-wrapper cert-share-card"], ["data-corp", corporation.$id()], ["title", minor_hover]]))]])), [minor_card, star_marker])), self.$h("td", (new Map([["style", (new Map([["backgroundColor", bg_color], ["textAlign", "center"]]))]])), [wrapped_minor]))) : (self.$h("td", (new Map([["style", (new Map([["backgroundColor", bg_color]]))]])), ""))))
             } else {
               
               raw_percent = ($truthy(p['$respond_to?']("percent_of")) ? (($truthy(($ret_or_1 = p.$percent_of(corporation))) ? ($ret_or_1) : (0))) : (0));
@@ -55949,7 +55951,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
                   };
                   dropdowns = [];
                   if (($truthy(is_president) && ($not(n_shares['$zero?']())))) {
-                    dropdowns['$<<'](self.$h("span", (new Map([["attrs", (new Map([["class", "director-star"]]))], ["style", (new Map([["position", "absolute"], ["top", "-4px"], ["right", "-4px"], ["width", "13px"], ["height", "13px"], ["backgroundColor", "#d97706"], ["color", "#ffffff"], ["fontSize", "0.62rem"], ["lineHeight", "13px"], ["textAlign", "center"], ["borderRadius", "50%"], ["boxShadow", "0 1px 2px rgba(0,0,0,0.3)"], ["pointerEvents", "none"], ["zIndex", "2"]]))]])), "★"))
+                    dropdowns['$<<'](self.$h("span", (new Map([["attrs", (new Map([["class", "director-star"]]))], ["style", (new Map([["position", "absolute"], ["top", "-4px"], ["right", "-4px"], ["width", "13px"], ["height", "13px"], ["backgroundColor", star_bg], ["color", star_color], ["fontSize", "0.62rem"], ["lineHeight", "13px"], ["textAlign", "center"], ["borderRadius", "50%"], ["boxShadow", "0 1px 2px rgba(0,0,0,0.3)"], ["pointerEvents", "none"], ["zIndex", "2"]]))]])), "★"))
                   };
                   if ($truthy(just_sold)) {
                     dropdowns['$<<'](self.$h("span", (new Map([["attrs", (new Map([["class", "token-bond"]]))], ["style", (new Map([["position", "absolute"], ["top", "10px"], ["right", "-7px"], ["width", "8px"], ["height", "8px"], ["borderRadius", "50%"], ["backgroundColor", "#dc2626"], ["visibility", "visible"]]))]]))))
@@ -56432,7 +56434,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             };
             dropdowns = [];
             if ($truthy(ipo_is_director)) {
-              dropdowns['$<<'](self.$h("span", (new Map([["attrs", (new Map([["class", "director-star"]]))], ["style", (new Map([["position", "absolute"], ["top", "-4px"], ["right", "-4px"], ["width", "13px"], ["height", "13px"], ["backgroundColor", "#d97706"], ["color", "#ffffff"], ["fontSize", "0.62rem"], ["lineHeight", "13px"], ["textAlign", "center"], ["borderRadius", "50%"], ["boxShadow", "0 1px 2px rgba(0,0,0,0.3)"], ["pointerEvents", "none"], ["zIndex", "2"]]))]])), "★"))
+              dropdowns['$<<'](self.$h("span", (new Map([["attrs", (new Map([["class", "director-star"]]))], ["style", (new Map([["position", "absolute"], ["top", "-4px"], ["right", "-4px"], ["width", "13px"], ["height", "13px"], ["backgroundColor", star_bg], ["color", star_color], ["fontSize", "0.62rem"], ["lineHeight", "13px"], ["textAlign", "center"], ["borderRadius", "50%"], ["boxShadow", "0 1px 2px rgba(0,0,0,0.3)"], ["pointerEvents", "none"], ["zIndex", "2"]]))]])), "★"))
             };
             if (($eqeq($$$($$('Lib'), 'Storage')['$[]']("issue_ipo_menu_corp"), corporation.$id()) && ($truthy(issue_from_ipo)))) {
               
@@ -57410,7 +57412,7 @@ Opal.modules["view/game/dashboard/dashboard_loan_animation"] = function(Opal) {/
 Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated by Opal 1.8.2 */
   var $module = Opal.module, $send = Opal.send, $defs = Opal.defs, $klass = Opal.klass, $truthy = Opal.truthy, $alias = Opal.alias, $def = Opal.def, $to_a = Opal.to_a, $not = Opal.not, $neqeq = Opal.neqeq, $rb_times = Opal.rb_times, $eqeq = Opal.eqeq, $const_set = Opal.const_set, $to_ary = Opal.to_ary, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $rb_plus = Opal.rb_plus, $lambda = Opal.lambda, $rb_le = Opal.rb_le, $rb_divide = Opal.rb_divide, $eqeqeq = Opal.eqeqeq, $range = Opal.range, $rb_minus = Opal.rb_minus, $rb_lt = Opal.rb_lt, self = Opal.top, $nesting = [], $$ = Opal.$r($nesting), nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,lambda,method_defined?,render,orig_map_pulse_render,respond_to?,corporation,to_s,id,needs,orig_render,flash_token_slot?,h,compact,!,hex,active_step,round,current_entity,actions,include?,available_hex,empty?,available_tokens,tokened_by?,any?,tokens,==,open_slot?,to_proc,!=,width_for_index,value_for_index,orig_width_for_index,*,[],to_i,orig_value_for_index,include,minmax,to_a,first,Array,tile,+,upgrade_cost,get_tile_lay,color,select,borders,cost,positive?,format_currency,exits,paths,uniq,flat_map,edges,map,a,b,edge?,border_cost,sum,edge,zero?,call,hex_neighbors,all?,active_entities,operating?,entities,nil?,show_meme_revenue?,[]=,store,revenue_for,is_a?,train,route_revenue,revenue,name,phase,last,values,base_revenue,stops,cities,each_with_index,visited_stops,each,none?,<<,stop_revenue_value,<=,%,size,max,length,/,-@,layout,install_revenue_button_bridge,hexes,clone,dup,reject,compute_axes,dashboard_current_entity,company_by_id,delete,extract_hovered_hexes,map!,upcase,coordinates,potential_tiles,hex_cost_display,===,hex_meme_revenue_overlay,rotation,hook,compact!,map_size,render_map,x,map_x,y,map_y,render_selector,unshift,role,upgradeable_tiles,all_potential_upgrades,potential_tile_colors,find,tile_valid_for_phase?,tiles,append,-,<,companies,sym,minors,corporations,city,all_abilities,concat,abilities,const_defined?,class,corporation_by_id,minor,minor_by_id,desc,scan,hex_by_id,axes');
+  Opal.add_stubs('require,lambda,method_defined?,render,orig_dashboard_render,orig_map_pulse_render,respond_to?,corporation,to_s,id,needs,orig_render,flash_token_slot?,h,compact,!,hex,active_step,round,current_entity,actions,include?,available_hex,empty?,available_tokens,tokened_by?,any?,tokens,==,open_slot?,to_proc,!=,width_for_index,value_for_index,orig_width_for_index,*,[],to_i,orig_value_for_index,include,minmax,to_a,first,Array,tile,+,upgrade_cost,get_tile_lay,color,select,borders,cost,positive?,format_currency,exits,paths,uniq,flat_map,edges,map,a,b,edge?,border_cost,sum,edge,zero?,call,hex_neighbors,all?,active_entities,operating?,entities,nil?,show_meme_revenue?,[]=,store,revenue_for,is_a?,train,route_revenue,revenue,name,phase,last,values,base_revenue,stops,cities,each_with_index,visited_stops,each,none?,<<,stop_revenue_value,<=,%,size,max,length,/,-@,layout,install_revenue_button_bridge,hexes,clone,dup,reject,compute_axes,dashboard_current_entity,company_by_id,delete,extract_hovered_hexes,map!,upcase,coordinates,potential_tiles,hex_cost_display,===,hex_meme_revenue_overlay,rotation,hook,compact!,map_size,render_map,x,map_x,y,map_y,render_selector,unshift,role,upgradeable_tiles,all_potential_upgrades,potential_tile_colors,find,tile_valid_for_phase?,tiles,append,-,<,companies,sym,minors,corporations,placed?,city,all_abilities,concat,abilities,const_defined?,class,corporation_by_id,minor,minor_by_id,desc,scan,hex_by_id,axes');
   
   self.$require("../lib/storage");
   self.$require("../lib/settings");
@@ -57608,6 +57610,63 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           ;})]]))
       })
     })($nesting[0])
+  })($nesting[0], $nesting);
+  (function($base, $parent_nesting) {
+    var self = $module($base, 'View');
+
+    var $nesting = [self].concat($parent_nesting);
+
+    return (function($base, $parent_nesting) {
+      var self = $module($base, 'Game');
+
+      var $nesting = [self].concat($parent_nesting), $$ = Opal.$r($nesting);
+
+      return (function($base, $super) {
+        var self = $klass($base, $super, 'Hex');
+
+        
+        if ($truthy(self['$method_defined?']("orig_dashboard_render"))) {
+          return nil
+        } else {
+          
+          $alias(self, "orig_dashboard_render", "render");
+          return $def(self, '$render', function $$render() {
+            var self = this, rendered = nil;
+
+            
+            rendered = self.$orig_dashboard_render();
+            
+            function removeLegacyFills(vnode) {
+              if (!vnode) return;
+              if (Array.isArray(vnode)) {
+                for (var i = vnode.length - 1; i >= 0; i--) {
+                  var child = vnode[i];
+                  if (child && child.data && child.data.attrs) {
+                    var f = (child.data.attrs['fill'] || '').toLowerCase();
+                    var s = (child.data.attrs['stroke'] || '').toLowerCase();
+                    if (f === 'red' || f === '#ff0000' || f === '#f00' || f === 'rgba(255, 0, 0, 0.5)' || f === 'rgba(255,0,0,0.5)' ||
+                        f === 'green' || f === '#00ff00' || f === '#0f0' ||
+                        s === 'red' || s === '#ff0000' || s === '#f00' ||
+                        s === 'green' || s === '#00ff00' || s === '#0f0') {
+                      vnode.splice(i, 1);
+                      continue;
+                    }
+                  }
+                  removeLegacyFills(child);
+                }
+                return;
+              }
+              if (vnode.children && Array.isArray(vnode.children)) {
+                removeLegacyFills(vnode.children);
+              }
+            }
+            removeLegacyFills(rendered);
+          ;
+            return rendered;
+          });
+        }
+      })($nesting[0], $$$($$('Snabberb'), 'Component'))
+    })($nesting[0], $nesting)
   })($nesting[0], $nesting);
   (function($base, $parent_nesting) {
     var self = $module($base, 'View');
@@ -58623,7 +58682,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           selected_hex = ($truthy(hex_selected) ? (self.tile_selector.$hex()) : (nil));
           tile_chosen = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = hex_selected)) ? (self.tile_selector.$tile()) : ($ret_or_2)))) ? (self.tile_selector.$hex().$tile()['$!='](self.tile_selector.$tile())) : ($ret_or_1));
           active_tile = ($truthy(tile_chosen) ? (self.tile_selector.$tile()) : (nil));
-          $send(self.hexes, 'map!', [], function $$18(hex){var $b, $c, self = $$18.$$s == null ? this : $$18.$$s, clickable = nil, is_hovered = nil, base_hex = nil, border_color = nil, x = nil, y = nil, transform_str = nil, overlays = nil, show_building_highlight = nil, cost_str = nil, scale_factor = nil, rot_angle = nil, initial_stroke = nil, initial_width = nil, initial_fill = nil, initial_fill_opacity = nil, hex_children = nil, meme_overlay = nil, g_props = nil;
+          $send(self.hexes, 'map!', [], function $$18(hex){var $b, $c, self = $$18.$$s == null ? this : $$18.$$s, clickable = nil, is_hovered = nil, base_hex = nil, border_color = nil, initial_stroke = nil, initial_width = nil, initial_fill = nil, initial_fill_opacity = nil, x = nil, y = nil, transform_str = nil, overlays = nil, show_building_highlight = nil, cost_str = nil, scale_factor = nil, rot_angle = nil, hex_children = nil, meme_overlay = nil, g_props = nil;
             if (self.show_starting_map == null) self.show_starting_map = nil;
             if (self.opacity == null) self.opacity = nil;
             if (self.start_pos == null) self.start_pos = nil;
@@ -58642,6 +58701,10 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             is_hovered = $send($send(hovered_target_hexes, 'map', [], "to_s".$to_proc()), 'map', [], "upcase".$to_proc())['$include?'](hex.$id().$to_s().$upcase());
             base_hex = self.$h($$('Hex'), (new Map([["hex", hex], ["opacity", ($truthy(self.show_starting_map) ? (1.0) : (($truthy(($ret_or_1 = self.opacity)) ? ($ret_or_1) : (1.0))))], ["entity", current_entity], ["clickable", ($truthy(hex_selected) ? (($truthy(($ret_or_1 = hex['$=='](selected_hex))) ? (clickable) : ($ret_or_1))) : (clickable))], ["actions", ($truthy(current_entity) ? (actions) : ([]))], ["routes", routes], ["start_pos", self.start_pos], ["highlight", false]])));
             border_color = ($truthy(is_hovered) ? ("#00ffff") : (nil));
+            initial_stroke = ($truthy(($ret_or_1 = border_color)) ? ($ret_or_1) : ("transparent"));
+            initial_width = ($truthy(border_color) ? ($rb_plus($$$($$('Hex'), 'HIGHLIGHT_STROKE_WIDTH'), 4)) : (0));
+            initial_fill = ($truthy(is_hovered) ? ("#00ffff") : ("transparent"));
+            initial_fill_opacity = ($truthy(is_hovered) ? ("0.35") : ("0"));
             $c = $$('Hex').$coordinates(hex, self.start_pos), $b = $to_ary($c), (x = ($b[0] == null ? nil : $b[0])), (y = ($b[1] == null ? nil : $b[1])), $c;
             transform_str = "translate(" + (x) + ", " + (y) + ")" + (($eqeq(hex.$layout(), "pointy") ? (" rotate(30)") : nil));
             overlays = [];
@@ -58736,7 +58799,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
         });
         
         $def(self, '$extract_hovered_hexes', function $$extract_hovered_hexes(hovered_c_id) {
-          var $a, self = this, target_hexes = nil, all_companies = nil, $ret_or_1 = nil, hovered_company = nil, $ret_or_2 = nil, abilities = nil, raw_def = nil;
+          var $a, self = this, target_hexes = nil, all_companies = nil, $ret_or_1 = nil, hovered_company = nil, $ret_or_2 = nil, has_placed = nil, abilities = nil, raw_def = nil;
 
           
           if (!$truthy(hovered_c_id)) {
@@ -58786,8 +58849,28 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             };})));
           if ($truthy(hovered_company)) {
             
+            has_placed = false;
+            if (($truthy(hovered_company['$respond_to?']("tokens")) && ($truthy(hovered_company.$tokens())))) {
+              has_placed = $send(hovered_company.$tokens(), 'any?', [], function $$26(t){var $a, $ret_or_3 = nil;
+
+                
+                if (t == null) t = nil;
+                if ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = t['$respond_to?']("placed?"))) ? (t['$placed?']()) : ($ret_or_3)))) ? ($ret_or_2) : (($truthy(($ret_or_3 = t['$respond_to?']("city"))) ? (($a = t.$city(), ($a === nil || $a == null) ? nil : $a.$hex())) : ($ret_or_3))))))) {
+                  return $ret_or_1
+                } else {
+                  
+                  if ($truthy(($ret_or_2 = t['$respond_to?']("hex")))) {
+                    return t.$hex()
+                  } else {
+                    return $ret_or_2
+                  };
+                };})
+            };
+            if ($truthy(has_placed)) {
+              return []
+            };
             if (($truthy(hovered_company['$respond_to?']("coordinates")) && ($truthy(hovered_company.$coordinates())))) {
-              $send(self.$Array(hovered_company.$coordinates()), 'each', [], function $$26(coord){
+              $send(self.$Array(hovered_company.$coordinates()), 'each', [], function $$27(coord){
                 
                 if (coord == null) coord = nil;
                 return target_hexes['$<<'](coord.$to_s());})
@@ -58804,7 +58887,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             };
             if ($truthy(self.game.$class()['$const_defined?']("COMPANIES"))) {
               
-              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$27(c_def){
+              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$28(c_def){
                 
                 if (c_def == null) c_def = nil;
                 if ($truthy(($ret_or_1 = c_def['$[]']("sym").$to_s()['$=='](hovered_c_id)))) {
@@ -58813,12 +58896,12 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   return c_def['$[]']("name").$to_s()['$=='](hovered_c_id)
                 };});
               if (($truthy(raw_def) && ($truthy(raw_def['$[]']("abilities"))))) {
-                $send(raw_def['$[]']("abilities"), 'each', [], function $$28(raw_ab){var self = $$28.$$s == null ? this : $$28.$$s;
+                $send(raw_def['$[]']("abilities"), 'each', [], function $$29(raw_ab){var self = $$29.$$s == null ? this : $$29.$$s;
 
                   
                   if (raw_ab == null) raw_ab = nil;
                   if ($truthy(raw_ab['$[]']("hexes"))) {
-                    $send(self.$Array(raw_ab['$[]']("hexes")), 'each', [], function $$29(coord){
+                    $send(self.$Array(raw_ab['$[]']("hexes")), 'each', [], function $$30(coord){
                       
                       if (coord == null) coord = nil;
                       return target_hexes['$<<'](coord.$to_s());})
@@ -58830,13 +58913,13 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   };}, {$$s: self})
               };
             };
-            $send(abilities, 'each', [], function $$30(ab){var self = $$30.$$s == null ? this : $$30.$$s, target_corp = nil;
+            $send(abilities, 'each', [], function $$31(ab){var self = $$31.$$s == null ? this : $$31.$$s, target_corp = nil;
               if (self.game == null) self.game = nil;
 
               
               if (ab == null) ab = nil;
               if (($truthy(ab['$respond_to?']("hexes")) && ($truthy(ab.$hexes())))) {
-                $send(self.$Array(ab.$hexes()), 'each', [], function $$31(coord){
+                $send(self.$Array(ab.$hexes()), 'each', [], function $$32(coord){
                   
                   if (coord == null) coord = nil;
                   return target_hexes['$<<'](coord.$to_s());})
@@ -58845,7 +58928,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                 target_hexes['$<<'](($truthy(ab.$hex()['$respond_to?']("id")) ? (ab.$hex().$id()) : (ab.$hex())).$to_s())
               };
               if (($truthy(ab['$respond_to?']("coordinates")) && ($truthy(ab.$coordinates())))) {
-                $send(self.$Array(ab.$coordinates()), 'each', [], function $$32(coord){
+                $send(self.$Array(ab.$coordinates()), 'each', [], function $$33(coord){
                   
                   if (coord == null) coord = nil;
                   return target_hexes['$<<'](coord.$to_s());})
@@ -58859,12 +58942,12 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               if (!(($truthy(target_corp) && ($truthy(target_corp['$respond_to?']("coordinates")))) && ($truthy(target_corp.$coordinates())))) {
                 return nil
               };
-              return $send(self.$Array(target_corp.$coordinates()), 'each', [], function $$33(coord){
+              return $send(self.$Array(target_corp.$coordinates()), 'each', [], function $$34(coord){
                 
                 if (coord == null) coord = nil;
                 return target_hexes['$<<'](coord.$to_s());});}, {$$s: self});
             if (($truthy(hovered_company['$respond_to?']("desc")) && ($truthy(hovered_company.$desc())))) {
-              $send(hovered_company.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$34(h_id){var self = $$34.$$s == null ? this : $$34.$$s;
+              $send(hovered_company.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$35(h_id){var self = $$35.$$s == null ? this : $$35.$$s;
                 if (self.game == null) self.game = nil;
 
                 
@@ -61292,7 +61375,7 @@ Opal.modules["view/game/dashboard/dashboard_upcoming_trains"] = function(Opal) {
 Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Generated by Opal 1.8.2 */
   var $module = Opal.module, $klass = Opal.klass, $return_val = Opal.return_val, $def = Opal.def, $truthy = Opal.truthy, $send = Opal.send, $lambda = Opal.lambda, $not = Opal.not, $range = Opal.range, $rb_gt = Opal.rb_gt, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,needs,include,current_entity,active_step,round,active_entity,player?,player,respond_to?,owner,first,active_entities,any?,active_players_id,find,players,==,to_s,id,[],corporation_by_id,corporations,lambda,[]=,update,h,active_player,concat,Array,<<,each,reject,uniq,compact,is_a?,actions_for,name,class,match?,draft?,auction_actor,auctioning,include?,merge,store,type,entity,dig,bundle,corporation,fly,train,company,empty?,map,to_proc,stock?,corporation?,minor?,!,simple_logo,logo,color,text_color,finished?,raw_actions,last,fetch,to_i,positive?,>,animate_last_action,render_zoom_controls,render_active_turn_card,render_global_auction_overlay,render_par_overlay,render_tile_manifest_overlay');
+  Opal.add_stubs('require,needs,include,current_entity,active_step,round,active_entity,player?,player,respond_to?,owner,first,active_entities,any?,active_players_id,find,players,==,to_s,id,[],corporation_by_id,corporations,lambda,[]=,update,h,active_player,concat,Array,<<,each,reject,uniq,compact,is_a?,actions_for,name,class,match?,draft?,auction_actor,auctioning,include?,merge,store,type,entity,dig,bundle,corporation,fly,train,company,empty?,map,to_proc,stock?,corporation?,minor?,!,simple_logo,logo,color,text_color,finished?,raw_actions,last,fetch,to_i,positive?,>,animate_last_action,!=,render_zoom_controls,render_active_turn_card,render_global_auction_overlay,render_par_overlay,render_tile_manifest_overlay');
   
   self.$require("view/game/actionable");
   self.$require("view/game/dashboard/dashboard_command_column");
@@ -61931,6 +62014,52 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
                             '.ribbon-my-turn { background-color: rgba(22, 163, 74, 0.94) !important; color: #ffffff !important; border: 1px solid #15803d !important; } ' +
                             '.ribbon-opponent-turn { background-color: rgba(30, 41, 59, 0.92) !important; color: #f8fafc !important; border: 1px solid #475569 !important; }';
 
+                            '#panel-market { isolation: isolate; } ' +
+                            '.hover-overlay, #market-hover-overlay, .market-hover-overlay, ' +
+                            '.stock-market-tooltip, .market-tooltip, [class*="hover-overlay"], [id*="hover-overlay"] { ' +
+                            '  z-index: 999999 !important; pointer-events: none !important; ' +
+                            '} ' +
+                            '#panel-market svg g.marker, #panel-market svg g.token, ' +
+                            '#panel-market .market-marker, #panel-market .token, ' +
+                            '#panel-market [class*="marker"], #panel-market [class*="token"] { ' +
+                            '  pointer-events: none !important; ' +
+                            '};';
+
+                          window.notifyTurnAlert = function(isMine, pName, cName, isInitial) {
+                            var cleanTitle = document.title.replace(/^[🟢⏳]\s*\[.*?\]\s*/, '');
+                            document.title = (isMine ? '🟢 [YOUR TURN] ' : ('⏳ [' + pName + '] ')) + cleanTitle;
+
+                            var frame = document.getElementById('viz-master-frame');
+                            if (frame) {
+                              frame.classList.remove('frame-turn-ripple', 'frame-ignition', 'frame-my-turn', 'frame-opponent-turn');
+                              void frame.offsetWidth;
+                              if (!isInitial) frame.classList.add('frame-turn-ripple');
+                              if (isMine) {
+                                if (!isInitial) frame.classList.add('frame-ignition');
+                                frame.classList.add('frame-my-turn');
+                              } else {
+                                frame.classList.add('frame-opponent-turn');
+                              }
+                            }
+
+                            var isPlayerTransition = !isInitial && pName && (window._lastTurnPlayer !== pName);
+                            window._lastTurnPlayer = pName;
+
+                            if (isPlayerTransition) {
+                              var ribbon = document.getElementById('turn-notification-ribbon');
+                              if (ribbon) {
+                                var msg = isMine ? ('★ YOUR TURN — ' + (cName ? cName + ' (' + pName + ')' : pName)) : ('▶ ' + (cName ? cName + ': ' : '') + pName + ' is Operating');
+                                ribbon.textContent = msg;
+                                ribbon.className = (isMine ? 'ribbon-my-turn' : 'ribbon-opponent-turn') + ' ribbon-animate';
+                                ribbon.style.display = 'block';
+                                clearTimeout(window._turnRibbonTimer);
+                                window._turnRibbonTimer = setTimeout(function() {
+                                  if (ribbon) ribbon.style.display = 'none';
+                                }, 1800);
+                              }
+                            }
+                          };
+
                           window.notifyTurnAlert = function(isMine, pName, cName, isInitial) {
                             var cleanTitle = document.title.replace(/^[🟢⏳]\s*\[.*?\]\s*/, '');
                             document.title = (isMine ? '🟢 [YOUR TURN] ' : ('⏳ [' + pName + '] ')) + cleanTitle;
@@ -62199,9 +62328,17 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
                             styleTag.id = 'dashboard-map-svg-styles';
                             document.head.appendChild(styleTag);
                           }
-                          styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
+                         styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
                                                '.scaler-content .tile__text { font-size: 0.75em !important; } ' +
                                                '.scaler-content text.number { font-size: 0.55em !important; } ' +
+                                               '#panel-market { isolation: isolate; } ' +
+                                               '#panel-market .scaler-content { z-index: 1; } ' +
+                                               '#market-hover-overlay, .market-hover-overlay, .stock-market-tooltip, [class*="hover-overlay"] { ' +
+                                               '  z-index: 9999 !important; pointer-events: none; ' +
+                                               '} ' +
+                                               '#panel-market svg g.marker, #panel-market .market-marker, #panel-market svg g[id*="marker"] { ' +
+                                               '  pointer-events: auto; z-index: 2; ' +
+                                               '} ' +
                                                '@keyframes map-hex-pulse { ' +
                                                '  0% { stroke: #ff0055; stroke-width: 8px; fill-opacity: 0.18; } ' +
                                                '  50% { stroke: #fbbf24; stroke-width: 10px; fill-opacity: 0.38; } ' +
@@ -62365,7 +62502,7 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
                             if (el) fitObserver.observe(el);
                           });
                         };
-                        setTimeout(window.init18xxResizers, 200);;})], ["postpatch", $send(self, 'lambda', [], function $$15(_old, _vnode){var $k, $l, self = $$15.$$s == null ? this : $$15.$$s, prev_id = nil, curr_id = nil;
+                        setTimeout(window.init18xxResizers, 200);;})], ["postpatch", $send(self, 'lambda', [], function $$15(_old, _vnode){var $k, $l, self = $$15.$$s == null ? this : $$15.$$s, prev_id = nil, curr_id = nil, prev_player = nil, curr_player = nil, is_player_transition = nil;
 
             
             if (_old == null) _old = nil;
@@ -62375,11 +62512,17 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
             if (($truthy($rb_gt(curr_id, prev_id)) && ($truthy(prev_id['$positive?']())))) {
               
               self.$animate_last_action(last_action);
-              
-                               if (window.notifyTurnAlert) {
-                                 window.notifyTurnAlert(($truthy(is_my_turn) || (false)), player_ribbon_text, corp_ribbon_text, false);
-                               }
-                             ;
+              prev_player = $$$($$('Lib'), 'Storage')['$[]']("viz_last_player_" + (game_storage_id));
+              curr_player = player_ribbon_text.$to_s();
+              is_player_transition = ($truthy(($ret_or_1 = curr_player['$empty?']()['$!']())) ? (prev_player['$!='](curr_player)) : ($ret_or_1));
+              $$$($$('Lib'), 'Storage')['$[]=']("viz_last_player_" + (game_storage_id), curr_player);
+              if ($truthy(is_player_transition)) {
+                
+                                 if (window.notifyTurnAlert) {
+                                   window.notifyTurnAlert(($truthy(is_my_turn) || (false)), player_ribbon_text, corp_ribbon_text, false);
+                                 }
+                               
+              };
             };
             return ($l = ["viz_last_act_" + (game_storage_id), curr_id], $send($$$($$('Lib'), 'Storage'), '[]=', $l), $l[$l.length - 1]);}, {$$s: self})], ["destroy", $send(self, 'lambda', [], function $$16(){
             
@@ -65741,7 +65884,7 @@ Opal.modules["view/game/dashboard/par_prompt_overlay"] = function(Opal) {/* Gene
 Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generated by Opal 1.8.2 */
   var $module = Opal.module, $const_set = Opal.const_set, $truthy = Opal.truthy, $def = Opal.def, $send = Opal.send, $not = Opal.not, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $rb_minus = Opal.rb_minus, $neqeq = Opal.neqeq, $rb_lt = Opal.rb_lt, $rb_gt = Opal.rb_gt, $kwrestargs = Opal.kwrestargs, $rb_times = Opal.rb_times, $to_a = Opal.to_a, $get_kwarg = Opal.get_kwarg, $slice = Opal.slice, $extract_kwargs = Opal.extract_kwargs, $alias = Opal.alias, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,respond_to?,minor?,is_a?,==,to_s,type,include?,minors,all_abilities,concat,abilities,Array,each,const_defined?,class,sym,name,find,[],<<,uniq,compact,hexes,hex,id,coordinates,corporation,corporation_by_id,minor,minor_by_id,city,corporation?,tokens,map,any?,desc,scan,hex_by_id,upcase,to_proc,h,!,empty?,strip,join,owner,description,capitalize,tr,format_currency,value,revenue,resolve_target_hexes,nil?,zero?,discount,min_bid,-,!=,min_price,render_company_tooltip,to_i,<,>,lambda,[]=,update,call,logo,minor_entity?,company?,build_company_tooltip,major_corporation?,render_corp_tooltip,color,text_color,share_percent,*,abs,positive?,render_short_railcard,first,split,sub,companies,corporations,merge!,render_ghost_short_railcard');
+  Opal.add_stubs('require,respond_to?,minor?,is_a?,==,to_s,type,include?,minors,corporation?,tokens,any?,placed?,hex,city,all_abilities,concat,abilities,Array,each,const_defined?,class,sym,name,find,[],<<,uniq,compact,hexes,id,coordinates,corporation,corporation_by_id,minor,minor_by_id,map,desc,scan,hex_by_id,upcase,to_proc,h,!,empty?,strip,join,owner,description,capitalize,tr,format_currency,value,revenue,resolve_target_hexes,nil?,zero?,discount,min_bid,-,!=,min_price,render_company_tooltip,to_i,<,>,lambda,[]=,update,call,logo,minor_entity?,company?,build_company_tooltip,major_corporation?,render_corp_tooltip,color,text_color,share_percent,*,abs,positive?,render_short_railcard,first,split,sub,companies,corporations,merge!,render_ghost_short_railcard');
   
   self.$require("view/game/corporation");
   return (function($base, $parent_nesting) {
@@ -65790,7 +65933,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
           });
           
           $def(self, '$resolve_target_hexes', function $$resolve_target_hexes(target) {
-            var $a, $b, self = this, hexes = nil, abilities = nil, t_sym = nil, t_name = nil, raw_def = nil, placed_tokens = nil;
+            var $a, $b, self = this, has_placed = nil, hexes = nil, abilities = nil, t_sym = nil, t_name = nil, raw_def = nil, placed_tokens = nil;
             if (self.game == null) self.game = nil;
 
             
@@ -65799,6 +65942,29 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             };
             if (($truthy(target['$is_a?']($$$($$('Engine'), 'Train'))) || ($truthy(target['$respond_to?']("rusts_on"))))) {
               return []
+            };
+            if ((($truthy(target['$respond_to?']("corporation?")) && ($truthy(target['$corporation?']()))) || (($truthy(target['$respond_to?']("minor?")) && ($truthy(target['$minor?']())))))) {
+              
+              has_placed = false;
+              if (($truthy(target['$respond_to?']("tokens")) && ($truthy(target.$tokens())))) {
+                has_placed = $send(target.$tokens(), 'any?', [], function $$2(t){var $a, $ret_or_1 = nil, $ret_or_2 = nil, $ret_or_3 = nil;
+
+                  
+                  if (t == null) t = nil;
+                  if ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = t['$respond_to?']("placed?"))) ? (t['$placed?']()) : ($ret_or_3)))) ? ($ret_or_2) : (($truthy(($ret_or_3 = t['$respond_to?']("city"))) ? (($a = t.$city(), ($a === nil || $a == null) ? nil : $a.$hex())) : ($ret_or_3))))))) {
+                    return $ret_or_1
+                  } else {
+                    
+                    if ($truthy(($ret_or_2 = t['$respond_to?']("hex")))) {
+                      return t.$hex()
+                    } else {
+                      return $ret_or_2
+                    };
+                  };})
+              };
+              if ($truthy(has_placed)) {
+                return []
+              };
             };
             hexes = [];
             abilities = [];
@@ -65809,7 +65975,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
               abilities.$concat(self.$Array(target.$abilities()))
             };
             if (($truthy(self.game['$respond_to?']("abilities")) && ($truthy(target['$respond_to?']("all_abilities"))))) {
-              $send(["blocks_hexes", "teleport", "tile_lay", "hex_bonus", "assign_hexes", "reservation", "close"], 'each', [], function $$2(type){var self = $$2.$$s == null ? this : $$2.$$s, ab = nil;
+              $send(["blocks_hexes", "teleport", "tile_lay", "hex_bonus", "assign_hexes", "reservation", "close"], 'each', [], function $$3(type){var self = $$3.$$s == null ? this : $$3.$$s, ab = nil;
                 if (self.game == null) self.game = nil;
 
                 
@@ -65833,7 +65999,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
               
               t_sym = ($truthy(target['$respond_to?']("sym")) ? (target.$sym().$to_s()) : (target.$to_s()));
               t_name = ($truthy(target['$respond_to?']("name")) ? (target.$name().$to_s()) : (target.$to_s()));
-              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$3(c_def){var $ret_or_1 = nil;
+              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$4(c_def){var $ret_or_1 = nil;
 
                 
                 if (c_def == null) c_def = nil;
@@ -65843,7 +66009,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                   return c_def['$[]']("name").$to_s()['$=='](t_name)
                 };});
               if (($truthy(raw_def) && ($truthy(raw_def['$[]']("abilities"))))) {
-                $send(raw_def['$[]']("abilities"), 'each', [], function $$4(raw_ab){var self = $$4.$$s == null ? this : $$4.$$s;
+                $send(raw_def['$[]']("abilities"), 'each', [], function $$5(raw_ab){var self = $$5.$$s == null ? this : $$5.$$s;
 
                   
                   if (raw_ab == null) raw_ab = nil;
@@ -65857,7 +66023,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                   };}, {$$s: self})
               };
             };
-            $send(abilities.$compact().$uniq(), 'each', [], function $$5(a){var self = $$5.$$s == null ? this : $$5.$$s, hex_id = nil, target_corp = nil, $ret_or_1 = nil;
+            $send(abilities.$compact().$uniq(), 'each', [], function $$6(a){var self = $$6.$$s == null ? this : $$6.$$s, hex_id = nil, target_corp = nil, $ret_or_1 = nil;
               if (self.game == null) self.game = nil;
 
               
@@ -65892,7 +66058,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
               
               placed_tokens = [];
               if (($truthy(target['$respond_to?']("tokens")) && ($truthy(target.$tokens())))) {
-                placed_tokens = $send(target.$tokens(), 'map', [], function $$6(t){var $c, $d, $e, $ret_or_1 = nil, $ret_or_2 = nil;
+                placed_tokens = $send(target.$tokens(), 'map', [], function $$7(t){var $c, $d, $e, $ret_or_1 = nil, $ret_or_2 = nil;
 
                   
                   if (t == null) t = nil;
@@ -65914,7 +66080,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
               };
             };
             if ((($truthy(target['$respond_to?']("desc")) && ($truthy(target.$desc()))) && ($truthy(self.game['$respond_to?']("hex_by_id"))))) {
-              $send(target.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$7(h_id){var self = $$7.$$s == null ? this : $$7.$$s;
+              $send(target.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$8(h_id){var self = $$8.$$s == null ? this : $$8.$$s;
                 if (self.game == null) self.game = nil;
 
                 
@@ -65957,7 +66123,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             
             price = $hash_get($kwargs, "price");if (price == null) price = nil;
             owner_name = ($truthy(($ret_or_1 = ($a = c.$owner(), ($a === nil || $a == null) ? nil : $a.$name()))) ? ($ret_or_1) : ("Bank"));
-            desc_text = ((($truthy(c['$respond_to?']("desc")) && ($truthy(c.$desc()))) && ($not(c.$desc().$to_s().$strip()['$empty?']()))) ? (c.$desc()) : (($truthy(c['$respond_to?']("abilities")) && ($truthy(($b = c.$abilities(), ($b === nil || $b == null) ? nil : $b['$any?']())))) ? (((ability_descs = $send(c.$abilities(), 'map', [], function $$8(a){var desc = nil;
+            desc_text = ((($truthy(c['$respond_to?']("desc")) && ($truthy(c.$desc()))) && ($not(c.$desc().$to_s().$strip()['$empty?']()))) ? (c.$desc()) : (($truthy(c['$respond_to?']("abilities")) && ($truthy(($b = c.$abilities(), ($b === nil || $b == null) ? nil : $b['$any?']())))) ? (((ability_descs = $send(c.$abilities(), 'map', [], function $$9(a){var desc = nil;
 
               
               if (a == null) a = nil;
@@ -66008,12 +66174,12 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
               val_i = max_price
             };
             current_val = val_i.$to_s();
-            modal_box = self.$h("div", (new Map([["style", (new Map([["backgroundColor", "#ffffff"], ["border", "2px solid #333333"], ["borderRadius", "8px"], ["padding", "1.5rem"], ["boxShadow", "0px 10px 30px rgba(0,0,0,0.5)"], ["color", "#000000"], ["minWidth", "260px"], ["textAlign", "center"], ["boxSizing", "border-box"]]))]])), [self.$h("div", (new Map([["style", (new Map([["fontSize", "0.85rem"], ["fontWeight", "bold"], ["marginBottom", "0.8rem"], ["whiteSpace", "nowrap"]]))]])), title), self.$h("input", (new Map([["key", storage_key], ["style", (new Map([["display", "block"], ["width", "100%"], ["marginBottom", "0.8rem"], ["boxSizing", "border-box"], ["padding", "5px 8px"], ["fontSize", "1rem"], ["fontFamily", $$('FONT_MONEY')], ["fontWeight", "bold"], ["color", $$('COLOR_MONEY')]]))], ["props", (new Map([["value", current_val]]))], ["attrs", (new Map([["type", "number"], ["min", min_price.$to_s()], ["max", max_price.$to_s()]]))], ["on", (new Map([["input", $send(self, 'lambda', [], function $$9(event){var self = $$9.$$s == null ? this : $$9.$$s;
+            modal_box = self.$h("div", (new Map([["style", (new Map([["backgroundColor", "#ffffff"], ["border", "2px solid #333333"], ["borderRadius", "8px"], ["padding", "1.5rem"], ["boxShadow", "0px 10px 30px rgba(0,0,0,0.5)"], ["color", "#000000"], ["minWidth", "260px"], ["textAlign", "center"], ["boxSizing", "border-box"]]))]])), [self.$h("div", (new Map([["style", (new Map([["fontSize", "0.85rem"], ["fontWeight", "bold"], ["marginBottom", "0.8rem"], ["whiteSpace", "nowrap"]]))]])), title), self.$h("input", (new Map([["key", storage_key], ["style", (new Map([["display", "block"], ["width", "100%"], ["marginBottom", "0.8rem"], ["boxSizing", "border-box"], ["padding", "5px 8px"], ["fontSize", "1rem"], ["fontFamily", $$('FONT_MONEY')], ["fontWeight", "bold"], ["color", $$('COLOR_MONEY')]]))], ["props", (new Map([["value", current_val]]))], ["attrs", (new Map([["type", "number"], ["min", min_price.$to_s()], ["max", max_price.$to_s()]]))], ["on", (new Map([["input", $send(self, 'lambda', [], function $$10(event){var self = $$10.$$s == null ? this : $$10.$$s;
 
               
               if (event == null) event = nil;
               $$$($$('Lib'), 'Storage')['$[]='](storage_key, event.target.value);
-              return self.$update();}, {$$s: self})]]))]]))), self.$h("button", (new Map([["style", (new Map([["display", "block"], ["width", "100%"], ["marginBottom", "0.2rem"], ["cursor", "pointer"], ["fontSize", "0.75rem"], ["fontWeight", "bold"], ["padding", "3px 6px"], ["backgroundColor", "#007bff"], ["border", "1px solid #0056b3"], ["color", "#ffffff"], ["borderRadius", "3px"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$10(){var price_value = nil;
+              return self.$update();}, {$$s: self})]]))]]))), self.$h("button", (new Map([["style", (new Map([["display", "block"], ["width", "100%"], ["marginBottom", "0.2rem"], ["cursor", "pointer"], ["fontSize", "0.75rem"], ["fontWeight", "bold"], ["padding", "3px 6px"], ["backgroundColor", "#007bff"], ["border", "1px solid #0056b3"], ["color", "#ffffff"], ["borderRadius", "3px"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$11(){var price_value = nil;
 
               
               price_value = $$$($$('Lib'), 'Storage')['$[]'](storage_key).$to_i();
@@ -66024,7 +66190,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                 price_value = max_price
               };
               $$$($$('Lib'), 'Storage')['$[]='](storage_key, nil);
-              return on_confirm.$call(price_value);})]]))]])), "Confirm"), self.$h("button", (new Map([["style", (new Map([["display", "block"], ["width", "100%"], ["cursor", "pointer"], ["fontSize", "0.75rem"], ["padding", "3px 6px"], ["backgroundColor", "#e0e0e0"], ["border", "1px solid #999"], ["borderRadius", "3px"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$11(){
+              return on_confirm.$call(price_value);})]]))]])), "Confirm"), self.$h("button", (new Map([["style", (new Map([["display", "block"], ["width", "100%"], ["cursor", "pointer"], ["fontSize", "0.75rem"], ["padding", "3px 6px"], ["backgroundColor", "#e0e0e0"], ["border", "1px solid #999"], ["borderRadius", "3px"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$12(){
               
               $$$($$('Lib'), 'Storage')['$[]='](storage_key, nil);
               return on_cancel.$call();})]]))]])), "Cancel")]);
@@ -66152,7 +66318,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             return nil;
           }, -6);
           
-          $def(self, '$major_corporation?', function $RailcardHelper_major_corporation$ques$12(entity) {
+          $def(self, '$major_corporation?', function $RailcardHelper_major_corporation$ques$13(entity) {
             var $a, $b, self = this, is_corporation = nil, $ret_or_1 = nil, $ret_or_2 = nil, has_logo = nil;
 
             
@@ -66268,7 +66434,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             };
             classes = ["game-card", "short-railcard"];
             if ($truthy(card_classes)) {
-              $send(self.$Array(card_classes), 'each', [], function $$13(cls){
+              $send(self.$Array(card_classes), 'each', [], function $$14(cls){
                 
                 if (cls == null) cls = nil;
                 if ($truthy(classes['$include?'](cls.$to_s()))) {
@@ -66359,31 +66525,57 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             bg_color = ($truthy(is_buy) ? ("#e6f4ea") : ($truthy(is_sell) ? ("#fef2f2") : ("#fdfbf7")));
             
           if (typeof window !== 'undefined') {
-            // Single source of truth for the token pulse animation
+          // Single source of truth for synchronized 3-way corporate breathing animation
             var ensureTokenPulseStyle = function() {
               if (!document.getElementById('corp-token-pulse-style')) {
                 var s = document.createElement('style');
                 s.id = 'corp-token-pulse-style';
-                s.innerHTML = '@keyframes stock-marker-pulse { 0% { transform: scale(1); } 50% { transform: scale(2.0); } 100% { transform: scale(1); } } ' +
-                  '.stock-market-token-highlight { animation: stock-marker-pulse 0.65s infinite ease-in-out !important; transform-origin: center center !important; transform-box: fill-box !important; z-index: 999999 !important; filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 2px #ffffff) !important; } ' +
-                  '.map-token.stock-market-token-highlight { transform-origin: center center !important; transform-box: fill-box !important; filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 3px #ffffff) !important; } ' +
+                s.innerHTML = '@keyframes corp-breathing-sync { ' +
+                  '0% { transform: scale(1); } ' +
+                  '50% { transform: scale(1.45); } ' +
+                  '100% { transform: scale(1); } ' +
+                  '} ' +
+                  '@keyframes corp-status-card-breathing-sync { ' +
+                  '0% { transform: scale(1); } ' +
+                  '50% { transform: scale(1.15); } ' +
+                  '100% { transform: scale(1); } ' +
+                  '} ' +
+                  '.stock-market-token-highlight { ' +
+                  'animation: corp-breathing-sync 0.85s ease-in-out infinite !important; ' +
+                  'transform-origin: center center !important; ' +
+                  'transform-box: fill-box !important; ' +
+                  'z-index: 999999 !important; ' +
+                  'filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 3px #00ffff) !important; ' +
+                  '} ' +
+                  '.map-token.stock-market-token-highlight { ' +
+                  'animation: corp-breathing-sync 0.85s ease-in-out infinite !important; ' +
+                  'transform-origin: center center !important; ' +
+                  'transform-box: fill-box !important; ' +
+                  'filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 4px #00ffff) !important; ' +
+                  '} ' +
+                  '.status-corp-highlight { ' +
+                  'animation: corp-status-card-breathing-sync 0.85s ease-in-out infinite !important; ' +
+                  'transform-origin: center center !important; ' +
+                  'z-index: 99999 !important; ' +
+                  'filter: drop-shadow(0 0 6px rgba(0, 255, 255, 0.8)) !important; ' +
+                  '} ' +
                   ':has(> .stock-market-token-highlight), :has(.stock-market-token-highlight) { z-index: 99999 !important; }';
                 document.head.appendChild(s);
               }
             };
             ensureTokenPulseStyle();
 
-            window.highlightStockMarketToken = function(corpId) {
+          window.highlightStockMarketToken = function(corpId) {
               if (!corpId) return;
               if (window._highlightedMarketCorp === corpId) return;
               window.clearStockMarketTokenHighlight();
               window._highlightedMarketCorp = corpId;
 
-              var cleanCorpId = String(corpId).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+              var safeCorpAttr = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(corpId) : String(corpId).replace(/["\\]/g, '\\$&');
 
               // 1. Highlight stock market tokens
               var stockTokens = document.querySelectorAll(
-                '.stock-market-token[data-corp="' + cleanCorpId + '"], [id="stock-token-' + cleanCorpId + '"]'
+                '.stock-market-token[data-corp="' + safeCorpAttr + '"], [id="stock-token-' + safeCorpAttr + '"]'
               );
               for (var i = 0; i < stockTokens.length; i++) {
                 var st = stockTokens[i];
@@ -66395,9 +66587,9 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                 }
               }
 
-              // 2. Highlight map tokens
+              // 2. Highlight map tokens (use data-corp attribute only to avoid invalid CSS class identifiers like B&O)
               var mapTokens = document.querySelectorAll(
-                '.map-token[data-corp="' + cleanCorpId + '"], .map-token-' + cleanCorpId
+                '.map-token[data-corp="' + safeCorpAttr + '"], [data-corp="' + safeCorpAttr + '"].map-token'
               );
               for (var j = 0; j < mapTokens.length; j++) {
                 var mt = mapTokens[j];
@@ -66407,6 +66599,14 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                   hexContainer.parentNode.appendChild(hexContainer);
                 }
               }
+
+              // 3. Highlight status panel major railcard
+              var statusCards = document.querySelectorAll(
+                '.major-railcard[data-corp="' + safeCorpAttr + '"], .status-corp-wrapper[data-corp="' + safeCorpAttr + '"], [data-corp="' + safeCorpAttr + '"] .major-railcard'
+              );
+              for (var k = 0; k < statusCards.length; k++) {
+                statusCards[k].classList.add('status-corp-highlight');
+              }
             };
 
             window.clearStockMarketTokenHighlight = function() {
@@ -66415,9 +66615,13 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                 window._elevatedMarketCell.style.zIndex = '';
                 window._elevatedMarketCell = null;
               }
-              var highlighted = document.querySelectorAll('.stock-market-token-highlight');
-              for (var i = 0; i < highlighted.length; i++) {
-                highlighted[i].classList.remove('stock-market-token-highlight');
+              var highlightedTokens = document.querySelectorAll('.stock-market-token-highlight');
+              for (var i = 0; i < highlightedTokens.length; i++) {
+                highlightedTokens[i].classList.remove('stock-market-token-highlight');
+              }
+              var highlightedCards = document.querySelectorAll('.status-corp-highlight');
+              for (var j = 0; j < highlightedCards.length; j++) {
+                highlightedCards[j].classList.remove('status-corp-highlight');
               }
             };
 
@@ -66532,20 +66736,42 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             if (!window._market_token_hover_installed) {
               window._market_token_hover_installed = true;
 
-              var getCertCorp = function(el) {
+            var getCorpFromElement = function(el) {
                 if (!el || !el.closest) return null;
 
+                // 1. Stock market token or container
+                var stockToken = el.closest('.stock-market-token');
+                if (stockToken) {
+                  var stCorp = stockToken.getAttribute('data-corp');
+                  if (stCorp) return stCorp;
+                  if (stockToken.id && stockToken.id.indexOf('stock-token-') === 0) {
+                    return stockToken.id.substring(12);
+                  }
+                }
+
+                // 2. Map token
+                var mapToken = el.closest('.map-token');
+                if (mapToken) {
+                  var mtCorp = mapToken.getAttribute('data-corp');
+                  if (mtCorp) return mtCorp;
+                }
+
+                // 3. Operational columns: ignore cash/trains/empty slots
                 if (el.closest('.corporation-trains, .corporation-cash, .empty-train-slot, [id^="trains_"], [id^="tokens_"]')) {
                   return null;
                 }
 
-                var explicitCorpEl = el.closest('[data-corp]');
+                // 4. Certificates and status cards
+                var certEl = el.closest('.cert-share-card, .game-card, .major-railcard, .short-card, .ghost-short-card, .major-railcard-wrapper');
+                if (!certEl) return null;
+
+                var explicitCorpEl = certEl.closest('[data-corp]');
                 if (explicitCorpEl && !explicitCorpEl.matches('tr')) {
                   var c = explicitCorpEl.getAttribute('data-corp');
                   if (c && c !== '') return c;
                 }
 
-                var cell = el.closest('td[id], th[id]');
+                var cell = certEl.closest('td[id], th[id]');
                 if (cell && cell.id) {
                   var id = cell.id;
                   if (id.indexOf('pool_shares_') === 0) return id.substring(12);
@@ -66558,23 +66784,21 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                   }
                 }
 
-                var row = el.closest('tr');
+                var row = certEl.closest('tr');
                 if (row && row.getAttribute('data-corp')) {
-                  if (el.closest('.share-card-wrapper, .game-card, .major-railcard, .short-card, .ghost-short-card, td.market-shares-col')) {
-                    return row.getAttribute('data-corp');
-                  }
+                  return row.getAttribute('data-corp');
                 }
 
                 return null;
               };
 
               document.addEventListener('mouseover', function(e) {
-                var corpId = getCertCorp(e.target);
+                var corpId = getCorpFromElement(e.target);
                 if (corpId) {
                   if (window.highlightStockMarketToken) {
                     window.highlightStockMarketToken(corpId);
                   }
-                } else if (!e.target.closest || !e.target.closest('.stock-market-token, .map-token')) {
+                } else if (!e.target.closest || !e.target.closest('.stock-market-token, .map-token, .cert-share-card, .major-railcard')) {
                   if (window.clearStockMarketTokenHighlight) {
                     window.clearStockMarketTokenHighlight();
                   }
@@ -66582,9 +66806,9 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
               });
 
               document.addEventListener('mouseout', function(e) {
-                var fromCorp = getCertCorp(e.target);
+                var fromCorp = getCorpFromElement(e.target);
                 if (fromCorp) {
-                  var toCorp = getCertCorp(e.relatedTarget);
+                  var toCorp = getCorpFromElement(e.relatedTarget);
                   if (toCorp !== fromCorp && window.clearStockMarketTokenHighlight) {
                     window.clearStockMarketTokenHighlight();
                   }
@@ -66607,7 +66831,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
               first_part = t_str.$split("(").$first();
               t_clean = ($truthy(first_part) ? (first_part.$strip()) : (""));
               t_clean = t_clean.$sub(/\s+[$£€\d].*$/, "").$strip();
-              resolved_entity = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(self.game['$respond_to?']("companies")) ? ($send(self.game.$companies(), 'find', [], function $$14(c){var $ret_or_3 = nil, $ret_or_4 = nil, $ret_or_5 = nil;
+              resolved_entity = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(self.game['$respond_to?']("companies")) ? ($send(self.game.$companies(), 'find', [], function $$15(c){var $ret_or_3 = nil, $ret_or_4 = nil, $ret_or_5 = nil;
 
                 
                 if (c == null) c = nil;
@@ -66615,7 +66839,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                   return $ret_or_3
                 } else {
                   return c.$name().$to_s()['$=='](t_clean)
-                };})) : (nil)))) ? ($ret_or_2) : (($truthy(self.game['$respond_to?']("corporations")) ? ($send(self.game.$corporations(), 'find', [], function $$15(c){var $ret_or_3 = nil, $ret_or_4 = nil, $ret_or_5 = nil;
+                };})) : (nil)))) ? ($ret_or_2) : (($truthy(self.game['$respond_to?']("corporations")) ? ($send(self.game.$corporations(), 'find', [], function $$16(c){var $ret_or_3 = nil, $ret_or_4 = nil, $ret_or_5 = nil;
 
                 
                 if (c == null) c = nil;
@@ -66623,7 +66847,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                   return $ret_or_3
                 } else {
                   return c.$name().$to_s()['$=='](t_clean)
-                };})) : (nil)))))) ? ($ret_or_1) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(self.game.$minors(), 'find', [], function $$16(m){var $ret_or_3 = nil, $ret_or_4 = nil;
+                };})) : (nil)))))) ? ($ret_or_1) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(self.game.$minors(), 'find', [], function $$17(m){var $ret_or_3 = nil, $ret_or_4 = nil;
 
                 
                 if (m == null) m = nil;
@@ -66637,7 +66861,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             hover_events = (new Map());
             if ($truthy(target_hexes['$any?']())) {
               
-              hover_events['$[]=']("mouseenter", $send(self, 'lambda', [], function $$17(){
+              hover_events['$[]=']("mouseenter", $send(self, 'lambda', [], function $$18(){
                 
                 
                 if (typeof window !== 'undefined' && window.highlightMapHexes) {
@@ -66645,7 +66869,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                 }
               ;
                 return nil;}));
-              hover_events['$[]=']("mouseleave", $send(self, 'lambda', [], function $$18(){
+              hover_events['$[]=']("mouseleave", $send(self, 'lambda', [], function $$19(){
                 
                 
                 if (typeof window !== 'undefined' && window.clearMapHexHighlights) {
@@ -66662,7 +66886,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             if ($truthy(wrapper_classes)) {
               
               if (Array.isArray(wrapper_classes)) {;
-              $send(wrapper_classes, 'each', [], function $$19(cls){var c_str = nil;
+              $send(wrapper_classes, 'each', [], function $$20(cls){var c_str = nil;
 
                 
                 if (cls == null) cls = nil;
