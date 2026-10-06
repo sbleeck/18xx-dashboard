@@ -5,11 +5,6 @@ require_relative '../base'
 require_relative 'map'
 require_relative 'entities'
 require_relative 'share_pool'
-require_relative 'step/token'
-require_relative 'step/track'
-require_relative 'round/stock'
-require_relative 'round/draft'
-require_relative 'round/clemens_draft'
 require_relative '../../round/operating'
 require_relative '../cities_plus_towns_route_distance_str'
 
@@ -25,9 +20,10 @@ module Engine
         include G1835::Entities
         include G1835::Map
 
-        TRACK_RESTRICTION = :permissive
         CURRENCY_FORMAT_STR = '%sM'
+        # game end current or, when the bank is empty
         GAME_END_CHECK = { bank: :current_or }.freeze
+        # bankrupt is allowed, player leaves game
         BANKRUPTCY_ALLOWED = true
 
         BANK_CASH = 12_000
@@ -44,6 +40,7 @@ module Engine
         CERT_LIMIT = { 3 => 19, 4 => 15, 5 => 12, 6 => 11, 7 => 9 }.freeze
 
         STARTING_CASH = { 3 => 600, 4 => 475, 5 => 390, 6 => 340, 7 => 310 }.freeze
+        # money per initial share sold
         CAPITALIZATION = :incremental
 
         MUST_SELL_IN_BLOCKS = false
@@ -53,15 +50,12 @@ module Engine
 
         EBUY_DEPOT_TRAIN_MUST_BE_CHEAPEST = false
 
-<<<<<<< HEAD
-=======
         MUST_BUY_TRAIN = :always
 
         # brown tiles - in addition to the default - cannot be built into unless there is track on the other side
         IMPASSABLE_HEX_COLORS = %i[blue brown gray red].freeze
         TRACK_RESTRICTION = :permissive
 
->>>>>>> upstream/master
         MARKET = [['', '', '', ''] + %w[132 148 166 186 208 232 258 286 316 348 382 418],
                   ['', ''] + %w[98 108 120 134 150 168 188 210 234 260 288 318 350 384],
                   %w[82 86 92p 100 110 122 136 152 170 190 212 236 262 290 320],
@@ -114,13 +108,7 @@ module Engine
                   { name: '3', distance: 3, price: 180, rusts_on: '6', num: 4 },
                   { name: '3+3', distance: plus_train_distance(3), price: 270, rusts_on: '6+6', num: 3 },
                   { name: '4', distance: 4, price: 360, num: 3, events: [{ 'type' => 'pr_can_form' }] },
-                  {
-                    name: '4+4',
-                    distance: plus_train_distance(4),
-                    price: 440,
-                    num: 1,
-                    events: [{ 'type' => 'pr_must_form' }],
-                  },
+                  { name: '4+4', distance: plus_train_distance(4), price: 440, num: 1, events: [{ 'type' => 'pr_must_form' }] },
                   {
                     name: '5',
                     distance: 5,
@@ -141,14 +129,16 @@ module Engine
 
         STATUS_TEXT = Base::STATUS_TEXT.merge(
           'can_buy_trains' => ['Buy trains', 'Can buy trains from other corporations'],
-          'two_tile_lays' => ['Two tile lays',
-                              'Major corporations may lay 2 yellow tiles, minor corporations lay 1 yellow tile'],
+          'two_tile_lays' => ['Two tile lays', 'Major corporations may lay 2 yellow tiles, minor corporations lay 1 yellow tile'],
           'lay_or_upgrade' => ['Lay or upgrade', 'Corporations may lay 1 tile or upgrade 1 tile']
         ).freeze
 
         LAYOUT = :pointy
+
         SELL_MOVEMENT = :down_block
+
         HOME_TOKEN_TIMING = :float
+
         CORPORATION_BLOCKS = [%w[BY SX], %w[BA WT HE PR], %w[MS OL]].freeze
 
         LAY_OR_UPGRADE = [{ lay: true, upgrade: true }].freeze
@@ -157,10 +147,6 @@ module Engine
         def setup
           prussian.shares.last(7).each { |s| s.buyable = false }
           prussian.shares.first.buyable = false
-
-          prussian.define_singleton_method(:ipo_percent) do
-            shares.select(&:buyable).sum(&:percent)
-          end
 
           @corporations.each do |corp|
             corp.shares.reject(&:president).each { |share| share.double_cert = (share.percent == 20) }
@@ -179,13 +165,9 @@ module Engine
           corporation_by_id('OL').forced_share_percent = 10
 
           @corporation_blocks = CORPORATION_BLOCKS.map { |block| block.map { |c| corporation_by_id(c) } }
-<<<<<<< HEAD
-          hex_by_id('L6').tile.cities.each { |city| city.reservations << corporation_by_id('BA') }
-=======
 
           # PR does not need a reservation, since its home token is put where 2's token was
           hex_by_id('E19').tile.remove_reservation!(prussian)
->>>>>>> upstream/master
         end
 
         def company_header(company)
@@ -200,11 +182,8 @@ module Engine
         end
 
         def init_round
-          if @optional_rules&.include?(:clemens)
-            G1835::Round::ClemensDraft.new(self, [G1835::Step::Draft])
-          else
-            G1835::Round::Draft.new(self, [G1835::Step::Draft])
-          end
+          G1835::Round::Draft.new(self,
+                                  [G1835::Step::Draft])
         end
 
         def new_draft_round
@@ -218,37 +197,13 @@ module Engine
           clear_programmed_actions
           @round =
             case @round
-            when G1835::Round::Draft, G1835::Round::ClemensDraft
-              reorder_players unless @optional_rules&.include?(:clemens)
+            when G1835::Round::Draft
+              reorder_players
               new_operating_round(@draft_round_num)
             when G1835::Round::Operating
               @draft_round_num += 1
               new_draft_round
             end
-        end
-
-        def reorder_players(order = nil, log_player_order: false, silent: false)
-          order ||= next_sr_player_order
-          if order == :after_last_to_act
-            active_players = @players.reject(&:bankrupt)
-            player = if @round&.last_to_act && active_players.include?(@round.last_to_act)
-                       last_idx = active_players.index(@round.last_to_act)
-                       active_players[(last_idx + 1) % active_players.size]
-                     else
-                       active_players[(@round&.entity_index || 0) % active_players.size]
-                     end
-            @players.rotate!(@players.index(player))
-            @log << "#{player.name} has priority deal" unless silent
-            return
-          end
-
-          super
-        end
-
-        def check_sale_timing(entity, bundle)
-          return true if @optional_rules&.include?(:clemens) && bundle.corporation.operated?
-
-          super
         end
 
         def operating_round(round_num)
@@ -257,7 +212,6 @@ module Engine
             G1835::Step::MinorExchange,
             Engine::Step::DiscardTrain,
             Engine::Step::SpecialTrack,
-            G1835::Step::HomeToken,
             G1835::Step::SpecialToken,
             Engine::Step::Track,
             Engine::Step::HomeToken,
@@ -304,12 +258,7 @@ module Engine
         end
 
         def corporation_available?(corp)
-          return false unless corp.ipoed
-
-          if corp == prussian
-            ba = corporation_by_id('BA')
-            return ba.shares.none?(&:president)
-          end
+          return !corporation_by_id('BA').shares.first&.president if corp == prussian
 
           block = @corporation_blocks.find { |corporation_block| corporation_block.include?(corp) }
           index_in_block = block.index(corp)
@@ -357,26 +306,9 @@ module Engine
           LAY_OR_UPGRADE
         end
 
-        def must_buy_train?(entity)
-          %i[major prussian].include?(entity.type) && super
-        end
-
-        def upgrades_to?(hex, tile, special = false)
-          # L6 requires a green XX tile (210-215) as its first lay, bypassing Phase 1 yellow restriction
-          if hex.id == 'L6' && %w[210 211 212 213 214 215].include?(tile.name)
-            return hex.tile.color == :white || hex.tile.color == :yellow
-          end
-
-          super
-        end
-
-        def operating_order
-          order = super
-          order.reject!(&:minor?) if @optional_rules&.include?(:clemens) && !corporation_by_id('BY').floated?
-          order
-        end
-
         def payout_companies
+          # omit paying out companies if any Prussian conversion could happen. Payout is then handled by MinorExchange
+          # after all choices have been made
           super unless any_conversion_choice_available?
         end
 
@@ -385,8 +317,10 @@ module Engine
         end
 
         def any_conversion_choice_available?
+          # Owner of 2 has the choice to form the PR
           return true if @pr_can_form && !prussian.floated?
 
+          # PR has already been formed and not all minors/companies have been converted yet
           prussian.floated? && !prussian_exchangeables.reject(&:closed?).empty?
         end
 
@@ -399,7 +333,7 @@ module Engine
         end
 
         def berlin_potsdamer_bahn
-          @berlin_potsdamer_bahn ||= minor_by_id('M2') || minor_by_id('2')
+          @berlin_potsdamer_bahn ||= minor_by_id('2')
         end
 
         def prussian_exchangeables
@@ -408,79 +342,6 @@ module Engine
 
         def prussian_companies
           @prussian_companies ||= %w[BB HB].map { |id| company_by_id(id) }
-        end
-
-        def entity_can_use_company?(entity, company)
-          return false if entity.minor?
-
-          super
-        end
-
-        def action_processed(action)
-          super
-
-          case action
-
-          when Action::PlaceToken
-            if action.entity.id == 'BA' && action.city.hex.id == 'L6'
-              ba_corp = corporation_by_id('BA')
-              action.city.hex.tile.cities.each do |c|
-                c.remove_reservation!(ba_corp)
-              end
-            end
-            nf = company_by_id('NF')
-            if nf && !nf.closed? && nf.all_abilities.none? { |a| a.type == :token }
-              nf.close!
-              @log << "#{nf.name} closes as its special token action is complete."
-            end
-            pb = company_by_id('PB')
-            if pb && !pb.closed? && pb.all_abilities.none? { |a| a.type == :token } && pb.all_abilities.none? do |a|
-                 a.type == :tile_lay
-               end
-
-              pb.close!
-              @log << "#{pb.name} closes as both special tile and token actions are complete."
-            end
-          when Action::LayTile
-            obb = company_by_id('OBB')
-            if obb && !obb.closed? && %w[M15 M17].include?(action.hex.id) &&
-            (hex_by_id('M15').tile.color != :white && hex_by_id('M17').tile.color != :white)
-              obb.close!
-              @log << "#{obb.name} closes because both target hexes have been built on."
-            end
-
-            pb = company_by_id('PB')
-            if pb && !pb.closed? && pb.all_abilities.none? { |a| a.type == :token } && pb.all_abilities.none? do |a|
-                 a.type == :tile_lay
-               end
-
-              pb.close!
-              @log << "#{pb.name} closes as both special tile and token actions are complete."
-            end
-          end
-        end
-
-        def ability_usable?(ability)
-          if ability.type == :token && ability.owner.sym == 'PB'
-            ba = corporation_by_id('BA')
-            is_usable = ba&.floated? && ba.tokens.first&.used
-
-            # Use a state flag to avoid crashing the UI render loop while ensuring exactly one log when state changes
-            unless @logged_pb_ability_state == is_usable
-              @log << "[LOG] PB Token ability: Usable=#{!!is_usable}, " \
-                      "from_owner=#{ability.from_owner}, special_only=#{ability.special_only}"
-              @logged_pb_ability_state = is_usable
-            end
-
-            return false unless is_usable
-          end
-          super
-        end
-
-        def place_home_token(corporation)
-          return if corporation.id == 'BA'
-
-          super
         end
 
         def event_pr_can_form!
@@ -523,10 +384,9 @@ module Engine
           @log << "#{minor.name} merges into #{prussian.name}"
 
           owner = minor.owner
-          exchange_share_percentage = %w[2 4 M2 M4].include?(minor.id) ? 10 : 5
+          exchange_share_percentage = %w[2 4].include?(minor.id) ? 10 : 5
 
-          exchange_prussian_share(allow_president_change, exchange_share_percentage, owner,
-                                  president: %w[2 M2].include?(minor.id))
+          exchange_prussian_share(allow_president_change, exchange_share_percentage, owner, president: minor.id == '2')
 
           if minor.cash.positive?
             @log << "#{prussian.name} receives #{format_currency(minor.cash)} from #{minor.name}'s treasury"
@@ -539,9 +399,13 @@ module Engine
             minor.trains.dup.each { |t| buy_train(prussian, t, :free) }
           end
 
-          unless %w[5 M5].include?(minor.id)
+          # Preußen already has a token in Berlin and the rules forbid having more than one token per hex
+          unless minor.id == '5'
             token = minor.tokens.first
-            new_token = %w[2 M2].include?(minor.id) ? prussian.tokens.first : Token.new(prussian)
+
+            # make sure the first token (= home token) gets used or other methods might behave unexpectedly later, e.g.
+            # "maybe_place_home_token" called when buying shares
+            new_token = minor.id == '2' ? prussian.tokens.first : Token.new(prussian)
             prussian.tokens << new_token
 
             token.swap!(new_token, check_tokenable: false)
@@ -557,16 +421,6 @@ module Engine
         def close_minor!(minor)
           minor.tokens.each(&:remove!)
           minor.close!
-          # If a minor is closed during an Operating Round (e.g., folded into Prussia),
-          # we must remove it from the round's entities to prevent it from taking a turn.
-          # We dynamically shift the entity_index to ensure the acting entity doesn't lose its turn.
-          return unless @round.is_a?(Engine::Round::Operating)
-
-          minor_index = @round.entities.index(minor)
-          return unless minor_index
-
-          @round.entities.delete_at(minor_index)
-          @round.instance_variable_set(:@entity_index, @round.entity_index - 1) if @round.entity_index > minor_index
         end
 
         def exchange_prussian_share(allow_president_change, exchange_share_percentage, owner, president: false)
@@ -581,34 +435,13 @@ module Engine
           raise GameError, 'Preußen director not owned by Preußen anymore' if president && !exchange_share.president
 
           exchange_share.buyable = true
-          @share_pool.transfer_shares(ShareBundle.new(exchange_share), owner,
-                                      allow_president_change: allow_president_change)
+          @share_pool.transfer_shares(ShareBundle.new(exchange_share), owner, allow_president_change: allow_president_change)
         end
 
         def share_flags(shares)
           'h' * shares.count { |share| share.percent == 5 }
         end
       end
-    end
-  end
-end
-
-module Engine
-  class Player
-    def logo
-      nil
-    end
-
-    def simple_logo
-      nil
-    end
-
-    def tokens_by_type(*)
-      []
-    end
-
-    def all_abilities
-      []
     end
   end
 end
