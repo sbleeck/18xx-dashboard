@@ -935,6 +935,9 @@ module View
         ])
       end
 
+      # File: dashboard_map.rb
+      # Method: render
+
       def render
         return h(:div, []) if (@layout = @game.layout) == :none
 
@@ -950,46 +953,46 @@ module View
         @scale = 1.0
 
         %x{
-          if (typeof window !== 'undefined') {
-            window.highlightMapHexes = function(hexIds, _color) {
-              if (!hexIds) return;
-              window.clearMapHexHighlights();
-              var list = Array.isArray(hexIds) ? hexIds : (hexIds.to_a ? hexIds.to_a() : [hexIds]);
-              for (var i = 0; i < list.length; i++) {
-                var rawId = String(list[i]);
-                var targets = [
-                  document.getElementById('hex-' + rawId),
-                  document.querySelector('.hex-' + rawId),
-                  document.getElementById('hex-' + rawId.toUpperCase()),
-                  document.querySelector('.hex-' + rawId.toUpperCase())
-                ];
-                for (var t = 0; t < targets.length; t++) {
-                  var hexEl = targets[t];
-                  if (hexEl) {
-                    var poly = hexEl.querySelector('.hex-highlight-poly');
-                    if (poly) {
-                      poly.setAttribute('stroke', '#00ffff');
-                      poly.setAttribute('stroke-width', '8');
-                      poly.setAttribute('fill', '#00ffff');
-                      poly.setAttribute('fill-opacity', '0.35');
-                    }
-                  }
-                }
+    if (typeof window !== 'undefined') {
+      window.highlightMapHexes = function(hexIds, _color) {
+        if (!hexIds) return;
+        window.clearMapHexHighlights();
+        var list = Array.isArray(hexIds) ? hexIds : (hexIds.to_a ? hexIds.to_a() : [hexIds]);
+        for (var i = 0; i < len; i++) {
+          var rawId = String(list[i]);
+          var targets = [
+            document.getElementById('hex-' + rawId),
+            document.querySelector('.hex-' + rawId),
+            document.getElementById('hex-' + rawId.toUpperCase()),
+            document.querySelector('.hex-' + rawId.toUpperCase())
+          ];
+          for (var t = 0; t < targets.length; t++) {
+            var hexEl = targets[t];
+            if (hexEl) {
+              var poly = hexEl.querySelector('.hex-highlight-poly');
+              if (poly) {
+                poly.setAttribute('stroke', '#00ffff');
+                poly.setAttribute('stroke-width', '8');
+                poly.setAttribute('fill', '#00ffff');
+                poly.setAttribute('fill-opacity', '0.35');
               }
-            };
-
-            window.clearMapHexHighlights = function() {
-              var polys = document.querySelectorAll('.hex-highlight-poly');
-              for (var i = 0; i < polys.length; i++) {
-                var p = polys[i];
-                p.setAttribute('stroke', p.getAttribute('data-orig-stroke') || 'transparent');
-                p.setAttribute('stroke-width', p.getAttribute('data-orig-width') || '0');
-                p.setAttribute('fill', p.getAttribute('data-orig-fill') || 'transparent');
-                p.setAttribute('fill-opacity', p.getAttribute('data-orig-fill-opacity') || '0');
-              }
-            };
+            }
           }
         }
+      };
+
+      window.clearMapHexHighlights = function() {
+        var polys = document.querySelectorAll('.hex-highlight-poly');
+        for (var i = 0; i < polys.length; i++) {
+          var p = polys[i];
+          p.setAttribute('stroke', p.getAttribute('data-orig-stroke') || 'transparent');
+          p.setAttribute('stroke-width', p.getAttribute('data-orig-width') || '0');
+          p.setAttribute('fill', p.getAttribute('data-orig-fill') || 'transparent');
+          p.setAttribute('fill-opacity', p.getAttribute('data-orig-fill-opacity') || '0');
+        }
+      };
+    }
+  }
 
         step = @game.round.active_step(@selected_company)
 
@@ -1001,11 +1004,26 @@ module View
         selected_hex = @tile_selector&.hex
         @hexes << @hexes.delete(selected_hex) if @hexes.include?(selected_hex)
 
-        routes = @routes
-        routes = @historical_routes if routes.none?
-
         track_action_active = actions.include?('lay_tile')
         token_action_active = actions.include?('place_token') || actions.include?('hex_token')
+        route_action_active = actions.include?('run_routes')
+
+        # // --- START FIX ---
+        # // --- DELETE --- routes = @routes
+        # // --- DELETE --- routes = @historical_routes if routes.none?
+        # Gate routes: suppress during track/token actions; isolate historical routes to explicit history mode
+        routes = if track_action_active || token_action_active
+                   []
+                 elsif route_action_active || @selected_route
+                   @routes
+                 elsif (@game.respond_to?(:historical?) && @game.historical?) || @historical_laid_hexes
+                   @historical_routes
+                 elsif @routes.any? && !actions.empty?
+                   @routes
+                 else
+                   []
+                 end
+        # // --- END FIX ---
 
         hovered_c_id = Lib::Storage['hovered_company_id']
         hovered_target_hexes = extract_hovered_hexes(hovered_c_id)
@@ -1038,10 +1056,9 @@ module View
               actions: current_entity ? actions : [],
               routes: routes,
               start_pos: @start_pos,
-              highlight: false # Disallow legacy red/green home hex fills; rely on breathing tokens and cyan bounds
+              highlight: false
             )
 
-          # Highlighting Design System: Strict cyan highlight for untokened privates & targeted locations
           border_color = is_hovered ? '#00ffff' : nil
           initial_stroke = border_color || 'transparent'
           initial_width = border_color ? (Hex::HIGHLIGHT_STROKE_WIDTH + 4) : 0
