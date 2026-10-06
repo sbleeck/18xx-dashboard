@@ -1018,24 +1018,6 @@ module View
 
         track_action_active = actions.include?('lay_tile')
         token_action_active = actions.include?('place_token') || actions.include?('hex_token')
-        route_action_active = actions.include?('run_routes')
-
-        # // --- START FIX ---
-        # // --- DELETE --- routes = @routes
-        # // --- DELETE --- routes = @historical_routes if routes.none?
-        # Gate routes: suppress during track/token actions; isolate historical routes to explicit history mode
-        routes = if track_action_active || token_action_active
-                   []
-                 elsif route_action_active || @selected_route
-                   @routes
-                 elsif (@game.respond_to?(:historical?) && @game.historical?) || @historical_laid_hexes
-                   @historical_routes
-                 elsif @routes.any? && !actions.empty?
-                   @routes
-                 else
-                   []
-                 end
-        # // --- END FIX ---
 
         hovered_c_id = Lib::Storage['hovered_company_id']
         hovered_target_hexes = extract_hovered_hexes(hovered_c_id)
