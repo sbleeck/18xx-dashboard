@@ -1004,6 +1004,18 @@ module View
         selected_hex = @tile_selector&.hex
         @hexes << @hexes.delete(selected_hex) if @hexes.include?(selected_hex)
 
+        route_actions = %w[run_routes dividend]
+        route_phase_active = actions.any? { |a| route_actions.include?(a) }
+        is_history_mode = (@game.respond_to?(:historical?) && @game.historical?) || @historical_laid_hexes
+
+        routes = if route_phase_active
+                   @routes
+                 elsif is_history_mode
+                   @routes.any? ? @routes : @historical_routes
+                 else
+                   []
+                 end
+
         track_action_active = actions.include?('lay_tile')
         token_action_active = actions.include?('place_token') || actions.include?('hex_token')
         route_action_active = actions.include?('run_routes')
