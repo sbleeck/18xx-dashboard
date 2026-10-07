@@ -260,6 +260,73 @@ module View
         ])
       end
 
+      def next_turn_game_id
+        return nil unless @user
+
+        curr_id = (@game.respond_to?(:id) ? @game.id : @game_data&.dig('id'))&.to_s
+
+        turn_list = @user['turn_games'] || @user[:turn_games] || []
+        if turn_list.empty?
+          cached = `window._turn_games_cache || []`
+          turn_list = Array(Native(cached)) if cached
+        end
+
+        target_ids = turn_list.map do |entry|
+          if entry.is_a?(Hash)
+            entry['id'] || entry[:id]
+          elsif entry.respond_to?(:id)
+            entry.id
+          else
+            entry
+          end
+        end.compact.map(&:to_s).uniq
+
+        target_ids.find { |gid| gid != curr_id }
+      end
+
+      def render_next_game_button
+        target_id = next_turn_game_id
+        return nil unless target_id
+
+        jump_action = lambda {
+          `window.location.href = '/game/' + #{target_id} + '#dashboard'`
+        }
+
+        h(:button, {
+            attrs: {
+              id: 'btn-next-turn-game',
+              type: 'button',
+              title: "Jump to your turn in Game ##{target_id}",
+            },
+            style: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.35rem',
+              height: '2.4rem',
+              padding: '0 0.85rem',
+              marginLeft: 'auto',
+              flexShrink: '0',
+              borderRadius: '6px',
+              backgroundColor: '#0284c7',
+              color: '#ffffff',
+              border: '2px solid #0369a1',
+              boxShadow: '0 2px 6px rgba(2, 132, 199, 0.35)',
+              fontSize: '0.85rem',
+              fontWeight: 'bold',
+              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              lineHeight: '1',
+              zIndex: 10,
+            },
+            on: { click: jump_action },
+          }, [
+            h(:span, { style: { fontSize: '1rem' } }, '⚡'),
+            h(:span, "Next Game (##{target_id}) →"),
+          ])
+      end
+
       def render_history_overlay
         val = Lib::Storage['cmd_history_overlay']
         is_open = [true, 'true'].include?(val) || @show_history_overlay == true
@@ -627,6 +694,18 @@ module View
                         Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
                         `window.scrollTo(0, 0)`
                         `document.body.style.overflow = 'hidden'`
+                        %x(
+                          if (!window._turn_games_cache && window.fetch) {
+                            fetch('/api/user')
+                              .then(function(res) { return res.ok ? res.json() : null; })
+                              .then(function(data) {
+                                if (data && data.turn_games) {
+                                  window._turn_games_cache = data.turn_games;
+                                }
+                              }).catch(function() {});
+                          }
+                        )
+
                         `document.body.style.margin = '0'`
                         `document.body.style.padding = '0'`
                         `document.body.style.backgroundColor = '#{frame_bg}'`
@@ -1480,6 +1559,7 @@ h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex'
         h(View::Game::DashboardEntityOrder, round: @game.round)
       end,
     ]),
+    render_next_game_button,
   ].compact),
 
   h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
