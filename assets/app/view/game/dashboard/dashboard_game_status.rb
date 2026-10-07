@@ -255,25 +255,25 @@ module View
                     .status-corp-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .cmd-company-tooltip { display: none !important; }
 
                     .share-card-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; }
-          .share-card-wrapper[title]:not([title=""]):hover::after {
-            content: attr(title);
-            position: absolute;
-            bottom: calc(100% + 4px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.95);
-            color: #ffffff;
-            font-family: var(--font-standard);
-            font-size: 0.85rem;
-            font-weight: bold;
-            line-height: 1.2;
-            padding: 4px 8px;
-            border-radius: 5px;
-            white-space: pre;
-            pointer-events: none;
-            zIndex: 99999;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.35);
-          }
+          # .share-card-wrapper[title]:not([title=""]):hover::after {
+          #   content: attr(title);
+          #   position: absolute;
+          #   bottom: calc(100% + 4px);
+          #   left: 50%;
+          #   transform: translateX(-50%);
+          #   background: rgba(15, 23, 42, 0.95);
+          #   color: #ffffff;
+          #   font-family: var(--font-standard);
+          #   font-size: 0.85rem;
+          #   font-weight: bold;
+          #   line-height: 1.2;
+          #   padding: 4px 8px;
+          #   border-radius: 5px;
+          #   white-space: pre;
+          #   pointer-events: none;
+          #   zIndex: 99999;
+          #   box-shadow: 0 3px 6px rgba(0,0,0,0.35);
+          # }
 
           .game-card.president-card {
             font-weight: bold !important;
@@ -1929,25 +1929,25 @@ module View
 
         tooltip_style = <<~CSS
           .unplaced-token-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: help; margin: 2px; }
-          .unplaced-token-wrapper[title]:not([title=""]):hover::after {
-            content: attr(title);
-            position: absolute;
-            bottom: calc(100% + 4px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.95);
-            color: #ffffff;
-            font-family: var(--font-money, monospace);
-            font-size: 1.44rem;
-            font-weight: bold;
-            line-height: 1;
-            padding: 4px 10px;
-            border-radius: 5px;
-            white-space: nowrap;
-            pointer-events: none;
-            z-index: 99999;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.35);
-          }
+          # .unplaced-token-wrapper[title]:not([title=""]):hover::after {
+          #   content: attr(title);
+          #   position: absolute;
+          #   bottom: calc(100% + 4px);
+          #   left: 50%;
+          #   transform: translateX(-50%);
+          #   background: rgba(15, 23, 42, 0.95);
+          #   color: #ffffff;
+          #   font-family: var(--font-money, monospace);
+          #   font-size: 1.44rem;
+          #   font-weight: bold;
+          #   line-height: 1;
+          #   padding: 4px 10px;
+          #   border-radius: 5px;
+          #   white-space: nowrap;
+          #   pointer-events: none;
+          #   z-index: 99999;
+          #   box-shadow: 0 3px 6px rgba(0,0,0,0.35);
+          # }
         CSS
 
         token_icons = unplaced.map do |token|
