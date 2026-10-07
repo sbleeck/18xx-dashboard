@@ -153,10 +153,7 @@ module View
             nil
           end
           @on_close&.call if @on_close.respond_to?(:call)
-          %x{
-            var hud = document.getElementById('history_floating_hud');
-            if (hud) hud.style.display = 'none';
-          }
+          # Do not alter style.display on the DOM node directly; allow VDOM unmount
         end
 
         def normalize_round_action_ids(raw)

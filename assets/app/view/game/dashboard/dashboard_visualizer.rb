@@ -45,6 +45,9 @@ module View
       needs :tile_selector, default: nil
       needs :routes, store: true, default: []
       needs :user, default: nil, store: true
+      needs :show_history_overlay, store: true, default: false
+      needs :show_move_history, store: true, default: false
+      needs :par_menu_corp, store: true, default: nil
       include Actionable
 
       def active_entity
@@ -84,7 +87,7 @@ module View
       end
 
       def render_par_overlay
-        corp_id = Lib::Storage['par_menu_corp']
+        corp_id = @par_menu_corp || Lib::Storage['par_menu_corp']
         return nil unless corp_id
 
         corporation = @game.corporation_by_id(corp_id) || (@game.corporations.find { |c| c.id.to_s == corp_id.to_s } if @game.respond_to?(:corporations))
@@ -95,15 +98,50 @@ module View
 
         cancel_handler = lambda {
           Lib::Storage['par_menu_corp'] = nil
+          store(:par_menu_corp, nil)
           update
         }
 
         h(::View::Game::Dashboard::ParPromptOverlay,
           game: @game,
           step: step,
-          entity: active_player || active_entity,
+          entity: active_player || active_entity || @game.current_entity,
           corporation: corporation,
           on_cancel: cancel_handler)
+      end
+
+      def render_history_overlay
+        val = Lib::Storage['cmd_history_overlay']
+        is_open = [true, 'true'].include?(val) || @show_history_overlay == true
+        return nil unless is_open
+
+        close_handler = lambda {
+          Lib::Storage['cmd_history_overlay'] = nil
+          store(:show_history_overlay, false)
+          update
+        }
+
+        h(::View::Game::Dashboard::HistoryOverlay,
+          game: @game,
+          game_data: @game_data,
+          on_close: close_handler)
+      end
+
+      def render_move_history_overlay
+        val = Lib::Storage['cmd_move_history_overlay']
+        is_open = [true, 'true'].include?(val) || @show_move_history == true
+        return nil unless is_open
+
+        close_handler = lambda {
+          Lib::Storage['cmd_move_history_overlay'] = nil
+          store(:show_move_history, false)
+          update
+        }
+
+        h(::View::Game::Dashboard::MoveHistoryOverlay,
+          game: @game,
+          game_data: @game_data,
+          on_close: close_handler)
       end
 
       def render_tile_manifest_overlay
@@ -1464,6 +1502,8 @@ h(View::Game::DashboardGameStatus, game: @game, user: @user),
 render_global_auction_overlay,
 render_par_overlay,
 render_tile_manifest_overlay,
+render_history_overlay,
+render_move_history_overlay,
 
 h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
 ].compact)

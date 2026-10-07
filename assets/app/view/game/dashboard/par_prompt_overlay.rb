@@ -111,7 +111,7 @@ module View
           actual_corp = resolve_actual_corporation(active_step)
           return h(:div) unless actual_corp
 
-          par_actor = resolve_actor
+          par_actor = resolve_actor || @game.players.first
           return h(:div) unless par_actor
 
           par_nodes = if active_step.respond_to?(:get_par_prices_with_help)
@@ -339,7 +339,8 @@ module View
               var l = sessionStorage.getItem('par_prompt_overlay_left');
               if (l && l !== 'undefined' && l !== 'null' && !isNaN(parseFloat(l))) {
                 var val = parseFloat(l);
-                if (val >= 10 && val <= (window.innerWidth - 120)) {
+                var maxLeft = Math.max(10, window.innerWidth - 790);
+                if (val >= 10 && val <= maxLeft) {
                   return val;
                 }
               }

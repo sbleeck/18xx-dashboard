@@ -27,10 +27,7 @@ module View
             nil
           end
           @on_close&.call
-          %x{
-            var hud = document.getElementById('move_history_floating_hud');
-            if (hud) hud.style.display = 'none';
-          }
+          # Do not alter style.display on the DOM node directly; allow VDOM unmount
         end
 
         def start_drag(e)
@@ -770,8 +767,15 @@ module View
             (function() {
               try {
                 var p = JSON.parse(localStorage.getItem('move_hist_overlay_pos'));
-                if (p && typeof p.left === 'string' && typeof p.top === 'string' && p.left.indexOf('px') !== -1 && p.top.indexOf('px') !== -1) {
-                  return p;
+                if (p && typeof p.left === 'string' && typeof p.top === 'string') {
+                  var leftNum = parseFloat(p.left);
+                  var topNum = parseFloat(p.top);
+                  if (!isNaN(leftNum) && !isNaN(topNum) &&
+                      leftNum >= 10 && leftNum <= (window.innerWidth - 120) &&
+                      topNum >= 10 && topNum <= (window.innerHeight - 80)) {
+                    return p;
+                  }
+                  localStorage.removeItem('move_hist_overlay_pos');
                 }
               } catch(e) {}
               return null;
