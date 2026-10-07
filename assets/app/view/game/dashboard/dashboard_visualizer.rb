@@ -314,6 +314,28 @@ module View
           dest = "#companies_#{entity_id}, #status_major_#{entity_id}, #panel-ledger"
           Lib::CardAnimation.fly(source, dest, hide_source: false)
 
+        when 'pass'
+          round = @game.round
+          is_stock = (round.respond_to?(:stock?) && round.stock?) ||
+                     round.class.name.to_s.include?('Stock')
+          return unless is_stock
+
+          player = if action.respond_to?(:entity) && action.entity.respond_to?(:player?) && action.entity.player?
+                     action.entity
+                   else
+                     @game.players.find { |p| p.id.to_s == entity_id.to_s || p.name.to_s == entity_id.to_s }
+                   end
+
+          if player
+            p_id = player.id.to_s
+            p_name = player.name.to_s
+            %x(
+              if (window.showPassBubble) {
+                window.showPassBubble(#{p_id}, #{p_name});
+              }
+            )
+          end
+
         end
       end
 
@@ -499,6 +521,7 @@ module View
         end
 
         last_action = @game.respond_to?(:raw_actions) && @game.raw_actions ? @game.raw_actions.last : nil
+        last_action ||= @game_data['actions']&.last if @game_data && @game_data['actions']
         last_action_id = if last_action.is_a?(Hash)
                            last_action['id'] || last_action[:id] || 0
                          elsif last_action.respond_to?(:id)
@@ -643,7 +666,73 @@ module View
                             '} ' +
                             '.ribbon-animate { animation: ribbon-slide-fade 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards !important; } ' +
                             '.ribbon-my-turn { background-color: rgba(22, 163, 74, 0.94) !important; color: #ffffff !important; border: 1px solid #15803d !important; } ' +
-                            '.ribbon-opponent-turn { background-color: rgba(30, 41, 59, 0.92) !important; color: #f8fafc !important; border: 1px solid #475569 !important; }';
+                            '.ribbon-opponent-turn { background-color: rgba(30, 41, 59, 0.92) !important; color: #f8fafc !important; border: 1px solid #475569 !important; } ' +
+                            '.pass-bubble-popup { ' +
+                            '  position: fixed !important; z-index: 999999 !important; pointer-events: none !important; ' +
+                            '  display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; ' +
+                            '  transform: translate(-50%, -100%) !important; ' +
+                            '} ' +
+                            '.pass-bubble-body { ' +
+                            '  position: relative !important; background-color: #ffffff !important; color: #334155 !important; ' +
+                            '  border: 1.5px solid #64748b !important; border-radius: 12px !important; padding: 2px 9px !important; ' +
+                            '  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important; font-size: 0.75rem !important; ' +
+                            '  font-weight: 700 !important; letter-spacing: 0.3px !important; line-height: 1.2 !important; white-space: nowrap !important; ' +
+                            '  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16) !important; ' +
+                            '  animation: pass-bubble-anim 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards !important; ' +
+                            '} ' +
+                            '.pass-bubble-body::after { ' +
+                            '  content: "" !important; position: absolute !important; bottom: -5px !important; left: 50% !important; ' +
+                            '  transform: translateX(-50%) !important; width: 0 !important; height: 0 !important; ' +
+                            '  border-left: 5px solid transparent !important; border-right: 5px solid transparent !important; ' +
+                            '  border-top: 5px solid #64748b !important; animation: pass-tail-fade 1.8s forwards !important; ' +
+                            '} ' +
+                            '.pass-bubble-body::before { ' +
+                            '  content: "" !important; position: absolute !important; bottom: -3px !important; left: 50% !important; ' +
+                            '  transform: translateX(-50%) !important; width: 0 !important; height: 0 !important; ' +
+                            '  border-left: 4px solid transparent !important; border-right: 4px solid transparent !important; ' +
+                            '  border-top: 4px solid #ffffff !important; z-index: 1 !important; animation: pass-tail-fade 1.8s forwards !important; ' +
+                            '} ' +
+                            '@keyframes pass-bubble-anim { ' +
+                            '  0% { opacity: 0; transform: translateY(6px) scale(0.5); } ' +
+                            '  18% { opacity: 1; transform: translateY(-2px) scale(1.06); } ' +
+                            '  28% { opacity: 1; transform: translateY(0) scale(1); } ' +
+                            '  68% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); } ' +
+                            '  85% { opacity: 0.7; transform: translateY(-8px) scale(1.18); filter: blur(2px); border-radius: 18px; } ' +
+                            '  100% { opacity: 0; transform: translateY(-16px) scale(1.4); filter: blur(6px); border-radius: 24px; } ' +
+                            '} ' +
+                            '@keyframes pass-tail-fade { ' +
+                            '  0%, 65% { opacity: 1; } ' +
+                            '  80%, 100% { opacity: 0; } ' +
+                            '} ' +
+                            '.pass-cloud-puff { ' +
+                            '  position: absolute !important; border-radius: 50% !important; ' +
+                            '  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(226, 232, 240, 0.8) 60%, rgba(203, 213, 225, 0) 100%) !important; ' +
+                            '  opacity: 0 !important; pointer-events: none !important; ' +
+                            '} ' +
+                            '.puff-1 { width: 16px !important; height: 16px !important; top: 2px !important; left: -4px !important; animation: puff-anim-1 1.8s ease-out forwards !important; } ' +
+                            '.puff-2 { width: 22px !important; height: 22px !important; top: -8px !important; left: 50% !important; transform: translateX(-50%) !important; animation: puff-anim-2 1.8s ease-out forwards !important; } ' +
+                            '.puff-3 { width: 17px !important; height: 17px !important; top: 1px !important; right: -5px !important; animation: puff-anim-3 1.8s ease-out forwards !important; } ' +
+                            '.puff-4 { width: 12px !important; height: 12px !important; top: -12px !important; left: 30% !important; animation: puff-anim-4 1.8s ease-out forwards !important; } ' +
+                            '@keyframes puff-anim-1 { ' +
+                            '  0%, 65% { opacity: 0; transform: translate(0, 0) scale(0.3); } ' +
+                            '  78% { opacity: 0.85; transform: translate(-8px, -6px) scale(1.1); filter: blur(1px); } ' +
+                            '  100% { opacity: 0; transform: translate(-14px, -12px) scale(1.5); filter: blur(4px); } ' +
+                            '} ' +
+                            '@keyframes puff-anim-2 { ' +
+                            '  0%, 65% { opacity: 0; transform: translate(-50%, 0) scale(0.3); } ' +
+                            '  78% { opacity: 0.9; transform: translate(-50%, -10px) scale(1.2); filter: blur(1px); } ' +
+                            '  100% { opacity: 0; transform: translate(-50%, -20px) scale(1.6); filter: blur(5px); } ' +
+                            '} ' +
+                            '@keyframes puff-anim-3 { ' +
+                            '  0%, 65% { opacity: 0; transform: translate(0, 0) scale(0.3); } ' +
+                            '  78% { opacity: 0.85; transform: translate(8px, -6px) scale(1.1); filter: blur(1px); } ' +
+                            '  100% { opacity: 0; transform: translate(14px, -12px) scale(1.5); filter: blur(4px); } ' +
+                            '} ' +
+                            '@keyframes puff-anim-4 { ' +
+                            '  0%, 68% { opacity: 0; transform: translate(0, 0) scale(0.2); } ' +
+                            '  82% { opacity: 0.8; transform: translate(-4px, -12px) scale(1); filter: blur(1px); } ' +
+                            '  100% { opacity: 0; transform: translate(-8px, -22px) scale(1.4); filter: blur(4px); } ' +
+                            '} ' +
 
                             '#panel-market { isolation: isolate; } ' +
                             '.hover-overlay, #market-hover-overlay, .market-hover-overlay, ' +
@@ -654,7 +743,7 @@ module View
                             '#panel-market .market-marker, #panel-market .token, ' +
                             '#panel-market [class*="marker"], #panel-market [class*="token"] { ' +
                             '  pointer-events: none !important; ' +
-                            '};';
+                                                        '}';
 
                           window.notifyTurnAlert = function(isMine, pName, cName, isInitial) {
                             var cleanTitle = document.title.replace(/^[🟢⏳]\s*\[.*?\]\s*/, '');
@@ -691,36 +780,60 @@ module View
                             }
                           };
 
-                          window.notifyTurnAlert = function(isMine, pName, cName, isInitial) {
-                            var cleanTitle = document.title.replace(/^[🟢⏳]\s*\[.*?\]\s*/, '');
-                            document.title = (isMine ? '🟢 [YOUR TURN] ' : ('⏳ [' + pName + '] ')) + cleanTitle;
+                          window.showPassBubble = function(playerId, playerName) {
+                            var selector = '#status-player-' + CSS.escape(String(playerId)) +
+                                           ', [data-player-id="' + CSS.escape(String(playerId)) + '"]';
+                            var target = null;
+                            try {
+                              target = document.querySelector(selector);
+                            } catch(e) {
+                              target = document.getElementById('status-player-' + playerId);
+                            }
+                            if (!target && playerName) {
+                              var headers = document.querySelectorAll('#spreadsheet th.header-player, th.header-player');
+                              for (var i = 0; i < headers.length; i++) {
+                                if (headers[i].textContent.trim().indexOf(playerName) !== -1) {
+                                  target = headers[i];
+                                  break;
+                                }
+                              }
+                            }
+                            if (!target) return;
 
-                            var frame = document.getElementById('viz-master-frame');
-                            if (frame) {
-                              frame.classList.remove('frame-turn-ripple', 'frame-ignition', 'frame-my-turn', 'frame-opponent-turn');
-                              void frame.offsetWidth;
-                              if (!isInitial) frame.classList.add('frame-turn-ripple');
-                              if (isMine) {
-                                if (!isInitial) frame.classList.add('frame-ignition');
-                                frame.classList.add('frame-my-turn');
-                              } else {
-                                frame.classList.add('frame-opponent-turn');
+                            var rect = target.getBoundingClientRect();
+                            if (rect.width === 0 && rect.height === 0) return;
+
+                            var allBubbles = document.querySelectorAll('.pass-bubble-popup');
+                            for (var k = 0; k < allBubbles.length; k++) {
+                              if (allBubbles[k].getAttribute('data-player-id') === String(playerId)) {
+                                allBubbles[k].remove();
                               }
                             }
 
-                            if (!isInitial && pName) {
-                              var ribbon = document.getElementById('turn-notification-ribbon');
-                              if (ribbon) {
-                                var msg = isMine ? ('★ YOUR TURN — ' + (cName ? cName + ' (' + pName + ')' : pName)) : ('▶ ' + (cName ? cName + ': ' : '') + pName + ' is Operating');
-                                ribbon.textContent = msg;
-                                ribbon.className = (isMine ? 'ribbon-my-turn' : 'ribbon-opponent-turn') + ' ribbon-animate';
-                                ribbon.style.display = 'block';
-                                clearTimeout(window._turnRibbonTimer);
-                                window._turnRibbonTimer = setTimeout(function() {
-                                  if (ribbon) ribbon.style.display = 'none';
-                                }, 1800);
-                              }
+                            var container = document.createElement('div');
+                            container.className = 'pass-bubble-popup';
+                            container.setAttribute('data-player-id', String(playerId));
+                            container.style.left = Math.round(rect.left + rect.width / 2) + 'px';
+                            container.style.top = Math.round(rect.top - 4) + 'px';
+
+                            var body = document.createElement('div');
+                            body.className = 'pass-bubble-body';
+                            body.textContent = 'Passed';
+                            container.appendChild(body);
+
+                            for (var p = 1; p <= 4; p++) {
+                              var puff = document.createElement('div');
+                              puff.className = 'pass-cloud-puff puff-' + p;
+                              container.appendChild(puff);
                             }
+
+                            document.body.appendChild(container);
+
+                            setTimeout(function() {
+                              if (container && container.parentNode) {
+                                container.parentNode.removeChild(container);
+                              }
+                            }, 1850);
                           };
 
                           window.notifyTurnAlert(#{is_my_turn ? true : false}, #{player_ribbon_text}, #{corp_ribbon_text}, true);
@@ -1163,6 +1276,10 @@ module View
                            if (menuStyle) menuStyle.remove();
                            var ribbon = document.getElementById('turn-notification-ribbon');
                            if (ribbon) ribbon.remove();
+                           var passBubbles = document.querySelectorAll('.pass-bubble-popup');
+                           for (var bi = 0; bi < passBubbles.length; bi++) {
+                             passBubbles[bi].remove();
+                           }
                          )
                          `document.body.style.backgroundColor = ''`
                          `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '', backgroundColor: '', transition: '' })`

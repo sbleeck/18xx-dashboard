@@ -445,7 +445,12 @@ module View
 
         player_headers = display_players.map.with_index do |player, index|
           props = {
-            attrs: { class: ('thick-right' if index == display_players.size - 1) },
+            attrs: {
+              id: "status-player-#{player.id}",
+              class: [('thick-right' if index == display_players.size - 1), 'header-player'].compact.join(' '),
+              'data-player-id': player.id.to_s,
+              'data-player-name': player.name.to_s,
+            },
             style: {
               width: PLAYER_COL_MAX_WIDTH,
               minWidth: PLAYER_COL_MAX_WIDTH,
@@ -457,7 +462,6 @@ module View
               paddingRight: '22px',
             },
           }
-          props[:attrs][:class] = [props[:attrs][:class], 'header-player'].compact.join(' ')
           content = render_sort_link(player.name, player.id)
           if @game.respond_to?(:priority_deal_player) && player == @game.priority_deal_player
             content += [h(:svg, {
