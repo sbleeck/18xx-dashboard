@@ -44,7 +44,7 @@ module View
       needs :game_data, store: true
       needs :tile_selector, default: nil
       needs :routes, store: true, default: []
-      needs :user, default: nil
+      needs :user, default: nil, store: true
       include Actionable
 
       def active_entity
@@ -1448,7 +1448,7 @@ h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex'
 
   h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
     h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
-      h(View::Game::DashboardGameStatus, game: @game),
+h(View::Game::DashboardGameStatus, game: @game, user: @user),
     ]),
   ]),
 

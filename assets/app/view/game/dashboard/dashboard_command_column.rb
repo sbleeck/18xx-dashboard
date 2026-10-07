@@ -88,6 +88,249 @@ module View
         []
       end
 
+      def last_move_text(max_blocks = 3, max_total_lines = 8)
+        return nil unless @game
+
+        log = if @game.respond_to?(:log) && @game.log
+                @game.log
+              else
+                []
+              end
+
+        blocks = []
+        current_block = nil
+
+        extract_msg = lambda do |entry|
+          return nil if entry.nil?
+          return entry if entry.is_a?(String)
+          return entry.message.to_s if entry.respond_to?(:message) && entry.message
+          return entry.text.to_s if entry.respond_to?(:text) && entry.text
+
+          # Safe native JS stringification fallback
+          %x{
+            (function(e) {
+              if (!e) return '';
+              if (typeof e === 'string') return e;
+              if (typeof e.message === 'string') return e.message;
+              if (typeof e.$message === 'function') return e.$message();
+              if (typeof e.text === 'string') return e.text;
+              if (typeof e.$text === 'function') return e.$text();
+              return String(e);
+            })(#{entry})
+          }
+        end
+
+        log.each do |entry|
+          raw = extract_msg.call(entry)
+          next if raw.nil?
+
+          msg = raw.to_s.gsub(/<[^>]+>/, '').strip
+          next if msg.empty?
+
+          is_divider = msg.start_with?('--', '==', '—', '–') ||
+                       (msg =~ /^turn\s+\d+/i) ||
+                       (msg =~ /--\s*(Phase|Event|Stock|Operating)/i) ||
+                       (msg =~ /^(stock|operating|draft|auction)\s+round/i)
+
+          if is_divider
+            blocks << current_block if current_block && current_block[:lines]&.any?
+            current_block = nil
+            next
+          end
+
+          # Handle turn header: "Player operates Corporation"
+          if (op_match = msg.match(/^(.+?)\s+operates\s+(.+)$/i))
+            blocks << current_block if current_block && current_block[:lines]&.any?
+            player_name = op_match[1].to_s.strip
+            corp_name = op_match[2].to_s.strip
+
+            current_block = {
+              actor: corp_name,
+              operator: player_name,
+              group_key: corp_name.downcase,
+              lines: [],
+            }
+            next
+          end
+
+          words = msg.split(' ')
+          first_word = words.first.to_s.strip
+          next if first_word.empty?
+
+          corp_or_player = begin
+            (@game.corporation_by_id(first_word) if @game.respond_to?(:corporation_by_id)) || (@game.player_by_id(first_word) if @game.respond_to?(:player_by_id)) || (if @game.respond_to?(:minor_by_id)
+                                                                                                                                                                         @game.minor_by_id(first_word)
+                                                                                                                                                                       end) || (@game.company_by_id(first_word) if @game.respond_to?(:company_by_id))
+          rescue Exception
+            nil
+          end
+
+          actor_id = if corp_or_player.respond_to?(:sym) && corp_or_player.sym
+                       corp_or_player.sym.to_s
+                     elsif corp_or_player.respond_to?(:id) && corp_or_player.id
+                       corp_or_player.id.to_s
+                     elsif corp_or_player.respond_to?(:name) && corp_or_player.name
+                       corp_or_player.name.to_s
+                     else
+                       first_word
+                     end
+
+          group_key = actor_id.downcase
+
+          if current_block && current_block[:group_key] == group_key
+            current_block[:lines] << msg
+          else
+            blocks << current_block if current_block && current_block[:lines]&.any?
+            operator = if corp_or_player.respond_to?(:owner) && corp_or_player.owner.respond_to?(:name)
+                         corp_or_player.owner.name.to_s
+                       end
+            current_block = {
+              actor: actor_id,
+              operator: operator,
+              group_key: group_key,
+              lines: [msg],
+            }
+          end
+        end
+
+        blocks << current_block if current_block && current_block[:lines]&.any?
+        valid_blocks = blocks.select { |b| b.is_a?(Hash) && b[:lines]&.any? }
+
+        return fallback_raw_action_text if valid_blocks.empty?
+
+        # Select the most recent blocks within line budget
+        chosen_blocks = []
+        lines_budget = max_total_lines
+
+        valid_blocks.reverse_each do |blk|
+          cnt = [blk[:lines].size, 1].max
+          break if chosen_blocks.any? && (cnt > lines_budget)
+
+          chosen_blocks.unshift(blk)
+          lines_budget -= cnt
+          break if chosen_blocks.size >= max_blocks || lines_budget <= 0
+        end
+
+        return nil if chosen_blocks.empty?
+
+        formatted_blocks = chosen_blocks.map do |blk|
+          actor = blk[:actor].to_s
+          operator = blk[:operator].to_s
+
+          header = if !operator.empty? && operator.casecmp(actor) != 0
+                     "#{actor} (#{operator})"
+                   else
+                     actor
+                   end
+
+          names_to_strip = [actor, operator].reject(&:empty?).sort_by { |s| -s.length }
+
+          cleaned = blk[:lines].map do |l|
+            line_str = l.to_s.gsub(/\s+/, ' ').strip
+
+            names_to_strip.each do |n|
+              escaped = Regexp.escape(n)
+              if /^#{escaped}'s\s+share\s+price\s+/i.match?(line_str)
+                line_str = line_str.sub(/^#{escaped}'s\s+share\s+price\s+/i, 'Share price ')
+                break
+              elsif /^#{escaped}'s\s+/i.match?(line_str)
+                line_str = line_str.sub(/^#{escaped}'s\s+/i, '')
+                break
+              elsif /^#{escaped}\s+/i.match?(line_str)
+                line_str = line_str.sub(/^#{escaped}\s+/i, '')
+                break
+              end
+            end
+
+            line_str = line_str[0..0].upcase + line_str[1..-1] if line_str.length.positive?
+            line_str
+          end.reject(&:empty?)
+
+          if cleaned.size == 1
+            "#{header}: #{cleaned.first}"
+          else
+            "#{header}:\n" + cleaned.map { |item| "• #{item}" }.join("\n")
+          end
+        end
+
+        if chosen_blocks.size == 1
+          if formatted_blocks.first.include?("\n")
+            "Last move:\n#{formatted_blocks.first}"
+          else
+            "Last move: #{formatted_blocks.first}"
+          end
+        else
+          "Recent moves:\n" + formatted_blocks.join("\n\n")
+        end
+      rescue Exception
+        fallback_raw_action_text
+      end
+
+      def fallback_raw_action_text
+        return nil unless @game
+
+        raw_list = if @game.respond_to?(:raw_actions) && @game.raw_actions&.any?
+                     @game.raw_actions
+                   elsif @game_data && @game_data['actions']&.any?
+                     @game_data['actions']
+                   elsif @game.respond_to?(:actions) && @game.actions&.any?
+                     @game.actions
+                   else
+                     []
+                   end
+        return nil if raw_list.empty?
+
+        last_act = raw_list.last
+        type = if last_act.is_a?(Hash)
+                 last_act['type'] || last_act[:type]
+               elsif last_act.respond_to?(:type)
+                 last_act.type
+               end
+        return nil unless type
+
+        ent = if last_act.is_a?(Hash)
+                last_act['entity'] || last_act[:entity]
+              elsif last_act.respond_to?(:entity)
+                last_act.entity
+              end
+
+        ent_name = if ent.respond_to?(:name)
+                     ent.name
+                   elsif @game.respond_to?(:players) && (pl = @game.players.find { |p| p.id.to_s == ent.to_s })
+                     pl.name
+                   elsif @game.respond_to?(:corporations) && (cp = @game.corporations.find { |c| c.id.to_s == ent.to_s })
+                     cp.name
+                   else
+                     ent.to_s
+                   end
+
+        case type.to_s
+        when 'pass'
+          "Last move: #{ent_name} passed"
+        when 'run_routes'
+          "Last move: #{ent_name} ran routes"
+        when 'dividend'
+          kind = last_act.is_a?(Hash) ? (last_act['kind'] || last_act[:kind]) : (last_act.kind if last_act.respond_to?(:kind))
+          "Last move: #{ent_name} #{kind || 'dividend'}"
+        when 'buy_train'
+          train = last_act.is_a?(Hash) ? (last_act['train'] || last_act[:train]) : (last_act.train.name if last_act.respond_to?(:train) && last_act.train)
+          price = last_act.is_a?(Hash) ? (last_act['price'] || last_act[:price]) : (last_act.price if last_act.respond_to?(:price))
+          price_str = price ? " for #{@game.format_currency(price)}" : ''
+          "Last move: #{ent_name} bought a #{train} train#{price_str}"
+        when 'lay_tile'
+          hex = last_act.is_a?(Hash) ? (last_act['hex'] || last_act[:hex]) : (last_act.hex.name if last_act.respond_to?(:hex) && last_act.hex)
+          tile = last_act.is_a?(Hash) ? (last_act['tile'] || last_act[:tile]) : (last_act.tile.name if last_act.respond_to?(:tile) && last_act.tile)
+          "Last move: #{ent_name} laid tile #{tile} on #{hex}"
+        when 'place_token'
+          tok_hex = last_act.is_a?(Hash) ? (last_act['hex'] || last_act[:hex]) : (last_act.city.hex.name if last_act.respond_to?(:city) && last_act.city&.hex)
+          "Last move: #{ent_name} placed token on #{tok_hex || 'hex'}"
+        else
+          "Last move: #{ent_name} #{type.to_s.tr('_', ' ')}"
+        end
+      rescue Exception
+        nil
+      end
+
       def active_step_for(entity)
         return nil unless @game.round.respond_to?(:active_step)
 
@@ -981,7 +1224,10 @@ module View
                 on: { click: advance_action },
               }, advance_text),
             h(:div, { style: { width: '100%', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: '0.35rem' } }, [
-              h(:div, { attrs: { class: 'cmd-undo-redo-wrapper' }, style: { flex: '0 0 auto' } }, [
+              h(:div, {
+                  attrs: { class: 'cmd-undo-redo-wrapper' },
+                  style: { flex: '0 0 auto' },
+                }, [
                 h(:style, {}, '
                   .cmd-undo-redo-wrapper #history,
                   .cmd-undo-redo-wrapper .history,
@@ -1053,7 +1299,10 @@ module View
                 h(HistoryAndUndo, last_action_id: last_action_id),
               ]),
               h(:button, {
-                  attrs: { id: 'cmd_move_history_btn', title: 'Open Move History Log' },
+                  attrs: {
+                    id: 'cmd_move_history_btn',
+                    title: last_move_text || 'Open Move History Log',
+                  },
                   style: {
                     flex: '0 0 auto',
                     height: '1.45rem',
