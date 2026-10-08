@@ -792,6 +792,56 @@ module View
                         `document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 36px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 36px)' })`
 
                         %x(
+                          // --- START FIX ---
+                          window.playTurnBeep = function() {
+                            try {
+                              var AudioCtx = window.AudioContext || window.webkitAudioContext;
+                              if (!AudioCtx) return;
+                              if (!window._turnAudioCtx) {
+                                window._turnAudioCtx = new AudioCtx();
+                              }
+                              var ctx = window._turnAudioCtx;
+                              if (ctx.state === 'suspended') {
+                                ctx.resume();
+                              }
+                              var now = ctx.currentTime;
+                              var playTone = function(freq, start, duration) {
+                                var osc = ctx.createOscillator();
+                                var gain = ctx.createGain();
+                                osc.type = 'sine';
+                                osc.frequency.setValueAtTime(freq, start);
+                                gain.gain.setValueAtTime(0.0001, start);
+                                gain.gain.exponentialRampToValueAtTime(0.28, start + 0.015);
+                                gain.gain.setValueAtTime(0.28, start + duration - 0.02);
+                                gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+                                osc.connect(gain);
+                                gain.connect(ctx.destination);
+                                osc.start(start);
+                                osc.stop(start + duration);
+                              };
+                              // Two-tone warning alert: 880 Hz (A5) followed by 1175 Hz (D6)
+                              playTone(880, now, 0.09);
+                              playTone(1175, now + 0.11, 0.14);
+                            } catch (e) {}
+                          };
+
+                          var unlockAudio = function() {
+                            try {
+                              if (!window._turnAudioCtx) {
+                                var AudioCtx = window.AudioContext || window.webkitAudioContext;
+                                if (AudioCtx) window._turnAudioCtx = new AudioCtx();
+                              }
+                              if (window._turnAudioCtx && window._turnAudioCtx.state === 'suspended') {
+                                window._turnAudioCtx.resume();
+                              }
+                            } catch(e) {}
+                            window.removeEventListener('pointerdown', unlockAudio);
+                            window.removeEventListener('keydown', unlockAudio);
+                          };
+                          window.addEventListener('pointerdown', unlockAudio, { once: true });
+                          window.addEventListener('keydown', unlockAudio, { once: true });
+                          // --- END FIX ---
+
                           var menuStyleTag = document.getElementById('dashboard-menu-overrides');
                           if (!menuStyleTag) {
                             menuStyleTag = document.createElement('style');
@@ -953,6 +1003,11 @@ module View
                               if (isMine) {
                                 if (!isInitial) frame.classList.add('frame-ignition');
                                 frame.classList.add('frame-my-turn');
+                                // --- START FIX ---
+                                if (!isInitial && window.playTurnBeep) {
+                                  window.playTurnBeep();
+                                }
+                                // --- END FIX ---
                               } else {
                                 frame.classList.add('frame-opponent-turn');
                               }

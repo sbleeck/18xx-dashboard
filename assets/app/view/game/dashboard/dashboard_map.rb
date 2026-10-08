@@ -459,6 +459,7 @@ module View
       needs :routes, default: [], store: true
       needs :historical_laid_hexes, default: nil, store: true
       needs :historical_routes, default: [], store: true
+      needs :hovered_routes, default: [], store: true
       needs :show_meme_revenue, default: false, store: true
 
       EDGE_LENGTH = 50
@@ -1008,13 +1009,105 @@ module View
         route_phase_active = actions.any? { |a| route_actions.include?(a) }
         is_history_mode = (@game.respond_to?(:historical?) && @game.historical?) || @historical_laid_hexes
 
-        routes = if route_phase_active
-                   @routes
-                 elsif is_history_mode
-                   @routes.any? ? @routes : @historical_routes
-                 else
-                   []
-                 end
+        hovered_last_id = Lib::Storage['hovered_last_corp']
+        hovered_corp = if hovered_last_id
+                         all_corps = (@game.respond_to?(:all_corporations) ? @game.all_corporations : @game.corporations) || []
+                         all_corps.find { |c| c.id.to_s == hovered_last_id.to_s } ||
+                           ((@game.minors || []).find { |m| m.id.to_s == hovered_last_id.to_s } if @game.respond_to?(:minors))
+                       end
+
+        hovered_routes = []
+        if hovered_corp
+          begin
+            actions_list = []
+            actions_list = @game_data['actions'] || @game_data[:actions] || [] if defined?(@game_data) && @game_data
+            if actions_list.empty? && respond_to?(:game_data) && game_data
+              actions_list = game_data['actions'] || game_data[:actions] || []
+            end
+            actions_list = @game.raw_actions || [] if actions_list.empty? && @game.respond_to?(:raw_actions)
+            actions_list = @game.actions || [] if actions_list.empty? && @game.respond_to?(:actions)
+
+            run_action = actions_list.reverse.find do |act|
+              a_type = if act.is_a?(Hash)
+                         act['type'] || act[:type]
+                       else
+                         (act.respond_to?(:type) ? act.type : nil)
+                       end
+              a_ent = if act.is_a?(Hash)
+                        act['entity'] || act[:entity]
+                      else
+                        (if act.respond_to?(:entity)
+                           act.entity.respond_to?(:id) ? act.entity.id : act.entity
+                         else
+                           nil
+                         end)
+                      end
+              a_type.to_s == 'run_routes' && a_ent.to_s == hovered_corp.id.to_s
+            end
+
+            raw_routes = if run_action
+                           if run_action.is_a?(Hash)
+                             run_action['routes'] || run_action[:routes]
+                           else
+                             (run_action.respond_to?(:routes) ? run_action.routes : [])
+                           end
+                         else
+                           []
+                         end
+
+            hovered_routes = Array(raw_routes).map do |r|
+              if r.respond_to?(:paths_for)
+                r
+              elsif r.is_a?(Hash) && defined?(Engine::Route)
+                train_id = r['train'] || r[:train]
+                train = (hovered_corp.trains.find { |t| t.id == train_id } if hovered_corp.respond_to?(:trains)) ||
+                        (@game.train_by_id(train_id) if @game.respond_to?(:train_by_id)) ||
+                        (@game.trains.find { |t| t.id == train_id } if @game.respond_to?(:trains)) ||
+                        (hovered_corp.trains.first if hovered_corp.respond_to?(:trains) && hovered_corp.trains&.any?) ||
+                        (@game.trains.first if @game.respond_to?(:trains) && @game.trains&.any?)
+
+                conn = r['connections'] || r[:connections] || r['connection_hexes'] || r[:connection_hexes]
+                hexes = r['hexes'] || r[:hexes]
+                routes_param = r['routes'] || r[:routes]
+                phase = @game.respond_to?(:phase) ? @game.phase : nil
+
+                if train
+                  begin
+                    Engine::Route.new(@game, phase, train, connection_hexes: conn, hexes: hexes, routes: routes_param)
+                  rescue ArgumentError
+                    begin
+                      Engine::Route.new(@game, phase, train, connection_hexes: conn, hexes: hexes)
+                    rescue ArgumentError
+                      begin
+                        Engine::Route.new(@game, phase, train, connection_hexes: conn)
+                      rescue StandardError
+                        nil
+                      end
+                    rescue StandardError
+                      nil
+                    end
+                  rescue StandardError
+                    nil
+                  end
+                end
+              end
+            end.compact.select { |r| r.respond_to?(:paths_for) }
+          rescue StandardError
+            hovered_routes = []
+          end
+        end
+
+        candidate_routes = if hovered_routes.any?
+                             hovered_routes
+                           elsif route_phase_active
+                             @routes
+                           elsif is_history_mode
+                             @routes.any? ? @routes : @historical_routes
+                           else
+                             []
+                           end
+
+        routes = Array(candidate_routes).select { |r| r.respond_to?(:paths_for) }
 
         track_action_active = actions.include?('lay_tile')
         token_action_active = actions.include?('place_token') || actions.include?('hex_token')

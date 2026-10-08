@@ -13,7 +13,6 @@ module View
         %x{
           window._stockMarketTokens = window._stockMarketTokens || {};
 
-          // Remove any in-flight animation clones before measuring resting tokens
           var oldClones = window.document.querySelectorAll('.stock-market-anim-clone');
           for (var k = 0; k < oldClones.length; k++) {
             if (oldClones[k].parentNode) {
@@ -62,7 +61,6 @@ module View
                   var dy = prev.top - curr.top;
                   var dist = Math.sqrt(dx * dx + dy * dy);
 
-                  // Trigger animation only if the token actually changed market spaces
                   if (dist > 3) {
                     var clone;
                     var isImg = token.tagName.toLowerCase() === 'img';
@@ -74,13 +72,10 @@ module View
                       clone.style.borderRadius = '50%';
                     }
 
-                    // Use a dedicated animation class and strip ID/data-corp so rapid turns
-                    // never measure or chain-scale an active clone
                     clone.className = 'stock-market-anim-clone';
                     clone.removeAttribute('id');
                     clone.removeAttribute('data-corp');
 
-                    // Base dimensions remain the standard resting size
                     clone.style.position = 'fixed';
                     clone.style.left = prev.left + 'px';
                     clone.style.top = prev.top + 'px';
@@ -100,7 +95,6 @@ module View
                     var deltaX = curr.left - prev.left;
                     var deltaY = curr.top - prev.top;
 
-                    // Standard size at start (1.0x), max 2.0x during flight, settling to 1.0x
                     var keyframes = [
                       {
                         transform: 'translate(0px, 0px) scale(1)',
@@ -609,27 +603,41 @@ module View
             type_to_first_col[t] = this_col if !min_col || this_col < min_col
           end
         end
-        types_in_market = type_to_first_col.sort_by { |_t, col| col }.map(&:first).select { |t| type_text[t] }
+
+        types_in_market = type_to_first_col.sort_by { |_t, col| col }.map(&:first).select do |t|
+          type_text[t] || type_text[t.to_s] || type_text[t.to_sym]
+        end
 
         return nil if types_in_market.empty?
 
         legend_items = types_in_market.map do |type|
+          label_text = type_text[type] || type_text[type.to_s] || type_text[type.to_sym]
+
           line_props = {
             style: {
-              display: 'grid',
-              grid: '1fr / auto 1fr',
-              gap: '0.5rem',
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '0.65rem',
               alignItems: 'center',
             },
           }
 
           h(:div, line_props, [
             h(:div, { style: cell_style(@box_style_2d, [type]) }, []),
-            h(:div, { style: { maxWidth: '24rem' } }, type_text[type]),
+            h(:div, {
+                style: {
+                  color: '#111827',
+                  fontSize: '0.86rem',
+                  fontWeight: '500',
+                  lineHeight: '1.2',
+                  whiteSpace: 'nowrap',
+                },
+              }, label_text),
           ])
         end
 
         legend_props = {
+          attrs: { id: 'legend' },
           style: {
             display: 'flex',
             flexDirection: 'column',
@@ -642,7 +650,288 @@ module View
         h('div#legend', legend_props, legend_items)
       end
 
+      def timeline_cell_props(type, current, color = nil)
+        bg_color, font_color, justify =
+          case type
+          when :SR, :PRE
+            [color_for(:green), contrast_on(color_for(:green)), 'space-between']
+          when :Export
+            [color_for(:yellow), contrast_on(color_for(:yellow)), 'center']
+          when :End
+            [color_for(:blue), contrast_on(color_for(:blue)), 'space-between']
+          else
+            if color
+              [color_for(color), contrast_on(color_for(color)), 'space-between']
+            else
+              [color_for(:bg2), color_for(:font2), 'space-between']
+            end
+          end
+
+        props = {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            boxSizing: 'border-box',
+            height: '3.2em',
+            padding: '3px 6px',
+            border: '1px solid rgba(0,0,0,0.2)',
+            justifyContent: justify,
+            backgroundColor: bg_color,
+            color: font_color,
+            fontSize: '0.85rem',
+          },
+        }
+        if current
+          props[:style].merge!(
+            {
+              fontWeight: 'bold',
+              border: "3px solid #{color_for(:red)}",
+              padding: '1px 4px',
+            }
+          )
+        end
+
+        props
+      end
+
+      def render_timeline
+        has_progress = @game.respond_to?(:show_progress_bar?) && @game.show_progress_bar? && @game.respond_to?(:progress_information)
+        has_timeline_events = @game.respond_to?(:timeline) && !@game.timeline.empty?
+
+        return nil unless has_progress || has_timeline_events
+
+        children = [
+          h(:h4, {
+              style: {
+                margin: '0 0 0.4rem 0',
+                fontSize: '0.95rem',
+                fontWeight: 'bold',
+                color: '#111827',
+              },
+            }, 'Timeline'),
+        ]
+
+        if has_progress
+          train_export = h(:div, [
+            h(:img, {
+                attrs: {
+                  src: '/icons/train_export.svg',
+                  width: '14px',
+                },
+              }),
+          ])
+
+          bar_cells = @game.progress_information.flat_map.with_index do |item, index|
+            cells = []
+            is_current = @game.respond_to?(:round_counter) && @game.round_counter == index
+            cells << h(:div, timeline_cell_props(item[:type], is_current, item[:color]), [
+              h('div.center', { style: { fontSize: '0.8rem' } }, item[:value] || ' '),
+              h('div.nowrap', { style: { fontSize: '0.8rem' } }, "#{item[:type]} #{item[:name]}"),
+            ])
+            if item[:exportAfter]
+              cells << h(:div, timeline_cell_props(:Export, false), [
+                item[:exportAfterValue] ? h(:div, item[:exportAfterValue]) : nil,
+                train_export,
+              ].compact)
+            end
+            cells
+          end
+
+          children << h(:div, {
+                          style: {
+                            display: 'flex',
+                            flexDirection: 'row',
+                            width: 'max-content',
+                            overflow: 'visible',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '4px',
+                            overflowX: 'hidden',
+                          },
+                        }, bar_cells)
+        end
+
+        if has_timeline_events
+          event_lines = @game.timeline.map do |line|
+            h(:div, {
+                style: {
+                  fontSize: '0.82rem',
+                  lineHeight: '1.35',
+                  color: '#334155',
+                  marginTop: '0.2rem',
+                },
+              }, line)
+          end
+          children << h(:div, { style: { marginTop: '0.4rem' } }, event_lines)
+        end
+
+        h(:div, {
+            attrs: { id: 'dashboard-market-timeline' },
+            style: {
+              width: 'max-content',
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              padding: '0.6rem 0.85rem',
+              boxSizing: 'border-box',
+            },
+          }, children)
+      end
+
+      def self.install_marker_pulse
+        %x{
+          if (typeof window === 'undefined') return;
+          if (window.__symmetric_marker_pulse_installed) return;
+          window.__symmetric_marker_pulse_installed = true;
+
+          if (!window.document.getElementById('symmetric-marker-pulse-styles')) {
+            var style = window.document.createElement('style');
+            style.id = 'symmetric-marker-pulse-styles';
+            style.textContent = '' +
+              '@keyframes marker-pulse-glow {' +
+              '  0% {' +
+              '    transform: scale(1);' +
+              '    filter: drop-shadow(0 0 2px rgba(0, 255, 255, 0.45));' +
+              '  }' +
+              '  50% {' +
+              '    transform: scale(1.24);' +
+              '    filter: drop-shadow(0 0 8px #00ffff) drop-shadow(0 0 16px rgba(0, 255, 255, 0.85));' +
+              '  }' +
+              '  100% {' +
+              '    transform: scale(1);' +
+              '    filter: drop-shadow(0 0 2px rgba(0, 255, 255, 0.45));' +
+              '  }' +
+              '}' +
+              '.marker-pulsing {' +
+              '  animation: marker-pulse-glow 1.1s ease-in-out infinite !important;' +
+              '  transform-box: fill-box !important;' +
+              '  transform-origin: center center !important;' +
+              '  z-index: 99999 !important;' +
+              '}' +
+              'div.marker-pulsing, span.marker-pulsing, th.marker-pulsing {' +
+              '  display: inline-block !important;' +
+              '  position: relative !important;' +
+              '}' +
+              '.stock-market-token, .map-token, .major-corporation-cell, [id^="status_major_"] {' +
+              '  cursor: pointer;' +
+              '}';
+            window.document.head.appendChild(style);
+          }
+
+          function resolveMarker(target) {
+            if (!target || !target.closest) return null;
+
+            // 1. Stock Market Marker
+            var stockEl = target.closest('.stock-market-token, [id^="stock-token-"]');
+            if (stockEl) {
+              var sCorp = stockEl.getAttribute('data-corp') ||
+                          (stockEl.id && stockEl.id.replace('stock-token-', ''));
+              if (sCorp) return { corpId: String(sCorp), type: 'stock' };
+            }
+
+            // 2. Map Marker
+            var mapEl = target.closest('.map-token, [class*="map-token-"]');
+            if (mapEl) {
+              var mCorp = mapEl.getAttribute('data-corp');
+              if (!mCorp && mapEl.className) {
+                var cls = String(mapEl.className.baseVal || mapEl.className);
+                var match = cls.match(/map-token-([^\s]+)/);
+                if (match) mCorp = match[1];
+              }
+              if (mCorp) return { corpId: String(mCorp), type: 'map' };
+            }
+
+            // 3. Status Table Marker
+            var statusEl = target.closest('[id^="status_major_"], .major-corporation-cell');
+            if (statusEl) {
+              var stCorp = statusEl.getAttribute('data-corp');
+              if (!stCorp && statusEl.id) {
+                stCorp = statusEl.id.replace('status_major_', '');
+              }
+              if (!stCorp) {
+                var tr = statusEl.closest('tr[data-corp]');
+                if (tr) stCorp = tr.getAttribute('data-corp');
+              }
+              if (stCorp) return { corpId: String(stCorp), type: 'status' };
+            }
+
+            return null;
+          }
+
+          function clearPulsing() {
+            var pulsing = window.document.querySelectorAll('.marker-pulsing');
+            for (var i = 0; i < pulsing.length; i++) {
+              pulsing[i].classList.remove('marker-pulsing');
+            }
+          }
+
+          function setPulsingForOthers(corpId, currentType) {
+            clearPulsing();
+            if (!corpId) return;
+
+            // Pulse Stock Market token if not the trigger
+            if (currentType !== 'stock') {
+              var stockTokens = window.document.querySelectorAll(
+                '.stock-market-token[data-corp="' + corpId + '"], #stock-token-' + corpId
+              );
+              for (var s = 0; s < stockTokens.length; s++) {
+                stockTokens[s].classList.add('marker-pulsing');
+              }
+            }
+
+            // Pulse Map token(s) if not the trigger
+            if (currentType !== 'map') {
+              var mapTokens = window.document.querySelectorAll(
+                '.map-token-' + corpId + ', .map-token[data-corp="' + corpId + '"]'
+              );
+              for (var m = 0; m < mapTokens.length; m++) {
+                mapTokens[m].classList.add('marker-pulsing');
+              }
+            }
+
+            // Pulse Status Table card if not the trigger
+            if (currentType !== 'status') {
+              var statusEls = window.document.querySelectorAll(
+                '#status_major_' + corpId + ', th.major-corporation-cell[data-corp="' + corpId + '"]'
+              );
+              if (statusEls.length === 0) {
+                var trTh = window.document.querySelector('tr[data-corp="' + corpId + '"] th.major-corporation-cell');
+                if (trTh) statusEls = [trTh];
+              }
+              for (var t = 0; t < statusEls.length; t++) {
+                statusEls[t].classList.add('marker-pulsing');
+              }
+            }
+          }
+
+          var activeCorp = null;
+          var activeType = null;
+
+          window.document.addEventListener('mouseover', function(e) {
+            var info = resolveMarker(e.target);
+            if (info) {
+              if (activeCorp === info.corpId && activeType === info.type) return;
+              activeCorp = info.corpId;
+              activeType = info.type;
+              setPulsingForOthers(info.corpId, info.type);
+            }
+          }, true);
+
+          window.document.addEventListener('mouseout', function(e) {
+            if (!activeCorp) return;
+            var toInfo = resolveMarker(e.relatedTarget);
+            if (!toInfo) {
+              clearPulsing();
+              activeCorp = null;
+              activeType = null;
+            }
+          }, true);
+        }
+      end
+
       def render
+        self.class.install_marker_pulse
         StockMarketAnimation.capture_pre_render
 
         @space_style_2d = {
@@ -688,7 +977,7 @@ module View
 
         StockMarketAnimation.animate_movements
 
-        container_props = {
+        top_row_props = {
           style: {
             display: 'flex',
             flexDirection: 'row',
@@ -697,7 +986,37 @@ module View
           },
         }
 
-        h(:div, container_props, [grid_elm, legend_elm].compact)
+        elements = [h(:div, top_row_props, [grid_elm, legend_elm].compact)]
+
+        if @game.respond_to?(:par_chart) && @game.par_chart
+          elements << h(:div, {
+                          attrs: { id: 'stock-market-par-chart' },
+                          style: { marginTop: '1.25rem', width: 'max-content' },
+                        }, [h(View::Game::ParChart, game: @game)])
+        end
+
+        if @game.respond_to?(:loan_chart) && @game.loan_chart
+          elements << h(:div, {
+                          attrs: { id: 'stock-market-loan-chart' },
+                          style: { marginTop: '1.25rem', width: 'max-content' },
+                        }, [h(View::Game::LoanChart, game: @game)])
+        end
+
+        timeline_elm = render_timeline
+        elements << timeline_elm if timeline_elm
+
+        container_props = {
+          attrs: { id: 'dashboard-stock-market-container' },
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            width: 'max-content',
+            alignItems: 'flex-start',
+            gap: '1.25rem',
+          },
+        }
+
+        h(:div, container_props, elements)
       end
     end
 

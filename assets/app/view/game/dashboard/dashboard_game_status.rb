@@ -641,6 +641,56 @@ module View
         [owner_key, share_ids]
       end
 
+      def previous_routes_for(corporation)
+        return [] unless corporation && @game
+
+        actions_list = @game.respond_to?(:actions) ? (@game.actions || []) : []
+        run_action = actions_list.reverse.find do |action|
+          entity = action.respond_to?(:entity) ? action.entity : nil
+          is_corp = (entity == corporation) ||
+                    (entity&.respond_to?(:id) && entity.id.to_s == corporation.id.to_s)
+          is_run = (defined?(Engine::Action::RunRoutes) && action.is_a?(Engine::Action::RunRoutes)) ||
+                   (action.respond_to?(:type) && action.type.to_s == 'run_routes') ||
+                   action.class.name.to_s.include?('RunRoutes')
+          is_corp && is_run
+        end
+
+        raw_routes = if run_action&.respond_to?(:routes)
+                       Array(run_action.routes)
+                     else
+                       []
+                     end
+
+        raw_routes.map do |r|
+          if r.respond_to?(:paths_for)
+            r
+          elsif r.is_a?(Hash)
+            train_id = r['train'] || r[:train]
+            train = (corporation.trains.find { |t| t.id == train_id } if corporation.respond_to?(:trains)) ||
+                    (@game.train_by_id(train_id) if @game.respond_to?(:train_by_id)) ||
+                    (corporation.trains.first if corporation.respond_to?(:trains))
+            phase = @game.respond_to?(:phase) ? @game.phase : nil
+            conn = r['connections'] || r[:connections]
+            hexes = r['hexes'] || r[:hexes]
+            sub_routes = r['routes'] || r[:routes]
+            if defined?(Engine::Route) && train
+              begin
+                Engine::Route.new(
+                  @game,
+                  phase,
+                  train,
+                  connection_hexes: conn,
+                  hexes: hexes,
+                  routes: sub_routes
+                )
+              rescue StandardError
+                nil
+              end
+            end
+          end
+        end.compact.select { |r| r.respond_to?(:paths_for) }
+      end
+
       def status_issuable_bundles(step, corporation)
         actions = status_corporation_actions(corporation)
         issue_actions = %w[issue_shares reissue_shares reissue corporate_sell_shares issue sell_shares]
@@ -1891,9 +1941,34 @@ module View
         font_color = '#dc2626' if held
         font_color = '#d97706' if half_held
 
+        is_hovered_cell = (Lib::Storage['hovered_last_corp'] == corporation.id)
         rev_class = "td.padded_number.column-zone-corporate#{'.money-value' unless font_color}"
         rev_props = { hook: Lib::MoneyAnimation.hook }
-        rev_props[:style] = { color: font_color, fontFamily: 'var(--font-money)', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' }.compact
+        rev_props[:style] = {
+          color: font_color,
+          fontFamily: 'var(--font-money)',
+          fontWeight: 'bold',
+          fontVariantNumeric: 'tabular-nums',
+        }.compact
+
+        unless clean_rev.empty?
+          rev_props[:style][:cursor] = 'pointer'
+          rev_props[:style][:boxShadow] = 'inset 0 0 0 2px #00ffff' if is_hovered_cell
+          rev_props[:attrs] = { title: 'Hover to view previous routes' }
+          rev_props[:on] = {
+            mouseenter: lambda {
+              Lib::Storage['hovered_last_corp'] = corporation.id
+              update
+            },
+            mouseleave: lambda {
+              if Lib::Storage['hovered_last_corp'] == corporation.id
+                Lib::Storage['hovered_last_corp'] = nil
+                update
+              end
+            },
+          }
+        end
+
         corporation_row_content << h(rev_class, rev_props, clean_rev)
 
         row_content = []
