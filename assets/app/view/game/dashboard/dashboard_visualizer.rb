@@ -263,45 +263,28 @@ module View
       end
 
       def current_user_id
-        uid = if @user
-                if @user.respond_to?(:id)
-                  @user.id
-                elsif @user.is_a?(Hash)
-                  @user['id'] || @user[:id]
-                end
-              end
+        uid = nil
+        if @user
+          uid = @user.id if @user.respond_to?(:id)
+          uid ||= @user['id'] || @user[:id] if @user.respond_to?(:[])
+        end
         return uid.to_s if uid && !uid.to_s.empty?
 
-        ls_uid = %x{
-          (function() {
-            try {
-              var u = JSON.parse(localStorage.getItem('user'));
-              if (u && u.id) return String(u.id);
-            } catch(e) {}
-            return '';
-          })()
-        }
-        return ls_uid unless ls_uid.empty?
+        js_id = %x((function() {
+          try {
+            var u = JSON.parse(localStorage.getItem('user') || '{}');
+            if (u && u.id) return String(u.id);
+          } catch(e) {}
+          return '';
+        })())
 
-        u_name = if @user
-                   if @user.respond_to?(:name)
-                     @user.name
-                   elsif @user.is_a?(Hash)
-                     @user['name'] || @user[:name]
-                   end
-                 end
-        if u_name && @game.respond_to?(:players)
-          match = @game.players.find { |p| p.name.to_s == u_name.to_s }
-          return match.id.to_s if match&.respond_to?(:id)
-        end
-
-        nil
+        (js_id || '').to_s
       end
 
-      def fetch_user_games(force: false)
+      def fetch_user_games(force = false)
         comp = self
         %x{
-          if (window.fetch && (!window._user_games_cache || !window._user_games_cache.length || #{force})) {
+          if (window.fetch && (!window._user_games_cache || #{force})) {
             fetch('/api/game/user')
               .then(function(res) { return res.ok ? res.json() : null; })
               .then(function(data) {
@@ -310,7 +293,7 @@ module View
                   try {
                     localStorage.setItem('all_user_games', JSON.stringify(data.games));
                   } catch(e) {}
-                  #{comp.update};
+                  if (comp && comp.$update) comp.$update();
                 }
               })
               .catch(function() {});
@@ -318,58 +301,61 @@ module View
         }
       end
 
-      def other_games_status
+      def other_games_turn_count
         curr_id = (@game.respond_to?(:id) ? @game.id : @game_data&.dig('id'))&.to_s
         uid = current_user_id
+        return 0 if uid.empty?
 
-        games = `window._user_games_cache || []`
-        games = Array(Native(games)) if games
+        count = %x((function() {
+          var games = window._user_games_cache;
+          if (!games || !Array.isArray(games)) {
+            try {
+              games = JSON.parse(localStorage.getItem('all_user_games') || '[]');
+            } catch(e) {
+              games = [];
+            }
+          }
+          if (!Array.isArray(games)) return 0;
 
-        if games.empty?
-          raw_ls = `localStorage.getItem('all_user_games') || '[]'`
-          games = begin
-            JSON.parse(raw_ls)
-          rescue StandardError
-            []
-          end
-        end
+          var total = 0;
+          var myId = parseInt(#{uid}, 10);
+          var curId = parseInt(#{curr_id}, 10);
+          for (var i = 0; i < games.length; i++) {
+            var g = games[i];
+            if (g.id === curId) continue;
+            if (g.acting && Array.isArray(g.acting) && g.acting.indexOf(myId) !== -1) {
+              total++;
+            }
+          }
+          return total;
+        })())
 
-        other_turn_count = 0
-        games.each do |g|
-          gid = (g.is_a?(Hash) ? (g['id'] || g[:id]) : g).to_s
-          next if gid.empty? || gid == curr_id
-
-          acting = g.is_a?(Hash) ? (g['acting'] || g[:acting]) : nil
-          other_turn_count += 1 if acting.is_a?(Array) && uid && acting.map(&:to_s).include?(uid.to_s)
-        end
-
-        { has_turns: other_turn_count.positive?, count: other_turn_count }
+        count ? count.to_i : 0
       end
 
       def render_other_games_button
-        status = other_games_status
-        has_turns = status[:has_turns]
+        turns_count = other_games_turn_count
+        has_turns = turns_count.positive?
 
         bg_color = has_turns ? '#16a34a' : '#f1f5f9'
         text_color = has_turns ? '#ffffff' : '#475569'
         border_style = has_turns ? '2px solid #15803d' : '1px solid #cbd5e1'
-        shadow = has_turns ? '0 2px 6px rgba(22, 163, 74, 0.4)' : '0 1px 2px rgba(0, 0, 0, 0.05)'
+        box_shadow = has_turns ? '0 2px 6px rgba(22, 163, 74, 0.4)' : '0 1px 2px rgba(0, 0, 0, 0.05)'
+        btn_label = has_turns ? "Other Games (#{turns_count})" : 'Other Games'
 
-        button_label = has_turns ? "Other Games (#{status[:count]})" : 'Other Games'
-
-        click_action = lambda {
+        click_action = lambda do
           val = ![true, 'true'].include?(Lib::Storage['show_other_games_overlay'])
           Lib::Storage['show_other_games_overlay'] = val
           store(:show_other_games_overlay, val)
-          fetch_user_games(force: true)
+          fetch_user_games(true)
           update
-        }
+        end
 
         h(:button, {
             attrs: {
               id: 'btn-other-games',
               type: 'button',
-              title: has_turns ? "#{status[:count]} other game(s) waiting on your move" : 'View your active games',
+              title: has_turns ? "#{turns_count} other game(s) waiting on your turn" : 'View active games list',
             },
             style: {
               display: 'inline-flex',
@@ -384,7 +370,7 @@ module View
               backgroundColor: bg_color,
               color: text_color,
               border: border_style,
-              boxShadow: shadow,
+              boxShadow: box_shadow,
               fontSize: '0.85rem',
               fontWeight: 'bold',
               fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
@@ -392,12 +378,12 @@ module View
               whiteSpace: 'nowrap',
               lineHeight: '1',
               zIndex: 10,
-              transition: 'background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease',
+              transition: 'background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease',
             },
             on: { click: click_action },
           }, [
             h(:span, { style: { fontSize: '0.95rem' } }, '🎮'),
-            h(:span, button_label),
+            h(:span, btn_label),
           ])
       end
 
@@ -406,15 +392,14 @@ module View
         is_open = [true, 'true'].include?(val) || @show_other_games_overlay == true
         return nil unless is_open
 
-        close_handler = lambda {
+        close_handler = lambda do
           Lib::Storage['show_other_games_overlay'] = false
           store(:show_other_games_overlay, false)
           update
-        }
+        end
 
         h(::View::Game::Dashboard::OtherGamesOverlay,
           game: @game,
-          user: @user,
           user_id: current_user_id,
           on_close: close_handler)
       end
@@ -786,18 +771,7 @@ module View
                         Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
                         `window.scrollTo(0, 0)`
                         `document.body.style.overflow = 'hidden'`
-                        fetch_user_games
-                        %x(
-                          if (!window._turn_games_cache && window.fetch) {
-                            fetch('/api/user')
-                              .then(function(res) { return res.ok ? res.json() : null; })
-                              .then(function(data) {
-                                if (data && data.turn_games) {
-                                  window._turn_games_cache = data.turn_games;
-                                }
-                              }).catch(function() {});
-                          }
-                        )
+                        fetch_user_games(false)
 
                         `document.body.style.margin = '0'`
                         `document.body.style.padding = '0'`
