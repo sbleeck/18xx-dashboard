@@ -263,22 +263,20 @@ module View
       end
 
       def current_user_id
-        uid = nil
-        if @user
-          uid = @user.id if @user.respond_to?(:id)
-          uid ||= @user['id'] || @user[:id] if @user.respond_to?(:[])
-        end
-        return uid.to_s if uid && !uid.to_s.empty?
-
-        js_id = %x((function() {
+        uid = %x((function() {
+          var u = #{begin
+            @user.to_n
+          rescue StandardError
+            nil
+          end};
+          if (u && u.id) return String(u.id);
           try {
-            var u = JSON.parse(localStorage.getItem('user') || '{}');
-            if (u && u.id) return String(u.id);
+            var stored = JSON.parse(localStorage.getItem('user') || '{}');
+            if (stored && stored.id) return String(stored.id);
           } catch(e) {}
           return '';
         })())
-
-        (js_id || '').to_s
+        (uid || '').to_s
       end
 
       def fetch_user_games(force = false)
@@ -304,7 +302,7 @@ module View
       def other_games_turn_count
         curr_id = (@game.respond_to?(:id) ? @game.id : @game_data&.dig('id'))&.to_s
         uid = current_user_id
-        return 0 if uid.empty?
+        return 0 if uid.to_s.strip.empty?
 
         count = %x((function() {
           var games = window._user_games_cache;
@@ -322,8 +320,13 @@ module View
           var curId = parseInt(#{curr_id}, 10);
           for (var i = 0; i < games.length; i++) {
             var g = games[i];
-            if (g.id === curId) continue;
-            if (g.acting && Array.isArray(g.acting) && g.acting.indexOf(myId) !== -1) {
+            if (!g) continue;
+            if (parseInt(g.id, 10) === curId) continue;
+            var status = String(g.status || '').toLowerCase();
+            if (status && status !== 'active') continue;
+            if (g.finished_at || g.finished) continue;
+
+            if (g.acting && Array.isArray(g.acting) && g.acting.some(function(a) { return parseInt(a, 10) === myId; })) {
               total++;
             }
           }
@@ -338,7 +341,7 @@ module View
         has_turns = turns_count.positive?
 
         bg_color = has_turns ? '#16a34a' : '#f1f5f9'
-        text_color = has_turns ? '#ffffff' : '#475569'
+        text_color = has_turns ? '#ffffff' : '#64748b'
         border_style = has_turns ? '2px solid #15803d' : '1px solid #cbd5e1'
         box_shadow = has_turns ? '0 2px 6px rgba(22, 163, 74, 0.4)' : '0 1px 2px rgba(0, 0, 0, 0.05)'
         btn_label = has_turns ? "Other Games (#{turns_count})" : 'Other Games'
