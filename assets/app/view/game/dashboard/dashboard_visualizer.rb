@@ -261,27 +261,123 @@ module View
       end
 
       def next_turn_game_id
-        return nil unless @user
-
         curr_id = (@game.respond_to?(:id) ? @game.id : @game_data&.dig('id'))&.to_s
+        user_id = (@user&.dig('id') || @user&.dig(:id))&.to_s
+        user_id ||= (@game_data&.dig('user')&.dig('id') || @game_data&.dig(:user)&.dig(:id))&.to_s
+        user_id ||= `(function() { try { var u = JSON.parse(localStorage.getItem('user')); return u ? String(u.id) : ''; } catch(e) { return ''; } })()`
 
-        turn_list = @user['turn_games'] || @user[:turn_games] || []
-        if turn_list.empty?
-          cached = `window._turn_games_cache || []`
-          turn_list = Array(Native(cached)) if cached
+        comp = self
+        %x{
+          if (!window._turn_games_fetching && !window._turn_games_cache) {
+            window._turn_games_fetching = true;
+            fetch('/api/game/user')
+              .then(function(res) { return res.ok ? res.json() : null; })
+              .then(function(data) {
+                window._turn_games_fetching = false;
+                if (data && Array.isArray(data.games)) {
+                  window._turn_games_cache = data.games;
+                  #{comp.update};
+                }
+              })
+              .catch(function() {
+                window._turn_games_fetching = false;
+              });
+          }
+        }
+
+        turn_list = `window._turn_games_cache || []`
+        turn_list = Array(Native(turn_list)) if turn_list
+
+        return nil if turn_list.empty?
+
+        pending = turn_list.select do |g|
+          gid = (g.is_a?(Hash) ? (g['id'] || g[:id]) : g).to_s
+          next false if gid.empty? || gid == curr_id
+
+          acting = g.is_a?(Hash) ? (g['acting'] || g[:acting]) : nil
+          if acting.is_a?(Array) && user_id
+            acting.map(&:to_s).include?(user_id.to_s)
+          else
+            false
+          end
         end
 
-        target_ids = turn_list.map do |entry|
-          if entry.is_a?(Hash)
-            entry['id'] || entry[:id]
-          elsif entry.respond_to?(:id)
-            entry.id
-          else
-            entry
-          end
-        end.compact.map(&:to_s).uniq
+        target = pending.first
+        (target.is_a?(Hash) ? (target['id'] || target[:id]) : target)&.to_s
+      end
 
-        target_ids.find { |gid| gid != curr_id }
+      def render_next_game_button
+        target_id = next_turn_game_id
+
+        if target_id
+          jump_action = lambda {
+            `window.location.href = '/game/' + #{target_id} + '#dashboard'`
+          }
+
+          h(:button, {
+              attrs: {
+                id: 'btn-next-turn-game',
+                type: 'button',
+                title: "Jump to your turn in Game ##{target_id}",
+              },
+              style: {
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.35rem',
+                height: '2.4rem',
+                padding: '0 0.85rem',
+                marginLeft: 'auto',
+                flexShrink: '0',
+                borderRadius: '6px',
+                backgroundColor: '#0284c7',
+                color: '#ffffff',
+                border: '2px solid #0369a1',
+                boxShadow: '0 2px 6px rgba(2, 132, 199, 0.4)',
+                fontSize: '0.85rem',
+                fontWeight: 'bold',
+                fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                lineHeight: '1',
+                zIndex: 10,
+              },
+              on: { click: jump_action },
+            }, [
+              h(:span, { style: { fontSize: '1rem' } }, '⚡'),
+              h(:span, "Next Game (##{target_id}) →"),
+            ])
+        else
+          h(:div, {
+              attrs: {
+                id: 'btn-next-turn-game-idle',
+                title: 'No pending moves in other games',
+              },
+              style: {
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.3rem',
+                height: '2.4rem',
+                padding: '0 0.75rem',
+                marginLeft: 'auto',
+                flexShrink: '0',
+                borderRadius: '6px',
+                backgroundColor: '#f1f5f9',
+                color: '#94a3b8',
+                border: '1px solid #cbd5e1',
+                fontSize: '0.8rem',
+                fontWeight: 'bold',
+                fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                whiteSpace: 'nowrap',
+                lineHeight: '1',
+                userSelect: 'none',
+              },
+            }, [
+              h(:span, { style: { fontSize: '0.85rem' } }, '⚡'),
+              h(:span, 'No Pending Turns'),
+            ])
+        end
       end
 
       def render_next_game_button
