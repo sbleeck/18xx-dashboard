@@ -345,10 +345,16 @@ module View
         border_style = has_turns ? '2px solid #15803d' : '1px solid #cbd5e1'
         box_shadow = has_turns ? '0 2px 6px rgba(22, 163, 74, 0.4)' : '0 1px 2px rgba(0, 0, 0, 0.05)'
         btn_label = has_turns ? "Other Games (#{turns_count})" : 'Other Games'
-
         click_action = lambda do
-          val = ![true, 'true'].include?(Lib::Storage['show_other_games_overlay'])
-          Lib::Storage['show_other_games_overlay'] = val
+          val = !(@show_other_games_overlay == true)
+          Lib::Storage['show_other_games_overlay'] = val ? true : nil
+          %x{
+            if (!#{val}) {
+              try {
+                localStorage.removeItem('show_other_games_overlay');
+              } catch(e) {}
+            }
+          }
           store(:show_other_games_overlay, val)
           fetch_user_games(true)
           update
@@ -391,12 +397,15 @@ module View
       end
 
       def render_other_games_overlay
-        val = Lib::Storage['show_other_games_overlay']
-        is_open = [true, 'true'].include?(val) || @show_other_games_overlay == true
-        return nil unless is_open
+        return nil unless @show_other_games_overlay == true
 
         close_handler = lambda do
-          Lib::Storage['show_other_games_overlay'] = false
+          Lib::Storage['show_other_games_overlay'] = nil
+          %x{
+            try {
+              localStorage.removeItem('show_other_games_overlay');
+            } catch(e) {}
+          }
           store(:show_other_games_overlay, false)
           update
         end

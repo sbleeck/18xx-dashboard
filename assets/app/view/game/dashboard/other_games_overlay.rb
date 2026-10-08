@@ -12,7 +12,13 @@ module View
 
         def render
           close_handler = lambda do |e = nil|
-            `if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();`
+            %x{
+              if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
+              try {
+                localStorage.removeItem('show_other_games_overlay');
+              } catch(err) {}
+            }
+            Lib::Storage['show_other_games_overlay'] = nil
             @on_close&.call
           end
 
@@ -93,11 +99,10 @@ module View
                   var badgeColor = (isTurn || isCur) ? '#ffffff' : '#475569';
                   var badgeText = (isTurn && isCur) ? '★ YOUR TURN (Here)' : (isTurn ? '★ YOUR TURN' : (isCur ? 'Current' : 'Waiting'));
 
-                  var clickRow = function(e) {
+                 var clickRow = function(e) {
                     if (e && e.stopPropagation) e.stopPropagation();
-                    if (isCur) {
-                      #{close_handler.call};
-                    } else {
+                    #{close_handler.call};
+                    if (!isCur) {
                       window.location.href = '/game/' + gid + '#dashboard';
                     }
                   };
