@@ -66303,9 +66303,32 @@ Opal.modules["view/game/dashboard/other_games_overlay"] = function(Opal) {/* Gen
             var myId = parseInt(uid, 10);
             var curId = parseInt(curr_id, 10);
 
-            return raw.map(function(g) {
-              var isMyTurn = g.acting && Array.isArray(g.acting) && g.acting.indexOf(myId) !== -1;
+            var filtered = raw.filter(function(g) {
+              if (!g) return false;
+
+              // 1. Exclude finished or archived games
+              var status = String(g.status || '').toLowerCase();
+              if (status && status !== 'active') return false;
+              if (g.finished_at || g.finished) return false;
+
+              // 2. Only include games where you are an active participant
+              var isParticipant = false;
+              if (g.players && Array.isArray(g.players)) {
+                isParticipant = g.players.some(function(p) {
+                  if (!p) return false;
+                  var pid = p.id !== undefined ? p.id : (p.user ? p.user.id : null);
+                  return parseInt(pid, 10) === myId;
+                });
+              }
+              return isParticipant;
+            });
+
+            return filtered.map(function(g) {
+              var isMyTurn = g.acting && Array.isArray(g.acting) && g.acting.some(function(actId) {
+                return parseInt(actId, 10) === myId;
+              });
               var isCurrent = (g.id === curId);
+
               return [
                 String(g.id),
                 String(g.title || '18xx'),
@@ -66320,7 +66343,7 @@ Opal.modules["view/game/dashboard/other_games_overlay"] = function(Opal) {/* Gen
               return orderA - orderB;
             });
           })();
-            game_rows = (($truthy(games_data['$nil?']()) || ($truthy(games_data['$empty?']()))) ? ([self.$h("div", (new Map([["style", (new Map([["padding", "2rem 1rem"], ["textAlign", "center"], ["color", "#64748b"], ["fontStyle", "italic"], ["fontSize", "0.9rem"]]))]])), "Loading your active games...")]) : ($send(games_data, 'map', [], function $$2(item){var self = $$2.$$s == null ? this : $$2.$$s, gid = nil, title = nil, round = nil, desc = nil, is_turn = nil, is_cur = nil, card_bg = nil, border_style = nil, badge_bg = nil, badge_color = nil, badge_text = nil, click_row = nil;
+            game_rows = (($truthy(games_data['$nil?']()) || ($truthy(games_data['$empty?']()))) ? ([self.$h("div", (new Map([["style", (new Map([["padding", "2rem 1rem"], ["textAlign", "center"], ["color", "#64748b"], ["fontStyle", "italic"], ["fontSize", "0.9rem"]]))]])), "No active games found where you are a player.")]) : ($send(games_data, 'map', [], function $$2(item){var self = $$2.$$s == null ? this : $$2.$$s, gid = nil, title = nil, round = nil, desc = nil, is_turn = nil, is_cur = nil, card_bg = nil, border_style = nil, badge_bg = nil, badge_color = nil, badge_text = nil, click_row = nil;
 
               
               if (item == null) item = nil;
