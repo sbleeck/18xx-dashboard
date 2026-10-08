@@ -13,6 +13,7 @@ require 'view/game/dashboard/par_prompt_overlay'
 require 'view/game/dashboard/draft_overlay'
 require 'view/game/dashboard/bidding_overlay'
 require 'view/game/dashboard/dashboard_tile_manifest'
+require 'view/game/dashboard/other_games_overlay'
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
 module Engine
@@ -48,6 +49,7 @@ module View
       needs :show_history_overlay, store: true, default: false
       needs :show_move_history, store: true, default: false
       needs :par_menu_corp, store: true, default: nil
+      needs :show_other_games_overlay, store: true, default: false
       include Actionable
 
       def active_entity
@@ -260,139 +262,114 @@ module View
         ])
       end
 
-      def next_turn_game_id
-        curr_id = (@game.respond_to?(:id) ? @game.id : @game_data&.dig('id'))&.to_s
-        user_id = (@user&.dig('id') || @user&.dig(:id))&.to_s
-        user_id ||= (@game_data&.dig('user')&.dig('id') || @game_data&.dig(:user)&.dig(:id))&.to_s
-        user_id ||= `(function() { try { var u = JSON.parse(localStorage.getItem('user')); return u ? String(u.id) : ''; } catch(e) { return ''; } })()`
+      def current_user_id
+        uid = if @user
+                if @user.respond_to?(:id)
+                  @user.id
+                elsif @user.is_a?(Hash)
+                  @user['id'] || @user[:id]
+                end
+              end
+        return uid.to_s if uid && !uid.to_s.empty?
 
+        ls_uid = %x{
+          (function() {
+            try {
+              var u = JSON.parse(localStorage.getItem('user'));
+              if (u && u.id) return String(u.id);
+            } catch(e) {}
+            return '';
+          })()
+        }
+        return ls_uid unless ls_uid.empty?
+
+        u_name = if @user
+                   if @user.respond_to?(:name)
+                     @user.name
+                   elsif @user.is_a?(Hash)
+                     @user['name'] || @user[:name]
+                   end
+                 end
+        if u_name && @game.respond_to?(:players)
+          match = @game.players.find { |p| p.name.to_s == u_name.to_s }
+          return match.id.to_s if match&.respond_to?(:id)
+        end
+
+        nil
+      end
+
+      def fetch_user_games(force: false)
         comp = self
         %x{
-          if (!window._turn_games_fetching && !window._turn_games_cache) {
-            window._turn_games_fetching = true;
+          if (window.fetch && (!window._user_games_cache || !window._user_games_cache.length || #{force})) {
             fetch('/api/game/user')
               .then(function(res) { return res.ok ? res.json() : null; })
               .then(function(data) {
-                window._turn_games_fetching = false;
                 if (data && Array.isArray(data.games)) {
-                  window._turn_games_cache = data.games;
+                  window._user_games_cache = data.games;
+                  try {
+                    localStorage.setItem('all_user_games', JSON.stringify(data.games));
+                  } catch(e) {}
                   #{comp.update};
                 }
               })
-              .catch(function() {
-                window._turn_games_fetching = false;
-              });
+              .catch(function() {});
           }
         }
+      end
 
-        turn_list = `window._turn_games_cache || []`
-        turn_list = Array(Native(turn_list)) if turn_list
+      def other_games_status
+        curr_id = (@game.respond_to?(:id) ? @game.id : @game_data&.dig('id'))&.to_s
+        uid = current_user_id
 
-        return nil if turn_list.empty?
+        games = `window._user_games_cache || []`
+        games = Array(Native(games)) if games
 
-        pending = turn_list.select do |g|
-          gid = (g.is_a?(Hash) ? (g['id'] || g[:id]) : g).to_s
-          next false if gid.empty? || gid == curr_id
-
-          acting = g.is_a?(Hash) ? (g['acting'] || g[:acting]) : nil
-          if acting.is_a?(Array) && user_id
-            acting.map(&:to_s).include?(user_id.to_s)
-          else
-            false
+        if games.empty?
+          raw_ls = `localStorage.getItem('all_user_games') || '[]'`
+          games = begin
+            JSON.parse(raw_ls)
+          rescue StandardError
+            []
           end
         end
 
-        target = pending.first
-        (target.is_a?(Hash) ? (target['id'] || target[:id]) : target)&.to_s
-      end
+        other_turn_count = 0
+        games.each do |g|
+          gid = (g.is_a?(Hash) ? (g['id'] || g[:id]) : g).to_s
+          next if gid.empty? || gid == curr_id
 
-      def render_next_game_button
-        target_id = next_turn_game_id
-
-        if target_id
-          jump_action = lambda {
-            `window.location.href = '/game/' + #{target_id} + '#dashboard'`
-          }
-
-          h(:button, {
-              attrs: {
-                id: 'btn-next-turn-game',
-                type: 'button',
-                title: "Jump to your turn in Game ##{target_id}",
-              },
-              style: {
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.35rem',
-                height: '2.4rem',
-                padding: '0 0.85rem',
-                marginLeft: 'auto',
-                flexShrink: '0',
-                borderRadius: '6px',
-                backgroundColor: '#0284c7',
-                color: '#ffffff',
-                border: '2px solid #0369a1',
-                boxShadow: '0 2px 6px rgba(2, 132, 199, 0.4)',
-                fontSize: '0.85rem',
-                fontWeight: 'bold',
-                fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                lineHeight: '1',
-                zIndex: 10,
-              },
-              on: { click: jump_action },
-            }, [
-              h(:span, { style: { fontSize: '1rem' } }, '⚡'),
-              h(:span, "Next Game (##{target_id}) →"),
-            ])
-        else
-          h(:div, {
-              attrs: {
-                id: 'btn-next-turn-game-idle',
-                title: 'No pending moves in other games',
-              },
-              style: {
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.3rem',
-                height: '2.4rem',
-                padding: '0 0.75rem',
-                marginLeft: 'auto',
-                flexShrink: '0',
-                borderRadius: '6px',
-                backgroundColor: '#f1f5f9',
-                color: '#94a3b8',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.8rem',
-                fontWeight: 'bold',
-                fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-                whiteSpace: 'nowrap',
-                lineHeight: '1',
-                userSelect: 'none',
-              },
-            }, [
-              h(:span, { style: { fontSize: '0.85rem' } }, '⚡'),
-              h(:span, 'No Pending Turns'),
-            ])
+          acting = g.is_a?(Hash) ? (g['acting'] || g[:acting]) : nil
+          other_turn_count += 1 if acting.is_a?(Array) && uid && acting.map(&:to_s).include?(uid.to_s)
         end
+
+        { has_turns: other_turn_count.positive?, count: other_turn_count }
       end
 
-      def render_next_game_button
-        target_id = next_turn_game_id
-        return nil unless target_id
+      def render_other_games_button
+        status = other_games_status
+        has_turns = status[:has_turns]
 
-        jump_action = lambda {
-          `window.location.href = '/game/' + #{target_id} + '#dashboard'`
+        bg_color = has_turns ? '#16a34a' : '#f1f5f9'
+        text_color = has_turns ? '#ffffff' : '#475569'
+        border_style = has_turns ? '2px solid #15803d' : '1px solid #cbd5e1'
+        shadow = has_turns ? '0 2px 6px rgba(22, 163, 74, 0.4)' : '0 1px 2px rgba(0, 0, 0, 0.05)'
+
+        button_label = has_turns ? "Other Games (#{status[:count]})" : 'Other Games'
+
+        click_action = lambda {
+          val = ![true, 'true'].include?(Lib::Storage['show_other_games_overlay'])
+          Lib::Storage['show_other_games_overlay'] = val
+          store(:show_other_games_overlay, val)
+          fetch_user_games(force: true)
+          update
         }
 
         h(:button, {
             attrs: {
-              id: 'btn-next-turn-game',
+              id: 'btn-other-games',
               type: 'button',
-              title: "Jump to your turn in Game ##{target_id}",
+              title: has_turns ? "#{status[:count]} other game(s) waiting on your move" : 'View your active games',
             },
             style: {
               display: 'inline-flex',
@@ -404,10 +381,10 @@ module View
               marginLeft: 'auto',
               flexShrink: '0',
               borderRadius: '6px',
-              backgroundColor: '#0284c7',
-              color: '#ffffff',
-              border: '2px solid #0369a1',
-              boxShadow: '0 2px 6px rgba(2, 132, 199, 0.35)',
+              backgroundColor: bg_color,
+              color: text_color,
+              border: border_style,
+              boxShadow: shadow,
               fontSize: '0.85rem',
               fontWeight: 'bold',
               fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
@@ -415,12 +392,31 @@ module View
               whiteSpace: 'nowrap',
               lineHeight: '1',
               zIndex: 10,
+              transition: 'background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease',
             },
-            on: { click: jump_action },
+            on: { click: click_action },
           }, [
-            h(:span, { style: { fontSize: '1rem' } }, '⚡'),
-            h(:span, "Next Game (##{target_id}) →"),
+            h(:span, { style: { fontSize: '0.95rem' } }, '🎮'),
+            h(:span, button_label),
           ])
+      end
+
+      def render_other_games_overlay
+        val = Lib::Storage['show_other_games_overlay']
+        is_open = [true, 'true'].include?(val) || @show_other_games_overlay == true
+        return nil unless is_open
+
+        close_handler = lambda {
+          Lib::Storage['show_other_games_overlay'] = false
+          store(:show_other_games_overlay, false)
+          update
+        }
+
+        h(::View::Game::Dashboard::OtherGamesOverlay,
+          game: @game,
+          user: @user,
+          user_id: current_user_id,
+          on_close: close_handler)
       end
 
       def render_history_overlay
@@ -790,6 +786,7 @@ module View
                         Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
                         `window.scrollTo(0, 0)`
                         `document.body.style.overflow = 'hidden'`
+                        fetch_user_games
                         %x(
                           if (!window._turn_games_cache && window.fetch) {
                             fetch('/api/user')
@@ -1655,7 +1652,7 @@ h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex'
         h(View::Game::DashboardEntityOrder, round: @game.round)
       end,
     ]),
-    render_next_game_button,
+    render_other_games_button,
   ].compact),
 
   h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
@@ -1680,6 +1677,7 @@ render_par_overlay,
 render_tile_manifest_overlay,
 render_history_overlay,
 render_move_history_overlay,
+render_other_games_overlay,
 
 h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
 ].compact)
