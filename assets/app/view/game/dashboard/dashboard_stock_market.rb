@@ -302,7 +302,11 @@ module View
             title: corporation.name,
             width: "#{TOKEN_SIZES[@game.corporation_size(corporation)]}px",
           },
-          style: { marginTop: "#{VERTICAL_TOKEN_PAD}px" },
+          style: {
+            marginTop: "#{VERTICAL_TOKEN_PAD}px",
+            cursor: 'pointer',
+            pointerEvents: 'auto',
+          },
         }
         if index
           props[:attrs][:width] = "#{TOKEN_SIZE}px"
@@ -310,6 +314,8 @@ module View
             position: 'absolute',
             left: num > 1 ? "#{LEFT_TOKEN_POS + ((num - index - 1) * spacing)}px" : "#{MID_TOKEN_POS}px",
             zIndex: num - index,
+            cursor: 'pointer',
+            pointerEvents: 'auto',
           }
         end
         if operated?(corporation)
@@ -395,8 +401,17 @@ module View
         g_props = {
           attrs: {
             transform: "translate(#{x_translation},0)",
+            class: 'stock-market-token',
+            'data-corp': corporation.id,
           },
+          style: { cursor: 'pointer', pointerEvents: 'auto' },
         }
+
+        # Ensure under_shape elements have pointer-events: none
+        under_shape.each do |node|
+          node.data[:attrs] ||= {}
+          node.data[:attrs]['pointer-events'] = 'none'
+        end
 
         h(:g, g_props, [h(:image, props), *under_shape])
       end
@@ -813,8 +828,9 @@ module View
               '  display: inline-block !important;' +
               '  position: relative !important;' +
               '}' +
-              '.stock-market-token, .map-token, .major-corporation-cell, [id^="status_major_"] {' +
-              '  cursor: pointer;' +
+'.stock-market-token, [id^="stock-token-"], .map-token, .major-corporation-cell, [id^="status_major_"] {' +
+              '  cursor: pointer !important;' +
+              '  pointer-events: auto !important;' +
               '}';
             window.document.head.appendChild(style);
           }

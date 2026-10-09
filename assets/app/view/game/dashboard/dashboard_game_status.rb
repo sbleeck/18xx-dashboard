@@ -136,9 +136,8 @@ module View
         has_buy_phase = @game.respond_to?(:game_phases) && @game.game_phases.any? do |p|
           p[:status]&.any? { |s| s.include?('can_buy_companies') }
         end
-        is_1817 = @game.class.name.include?('1817') || (@game.respond_to?(:title) && @game.title.to_s.include?('1817'))
         has_corp_companies = @game.respond_to?(:all_corporations) && @game.all_corporations.any? { |c| c.companies&.any? }
-        @show_privates = has_buy_phase || is_1817 || has_corp_companies
+        @show_privates = has_buy_phase || has_corp_companies
 
         active_player_index = display_players.index(active_player)
         active_player_nth = active_player_index ? active_player_index + 2 : -1
@@ -255,26 +254,6 @@ module View
                     .status-corp-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .cmd-company-tooltip { display: none !important; }
 
                     .share-card-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; }
-          # .share-card-wrapper[title]:not([title=""]):hover::after {
-          #   content: attr(title);
-          #   position: absolute;
-          #   bottom: calc(100% + 4px);
-          #   left: 50%;
-          #   transform: translateX(-50%);
-          #   background: rgba(15, 23, 42, 0.95);
-          #   color: #ffffff;
-          #   font-family: var(--font-standard);
-          #   font-size: 0.85rem;
-          #   font-weight: bold;
-          #   line-height: 1.2;
-          #   padding: 4px 8px;
-          #   border-radius: 5px;
-          #   white-space: pre;
-          #   pointer-events: none;
-          #   zIndex: 99999;
-          #   box-shadow: 0 3px 6px rgba(0,0,0,0.35);
-          # }
-
           .game-card.president-card {
             font-weight: bold !important;
           }
@@ -440,6 +419,7 @@ module View
           extra << h(:th, { attrs: { class: 'header-corporate' } }, render_sort_link(header_label, :capitalization_type_desc))
         end
         extra << h(:th, { attrs: { class: 'header-corporate' } }, render_sort_link('Loans', :loans)) if @game.total_loans&.nonzero?
+        extra << h(:th, { attrs: { class: 'header-corporate' } }, render_sort_link('Shorts', :shorts)) if @game.respond_to?(:available_shorts)
 
         @extra_size = extra.size
 
@@ -838,12 +818,13 @@ module View
           redeem_command &&
           all_redeemable_bundles.any?
 
-        is_unfloated = corporation.respond_to?(:floated?) && !corporation.floated?
+        is_unfloated = !@game.operating_order.include?(corporation)
         is_directed = corporation.respond_to?(:owner) && (corporation.owner == active_player)
 
-        # Director Star Status Rule: Binary styling (Muted grey for unfloated/unopened, brand color for floated)
-        star_bg = is_unfloated ? '#6b7280' : '#d97706'
-        star_color = is_unfloated ? '#d1d5db' : '#ffffff'
+        corp_bg = corporation.color || '#ffffff'
+        star_bg = is_unfloated ? '#6b7280' : '#000000'
+        star_color = '#ffffff'
+        star_border = is_unfloated ? '1px solid #4b5563' : "1px solid #{star_color}"
 
         tr_props = tr_default_props(is_active_row)
         tr_props[:attrs] ||= {}
@@ -873,7 +854,6 @@ module View
 
         tr_props[:attrs][:class] = row_classes.join(' ') unless row_classes.empty?
 
-        corp_bg = corporation.color || '#ffffff'
         name_props = {
           attrs: { class: 'major-corporation-cell' },
           style: {
@@ -965,6 +945,10 @@ module View
           end
         end
         extra << h('td.column-zone-corporate', { attrs: { id: "loans_#{corporation.id}" } }, [render_loan_dots(corporation)]) if @game.total_loans&.nonzero?
+        if @game.respond_to?(:available_shorts)
+          taken, total = @game.available_shorts(corporation)
+          extra << h('td.column-zone-corporate', { style: { textAlign: 'center' } }, "#{taken}/#{total}")
+        end
 
         pool_shares = if @game.share_pool.respond_to?(:shares_of)
                         @game.share_pool.shares_of(corporation)
@@ -1125,7 +1109,8 @@ module View
                                                          lineHeight: '13px',
                                                          textAlign: 'center',
                                                          borderRadius: '50%',
-                                                         boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                                                         border: star_border,
+                                                         boxShadow: '0 1px 2px rgba(0,0,0,0.18)',
                                                          pointerEvents: 'none',
                                                          zIndex: '2',
                                                        },
@@ -1280,7 +1265,8 @@ module View
                                      lineHeight: '13px',
                                      textAlign: 'center',
                                      borderRadius: '50%',
-                                     boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                                     border: star_border,
+                                     boxShadow: '0 1px 2px rgba(0,0,0,0.18)',
                                      pointerEvents: 'none',
                                      zIndex: '2',
                                    },
@@ -1761,7 +1747,8 @@ module View
                                lineHeight: '13px',
                                textAlign: 'center',
                                borderRadius: '50%',
-                               boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                               border: star_border,
+                               boxShadow: '0 1px 2px rgba(0,0,0,0.18)',
                                pointerEvents: 'none',
                                zIndex: '2',
                              },
@@ -1886,7 +1873,9 @@ module View
           end
 
           wrapper_id = "train_wrapper_#{corporation.id}_#{t.id}"
-          render_railcard(t.obsolete ? "(#{t.name})" : t.name, card_classes, train_click_handler, nil, menu_dropdown, wrapper_id)
+          train_card = render_railcard(t.obsolete ? "(#{t.name})" : t.name, card_classes, train_click_handler, nil, menu_dropdown, wrapper_id)
+          train_price = t.respond_to?(:price) && t.price ? @game.format_currency(t.price) : ''
+          h(:div, { attrs: { title: train_price }, style: { display: 'inline-flex' } }, [train_card])
         end
 
         raw_limit = begin
@@ -2002,29 +1991,6 @@ module View
 
         logo_src = begin; setting_for(:simple_logos, @game) ? corporation.simple_logo : corporation.logo; rescue StandardError; nil; end
 
-        tooltip_style = <<~CSS
-          .unplaced-token-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: help; margin: 2px; }
-          # .unplaced-token-wrapper[title]:not([title=""]):hover::after {
-          #   content: attr(title);
-          #   position: absolute;
-          #   bottom: calc(100% + 4px);
-          #   left: 50%;
-          #   transform: translateX(-50%);
-          #   background: rgba(15, 23, 42, 0.95);
-          #   color: #ffffff;
-          #   font-family: var(--font-money, monospace);
-          #   font-size: 1.44rem;
-          #   font-weight: bold;
-          #   line-height: 1;
-          #   padding: 4px 10px;
-          #   border-radius: 5px;
-          #   white-space: nowrap;
-          #   pointer-events: none;
-          #   z-index: 99999;
-          #   box-shadow: 0 3px 6px rgba(0,0,0,0.35);
-          # }
-        CSS
-
         token_icons = unplaced.map do |token|
           raw_cost = if token.respond_to?(:price) && !token.price.nil?
                        token.price
@@ -2038,7 +2004,7 @@ module View
                        begin; @game.token_cost(token); rescue StandardError; nil; end
                      end
 
-          cost = raw_cost ? raw_cost.to_s : ''
+          cost = raw_cost.nil? ? '' : @game.format_currency(raw_cost)
           wrapper_props = { attrs: { class: 'unplaced-token-wrapper', title: cost } }
 
           if logo_src
@@ -2050,7 +2016,7 @@ module View
           end
         end
 
-        h(:div, { attrs: { id: "tokens_#{corporation.id}" }, style: { display: 'flex', flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' } }, [h(:style, tooltip_style), *token_icons])
+        h(:div, { attrs: { id: "tokens_#{corporation.id}" }, style: { display: 'flex', flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' } }, token_icons)
       end
 
       def share_denomination_tooltip(shares, corporation)

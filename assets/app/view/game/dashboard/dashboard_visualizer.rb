@@ -689,6 +689,29 @@ module View
           }, card_children)
       end
 
+      # // --- START FIX ---
+      def game_title
+        title = nil
+        title ||= @game_data['title'] || @game_data[:title] if defined?(@game_data) && @game_data
+        if (!title || title.to_s.strip.empty?) && @game
+          if @game.class.const_defined?(:GAME_TITLE)
+            title = @game.class::GAME_TITLE
+          elsif @game.class.const_defined?(:TITLE)
+            title = @game.class::TITLE
+          elsif @game.respond_to?(:title) && @game.title && @game.title.to_s.strip.downcase != 'game'
+            title = @game.title
+          end
+
+          if !title || title.to_s.strip.empty? || title.to_s.strip.downcase == 'game'
+            parts = @game.class.name.to_s.split('::')
+            mod = parts.reverse.find { |p| p =~ /^G\d+/i } || (parts[-2] if parts.size > 1)
+            title = mod ? mod.sub(/^G/i, '') : parts.last
+          end
+        end
+        title.to_s
+      end
+      # // --- END FIX ---
+
       def render
         if @game.respond_to?(:finished?) && @game.finished?
           return h(:div, {
@@ -762,7 +785,6 @@ module View
           ''
         end
 
-        # Automatically close overlay when navigating to a new game
         active_gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
         if Lib::Storage['last_active_dashboard_gid'] != active_gid
           Lib::Storage['last_active_dashboard_gid'] = active_gid
@@ -795,7 +817,6 @@ module View
                         `document.body.style.overflow = 'hidden'`
                         fetch_user_games(false)
 
-                        # 60-second recurring timer to automatically refresh turn counts
                         comp = self
                         %x(
                           if (window._other_games_timer) {
@@ -825,7 +846,6 @@ module View
                         `document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 36px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 36px)' })`
 
                         %x(
-                          // --- START FIX ---
                           window.playTurnBeep = function() {
                             try {
                               var AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -852,7 +872,6 @@ module View
                                 osc.start(start);
                                 osc.stop(start + duration);
                               };
-                              // Two-tone warning alert: 880 Hz (A5) followed by 1175 Hz (D6)
                               playTone(880, now, 0.09);
                               playTone(1175, now + 0.11, 0.14);
                             } catch (e) {}
@@ -873,7 +892,6 @@ module View
                           };
                           window.addEventListener('pointerdown', unlockAudio, { once: true });
                           window.addEventListener('keydown', unlockAudio, { once: true });
-                          // --- END FIX ---
 
                           var menuStyleTag = document.getElementById('dashboard-menu-overrides');
                           if (!menuStyleTag) {
@@ -931,7 +949,7 @@ module View
                             '.frame-opponent-turn { border: 4px solid #94a3b8 !important; } ' +
                             '.frame-opponent-turn::after { animation: frame-opponent-breath 3.5s ease-in-out infinite !important; } ' +
 
-                             '#turn-notification-ribbon { ' +
+                            '#turn-notification-ribbon { ' +
                             '  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 999999; ' +
                             '  padding: 8px 24px; border-radius: 20px; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; ' +
                             '  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.5px; pointer-events: none; ' +
@@ -1018,11 +1036,13 @@ module View
                             '.stock-market-tooltip, .market-tooltip, [class*="hover-overlay"], [id*="hover-overlay"] { ' +
                             '  z-index: 999999 !important; pointer-events: none !important; ' +
                             '} ' +
-                            '#panel-market svg g.marker, #panel-market svg g.token, ' +
+                           '#panel-market svg g.marker, #panel-market svg g.token, ' +
                             '#panel-market .market-marker, #panel-market .token, ' +
-                            '#panel-market [class*="marker"], #panel-market [class*="token"] { ' +
-                            '  pointer-events: none !important; ' +
-                                                        '}';
+                            '#panel-market [class*="marker"], #panel-market [class*="token"], ' +
+                            '#panel-market .stock-market-token, #panel-market [id^="stock-token-"] { ' +
+                            '  pointer-events: auto !important; ' +
+                            '  cursor: pointer !important; ' +
+                            '}';
 
                           window.notifyTurnAlert = function(isMine, pName, cName, isInitial) {
                             var cleanTitle = document.title.replace(/^[🟢⏳]\s*\[.*?\]\s*/, '');
@@ -1036,11 +1056,9 @@ module View
                               if (isMine) {
                                 if (!isInitial) frame.classList.add('frame-ignition');
                                 frame.classList.add('frame-my-turn');
-                                // --- START FIX ---
                                 if (!isInitial && window.playTurnBeep) {
                                   window.playTurnBeep();
                                 }
-                                // --- END FIX ---
                               } else {
                                 frame.classList.add('frame-opponent-turn');
                               }
@@ -1357,7 +1375,7 @@ module View
                             styleTag.id = 'dashboard-map-svg-styles';
                             document.head.appendChild(styleTag);
                           }
-                         styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
+                          styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
                                                '.scaler-content .tile__text { font-size: 0.75em !important; } ' +
                                                '.scaler-content text.number { font-size: 0.55em !important; } ' +
                                                '#panel-market { isolation: isolate; } ' +
@@ -1365,9 +1383,11 @@ module View
                                                '#market-hover-overlay, .market-hover-overlay, .stock-market-tooltip, [class*="hover-overlay"] { ' +
                                                '  z-index: 9999 !important; pointer-events: none; ' +
                                                '} ' +
-                                               '#panel-market svg g.marker, #panel-market .market-marker, #panel-market svg g[id*="marker"] { ' +
-                                               '  pointer-events: auto; z-index: 2; ' +
+'#panel-market svg g.marker, #panel-market .market-marker, #panel-market svg g[id*="marker"], ' +
+                                               '#panel-market .stock-market-token, #panel-market [id^="stock-token-"] { ' +
+                                               '  pointer-events: auto !important; z-index: 2; ' +
                                                '} ' +
+
                                                '@keyframes map-hex-pulse { ' +
                                                '  0% { stroke: #ff0055; stroke-width: 8px; fill-opacity: 0.18; } ' +
                                                '  50% { stroke: #fbbf24; stroke-width: 10px; fill-opacity: 0.38; } ' +
@@ -1597,7 +1617,7 @@ module View
               transition: 'background-color 0.3s ease, border 0.3s ease',
             },
           }, [
-h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
+            h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
               h(:div, { attrs: { id: 'command-space-top' }, style: { flex: '0 0 9rem', minHeight: '6.5rem', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' } }, [
                 h(:div, { attrs: { id: 'command-scroll-viewport' }, style: { padding: '1.45rem 0.25rem 0.2rem', height: '100%', minHeight: '0', boxSizing: 'border-box', overflow: 'hidden' } }, [
                   h(View::Game::DashboardCommandColumn, game: @game, user: @user, game_data: @game_data),
@@ -1638,6 +1658,26 @@ h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', m
                     ]),
                   ]),
                 ]),
+                # // --- START FIX ---
+                h(:div, {
+                    attrs: { id: 'canvas-game-watermark' },
+                    style: {
+                      position: 'absolute',
+                      bottom: '8px',
+                      right: '16px',
+                      zIndex: 15,
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      fontFamily: 'Impact, "Arial Black", sans-serif',
+                      fontSize: '5.5rem',
+                      fontWeight: '900',
+                      lineHeight: '1',
+                      letterSpacing: '2px',
+                      color: 'rgba(15, 23, 42, 0.18)',
+                      textShadow: '0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)',
+                    },
+                  }, game_title),
+                # // --- END FIX ---
                 h(:div, {
                     attrs: { class: 'panel-manifest-control' },
                     style: {
@@ -1675,28 +1715,28 @@ h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', m
               ]),
             ]),
 
-h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
+            h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
 
-h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
-  h(:div, {
-      attrs: { id: 'temporal-hub' },
-      style: {
-        flex: '0 0 3.75rem',
-        minHeight: '3.25rem',
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        border: '1px solid #ccc',
-        borderRadius: '4px',
-        backgroundColor: '#f8f9fa',
-        padding: '0 0.65rem',
-        boxSizing: 'border-box',
-        overflow: 'hidden',
-        gap: '0.65rem',
-      },
-    }, [
-    h(:style, {}, '
+            h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
+              h(:div, {
+                  attrs: { id: 'temporal-hub' },
+                  style: {
+                    flex: '0 0 3.75rem',
+                    minHeight: '3.25rem',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: '#f8f9fa',
+                    padding: '0 0.65rem',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                    gap: '0.65rem',
+                  },
+                }, [
+                h(:style, {}, '
                   /* Target the div children directly to account for prepended style tags */
                   #command-space-top #dashboard-command-panel-bar > div:first-of-type {
                     display: none !important;
@@ -1714,53 +1754,53 @@ h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex'
                     overflow: visible !important;
                   }
                 '),
-    render_active_turn_card,
-    h(:div, {
-        attrs: { class: 'entity-order-content' },
-        style: {
-          flex: '1 1 auto',
-          minWidth: '0',
-          height: '2.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          overflow: 'hidden',
-        },
-      }, [
-      if @game.respond_to?(:finished?) && @game.finished?
-        h(View::Game::DashboardEntityOrder, round: nil)
-      else
-        h(View::Game::DashboardEntityOrder, round: @game.round)
-      end,
-    ]),
-    render_other_games_button,
-  ].compact),
+                render_active_turn_card,
+                h(:div, {
+                    attrs: { class: 'entity-order-content' },
+                    style: {
+                      flex: '1 1 auto',
+                      minWidth: '0',
+                      height: '2.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                    },
+                  }, [
+                  if @game.respond_to?(:finished?) && @game.finished?
+                    h(View::Game::DashboardEntityOrder, round: nil)
+                  else
+                    h(View::Game::DashboardEntityOrder, round: @game.round)
+                  end,
+                ]),
+                render_other_games_button,
+              ].compact),
 
-  h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
+              h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
 
-  h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
-    h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
-h(View::Game::DashboardGameStatus, game: @game, user: @user),
-    ]),
-  ]),
+              h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
+                h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
+                  h(View::Game::DashboardGameStatus, game: @game, user: @user),
+                ]),
+              ]),
 
-  h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
+              h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
-  h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
-    render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
-    h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
-      h(View::Game::DashboardStockMarket, game: @game),
-    ]),
-  ]),
-]),
-render_global_auction_overlay,
-render_par_overlay,
-render_tile_manifest_overlay,
-render_history_overlay,
-render_move_history_overlay,
-render_other_games_overlay,
+              h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
+                render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
+                h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
+                  h(View::Game::DashboardStockMarket, game: @game),
+                ]),
+              ]),
+            ]),
+            render_global_auction_overlay,
+            render_par_overlay,
+            render_tile_manifest_overlay,
+            render_history_overlay,
+            render_move_history_overlay,
+            render_other_games_overlay,
 
-h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
-].compact)
+            h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
+          ].compact)
       end
     end
   end
