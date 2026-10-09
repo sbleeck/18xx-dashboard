@@ -822,9 +822,9 @@ module View
         is_directed = corporation.respond_to?(:owner) && (corporation.owner == active_player)
 
         corp_bg = corporation.color || '#ffffff'
-        star_bg = is_unfloated ? '#6b7280' : '#000000'
-        star_color = '#ffffff'
-        star_border = is_unfloated ? '1px solid #4b5563' : "1px solid #{star_color}"
+        star_bg = is_unfloated ? '#6b7280' : corp_bg
+        star_color = is_unfloated ? '#d1d5db' : '#ffffff'
+        star_border = is_unfloated ? '1px solid #4b5563' : '1px solid rgba(0,0,0,0.35)'
 
         tr_props = tr_default_props(is_active_row)
         tr_props[:attrs] ||= {}
@@ -1547,6 +1547,7 @@ module View
 
           pool_card = render_railcard(pool_share_text, classes, pool_click_handler, nil, dropdowns)
           pool_hover = share_denomination_tooltip(pool_shares, corporation)
+          pool_hover = append_market_zone_tooltip(pool_hover, corporation)
           pool_cell_children << h(:div, { attrs: { class: 'share-card-wrapper cert-share-card', 'data-corp': corporation.id, title: pool_hover } }, [pool_card])
         end
 
@@ -1811,8 +1812,13 @@ module View
         clean_market_price = corporation.share_price && is_operating ? @game.format_currency(corporation.share_price.price) : ''
         clean_par_price = corporation.par_price ? @game.format_currency(corporation.par_price.price) : ''
 
+        pool_cell_style = { position: 'relative', textAlign: 'center', borderLeft: border_style }
+        if (market_zone = market_zone_details(corporation))
+          pool_cell_style[:boxShadow] = "inset 8px 0 0 #{market_zone[:color]}"
+          pool_cell_style[:paddingLeft] = '6px'
+        end
         pool_row_content = [
-          h('td.column-zone-market.market-shares-col', { attrs: { id: "pool_shares_#{corporation.id}" }, style: { position: 'relative', textAlign: 'center', borderLeft: border_style } }, pool_cell_children),
+          h('td.column-zone-market.market-shares-col', { attrs: { id: "pool_shares_#{corporation.id}" }, style: pool_cell_style }, pool_cell_children),
           h('td.padded_number.column-zone-market.money-value.market-price-col', { style: market_style.merge(borderRight: border_style) }, clean_market_price),
         ]
 
@@ -2017,6 +2023,51 @@ module View
         end
 
         h(:div, { attrs: { id: "tokens_#{corporation.id}" }, style: { display: 'flex', flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' } }, token_icons)
+      end
+
+      def market_zone_details(corporation)
+        price = corporation.respond_to?(:share_price) ? corporation.share_price : nil
+        return nil unless price
+        return nil unless @game.class.const_defined?(:STOCKMARKET_COLORS)
+
+        types = if price.respond_to?(:types) && price.types
+                  Array(price.types)
+                elsif price.respond_to?(:type) && price.type
+                  [price.type]
+                else
+                  []
+                end
+        types = types.compact.map { |type| type.respond_to?(:to_sym) ? type.to_sym : type }
+        types.reject! { |type| %i[normal par safe_par].include?(type) }
+
+        color_map = @game.class::STOCKMARKET_COLORS
+        market_type = types.find { |type| color_map[type] || color_map[type.to_s] }
+        return nil unless market_type
+
+        color_key = color_map[market_type] || color_map[market_type.to_s]
+        color = if color_key.to_s.start_with?('#')
+                  color_key.to_s
+                elsif defined?(StockMarket::COLOR_MAP)
+                  StockMarket::COLOR_MAP[color_key.to_sym]
+                end
+        return nil unless color
+
+        text = nil
+        if @game.class.const_defined?(:MARKET_TEXT)
+          market_text = @game.class::MARKET_TEXT
+          text = market_text[market_type] || market_text[market_type.to_s] || market_text[market_type.to_sym]
+        end
+
+        { color: color, text: text.to_s.strip }
+      rescue StandardError
+        nil
+      end
+
+      def append_market_zone_tooltip(existing_text, corporation)
+        details = market_zone_details(corporation)
+        return existing_text unless details && !details[:text].empty?
+
+        [existing_text.to_s.strip, details[:text]].reject(&:empty?).join("\n")
       end
 
       def share_denomination_tooltip(shares, corporation)
