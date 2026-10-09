@@ -25,150 +25,169 @@ module View
           curr_id = (@game.respond_to?(:id) ? @game.id : nil).to_s
           uid = @user_id.to_s
 
-          raw_games = %x{
-            (function() {
-              var raw = window._user_games_cache;
-              if (!raw || !Array.isArray(raw)) {
-                try {
-                  raw = JSON.parse(localStorage.getItem('all_user_games') || '[]');
-                } catch(e) {
-                  raw = [];
-                }
-              }
-              if (!Array.isArray(raw)) return [];
-
-              var myId = parseInt(#{uid}, 10);
-              var curId = parseInt(#{curr_id}, 10);
-
-              var filtered = raw.filter(function(g) {
-                if (!g) return false;
-
-                // 1. Exclude finished or archived games
-                var status = String(g.status || '').toLowerCase();
-                if (status && status !== 'active') return false;
-                if (g.finished_at || g.finished) return false;
-
-                // 2. Only include games where you are an active player
-                if (g.players && Array.isArray(g.players)) {
-                  return g.players.some(function(p) {
-                    if (!p) return false;
-                    var pid = p.id !== undefined ? p.id : (p.user ? p.user.id : null);
-                    return parseInt(pid, 10) === myId;
-                  });
-                }
-                return false;
-              });
-
-              return filtered.map(function(g) {
-                var isMyTurn = Boolean(g.acting && Array.isArray(g.acting) && g.acting.some(function(actId) {
-                  return parseInt(actId, 10) === myId;
-                }));
-                var isCurrent = (parseInt(g.id, 10) === curId);
-
-                return {
-                  id: String(g.id || ''),
-                  title: String(g.title || '18xx'),
-                  round: String(g.round || ''),
-                  desc: String(g.description || ''),
-                  is_my_turn: isMyTurn ? 1 : 0,
-                  is_current: isCurrent ? 1 : 0
-                };
-              }).sort(function(a, b) {
-                var orderA = (a.is_my_turn === 1 && a.is_current === 0) ? 0 : (a.is_my_turn === 1 ? 1 : (a.is_current === 1 ? 2 : 3));
-                var orderB = (b.is_my_turn === 1 && b.is_current === 0) ? 0 : (b.is_my_turn === 1 ? 1 : (b.is_current === 1 ? 2 : 3));
-                return orderA - orderB;
-              });
-            })()
-          }
-
-          game_rows = []
-          %x{
-            if (Array.isArray(raw_games)) {
-              for (var i = 0; i < raw_games.length; i++) {
-                (function(item) {
-                  var gid = item.id;
-                  var title = item.title;
-                  var round = item.round;
-                  var desc = item.desc;
-                  var isTurn = (item.is_my_turn === 1);
-                  var isCur = (item.is_current === 1);
-
-                  var cardBg = isTurn ? '#f0fdf4' : (isCur ? '#f8fafc' : '#ffffff');
-                  var borderStyle = isTurn ? '2px solid #16a34a' : (isCur ? '2px solid #94a3b8' : '1px solid #cbd5e1');
-                  var badgeBg = isTurn ? '#16a34a' : (isCur ? '#64748b' : '#e2e8f0');
-                  var badgeColor = (isTurn || isCur) ? '#ffffff' : '#475569';
-                  var badgeText = (isTurn && isCur) ? '★ YOUR TURN (Here)' : (isTurn ? '★ YOUR TURN' : (isCur ? 'Current' : 'Waiting'));
-
-                 var clickRow = function(e) {
-                    if (e && e.stopPropagation) e.stopPropagation();
-                    #{close_handler.call};
-                    if (!isCur) {
-                      window.location.href = '/game/' + gid + '#dashboard';
-                    }
-                  };
-
-                  var descNode = desc ? #{h(:span,
-                                            { style: { fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '320px' } }, `desc`)} : null;
-                  var roundNode = round ? #{h(:span, { style: { fontSize: '0.78rem', color: '#64748b', fontWeight: '600' } },
-                                              `('• ' + round)`)} : null;
-
-                  var rowNode = #{
-                    h(:div, {
-                        attrs: { title: `isCur ? 'Current game' : ('Open Game #' + gid + ' Dashboard')` },
-                        style: {
-                          display: 'flex',
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.65rem 0.85rem',
-                          borderRadius: '6px',
-                          cursor: `isCur ? 'default' : 'pointer'`,
-                          backgroundColor: `cardBg`,
-                          border: `borderStyle`,
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                          transition: 'background-color 0.15s ease',
-                        },
-                        on: { click: ->(e) { `clickRow(#{e})` } },
-                      }, [
-                        h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: '0' } }, [
-                          h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' } }, [
-                            h(:strong, { style: { fontSize: '1rem', color: '#0f172a' } }, `title + ' (#' + gid + ')'`),
-                            `roundNode`,
-                          ].compact),
-                          `descNode`,
-                        ].compact),
-                        h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: '0' } }, [
-                          h(:span, {
-                              style: {
-                                fontSize: '0.72rem',
-                                fontWeight: 'bold',
-                                padding: '2px 8px',
-                                borderRadius: '10px',
-                                backgroundColor: `badgeBg`,
-                                color: `badgeColor`,
-                              },
-                            }, `badgeText`),
-                          (!`isCur` ? h(:span, { style: { fontSize: '1rem', color: '#0284c7', fontWeight: 'bold' } }, '→') : nil),
-                        ].compact),
-                      ])
-                  };
-                  #{game_rows << `rowNode`};
-                })(raw_games[i]);
+          raw_games = %x((function() {
+            var raw = window._user_games_cache;
+            if (!raw || !Array.isArray(raw)) {
+              try {
+                raw = JSON.parse(localStorage.getItem('all_user_games') || '[]');
+              } catch(e) {
+                raw = [];
               }
             }
-          }
+            if (!Array.isArray(raw)) return [];
 
-          if game_rows.empty?
-            game_rows << h(:div, {
-                             style: {
-                               padding: '2rem 1rem',
-                               textAlign: 'center',
-                               color: '#64748b',
-                               fontStyle: 'italic',
-                               fontSize: '0.9rem',
-                             },
-                           }, 'No active games found where you are a player.')
-          end
+            var myId = parseInt(#{uid}, 10);
+            var curId = parseInt(#{curr_id}, 10);
+
+            var filtered = raw.filter(function(g) {
+              if (!g) return false;
+
+              var status = String(g.status || '').toLowerCase();
+              if (status && status !== 'active') return false;
+              if (g.finished_at || g.finished) return false;
+
+              if (g.players && Array.isArray(g.players)) {
+                return g.players.some(function(p) {
+                  if (!p) return false;
+                  var pid = p.id !== undefined ? p.id : (p.user ? p.user.id : null);
+                  return parseInt(pid, 10) === myId;
+                });
+              }
+              return false;
+            });
+
+            return filtered.map(function(g) {
+              var isMyTurn = Boolean(g.acting && Array.isArray(g.acting) && g.acting.some(function(actId) {
+                return parseInt(actId, 10) === myId;
+              }));
+              var isCurrent = (parseInt(g.id, 10) === curId);
+
+              return [
+                String(g.id || ''),
+                String(g.title || '18xx'),
+                String(g.round || ''),
+                String(g.description || ''),
+                isMyTurn ? 1 : 0,
+                isCurrent ? 1 : 0
+              ];
+            }).sort(function(a, b) {
+              var orderA = (a[4] === 1 && a[5] === 0) ? 0 : (a[4] === 1 ? 1 : (a[5] === 1 ? 2 : 3));
+              var orderB = (b[4] === 1 && b[5] === 0) ? 0 : (b[4] === 1 ? 1 : (b[5] === 1 ? 2 : 3));
+              return orderA - orderB;
+            });
+          })())
+
+          game_rows = if raw_games.nil? || raw_games.empty?
+                        [
+                          h(:div, {
+                              style: {
+                                padding: '2rem 1rem',
+                                textAlign: 'center',
+                                color: '#64748b',
+                                fontStyle: 'italic',
+                                fontSize: '0.9rem',
+                              },
+                            }, 'No active games found where you are a player.'),
+                        ]
+                      else
+                        raw_games.map do |item|
+                          gid = item[0]
+                          title = item[1]
+                          round = item[2]
+                          desc = item[3]
+                          is_turn = (item[4] == 1)
+                          is_cur = (item[5] == 1)
+
+                          card_bg = if is_turn
+                                      '#f0fdf4'
+                                    else
+                                      (is_cur ? '#f8fafc' : '#ffffff')
+                                    end
+                          border_style = if is_turn
+                                           '2px solid #16a34a'
+                                         else
+                                           (is_cur ? '2px solid #94a3b8' : '1px solid #cbd5e1')
+                                         end
+                          badge_bg = if is_turn
+                                       '#16a34a'
+                                     else
+                                       (is_cur ? '#64748b' : '#e2e8f0')
+                                     end
+                          badge_color = is_turn || is_cur ? '#ffffff' : '#475569'
+                          badge_text = if is_turn && is_cur
+                                         '★ YOUR TURN (Here)'
+                                       elsif is_turn
+                                         '★ YOUR TURN'
+                                       elsif is_cur
+                                         'Current'
+                                       else
+                                         'Waiting'
+                                       end
+
+                          row_click = lambda do |e|
+                            `if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();`
+                            close_handler.call
+                            `window.location.href = '/game/' + #{gid} + '#dashboard'` unless is_cur
+                          end
+
+                          desc_node = if desc && !desc.empty?
+                                        h(:span,
+                                          { style: { fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '320px' } }, desc)
+                                      else
+                                        nil
+                                      end
+                          round_node = if round && !round.empty?
+                                         h(:span,
+                                           { style: { fontSize: '0.78rem', color: '#64748b', fontWeight: '600' } }, "• #{round}")
+                                       else
+                                         nil
+                                       end
+
+                          h(:div, {
+                              attrs: { title: is_cur ? 'Current game' : "Open Game ##{gid} Dashboard" },
+                              style: {
+                                display: 'flex',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '0.65rem 0.85rem',
+                                borderRadius: '6px',
+                                cursor: is_cur ? 'default' : 'pointer',
+                                backgroundColor: card_bg,
+                                border: border_style,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                transition: 'background-color 0.15s ease',
+                              },
+                              on: { click: row_click },
+                            }, [
+                              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: '0' } }, [
+                                h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' } }, [
+                                  h(:strong, { style: { fontSize: '1rem', color: '#0f172a' } }, "#{title} (##{gid})"),
+                                  round_node,
+                                ].compact),
+                                desc_node,
+                              ].compact),
+                              h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: '0' } }, [
+                                h(:span, {
+                                    style: {
+                                      fontSize: '0.72rem',
+                                      fontWeight: 'bold',
+                                      padding: '2px 8px',
+                                      borderRadius: '10px',
+                                      backgroundColor: badge_bg,
+                                      color: badge_color,
+                                    },
+                                  }, badge_text),
+                                (if !is_cur
+                                   h(:span, { style: { fontSize: '1rem', color: '#0284c7', fontWeight: 'bold' } },
+                                     '→')
+                                 else
+                                   nil
+                                 end),
+                              ].compact),
+                            ])
+                        end
+                      end
 
           overlay_bg = h(:div, {
                            attrs: { id: 'other-games-overlay-backdrop' },
@@ -179,7 +198,7 @@ module View
                              width: '100vw',
                              height: '100vh',
                              backgroundColor: 'rgba(0,0,0,0.65)',
-                             zIndex: '99999',
+                             zIndex: '999999',
                              cursor: 'pointer',
                            },
                            on: { click: close_handler },
@@ -196,7 +215,7 @@ module View
                               padding: '1.5rem',
                               borderRadius: '8px',
                               boxShadow: '0 20px 25px -5px rgba(0,0,0,0.4)',
-                              zIndex: '100000',
+                              zIndex: '1000000',
                               width: '90%',
                               maxWidth: '540px',
                               maxHeight: '80vh',

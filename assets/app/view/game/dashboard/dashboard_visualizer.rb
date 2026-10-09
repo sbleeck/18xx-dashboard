@@ -71,6 +71,7 @@ module View
         rescue StandardError
           nil
         end
+
         if step&.respond_to?(:active_entities)
           act_ent = step.active_entities&.first
           if act_ent
@@ -761,6 +762,15 @@ module View
           ''
         end
 
+        # Automatically close overlay when navigating to a new game
+        active_gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
+        if Lib::Storage['last_active_dashboard_gid'] != active_gid
+          Lib::Storage['last_active_dashboard_gid'] = active_gid
+          Lib::Storage['show_other_games_overlay'] = nil
+          store(:show_other_games_overlay, false, skip: true)
+          `try { localStorage.removeItem('show_other_games_overlay'); } catch(e) {}`
+        end
+
         frame_bg = '#ffffff'
         frame_border = 'none'
         frame_class = ''
@@ -784,6 +794,29 @@ module View
                         `window.scrollTo(0, 0)`
                         `document.body.style.overflow = 'hidden'`
                         fetch_user_games(false)
+
+                        # 60-second recurring timer to automatically refresh turn counts
+                        comp = self
+                        %x(
+                          if (window._other_games_timer) {
+                            clearInterval(window._other_games_timer);
+                          }
+                          window._other_games_timer = setInterval(function() {
+                            if (window.fetch) {
+                              fetch('/api/game/user')
+                                .then(function(res) { return res.ok ? res.json() : null; })
+                                .then(function(data) {
+                                  if (data && Array.isArray(data.games)) {
+                                    window._user_games_cache = data.games;
+                                    try {
+                                      localStorage.setItem('all_user_games', JSON.stringify(data.games));
+                                    } catch(e) {}
+                                    if (comp && comp.$update) comp.$update();
+                                  }
+                                }).catch(function() {});
+                            }
+                          }, 60000);
+                        )
 
                         `document.body.style.margin = '0'`
                         `document.body.style.padding = '0'`
@@ -1522,6 +1555,12 @@ module View
                            Lib::Storage["viz_last_act_#{game_storage_id}"] = curr_id
                          },
               destroy: lambda {
+                         %x(
+                           if (window._other_games_timer) {
+                             clearInterval(window._other_games_timer);
+                             window._other_games_timer = null;
+                           }
+                         )
                          %x(
                            var menuStyle = document.getElementById('dashboard-menu-overrides');
                            if (menuStyle) menuStyle.remove();

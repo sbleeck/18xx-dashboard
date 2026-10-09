@@ -43,7 +43,7 @@ module View
             end
             return [] if has_placed
           end
-          
+
           hexes = []
           abilities = []
           abilities.concat(target.all_abilities) if target.respond_to?(:all_abilities) && target.all_abilities
@@ -530,6 +530,157 @@ module View
                 interactive: false),
             ])
         end
+
+        # // --- START FIX ---
+        TRAIN_QUIRKS = {
+          # 1849 Gauge & Express Quirks
+          '1849_4h' => 'Standard/dual gauge = 1 edge; narrow gauge = 2 edges.',
+          '1849_6h' => 'Standard/dual gauge = 1 edge; narrow gauge = 2 edges.',
+          '1849_8h' => 'Standard/dual gauge = 1 edge; narrow gauge = 2 edges.',
+          '1849_10h' => 'Standard/dual gauge = 1 edge; narrow gauge = 2 edges.',
+          '1849_12h' => 'Standard/dual gauge = 1 edge; narrow gauge = 2 edges.',
+          '1849_16h' => 'Standard/dual gauge = 1 edge; narrow gauge = 2 edges.',
+          '1849_r6h' => 'Restricted gauge: Narrow gauge = 1 edge; standard gauge = 2 edges.',
+          '1849_e' => 'Standard gauge only (no narrow); 2x revenue on B14, C5, H12, M13.',
+
+          # 1835 Plus-Train Quirks
+          '1835_2p2' => 'Towns count toward the +2 limit and pay revenue.',
+          '1835_3p3' => 'Towns count toward the +3 limit and pay revenue.',
+          '1835_4p4' => 'Towns count toward the +4 limit and pay revenue.',
+          '1835_5p5' => 'Towns count toward the +5 limit and pay revenue.',
+          '1835_6p6' => 'Towns count toward the +6 limit and pay revenue.',
+
+          # 18USA Quirks
+          '18usa_p' => 'Pullman car: Attaches to another train; increases passenger revenue without adding stops.',
+        }.freeze
+
+        def game_id_str
+          return @game.title.to_s.downcase if @game.respond_to?(:title) && @game.title
+
+          mod = @game.class.name.split('::')[2]
+          mod ? mod.sub(/^G/, '').downcase : ''
+        end
+
+        def train_hover_text(train_or_name)
+          return nil unless train_or_name && @game
+
+          train = nil
+          raw_name = nil
+
+          if train_or_name.respond_to?(:distance) || train_or_name.respond_to?(:rusts_on)
+            train = train_or_name
+            raw_name = train.name.to_s
+          else
+            raw_name = train_or_name.to_s.tr('()', '').strip
+            if @game.respond_to?(:depot) && @game.depot&.respond_to?(:trains)
+              train = @game.depot.trains.find { |t| t.name == raw_name }
+            end
+            if !train && @game.respond_to?(:all_corporations)
+              train = @game.all_corporations.flat_map { |c| c.trains || [] }.find { |t| t.name == raw_name }
+            end
+          end
+
+          return nil if raw_name.empty?
+
+          train_def = nil
+          if !train && @game.class.const_defined?(:TRAINS)
+            raw_trains = @game.class::TRAINS
+            train_def = raw_trains.find { |td| td[:name] == raw_name } if raw_trains.is_a?(Array)
+          end
+
+          price = if train
+                    train.price
+                  else
+                    (train_def ? train_def[:price] : nil)
+                  end
+          distance = if train
+                       train.distance
+                     else
+                       (train_def ? train_def[:distance] : nil)
+                     end
+          rusts_on = if train
+                       train.rusts_on
+                     else
+                       (train_def ? train_def[:rusts_on] : nil)
+                     end
+          obsolete_on = if train
+                          train.respond_to?(:obsolete_on) ? train.obsolete_on : nil
+                        else
+                          (train_def ? train_def[:obsolete_on] : nil)
+                        end
+          available_on = if train
+                           train.respond_to?(:available_on) ? train.available_on : nil
+                         else
+                           (train_def ? train_def[:available_on] : nil)
+                         end
+          is_obsolete = train&.respond_to?(:obsolete) && train.obsolete
+
+          lines = []
+
+          cost_str = price && price.positive? ? " (#{@game.format_currency(price)})" : ''
+          status_tag = is_obsolete ? ' [Obsolete]' : ''
+          lines << "#{raw_name} Train#{cost_str}#{status_tag}"
+
+          dist_str = distance.to_s.strip
+          hex_based = raw_name.end_with?('H') || @game.respond_to?(:hex_edge_cost)
+
+          if dist_str == '999' || %w[D 2D 3D 4D].include?(raw_name.upcase)
+            lines << 'Route: Unlimited revenue stops (Diesel)'
+          elsif raw_name.upcase == 'E' && (dist_str == '99' || dist_str.empty?)
+            lines << 'Route: Unlimited route distance (Express)'
+          elsif dist_str == '0' || raw_name.upcase == 'P'
+            lines << 'Route: Auxiliary car (attaches to train; bonus revenue)'
+          elsif hex_based
+            count = raw_name.gsub(/[^0-9]/, '')
+            count = dist_str if count.empty? && dist_str =~ /^\d+$/
+            lines << "Route: Up to #{count} hex edges"
+          elsif raw_name.include?('+') || dist_str.include?('plus_train_distance')
+            m = dist_str.match(/plus_train_distance\((\d+)\)/)
+            val = m ? m[1] : raw_name.split('+').first
+            lines << "Route: Up to #{val} major stops and #{val} towns"
+          elsif distance.is_a?(Array)
+            pay_counts = distance.map { |node| node['pay'] || node[:pay] }.compact
+            lines << if pay_counts.any?
+                       "Route: Up to #{pay_counts.max} revenue stops"
+                     elsif /^\d+$/.match?(raw_name)
+                       "Route: Up to #{raw_name} revenue stops"
+                     else
+                       'Route: Special stop restrictions'
+                     end
+          elsif /^\d+$/.match?(dist_str)
+            lines << "Route: Up to #{dist_str} revenue stops"
+          elsif /^\d+$/.match?(raw_name)
+            lines << "Route: Up to #{raw_name} revenue stops"
+          end
+
+          gid = game_id_str
+          slug = raw_name.downcase.tr('+', 'p').gsub(/[^a-z0-9_]/, '')
+          quirk_key = "#{gid}_#{slug}"
+          note = TRAIN_QUIRKS[quirk_key]
+
+          if !note && hex_based && @game.class.name.include?('1849')
+            note = if raw_name.start_with?('R')
+                     'Restricted gauge: Narrow gauge = 1 edge; standard gauge = 2 edges.'
+                   else
+                     'Standard/dual gauge = 1 edge; narrow gauge = 2 edges.'
+                   end
+          end
+
+          lines << "Note: #{note}" if note
+
+          if rusts_on
+            lines << "Rusts on: #{rusts_on}"
+          elsif obsolete_on
+            lines << "Obsoletes on: #{obsolete_on}"
+          elsif !is_obsolete
+            lines << 'Status: Permanent'
+          end
+
+          lines << "Available on: #{available_on}" if available_on
+
+          lines.join("\n")
+        end
+        # // --- END FIX ---
 
         def render_major_railcard(corporation, click_handler = nil, card_classes = ['major-railcard'], wrapper_id = nil)
           return nil unless major_corporation?(corporation) || minor_entity?(corporation)
@@ -1131,11 +1282,27 @@ module View
           end
           has_dropdown = !dropdown_items.empty?
 
-          is_train = classes.include?('card-train') || wrapper_id.to_s.include?('train')
+          # // --- START FIX ---
+          is_train = classes.include?('card-train') || wrapper_id.to_s.include?('train') || entity&.respond_to?(:rusts_on)
           if is_train && !classes.include?('card-train')
             classes << 'card-train'
             classes_str = classes.join(' ')
           end
+
+          train_title = nil
+          if is_train
+            train_target = entity
+            if !train_target && wrapper_id.to_s =~ /train_wrapper_([^_]+)_(.+)/
+              corp_id = Regexp.last_match(1)
+              train_id = Regexp.last_match(2)
+              corp = (@game.respond_to?(:corporation_by_id) ? @game.corporation_by_id(corp_id) : nil) ||
+                     (@game.respond_to?(:all_corporations) ? @game.all_corporations.find { |c| c.id.to_s == corp_id } : nil)
+              train_target = corp&.trains&.find { |tr| tr.id.to_s == train_id }
+            end
+            train_target ||= text
+            train_title = train_hover_text(train_target)
+          end
+          # // --- END FIX ---
 
           style_props = {
             minWidth: '3.2rem',
@@ -1161,6 +1328,13 @@ module View
             style: style_props,
           }
           card_props[:attrs][:id] = clean_wrapper_id if has_wrapper_id
+          # // --- START FIX ---
+          card_props[:attrs][:title] = train_title if train_title
+          if is_train
+            t_slug = (entity&.respond_to?(:name) ? entity.name : text).to_s.tr('()', '').strip.downcase.tr('+', 'p').gsub(/[^a-z0-9_]/, '')
+            card_props[:attrs]['data-train'] = t_slug unless t_slug.empty?
+          end
+          # // --- END FIX ---
           card_props[:on] = { click: click_handler } if is_clickable
 
           corp_id_str = nil
@@ -1176,6 +1350,9 @@ module View
             w_attrs[:id] = clean_wrapper_id if has_wrapper_id && !is_train
             w_attrs[:class] = clean_wrapper_classes if has_wrapper_classes
             w_attrs['data-corp'] = corp_id_str if corp_id_str
+            # // --- START FIX ---
+            w_attrs[:title] = train_title if is_train && train_title
+            # // --- END FIX ---
 
             children = []
             children << tooltip if has_tooltip
