@@ -32,56 +32,77 @@ module View
 
         def start_drag(e)
           %x{
-            var ev = #{e};
-            if (ev && ev.native) ev = ev.native;
-            if (!ev || ev.button !== 0) return;
+            var ev = #{e} || window.event;
+            if (!ev) return;
 
             var target = ev.target || ev.srcElement;
-            if (target && (target.tagName === 'BUTTON' || (target.closest && target.closest('button')))) {
-              return;
+            if (target) {
+              var tag = (target.tagName || '').toUpperCase();
+              if (tag === 'BUTTON' || tag === 'INPUT' ||
+                  (target.closest && target.closest('button'))) {
+                return;
+              }
             }
-            if (ev.preventDefault) ev.preventDefault();
 
-            var hud = document.getElementById('move_history_floating_hud');
+            var header = ev.currentTarget;
+            var hud = header && header.parentElement;
             if (!hud) return;
 
+            if (ev.preventDefault) ev.preventDefault();
+
+            header.style.cursor = 'grabbing';
+
             var rect = hud.getBoundingClientRect();
-            var startX = ev.clientX;
-            var startY = ev.clientY;
-            var origLeft = rect.left;
-            var origTop = rect.top;
+            var shiftX = ev.clientX - rect.left;
+            var shiftY = ev.clientY - rect.top;
 
-            hud.style.transform = 'none';
-            hud.style.left = origLeft + 'px';
-            hud.style.top = origTop + 'px';
-            hud.style.right = 'auto';
-            hud.style.bottom = 'auto';
+            hud.style.position = 'fixed';
+            hud.style.left = rect.left + 'px';
+            hud.style.top = rect.top + 'px';
             hud.style.margin = '0';
-            document.body.style.userSelect = 'none';
+            hud.style.transform = 'none';
 
-            var onMove = function(me) {
-              if (me.preventDefault) me.preventDefault();
-              var dx = me.clientX - startX;
-              var dy = me.clientY - startY;
-              var maxLeft = window.innerWidth - hud.offsetWidth - 10;
-              var maxTop = window.innerHeight - hud.offsetHeight - 10;
-              var newLeft = Math.max(10, Math.min(maxLeft, origLeft + dx));
-              var newTop = Math.max(10, Math.min(maxTop, origTop + dy));
+            function onMouseMove(moveEv) {
+              var mEv = moveEv || window.event;
+              if (mEv.preventDefault) mEv.preventDefault();
+
+              var newLeft = mEv.clientX - shiftX;
+              var newTop = mEv.clientY - shiftY;
+              var maxLeft = window.innerWidth - 60;
+              var maxTop = window.innerHeight - 40;
+
+              if (newLeft < 10) newLeft = 10;
+              if (newLeft > maxLeft) newLeft = maxLeft;
+              if (newTop < 0) newTop = 0;
+              if (newTop > maxTop) newTop = maxTop;
+
               hud.style.left = newLeft + 'px';
               hud.style.top = newTop + 'px';
-            };
+            }
 
-            var onUp = function() {
-              window.removeEventListener('mousemove', onMove, true);
-              window.removeEventListener('mouseup', onUp, true);
-              document.body.style.userSelect = '';
+            function onMouseUp() {
+              document.removeEventListener('mousemove', onMouseMove, true);
+              document.removeEventListener('mouseup', onMouseUp, true);
+              window.removeEventListener('mousemove', onMouseMove, true);
+              window.removeEventListener('mouseup', onMouseUp, true);
+
+              header.style.cursor = 'grab';
+
               try {
-                localStorage.setItem('move_hist_overlay_pos', JSON.stringify({ left: hud.style.left, top: hud.style.top }));
-              } catch(err) {}
-            };
+                localStorage.setItem(
+                  'move_hist_overlay_pos',
+                  JSON.stringify({
+                    left: hud.style.left,
+                    top: hud.style.top
+                  })
+                );
+              } catch (err) {}
+            }
 
-            window.addEventListener('mousemove', onMove, true);
-            window.addEventListener('mouseup', onUp, true);
+            document.addEventListener('mousemove', onMouseMove, true);
+            document.addEventListener('mouseup', onMouseUp, true);
+            window.addEventListener('mousemove', onMouseMove, true);
+            window.addEventListener('mouseup', onMouseUp, true);
           }
         end
 
