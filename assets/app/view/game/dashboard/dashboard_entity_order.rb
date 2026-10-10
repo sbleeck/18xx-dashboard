@@ -11,10 +11,13 @@ module View
 
       include Lib::Settings
 
+      # File: view/game/dashboard/dashboard_entity_order.rb
+      # Method: render
+
       def render
         if @game.respond_to?(:finished?) && @game.finished?
           return h(:div,
-                   { style: { display: 'flex', alignItems: 'center', padding: '0.5rem', fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', fontWeight: 'bold', fontSize: '1.5rem', color: '#dc3545' } }, 'Game Over / Match Finished')
+                   { style: { display: 'flex', alignItems: 'center', padding: '0.5rem', fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', fontWeight: 'bold', fontSize: '1.2rem', color: '#dc3545' } }, 'Game Over / Match Finished')
         end
 
         current_round = @round || @game.round
@@ -38,28 +41,26 @@ module View
 
         header_el = h(:div, {
                         style: {
-                          fontSize: '1.1rem',
-                          padding: '0 0.85rem',
+                          fontSize: '0.95rem',
+                          padding: '0 0.75rem',
                           borderRadius: '4px',
                           backgroundColor: bg_color,
                           fontWeight: 'bold',
                           color: text_color,
                           fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-                          letterSpacing: '0.5px',
-                          marginRight: '0.9rem',
+                          letterSpacing: '0.3px',
+                          marginRight: '0.55rem',
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          alignSelf: 'stretch',
-                          height: '100%',
-                          minHeight: '2.5rem',
+                          height: '2.4rem',
                           lineHeight: '1',
                           boxSizing: 'border-box',
                           flexShrink: '0',
+                          whiteSpace: 'nowrap',
                         },
                       }, header_text)
 
-        row_children = [header_el]
         round_name = current_round.class.name.to_s
         is_text_only_round = (current_round.respond_to?(:stock?) && current_round.stock?) ||
                              (current_round.respond_to?(:draft?) && current_round.draft?) ||
@@ -67,6 +68,7 @@ module View
                              round_name.include?('Draft') ||
                              round_name.include?('Auction')
 
+        marker_elements = []
         if !is_text_only_round && @round
           if @round.respond_to?(:context_entities)
             context_entities = @round.context_entities.dup
@@ -91,24 +93,39 @@ module View
           acting_entity = context_entities ? active_context_entity : current_operating
 
           is_player_list = list_entities.first.respond_to?(:player?) && list_entities.first.player?
-          row_children.concat(build_marker_list(list_entities, acting_entity)) unless is_player_list
+          marker_elements = build_marker_list(list_entities, acting_entity) unless is_player_list
         end
+
+        tokens_track = h(:div, {
+                           attrs: { class: 'entity-tokens-track' },
+                           style: {
+                             display: 'flex',
+                             flexDirection: 'row',
+                             alignItems: 'center',
+                             flexWrap: 'nowrap',
+                             overflowX: 'auto',
+                             overflowY: 'hidden',
+                             flex: '1 1 auto',
+                             minWidth: '0',
+                             height: '2.85rem',
+                             gap: '0.3rem',
+                             padding: '0.2rem 0.25rem',
+                             boxSizing: 'border-box',
+                           },
+                         }, marker_elements)
 
         h(:div, {
             style: {
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'center',
-              flexWrap: 'nowrap',
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              gap: '0.3rem',
-              padding: '0.2rem 0.5rem',
+              width: '100%',
               height: '100%',
-              minHeight: '2.5rem',
+              minWidth: '0',
+              overflow: 'hidden',
               boxSizing: 'border-box',
             },
-          }, row_children)
+          }, [header_el, tokens_track])
       end
 
       private

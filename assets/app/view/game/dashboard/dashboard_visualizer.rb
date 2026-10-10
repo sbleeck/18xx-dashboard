@@ -89,6 +89,29 @@ module View
         nil
       end
 
+      # File: view/game/dashboard_visualizer.rb
+      # Method: render_top_nav_utility_cluster
+
+      def render_top_nav_utility_cluster
+        h(:div, {
+            attrs: { id: 'top-nav-utility-cluster' },
+            style: {
+              position: 'fixed',
+              top: '7px',
+              right: '165px',
+              height: '26px',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: '4px',
+              zIndex: 99_999,
+            },
+          }, [
+            render_other_games_button,
+            render_sound_toggle_button,
+          ])
+      end
+
       def render_par_overlay
         corp_id = @par_menu_corp || Lib::Storage['par_menu_corp']
         return nil unless corp_id
@@ -362,66 +385,6 @@ module View
         count ? count.to_i : 0
       end
 
-      def render_other_games_button
-        turns_count = other_games_turn_count
-        has_turns = turns_count.positive?
-
-        bg_color = has_turns ? '#16a34a' : '#f1f5f9'
-        text_color = has_turns ? '#ffffff' : '#64748b'
-        border_style = has_turns ? '2px solid #15803d' : '1px solid #cbd5e1'
-        box_shadow = has_turns ? '0 2px 6px rgba(22, 163, 74, 0.4)' : '0 1px 2px rgba(0, 0, 0, 0.05)'
-        btn_label = has_turns ? "Other Games (#{turns_count})" : 'Other Games'
-        click_action = lambda do
-          val = !(@show_other_games_overlay == true)
-          Lib::Storage['show_other_games_overlay'] = val ? true : nil
-          %x{
-            if (!#{val}) {
-              try {
-                localStorage.removeItem('show_other_games_overlay');
-              } catch(e) {}
-            }
-          }
-          store(:show_other_games_overlay, val)
-          fetch_user_games(true)
-          update
-        end
-
-        h(:button, {
-            attrs: {
-              id: 'btn-other-games',
-              type: 'button',
-              title: has_turns ? "#{turns_count} other game(s) waiting on your turn" : 'View active games list',
-            },
-            style: {
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.35rem',
-              height: '2.4rem',
-              padding: '0 0.85rem',
-              marginLeft: 'auto',
-              flexShrink: '0',
-              borderRadius: '6px',
-              backgroundColor: bg_color,
-              color: text_color,
-              border: border_style,
-              boxShadow: box_shadow,
-              fontSize: '0.85rem',
-              fontWeight: 'bold',
-              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              lineHeight: '1',
-              zIndex: 10,
-              transition: 'background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease',
-            },
-            on: { click: click_action },
-          }, [
-            h(:span, { style: { fontSize: '0.95rem' } }, '🎮'),
-            h(:span, btn_label),
-          ])
-      end
-
       def render_other_games_overlay
         return nil unless @show_other_games_overlay == true
 
@@ -475,9 +438,88 @@ module View
         0
       end
 
-      # // --- START FIX ---
-      # Goal: In dashboard_visualizer.rb, update render_sound_toggle_button to pass the
-      # active player's username to window.playTurnBeep for testing and previewing.
+      # File: view/game/dashboard_visualizer.rb
+      # Method: render_other_games_button
+
+      def render_other_games_button
+        turns_count = other_games_turn_count
+        has_turns = turns_count.positive?
+
+        bg_color = has_turns ? '#16a34a' : '#ffffff'
+        text_color = has_turns ? '#ffffff' : '#475569'
+        border_style = has_turns ? '1px solid #15803d' : '1px solid #cbd5e1'
+        btn_title = has_turns ? "#{turns_count} other game(s) waiting on your turn" : 'View active games list'
+
+        click_action = lambda do
+          val = !(@show_other_games_overlay == true)
+          Lib::Storage['show_other_games_overlay'] = val ? true : nil
+          %x{
+            if (!#{val}) {
+              try {
+                localStorage.removeItem('show_other_games_overlay');
+              } catch(e) {}
+            }
+          }
+          store(:show_other_games_overlay, val)
+          fetch_user_games(true)
+          update
+        end
+
+        badge_el = if has_turns
+                     h(:span, {
+                         style: {
+                           position: 'absolute',
+                           top: '-4px',
+                           right: '-4px',
+                           backgroundColor: '#dc2626',
+                           color: '#ffffff',
+                           fontSize: '0.60rem',
+                           fontWeight: 'bold',
+                           borderRadius: '10px',
+                           minWidth: '13px',
+                           height: '13px',
+                           lineHeight: '13px',
+                           textAlign: 'center',
+                           padding: '0 2px',
+                           border: '1.5px solid #ffffff',
+                           boxSizing: 'border-box',
+                         },
+                       }, turns_count.to_s)
+                   end
+
+        h(:button, {
+            attrs: {
+              id: 'btn-other-games',
+              type: 'button',
+              title: btn_title,
+            },
+            style: {
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '24px',
+              height: '24px',
+              minWidth: '24px',
+              padding: '0',
+              flexShrink: '0',
+              borderRadius: '4px',
+              backgroundColor: bg_color,
+              color: text_color,
+              border: border_style,
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.12)',
+              cursor: 'pointer',
+              lineHeight: '1',
+              zIndex: 10,
+              transition: 'all 0.2s ease',
+            },
+            on: { click: click_action },
+          }, [
+            h(:span, { style: { fontSize: '0.90rem', lineHeight: '1' } }, '🎮'),
+            badge_el,
+          ].compact)
+      end
+
       def render_sound_toggle_button
         enabled = sound_enabled?
         player_name = (active_player&.name || @user&.dig('name') || @user&.dig(:name) || 'directorofcompanies').to_s
@@ -486,13 +528,13 @@ module View
           new_val = !sound_enabled?
           Lib::Storage['turn_sound_enabled'] = new_val
           %x{
-      try {
-        localStorage.setItem('turn_sound_enabled', #{new_val});
-        if (#{new_val} && window.playTurnBeep) {
-          window.playTurnBeep(#{player_name});
-        }
-      } catch(e) {}
-    }
+            try {
+              localStorage.setItem('turn_sound_enabled', #{new_val});
+              if (#{new_val} && window.playTurnBeep) {
+                window.playTurnBeep(#{player_name});
+              }
+            } catch(e) {}
+          }
           update
         end
 
@@ -506,15 +548,15 @@ module View
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.35rem',
-              height: '2.4rem',
-              padding: '0 0.55rem',
-              marginLeft: '0.25rem',
+              width: '24px',
+              height: '24px',
+              minWidth: '24px',
+              padding: '0',
               flexShrink: '0',
-              borderRadius: '6px',
-              backgroundColor: enabled ? '#f0fdf4' : '#f8fafc',
+              borderRadius: '4px',
+              backgroundColor: enabled ? '#f0fdf4' : '#ffffff',
               border: enabled ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
-              boxShadow: enabled ? '0 1px 3px rgba(22, 163, 74, 0.2)' : '0 1px 2px rgba(0, 0, 0, 0.05)',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.10)',
               cursor: 'pointer',
               lineHeight: '1',
               zIndex: 10,
@@ -522,32 +564,16 @@ module View
             },
             on: { click: toggle_action },
           }, [
-            h(:input, {
-                attrs: {
-                  type: 'checkbox',
-                  tabindex: -1,
-                },
-                props: { checked: enabled },
-                style: {
-                  cursor: 'pointer',
-                  pointerEvents: 'none',
-                  margin: '0',
-                  width: '14px',
-                  height: '14px',
-                  accentColor: '#16a34a',
-                },
-              }),
             h(:span, {
                 style: {
-                  fontSize: '1.05rem',
+                  fontSize: '0.90rem',
                   lineHeight: '1',
-                  filter: enabled ? 'none' : 'grayscale(100%) opacity(40%)',
+                  filter: enabled ? 'none' : 'grayscale(100%) opacity(35%)',
                   transition: 'filter 0.2s ease',
                 },
               }, '🎵'),
           ])
       end
-      # // --- END FIX ---
 
       def animate_last_action(action)
         return unless action && defined?(Lib::CardAnimation)
@@ -649,6 +675,9 @@ module View
         end
       end
 
+      # File: view/game/dashboard_visualizer.rb
+      # Method: render_active_turn_card
+
       def render_active_turn_card
         player = active_player
         player_label = if player&.respond_to?(:name) && player.name
@@ -736,28 +765,26 @@ module View
           corp_marker = h(:div, {
                             attrs: { class: 'active-turn-corp-marker', title: acting_corp.name.to_s },
                             style: {
-                              width: '28px',
-                              height: '28px',
-                              minWidth: '28px',
+                              width: '26px',
+                              height: '26px',
+                              minWidth: '26px',
                               borderRadius: '50%',
                               backgroundColor: corp_color,
-                              border: '2px solid #ffffff',
-                              boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+                              border: '1.5px solid #ffffff',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               overflow: 'hidden',
                               flexShrink: '0',
-                              marginRight: '0.55rem',
+                              marginRight: '0.45rem',
                             },
                           }, [marker_content])
         end
 
-        card_bg = is_my_turn ? '#16a34a' : '#f1f5f9'
-        card_text_color = is_my_turn ? '#ffffff' : '#0f172a'
-        card_border = is_my_turn ? '2px solid #15803d' : '2px solid #94a3b8'
-        card_shadow = is_my_turn ? '0 2px 8px rgba(22, 163, 74, 0.4)' : '0 1px 3px rgba(0, 0, 0, 0.08)'
-        display_label = is_my_turn ? "★ YOUR TURN (#{player_label})" : player_label
+        card_bg = is_my_turn ? '#16a34a' : '#e2e8f0'
+        card_text_color = is_my_turn ? '#ffffff' : '#334155'
+        border_right = is_my_turn ? '2px solid #15803d' : '1px solid #cbd5e1'
 
         card_children = []
         card_children << corp_marker if corp_marker
@@ -766,45 +793,50 @@ module View
                                whiteSpace: 'nowrap',
                                overflow: 'hidden',
                                textOverflow: 'ellipsis',
+                               fontWeight: '700',
                              },
-                           }, display_label)
+                           }, player_label)
 
         h(:div, {
             attrs: {
               class: 'active-turn-card',
-              title: is_my_turn ? "Your turn (#{player_label})" : "Waiting on #{player_label}",
+              title: is_my_turn ? "Active: #{player_label} (Your turn)" : "Active: #{player_label}",
             },
             style: {
               display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               flex: '0 0 auto',
-              alignSelf: 'center',
-              height: '2.85rem',
-              minHeight: '2.85rem',
-              maxHeight: '2.85rem',
-              padding: '0 1rem',
-              borderRadius: '6px',
+              alignSelf: 'stretch',
+              height: '100%',
+              minWidth: '9.5rem',
+              maxWidth: '13.5rem',
+              padding: '0 0.85rem',
+              borderTopLeftRadius: '3px',
+              borderBottomLeftRadius: '3px',
+              borderTopRightRadius: '0',
+              borderBottomRightRadius: '0',
               backgroundColor: card_bg,
               color: card_text_color,
-              border: card_border,
-              boxShadow: card_shadow,
-              fontSize: '1.15rem',
+              border: 'none',
+              borderRight: border_right,
+              boxShadow: 'none',
+              fontSize: '1rem',
               fontWeight: 'bold',
               fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-              letterSpacing: '0.5px',
+              letterSpacing: '0.3px',
               lineHeight: '1',
               boxSizing: 'border-box',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              transition: 'background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease',
+              cursor: 'default',
+              userSelect: 'none',
+              transition: 'background-color 0.25s ease, color 0.25s ease',
               flexShrink: '0',
             },
           }, card_children)
       end
 
-      # // --- START FIX ---
       def game_title
         title = nil
         title ||= @game_data['title'] || @game_data[:title] if defined?(@game_data) && @game_data
@@ -825,12 +857,7 @@ module View
         end
         title.to_s
       end
-      # // --- END FIX ---
 
-      # // --- START FIX ---
-      # Goal: In dashboard_visualizer.rb, replace array-index tone selection in render
-      # with an FNV-1a string hash synthesizer that maps any username to a deterministic,
-      # consonant pentatonic motif.
       def render
         if @game.respond_to?(:finished?) && @game.finished?
           return h(:div, {
@@ -1931,10 +1958,10 @@ module View
                     border: '1px solid #ccc',
                     borderRadius: '4px',
                     backgroundColor: '#f8f9fa',
-                    padding: '0 0.65rem',
+                    padding: '0 0.5rem 0 0',
                     boxSizing: 'border-box',
                     overflow: 'hidden',
-                    gap: '0.65rem',
+                    gap: '0.5rem',
                   },
                 }, [
                 h(:style, {}, '
@@ -1961,7 +1988,7 @@ module View
                     style: {
                       flex: '1 1 auto',
                       minWidth: '0',
-                      height: '2.5rem',
+                      height: '100%',
                       display: 'flex',
                       alignItems: 'center',
                       overflow: 'hidden',
@@ -1973,8 +2000,6 @@ module View
                     h(View::Game::DashboardEntityOrder, round: @game.round)
                   end,
                 ]),
-                render_other_games_button,
-                render_sound_toggle_button,
               ].compact),
 
               h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
@@ -2000,12 +2025,13 @@ module View
             render_history_overlay,
             render_move_history_overlay,
             render_other_games_overlay,
+            render_top_nav_utility_cluster,
 
             h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
           ].compact)
       end
-      # // --- END FIX ---
     end
   end
 end
+
 # rubocop:enable Layout/LineLength
