@@ -419,19 +419,19 @@ module View
             attrs: { id: 'top-nav-utility-cluster' },
             style: {
               position: 'fixed',
-              top: '46px',        # Drops down out of the white header directly into the purple tab bar
-              right: '12px',      # Pushes flush to the far right screen edge, completely clear of 'About'
-              height: '26px',
+              top: '40px',
+              right: '16px',
+              height: '48px',
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'center',
-              gap: '6px',
+              gap: '8px',
               zIndex: 99_999,
             },
           }, [
-            render_other_games_button,
-            render_sound_toggle_button,
-          ])
+              render_other_games_button,
+              render_sound_toggle_button,
+            ])
       end
 
       def render_other_games_button
@@ -440,7 +440,7 @@ module View
 
         bg_color = has_turns ? '#16a34a' : '#ffffff'
         text_color = has_turns ? '#ffffff' : '#334155'
-        border_style = has_turns ? '1px solid #15803d' : '1px solid #cbd5e1'
+        border_style = has_turns ? '2px solid #15803d' : '1px solid #cbd5e1'
         btn_title = has_turns ? "#{turns_count} other game(s) waiting on your turn" : 'View active games list'
 
         click_action = lambda do
@@ -462,19 +462,19 @@ module View
                      h(:span, {
                          style: {
                            position: 'absolute',
-                           top: '-4px',
-                           right: '-4px',
+                           top: '-6px',
+                           right: '-6px',
                            backgroundColor: '#dc2626',
                            color: '#ffffff',
-                           fontSize: '0.60rem',
+                           fontSize: '0.85rem',
                            fontWeight: 'bold',
-                           borderRadius: '10px',
-                           minWidth: '13px',
-                           height: '13px',
-                           lineHeight: '13px',
+                           borderRadius: '12px',
+                           minWidth: '22px',
+                           height: '22px',
+                           lineHeight: '20px',
                            textAlign: 'center',
-                           padding: '0 2px',
-                           border: '1.5px solid #ffffff',
+                           padding: '0 4px',
+                           border: '2px solid #ffffff',
                            boxSizing: 'border-box',
                          },
                        }, turns_count.to_s)
@@ -491,16 +491,16 @@ module View
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '24px',
-              height: '24px',
-              minWidth: '24px',
+              width: '48px',
+              height: '48px',
+              minWidth: '48px',
               padding: '0',
               flexShrink: '0',
-              borderRadius: '4px',
+              borderRadius: '8px',
               backgroundColor: bg_color,
               color: text_color,
               border: border_style,
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
+              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
               cursor: 'pointer',
               lineHeight: '1',
               zIndex: 10,
@@ -508,8 +508,8 @@ module View
             },
             on: { click: click_action },
           }, [
-            h(:span, { style: { fontSize: '0.90rem', lineHeight: '1' } }, '🎮'),
-            badge_el,
+h(:span, { style: { fontSize: '1.8rem', lineHeight: '1' } }, '🎮'),
+badge_el,
           ].compact)
       end
 
@@ -541,15 +541,15 @@ module View
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '24px',
-              height: '24px',
-              minWidth: '24px',
+              width: '48px',
+              height: '48px',
+              minWidth: '48px',
               padding: '0',
               flexShrink: '0',
-              borderRadius: '4px',
+              borderRadius: '8px',
               backgroundColor: enabled ? '#f0fdf4' : '#ffffff',
-              border: enabled ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
+              border: enabled ? '2px solid #16a34a' : '1px solid #cbd5e1',
+              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
               cursor: 'pointer',
               lineHeight: '1',
               zIndex: 10,
@@ -559,7 +559,7 @@ module View
           }, [
             h(:span, {
                 style: {
-                  fontSize: '0.90rem',
+                  fontSize: '1.8rem',
                   lineHeight: '1',
                   filter: enabled ? 'none' : 'grayscale(100%) opacity(35%)',
                   transition: 'filter 0.2s ease',
