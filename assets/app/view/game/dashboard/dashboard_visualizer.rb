@@ -89,29 +89,6 @@ module View
         nil
       end
 
-      # File: view/game/dashboard_visualizer.rb
-      # Method: render_top_nav_utility_cluster
-
-      def render_top_nav_utility_cluster
-        h(:div, {
-            attrs: { id: 'top-nav-utility-cluster' },
-            style: {
-              position: 'fixed',
-              top: '7px',
-              right: '165px',
-              height: '26px',
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: '4px',
-              zIndex: 99_999,
-            },
-          }, [
-            render_other_games_button,
-            render_sound_toggle_button,
-          ])
-      end
-
       def render_par_overlay
         corp_id = @par_menu_corp || Lib::Storage['par_menu_corp']
         return nil unless corp_id
@@ -422,7 +399,6 @@ module View
           on_close: close_handler)
       end
 
-      # // --- START FIX ---
       def sound_enabled?
         val = Lib::Storage['turn_sound_enabled']
         val.nil? || val == true || val == 'true'
@@ -438,15 +414,32 @@ module View
         0
       end
 
-      # File: view/game/dashboard_visualizer.rb
-      # Method: render_other_games_button
+      def render_top_nav_utility_cluster
+        h(:div, {
+            attrs: { id: 'top-nav-utility-cluster' },
+            style: {
+              position: 'fixed',
+              top: '46px',        # Drops down out of the white header directly into the purple tab bar
+              right: '12px',      # Pushes flush to the far right screen edge, completely clear of 'About'
+              height: '26px',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: '6px',
+              zIndex: 99_999,
+            },
+          }, [
+            render_other_games_button,
+            render_sound_toggle_button,
+          ])
+      end
 
       def render_other_games_button
         turns_count = other_games_turn_count
         has_turns = turns_count.positive?
 
         bg_color = has_turns ? '#16a34a' : '#ffffff'
-        text_color = has_turns ? '#ffffff' : '#475569'
+        text_color = has_turns ? '#ffffff' : '#334155'
         border_style = has_turns ? '1px solid #15803d' : '1px solid #cbd5e1'
         btn_title = has_turns ? "#{turns_count} other game(s) waiting on your turn" : 'View active games list'
 
@@ -507,7 +500,7 @@ module View
               backgroundColor: bg_color,
               color: text_color,
               border: border_style,
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.12)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
               cursor: 'pointer',
               lineHeight: '1',
               zIndex: 10,
@@ -556,7 +549,7 @@ module View
               borderRadius: '4px',
               backgroundColor: enabled ? '#f0fdf4' : '#ffffff',
               border: enabled ? '1.5px solid #16a34a' : '1px solid #cbd5e1',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.10)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
               cursor: 'pointer',
               lineHeight: '1',
               zIndex: 10,
