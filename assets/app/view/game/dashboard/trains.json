@@ -961,18 +961,51 @@
     "available_on_id": null,
     "notes": "Runs up to 2 revenue stops."
   },
-  "1822_ca_l": {
+  
+  
+  
+  
+  
+"1822_ca_l": {
     "id": "1822_ca_l",
     "game_id": "1822_ca",
     "name": "L",
     "price": 60,
     "distance": 1,
-    "distance_type": "node_array",
+    "distance_type": "local",
     "qty": 22,
-    "rusts_on_id": "1822_ca_3",
-    "obsolete_on_id": null,
-    "available_on_id": "1822_ca_1",
-    "notes": "Runs up to 1 revenue stops (structured node restrictions apply)."
+    "rusts_on": "Phase 3 (first 3-train purchase/export)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 1",
+    "summary": "Local L-train (printed back-to-back with 2-train; 1 city + optionally 1 town)",
+    "notes": "Printed back-to-back with 2-train (22 cards total). Only minor companies may purchase an L-train during First Turn Housekeeping. Upgrades to a 2-train for $80. Rusted upon Phase 3.",
+    "rules": [
+      "Operates within a single city containing an owned station token, and may optionally include 1 town on its run[cite: 156, 170].",
+      "Only one L-train may run on each station token[cite: 156, 170].",
+      "May be upgraded to a 2-train during the train purchase step by flipping the card and paying $80[cite: 155, 158].",
+      "Unsold minor companies at end of SR export one L-train each from the bank[cite: 149].",
+      "Rusted and removed from play without compensation upon the first 3-train purchase or export[cite: 141, 155]."
+    ]
+  },
+  "1822_ca_2": {
+    "id": "1822_ca_2",
+    "game_id": "1822_ca",
+    "name": "2",
+    "price": 120,
+    "distance": 2,
+    "distance_type": "stops",
+    "qty": 22,
+    "rusts_on": "Phase 4 (first 4-train purchase/export)",
+    "obsolete_on": null,
+    "available_on": "Phase 1 (or by upgrading L-train for $80)",
+    "summary": "Standard 2-train (up to 2 revenue locations)",
+    "notes": "Reverse side of L-train card[cite: 158]. First purchase or L-to-2 upgrade advances game to Phase 2: major companies may float via concession conversion, OR count increases to 2 per cycle after next SR, and major companies may acquire operational minors[cite: 141, 142]. Rusted upon Phase 4[cite: 141, 155].",
+    "rules": [
+      "Runs up to 2 revenue locations (towns, cities, or off-boards)[cite: 156].",
+      "Must include a station with an owned token and at least one other revenue location[cite: 156].",
+      "May not visit more than one station in a single city hex[cite: 156].",
+      "Rusted and removed from play without compensation upon the first 4-train purchase[cite: 141, 155]."
+    ]
   },
   "1822_ca_3": {
     "id": "1822_ca_3",
@@ -982,10 +1015,17 @@
     "distance": 3,
     "distance_type": "stops",
     "qty": 9,
-    "rusts_on_id": "1822_ca_6",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 revenue stops."
+    "rusts_on": "Phase 6 (first 6-train purchase/export)",
+    "obsolete_on": null,
+    "available_on": "Phase 3",
+    "summary": "Standard 3-train (up to 3 revenue locations)",
+    "notes": "First purchase/export advances game to Phase 3: all L-trains rust, green tiles available, majors can lay 2 yellow or 1 upgrade, southern route opens (Duluth to Detroit), and train sales between companies become permitted[cite: 141, 142]. Pool: 9 trains at $200[cite: 155]. Rusted upon Phase 6[cite: 141, 155].",
+    "rules": [
+      "Runs up to 3 revenue locations[cite: 156].",
+      "Must include a station containing an owned token and at least one other revenue location[cite: 156].",
+      "Intermediate revenue locations cannot be skipped[cite: 156].",
+      "Rusted and removed from play without compensation upon the first 6-train purchase[cite: 141, 155]."
+    ]
   },
   "1822_ca_4": {
     "id": "1822_ca_4",
@@ -995,10 +1035,16 @@
     "distance": 4,
     "distance_type": "stops",
     "qty": 6,
-    "rusts_on_id": "1822_ca_7",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
+    "rusts_on": "Phase 7 (first 7/E purchase/export)",
+    "obsolete_on": null,
+    "available_on": "Phase 4",
+    "summary": "Standard 4-train (up to 4 revenue locations)",
+    "notes": "First purchase advances game to Phase 4: all 2-trains rust, minor company train limit drops to 1, and major company train limit drops to 3[cite: 141, 142]. Pool: 6 trains at $300[cite: 155]. Rusted upon Phase 7[cite: 141, 155].",
+    "rules": [
+      "Runs up to 4 revenue locations[cite: 156].",
+      "Must include a station containing an owned token and at least one other revenue location[cite: 156].",
+      "Rusted and removed from play without compensation upon the first 7-train or E-train purchase[cite: 141, 155]."
+    ]
   },
   "1822_ca_5": {
     "id": "1822_ca_5",
@@ -1008,10 +1054,16 @@
     "distance": 5,
     "distance_type": "stops",
     "qty": 3,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5",
+    "summary": "Standard 5-train (permanent; up to 5 revenue locations)",
+    "notes": "Permanent locomotive[cite: 155]. First purchase advances game to Phase 5: concessions removed, brown tiles available, major train limit drops to 2, majors float at 50% sold, and unfloated minors can be acquired directly from bid boxes for $200[cite: 141, 142]. Pool: 3 trains at $500[cite: 155] (an additional 5-train can enter via private P1 Montreal Locomotive Works[cite: 155, 172]).",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 155].",
+      "Runs up to 5 revenue locations[cite: 156].",
+      "Must include an owned station token and at least one other revenue location[cite: 156]."
+    ]
   },
   "1822_ca_6": {
     "id": "1822_ca_6",
@@ -1021,10 +1073,16 @@
     "distance": 6,
     "distance_type": "stops",
     "qty": 3,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 6",
+    "summary": "Standard 6-train (permanent; up to 6 revenue locations)",
+    "notes": "Permanent locomotive[cite: 155]. First purchase advances game to Phase 6: all 3-trains rust immediately, and newly floated majors receive full 10-share capitalization with remaining 5 shares placed in bank pool[cite: 141, 142, 147]. Pool: 3 trains at $600[cite: 155].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 155].",
+      "Runs up to 6 revenue locations[cite: 156].",
+      "Must include an owned station token and at least one other revenue location[cite: 156]."
+    ]
   },
   "1822_ca_7": {
     "id": "1822_ca_7",
@@ -1033,11 +1091,40 @@
     "price": 750,
     "distance": 7,
     "distance_type": "stops",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 7 revenue stops."
+    "qty": 16,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 7",
+    "summary": "Standard 7-train (printed back-to-back with E-train; permanent)",
+    "notes": "Permanent locomotive[cite: 155]. Printed back-to-back with E-train (16 cards provided, unlimited supply)[cite: 155]. Buyer chooses 7 or E side upon purchase; cannot be flipped or converted later[cite: 155, 159]. First purchase of 7 or E advances game to Phase 7: all 4-trains rust, grey tiles available, and P8/P9 removed from play[cite: 141, 142].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 155].",
+      "Runs up to 7 revenue locations[cite: 156].",
+      "Must include an owned station token and at least one other revenue location[cite: 156]."
+    ]
+  },
+  "1822_ca_e": {
+    "id": "1822_ca_e",
+    "game_id": "1822_ca",
+    "name": "E",
+    "price": 1000,
+    "distance": 99,
+    "distance_type": "express",
+    "qty": 16,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 7",
+    "summary": "Express E-train (unlimited tokened cities, 2x revenue, ignores towns; permanent)",
+    "notes": "Permanent locomotive[cite: 155]. Printed back-to-back with 7-train ($1,000)[cite: 155]. Maximum 1 E-train per company[cite: 155, 159]. Minors can own but cannot run an E-train[cite: 155, 159].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 155].",
+      "Stops ONLY at cities and off-board locations containing a station token of the owning company[cite: 156].",
+      "Passes through other intermediate revenue locations without counting their values (towns can never be counted)[cite: 156].",
+      "DOUBLES the value of each tokened location visited (quadruples destination cities when running home-to-destination)[cite: 156, 157, 170]!",
+      "May reuse track segments used by other trains of the same company in the same operating round[cite: 156, 170].",
+      "Cannot use Pullmans or Grain Trains[cite: 156].",
+      "Maximum of one E-train per company[cite: 155, 159]."
+    ]
   },
   "1822_ca_2p": {
     "id": "1822_ca_2p",
@@ -1045,12 +1132,20 @@
     "name": "2P",
     "price": 0,
     "distance": 2,
-    "distance_type": "stops",
+    "distance_type": "special",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 2 (via P3 Toronto Locomotive Works or P4 Countess of Dufferin)",
+    "summary": "Permanent 2P Special Train (runs 2 locations; independent dividend handling)",
+    "notes": "Permanent special locomotive originating from private companies P3 and P4[cite: 155, 172]. Maximum 1 special train per company[cite: 155, 172]. Does not rust, does not count against train limit, does not satisfy mandatory train ownership, and cannot be sold between companies[cite: 155, 170, 172].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 155].",
+      "Runs up to 2 revenue locations[cite: 156].",
+      "Does not count against train limit and does not satisfy mandatory train ownership[cite: 155, 170, 172].",
+      "May split, pay in full, or withhold its revenue completely independently of the company's regular trains[cite: 155, 157, 158, 170, 172].",
+      "Compatible with Pullmans and Grain Trains[cite: 156]."
+    ]
   },
   "1822_ca_lp": {
     "id": "1822_ca_lp",
@@ -1058,52 +1153,64 @@
     "name": "LP",
     "price": 0,
     "distance": 1,
-    "distance_type": "node_array",
+    "distance_type": "special_local",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 1 revenue stops (structured node restrictions apply)."
-  },
-  "1822_ca_5p": {
-    "id": "1822_ca_5p",
-    "game_id": "1822_ca",
-    "name": "5P",
-    "price": 500,
-    "distance": 5,
-    "distance_type": "stops",
-    "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 1 (via P2 Robert Stephenson and Company)",
+    "summary": "Permanent LP Special Local Train (runs 1 city + optionally 1 town)",
+    "notes": "Permanent special locomotive originating from private company P2[cite: 155, 172]. Does not rust, does not count against train limit, does not satisfy mandatory train ownership, and cannot be sold[cite: 155, 170, 172].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 155].",
+      "Operates on a single owned station token, and optionally visits 1 town[cite: 156].",
+      "Does not count against train limit and does not satisfy mandatory train ownership[cite: 155, 170, 172].",
+      "May distribute its earnings independently of the company's other trains[cite: 155, 157, 158, 170, 172].",
+      "Compatible with Grain Trains; cannot be used with Pullmans[cite: 156]."
+    ]
   },
   "1822_ca_p": {
     "id": "1822_ca_p",
     "game_id": "1822_ca",
-    "name": "P",
+    "name": "Pullman",
     "price": 0,
     "distance": 0,
     "distance_type": "auxiliary",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Auxiliary car (e.g. Pullman): Attaches to train to add bonus revenue."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5 (via P5 Pullman Car Company or P6 Fulton Car Works)",
+    "summary": "Auxiliary Pullman Car (attaches to train; scores up to 2N towns without consuming stops)",
+    "notes": "Auxiliary car originating from private companies P5 and P6[cite: 155, 172]. Attaches to an N-train to allow up to 2N towns to be scored as free stops[cite: 156, 168, 170, 172]. Max 1 Pullman per company; cannot be sold between companies[cite: 155, 168, 170, 172].",
+    "rules": [
+      "Permanent auxiliary car: Does not count against train limit or satisfy train ownership[cite: 155, 170, 172].",
+      "Attaches to one normal N-train (or 2P-train); can be reallocated each operating round[cite: 156].",
+      "Allows the attached train to visit up to N cities/off-boards and up to 2N towns, scoring all visited towns without counting them against the N-stop allowance[cite: 156, 168, 170, 172].",
+      "Never collects revenue from grain elevators or ports[cite: 156].",
+      "Cannot be attached to an LP-train, E-train, or Grain Train[cite: 156, 168]."
+    ]
   },
   "1822_ca_g": {
     "id": "1822_ca_g",
     "game_id": "1822_ca",
-    "name": "G",
+    "name": "Grain Train",
     "price": 0,
-    "distance": 12,
-    "distance_type": "node_array",
+    "distance": 0,
+    "distance_type": "freight_auxiliary",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 12 revenue stops (structured node restrictions apply)."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 3 (via P26 Saskatchewan Wheat Pool or P27 Alberta Wheat Pool)",
+    "summary": "Auxiliary Grain Train (attaches to major company train; hauls elevator freight to ports)",
+    "notes": "Auxiliary freight car originating from private companies P26 and P27[cite: 155, 174]. Major companies only (minors cannot hold)[cite: 155, 156]. Does not count against train limit or satisfy train ownership[cite: 155, 170, 174]. Max 1 per company[cite: 155, 168].",
+    "rules": [
+      "Permanent auxiliary car: Attaches to one train per operating round[cite: 155, 157, 174].",
+      "Converts attached train to a grain train[cite: 156, 174].",
+      "Collects +$10 for each grain elevator visited along the route (town itself earns $0 revenue and does not count as a stop)[cite: 156, 157, 168, 174].",
+      "If the route includes at least one elevator and connects to a port city, awards +$20 per port (max 2 ports: one west coast, one east)[cite: 157, 168, 174].",
+      "Cannot be used by minor companies or attached to an E-train or Pullman[cite: 155, 156, 168]."
+    ]
   },
+
   "1822_ca_ers_l": {
     "id": "1822_ca_ers_l",
     "game_id": "1822_ca_ers",
@@ -2625,7 +2732,8 @@
     "available_on_id": null,
     "notes": "Runs up to 7 revenue stops (structured node restrictions apply)."
   },
-  "1826_2h": {
+ 
+"1826_2h": {
     "id": "1826_2h",
     "game_id": "1826",
     "name": "2H",
@@ -2633,10 +2741,18 @@
     "distance": 2,
     "distance_type": "hex_edges",
     "qty": 8,
-    "rusts_on_id": "1826_6h",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 hex edges."
+    "rusts_on": "Phase 6H (first 6H purchase)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 2H",
+    "summary": "Steam 2H train (traverses up to 2 hex edges)",
+    "notes": "Initial locomotive pool in Phase 2H[cite: 183, 194]. Pool: 8 trains at F100[cite: 194]. Train limit: 4 for ten-share corps, 2 for five-share corps[cite: 183]. Operating rounds: 1 OR per SR[cite: 183]. Rusted upon first 6H train purchase[cite: 183, 194].",
+    "rules": [
+      "Traverses up to 2 hex edges (origin hex not counted)[cite: 193].",
+      "Route must contain two or more cities, towns, or off-board locations, including at least one city with an owned station token[cite: 193].",
+      "All cities, towns, and off-board locations on route count for revenue[cite: 193].",
+      "May run to, but not through, Paris or token-blocked cities[cite: 193].",
+      "Rusted and removed from play without compensation upon the purchase of the first 6H train[cite: 183, 194]."
+    ]
   },
   "1826_4h": {
     "id": "1826_4h",
@@ -2646,10 +2762,17 @@
     "distance": 4,
     "distance_type": "hex_edges",
     "qty": 7,
-    "rusts_on_id": "1826_10h",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 hex edges."
+    "rusts_on": "Phase 10H (first 10H purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 4H",
+    "summary": "Steam 4H train (traverses up to 4 hex edges)",
+    "notes": "Purchasing first 4H advances game to Phase 4H: green tiles available, and ORs increase to 2 per SR[cite: 183]. Pool: 7 trains at F200[cite: 194]. Train limit: 4 for ten-share, 2 for five-share[cite: 183]. Rusted upon first 10H purchase[cite: 183, 194].",
+    "rules": [
+      "Traverses up to 4 hex edges[cite: 193].",
+      "Must connect at least two revenue locations, including an owned station token[cite: 193].",
+      "Scores all traversed cities, towns, and off-board areas[cite: 193].",
+      "Rusted and removed from play without compensation upon the purchase of the first 10H train[cite: 183, 194]."
+    ]
   },
   "1826_6h": {
     "id": "1826_6h",
@@ -2659,10 +2782,17 @@
     "distance": 6,
     "distance_type": "hex_edges",
     "qty": 6,
-    "rusts_on_id": "1826_e",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 hex edges."
+    "rusts_on": "Phase E (first E-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 6H",
+    "summary": "Steam 6H train (traverses up to 6 hex edges; Etat merger trigger)",
+    "notes": "Purchasing first 6H advances game to Phase 6H: all 2H trains rust, train sales between corporations unlocked (min F1), train limits drop (3 ten-share, 1 five-share), and Chemins de Fer de l'Etat may form if 2+ French corps are left trainless[cite: 183, 189, 194]. Pool: 6 trains at F300[cite: 194]. Rusted upon first E-train[cite: 183, 194].",
+    "rules": [
+      "Traverses up to 6 hex edges[cite: 193].",
+      "Must include an owned station token[cite: 193].",
+      "May be traded between corporations for any agreed price (min F1; Etat and SNCF trade only at face value)[cite: 190, 191, 194, 195].",
+      "Rusted and removed from play without compensation upon the purchase of the first E-train[cite: 183, 194]."
+    ]
   },
   "1826_10h": {
     "id": "1826_10h",
@@ -2672,10 +2802,17 @@
     "distance": 10,
     "distance_type": "hex_edges",
     "qty": 5,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 10 hex edges."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 10H",
+    "summary": "Steam 10H permanent locomotive (traverses up to 10 hex edges; SNCF merger trigger)",
+    "notes": "Permanent locomotive[cite: 183, 194]. Purchasing first 10H advances game to Phase 10H: all 4H trains rust, brown tiles available, private companies close, ORs increase to 3 per SR, train limit becomes 2 (all corps ten-share), and SNCF may form if 2+ corps are left trainless[cite: 183, 188, 190, 194]. Pool: 2 to 5 trains depending on available corps (F600 each)[cite: 192, 194].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 183, 194].",
+      "Traverses up to 10 hex edges[cite: 193].",
+      "Must include an owned station token[cite: 193].",
+      "Scaled supply: 5 available if 10 corps in play, reduced by 1 per missing corp down to min 2[cite: 192]."
+    ]
   },
   "1826_e": {
     "id": "1826_e",
@@ -2683,12 +2820,19 @@
     "name": "E",
     "price": 800,
     "distance": 99,
-    "distance_type": "node_array",
-    "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 99 revenue stops (structured node restrictions apply)."
+    "distance_type": "electric_modal",
+    "qty": 4,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase E",
+    "summary": "Electric E-train (counts cities, ignores towns, 2x revenue until TGV; permanent)",
+    "notes": "Permanent electric locomotive[cite: 183, 194]. Purchasing first E advances game to Phase E: all 6H trains rust, and SNCF has second formation opportunity[cite: 183, 191, 194]. Pool: 4 trains at F800[cite: 194]. Train limit: 2[cite: 183].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 183, 194].",
+      "Counts CITIES and off-board locations rather than hex edges; completely ignores 10-value towns for revenue and distance[cite: 197].",
+      "Connects a variable number of cities based on total E-trains in play: 1 in play = 2D (2 cities, doubled revenue); 2 or 3 in play = 3D; 4 in play = 4D; after first TGV bought = 5 cities (normal single revenue)[cite: 198].",
+      "Revenue from all connected cities is DOUBLED until the first TGV is bought; runs for normal revenue thereafter[cite: 198]."
+    ]
   },
   "1826_tgv": {
     "id": "1826_tgv",
@@ -2696,13 +2840,23 @@
     "name": "TGV",
     "price": 1000,
     "distance": 3,
-    "distance_type": "node_array",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 revenue stops (structured node restrictions apply)."
+    "distance_type": "high_speed",
+    "qty": 10,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase TGV (after last E-train)",
+    "summary": "TGV High-Speed Train (up to 3 cities, 2x revenue, reuses track; permanent)",
+    "notes": "Permanent high-speed locomotive[cite: 183, 194]. Available once the last E-train is bought[cite: 198]. Purchasing first TGV unlocks grey tiles and removes the revenue doubling from all E-trains[cite: 183, 198]. Pool: 10 trains at F1000[cite: 194]. Max 1 TGV per corporation[cite: 198].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 183, 194].",
+      "Connects up to 3 cities or off-board locations, ignoring all towns[cite: 198].",
+      "ALWAYS runs for DOUBLED revenue regardless of the number in play[cite: 198].",
+      "May REUSE track segments already used by the corporation's other trains in the same operating round[cite: 193, 198]!",
+      "Purchasing the first TGV causes all E-trains to revert to normal (single) revenue[cite: 198].",
+      "Maximum of one TGV per corporation[cite: 198]."
+    ]
   },
+
   "1828_2": {
     "id": "1828_2",
     "game_id": "1828",
@@ -3062,10 +3216,20 @@
     "distance": 2,
     "distance_type": "stops",
     "qty": 9,
-    "rusts_on_id": "1835_4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
+    "rusts_on": "First 4-train purchase",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 1",
+    "summary": "Standard 2-train (up to 2 stations)",
+    "notes": "Available at game start. Pool: 9 trains at 80M. Train limit: 4 for share companies (minor companies need not own trains). Scrapped immediately without compensation upon purchase of the first 4-train.",
+    "rules": [
+      "Runs up to 2 stations (large or small) along a clear, unbranched route.",
+      "Must connect at least two stations (start and end point); small stations can serve as terminal or intermediate stops.",
+      "Must include at least one station marked with a station token of the operating company.",
+      "May not visit the same town or city twice on a single run (except double-town XX and HH hexes).",
+      "Cannot run through a town whose station slots are fully occupied by other companies' tokens.",
+      "Multiple routes run by the same company must use entirely separate track segments.",
+      "Rusted and removed from the game without compensation upon purchase of the first 4-train."
+    ]
   },
   "1835_2p2": {
     "id": "1835_2p2",
@@ -3075,10 +3239,18 @@
     "distance": 2,
     "distance_type": "major_minor",
     "qty": 4,
-    "rusts_on_id": "1835_4p4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 major stops and 2 towns. Towns count toward the +2 limit and pay revenue."
+    "rusts_on": "First 4+4 train purchase",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 1 (after 2-trains sold out)",
+    "summary": "Compound 2+2 train (up to 2 large stations + 2 small stations)",
+    "notes": "Becomes available once all 2-trains are sold from the bank. Pool: 4 trains at 120M. Scrapped immediately upon purchase of the first 4+4 train.",
+    "rules": [
+      "Runs up to 2 large stations and up to 2 small stations along a clear route.",
+      "Small stations may substitute for large stations in the primary count, but large stations may not substitute for small stations.",
+      "Must include at least one station token belonging to the operating company.",
+      "Cannot reuse track segments across multiple train runs of the same company.",
+      "Rusted and removed from the game without compensation upon purchase of the first 4+4 train."
+    ]
   },
   "1835_3": {
     "id": "1835_3",
@@ -3088,10 +3260,18 @@
     "distance": 3,
     "distance_type": "stops",
     "qty": 4,
-    "rusts_on_id": "1835_6",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 revenue stops."
+    "rusts_on": "First 6-train purchase",
+    "obsolete_on": null,
+    "available_on": "Phase 2 (after 2+2 trains sold out)",
+    "summary": "Standard 3-train (up to 3 stations)",
+    "notes": "First 3-train purchase triggers Phase 2: green tiles become available for upgrades, train sales between companies become permitted, share company train limit drops to 3, and operating rounds increase to 2 per cycle after the next share round. Pool: 4 trains at 180M. Scrapped upon first 6-train purchase.",
+    "rules": [
+      "Runs up to 3 stations (large or small) along an unblocked route.",
+      "Must include at least one station token of the operating company.",
+      "May not visit the same station twice (except XX and HH double-letter tiles).",
+      "Multiple routes of the same company must use entirely disjoint track.",
+      "Rusted and removed from the game without compensation upon purchase of the first 6-train."
+    ]
   },
   "1835_3p3": {
     "id": "1835_3p3",
@@ -3101,10 +3281,17 @@
     "distance": 3,
     "distance_type": "major_minor",
     "qty": 3,
-    "rusts_on_id": "1835_6p6",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 major stops and 3 towns. Towns count toward the +3 limit and pay revenue."
+    "rusts_on": "First 6+6 train purchase",
+    "obsolete_on": null,
+    "available_on": "Phase 2 (after 3-trains sold out)",
+    "summary": "Compound 3+3 train (up to 3 large stations + 3 small stations)",
+    "notes": "Pool: 3 trains at 270M. Scrapped immediately upon purchase of the first 6+6 train.",
+    "rules": [
+      "Runs up to 3 large stations and up to 3 small stations along a clear route.",
+      "Small stations may substitute for large stations, but not vice versa.",
+      "Must include at least one station token of the operating company.",
+      "Rusted and removed from the game without compensation upon purchase of the first 6+6 train."
+    ]
   },
   "1835_4": {
     "id": "1835_4",
@@ -3114,10 +3301,18 @@
     "distance": 4,
     "distance_type": "stops",
     "qty": 3,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 2 (after 3+3 trains sold out)",
+    "summary": "Standard 4-train (up to 4 stations; permanent)",
+    "notes": "Permanent locomotive. Purchasing the first 4-train immediately scraps all 2-trains and gives the owner of the Berlin-Potsdamer minor company the option to open the Prussian State Railway (Preußische Staatseisenbahnen / KPEV). Pool: 3 trains at 360M.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Purchasing the first 4-train immediately rusts all 2-trains.",
+      "Runs up to 4 stations (large or small) along an unblocked route.",
+      "Must include at least one station token belonging to the operating company.",
+      "Multiple routes of the same company must use entirely disjoint track."
+    ]
   },
   "1835_4p4": {
     "id": "1835_4p4",
@@ -3127,10 +3322,19 @@
     "distance": 4,
     "distance_type": "major_minor",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 major stops and 4 towns. Towns count toward the +4 limit and pay revenue."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 2 (after 4-trains sold out)",
+    "summary": "Compound 4+4 train (up to 4 large stations + 4 small stations; permanent)",
+    "notes": "Permanent locomotive. Purchasing the first 4+4 train immediately scraps all 2+2 trains and forces the mandatory formation of the Prussian State Railway if not already operating. Pool: 1 train at 440M.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Purchasing this train immediately rusts all 2+2 trains.",
+      "Forces mandatory formation of the Prussian State Railway (KPEV).",
+      "Runs up to 4 large stations and up to 4 small stations along a clear route.",
+      "Small stations may substitute for large stations, but not vice versa.",
+      "Must include at least one station token belonging to the operating company."
+    ]
   },
   "1835_5": {
     "id": "1835_5",
@@ -3140,10 +3344,18 @@
     "distance": 5,
     "distance_type": "stops",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 3 (after 4+4 train sold out)",
+    "summary": "Standard 5-train (up to 5 stations; permanent)",
+    "notes": "Permanent locomotive. Purchasing the first 5-train triggers Phase 3: brown tiles become available, operating rounds increase to 3 per cycle after the next share round, share company train limit drops to 2, and all remaining minor companies and Braunschweigische/Hannoversche private concessions must convert into Prussian shares. Pool: 2 trains at 500M.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Triggers Phase 3: brown tiles available, mandatory conversion of all minor companies into Prussian shares.",
+      "Runs up to 5 stations (large or small) along an unblocked route.",
+      "Must include at least one station token belonging to the operating company.",
+      "Multiple routes of the same company must use entirely disjoint track."
+    ]
   },
   "1835_5p5": {
     "id": "1835_5p5",
@@ -3153,10 +3365,17 @@
     "distance": 5,
     "distance_type": "major_minor",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 major stops and 5 towns. Towns count toward the +5 limit and pay revenue."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 3 (after 5-trains sold out)",
+    "summary": "Compound 5+5 train (up to 5 large stations + 5 small stations; permanent)",
+    "notes": "Permanent locomotive. Pool: 1 train at 600M.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Runs up to 5 large stations and up to 5 small stations along a clear route.",
+      "Small stations may substitute for large stations, but not vice versa.",
+      "Must include at least one station token belonging to the operating company."
+    ]
   },
   "1835_6": {
     "id": "1835_6",
@@ -3166,10 +3385,18 @@
     "distance": 6,
     "distance_type": "stops",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 3 (after 5+5 train sold out)",
+    "summary": "Standard 6-train (up to 6 stations; permanent)",
+    "notes": "Permanent locomotive. Purchasing the first 6-train immediately scraps all 3-trains without compensation. Pool: 2 trains at 600M.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Purchasing this train immediately rusts all 3-trains.",
+      "Runs up to 6 stations (large or small) along an unblocked route.",
+      "Must include at least one station token belonging to the operating company.",
+      "Multiple routes of the same company must use entirely disjoint track."
+    ]
   },
   "1835_6p6": {
     "id": "1835_6p6",
@@ -3179,10 +3406,18 @@
     "distance": 6,
     "distance_type": "major_minor",
     "qty": 4,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 major stops and 6 towns. Towns count toward the +6 limit and pay revenue."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 3 (after 6-trains sold out)",
+    "summary": "Compound 6+6 train (up to 6 large stations + 6 small stations; permanent)",
+    "notes": "Permanent locomotive. Purchasing the first 6+6 train immediately scraps all 3+3 trains without compensation. Pool: 4 trains at 720M.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Purchasing this train immediately rusts all 3+3 trains.",
+      "Runs up to 6 large stations and up to 6 small stations along a clear route.",
+      "Small stations may substitute for large stations, but not vice versa.",
+      "Must include at least one station token belonging to the operating company."
+    ]
   },
   "1836_jr30_2": {
     "id": "1836_jr30_2",
@@ -3361,10 +3596,21 @@
     "distance": 2,
     "distance_type": "stops",
     "qty": 14,
-    "rusts_on_id": "1837_4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
+    "rusts_on": "Phase 4 (first 4-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 2",
+    "summary": "Passenger 2-train (up to 2 cities/towns)",
+    "notes": "Initial passenger locomotive available at game start in Phase 2. Pool: 14 trains at 90K. Train limit: Coal and Minor companies = 2; Major corporations = 4. Rusted immediately without compensation upon purchase of the first 4-train in Phase 4.",
+    "rules": [
+      "Runs up to 2 cities and/or towns along a continuous unbranched route.",
+      "Must connect at least two different towns or cities (start and end point); cannot run to coal mines.",
+      "Must include at least one city containing a station token of the operating company or corporation.",
+      "In Phase 3, Buda and Pest count as separate cities (allowing a 2-train run between them for 100K).",
+      "May not visit or pass through the same town or city more than once (including Vienna).",
+      "Cannot run through a city fully occupied by other corporations' tokens unless owning a token there.",
+      "Separate routes operated by the same company must use entirely disjoint track.",
+      "Rusted and removed from the game without compensation upon the first 4-train purchase in Phase 4."
+    ]
   },
   "1837_3": {
     "id": "1837_3",
@@ -3374,10 +3620,19 @@
     "distance": 3,
     "distance_type": "stops",
     "qty": 5,
-    "rusts_on_id": "1837_5",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 revenue stops."
+    "rusts_on": "Phase 5 (first 5-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 3",
+    "summary": "Passenger 3-train (up to 3 cities/towns)",
+    "notes": "Purchasing first 3-train advances game to Phase 3: unlocks green tiles, makes 2G trains available (230K), permits train sales between entities (min 1K), allows mountain pass lays for 110K without mountain railway ownership, unlocks Bosnia-Herzegovina, reduces major corporation train limit to 3, and expands OR sets to 2 ORs after the next SR. Pool: 5 trains at 180K. Rusted upon first 5-train purchase in Phase 5.",
+    "rules": [
+      "Runs up to 3 cities and/or towns along a continuous unbranched route.",
+      "Must connect at least two different towns or cities; cannot run to coal mines.",
+      "Must include at least one city with a station token of the operating entity.",
+      "May not visit the same town or city more than once (Buda and Pest count separately in Phase 3).",
+      "Multiple routes operated by the same entity must use entirely separate track.",
+      "Rusted and removed from the game without compensation upon the purchase of the first 5-train in Phase 5."
+    ]
   },
   "1837_3p1": {
     "id": "1837_3p1",
@@ -3387,10 +3642,19 @@
     "distance": 3,
     "distance_type": "major_minor",
     "qty": 2,
-    "rusts_on_id": "1837_5p2",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 major stops plus minor/town stops."
+    "rusts_on": "Sale of first 5+2 train",
+    "obsolete_on": null,
+    "available_on": "Phase 3 (after 3-trains)",
+    "summary": "Passenger 3+1 train (up to 3 cities/towns plus 1 additional town)",
+    "notes": "Purchasing the first 3+1 train reduces train limits for each coal company, Sd minor company, and kk minor company to 1 (Ug minor companies remain at 2). Pool: 2 trains at 280K. Rusted upon the purchase of the first 5+2 train.",
+    "rules": [
+      "Runs up to 3 cities or towns, plus 1 additional town along a continuous unbranched route.",
+      "Towns may substitute for cities in the primary allowance (e.g. 1 city and 3 towns), but cities cannot substitute for the +1 town allowance.",
+      "Must connect at least two different locations; cannot run to coal mines.",
+      "Must include at least one station token belonging to the operating company or corporation.",
+      "Multiple routes operated by the same entity must use distinct, non-overlapping track segments.",
+      "Rusted and removed from the game without compensation upon the purchase of the first 5+2 train."
+    ]
   },
   "1837_4": {
     "id": "1837_4",
@@ -3400,10 +3664,19 @@
     "distance": 4,
     "distance_type": "stops",
     "qty": 4,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 4",
+    "summary": "Passenger 4-train (up to 4 cities/towns; permanent)",
+    "notes": "Permanent locomotive. Purchasing first 4-train advances game to Phase 4: rusts all 2-trains, makes 3G trains available (590K), removes all Italian track/tiles, places green Bozen tile (#426), dissolves Sd minors to form Southern Railway (Sd), allows optional formation of k.k. National Railway, and sets National Railway train limit to 4. Pool: 4 trains at 470K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Runs up to 4 cities and/or towns along a continuous unbranched route.",
+      "Must connect at least two different locations; cannot run to coal mines.",
+      "Must include at least one city containing a station token of the operating entity.",
+      "Towns and cities cannot be visited more than once on the same route.",
+      "Multiple routes operated by the same entity must use entirely separate track."
+    ]
   },
   "1837_4e": {
     "id": "1837_4e",
@@ -3411,12 +3684,21 @@
     "name": "4E",
     "price": 500,
     "distance": 4,
-    "distance_type": "node_array",
+    "distance_type": "express",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops (structured node restrictions apply)."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 4 (after 4-trains)",
+    "summary": "Express 4E train (up to 4 cities, skips all towns; permanent)",
+    "notes": "Permanent express locomotive. Purchasing the 4E train allows the director of the Pest-Waitzen Railway (Ug #1) to optionally declare the Hungarian National Railway (Ug) open. Pool: 1 train at 500K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Express train: Only visits and scores cities; requires at least two cities on its route.",
+      "All towns traversed along the route are completely ignored for range distance and revenue calculation.",
+      "Cannot run to coal mines.",
+      "Must include at least one city containing a station token belonging to the operating corporation.",
+      "Multiple routes operated by the same entity must use entirely separate track."
+    ]
   },
   "1837_4p1": {
     "id": "1837_4p1",
@@ -3426,10 +3708,19 @@
     "distance": 4,
     "distance_type": "major_minor",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 major stops plus minor/town stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 4 (after 4E train)",
+    "summary": "Passenger 4+1 train (up to 4 cities/towns plus 1 additional town; permanent)",
+    "notes": "Permanent locomotive. Purchasing the 4+1 train forces mandatory formation of the k.k. National Railway if not already open; any unconverted k.k. minor companies must convert immediately. Pool: 1 train at 530K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Runs up to 4 cities or towns, plus 1 additional town along a continuous unbranched route.",
+      "Towns may substitute for cities in the primary allowance, but cities cannot substitute for the +1 town allowance.",
+      "Must connect at least two different locations; cannot run to coal mines.",
+      "Must include at least one station token belonging to the operating entity.",
+      "Multiple routes operated by the same entity must use entirely separate track."
+    ]
   },
   "1837_4p2": {
     "id": "1837_4p2",
@@ -3439,10 +3730,19 @@
     "distance": 4,
     "distance_type": "major_minor",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 major stops plus minor/town stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 4 (after 4+1 train)",
+    "summary": "Passenger 4+2 train (up to 4 cities/towns plus 2 additional towns; permanent)",
+    "notes": "Permanent locomotive. Final passenger locomotive of Phase 4 before Phase 5. Pool: 1 train at 560K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Runs up to 4 cities or towns, plus 2 additional towns along a continuous unbranched route.",
+      "Towns may substitute for cities in the primary allowance (e.g. 1 city and 5 towns total), but cities cannot substitute for the +2 town allowance.",
+      "Must connect at least two different locations; cannot run to coal mines.",
+      "Must include at least one station token belonging to the operating entity.",
+      "Multiple routes operated by the same entity must use entirely separate track."
+    ]
   },
   "1837_5": {
     "id": "1837_5",
@@ -3452,10 +3752,18 @@
     "distance": 5,
     "distance_type": "stops",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5",
+    "summary": "Passenger 5-train (up to 5 cities/towns; permanent)",
+    "notes": "Permanent locomotive. Purchasing first 5-train advances game to Phase 5: rusts all 3-trains, unlocks brown tiles, expands OR sets to 3 ORs after next SR, makes 4G trains available (1000K), forces mandatory formation of Hungarian National Railway (converting all remaining Ug minors), forces all remaining coal companies to exchange for major corporation shares, closes all mountain railways, and sets train limits to 3 for National Railways and 2 for all other corporations. Pool: 2 trains at 800K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Runs up to 5 cities and/or towns along a continuous unbranched route.",
+      "Must connect at least two different locations; cannot run to coal mines.",
+      "Must include at least one station token belonging to the operating entity.",
+      "Multiple routes operated by the same entity must use entirely separate track."
+    ]
   },
   "1837_5e": {
     "id": "1837_5e",
@@ -3463,12 +3771,21 @@
     "name": "5E",
     "price": 830,
     "distance": 5,
-    "distance_type": "node_array",
+    "distance_type": "express",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops (structured node restrictions apply)."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5 (after 5-trains)",
+    "summary": "Express 5E train (up to 5 cities, skips all towns; permanent)",
+    "notes": "Permanent express locomotive. Pool: 1 train at 830K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Express train: Only visits and scores cities; requires at least two cities on its route.",
+      "All towns traversed along the route are completely ignored for range distance and revenue calculation.",
+      "Cannot run to coal mines.",
+      "Must include at least one station token belonging to the operating entity.",
+      "Multiple routes operated by the same entity must use entirely separate track."
+    ]
   },
   "1837_5p2": {
     "id": "1837_5p2",
@@ -3478,10 +3795,20 @@
     "distance": 5,
     "distance_type": "major_minor",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 major stops plus minor/town stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5 (after 5E train)",
+    "summary": "Passenger 5+2 train (up to 5 cities/towns plus 2 additional towns; permanent)",
+    "notes": "Permanent locomotive. Purchasing the 5+2 train immediately rusts all 3+1 trains without compensation. Pool: 1 train at 860K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Purchasing this train immediately rusts all 3+1 trains.",
+      "Runs up to 5 cities or towns, plus 2 additional towns along a continuous unbranched route.",
+      "Towns may substitute for cities in the primary allowance, but cities cannot substitute for the +2 town allowance.",
+      "Must connect at least two different locations; cannot run to coal mines.",
+      "Must include at least one station token belonging to the operating entity.",
+      "Multiple routes operated by the same entity must use entirely separate track."
+    ]
   },
   "1837_5p3": {
     "id": "1837_5p3",
@@ -3491,10 +3818,19 @@
     "distance": 5,
     "distance_type": "major_minor",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 major stops plus minor/town stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5 (after 5+2 train)",
+    "summary": "Passenger 5+3 train (up to 5 cities/towns plus 3 additional towns; permanent)",
+    "notes": "Permanent locomotive. Pool: 1 train at 900K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Runs up to 5 cities or towns, plus 3 additional towns along a continuous unbranched route.",
+      "Towns may substitute for cities in the primary allowance, but cities cannot substitute for the +3 town allowance.",
+      "Must connect at least two different locations; cannot run to coal mines.",
+      "Must include at least one station token belonging to the operating entity.",
+      "Multiple routes operated by the same entity must use entirely separate track."
+    ]
   },
   "1837_5p4": {
     "id": "1837_5p4",
@@ -3504,62 +3840,111 @@
     "distance": 5,
     "distance_type": "major_minor",
     "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 major stops plus minor/town stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5 (after 5+3 train)",
+    "summary": "Passenger 5+4 train (up to 5 cities/towns plus 4 additional towns; permanent, unlimited)",
+    "notes": "Permanent locomotive. Unlimited quantity available from the bank (1 physical card provided; proxies used if exhausted). Final passenger locomotive model. Cost 960K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Unlimited supply available from the bank.",
+      "Runs up to 5 cities or towns, plus 4 additional towns along a continuous unbranched route.",
+      "Towns may substitute for cities in the primary allowance, but cities cannot substitute for the +4 town allowance.",
+      "Must connect at least two different locations; cannot run to coal mines.",
+      "Must include at least one station token belonging to the operating entity.",
+      "Multiple routes operated by the same entity must use entirely separate track."
+    ]
   },
   "1837_1g": {
     "id": "1837_1g",
     "game_id": "1837",
     "name": "1G",
     "price": 100,
-    "distance": 99,
-    "distance_type": "node_array",
+    "distance": 1,
+    "distance_type": "goods_stops",
     "qty": 10,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1837_2",
-    "notes": "Runs up to 99 revenue stops (structured node restrictions apply)."
+    "rusts_on": "Purchase of first 3G train (or 4G train)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 2",
+    "summary": "Goods 1G train (starts at mine, visits 1 city and unlimited towns)",
+    "notes": "Goods locomotive ('G' for Güterzug). Available at game start in Phase 2. Pool: 10 trains at 100K. Coal companies may only own G-trains. Rusted immediately upon purchase of the first 3G train (or 4G train if 3G skipped).",
+    "rules": [
+      "Goods train: Must start its route from a coal mine and visit no more than 1 city, plus an unlimited number of towns along an unblocked route.",
+      "The starting coal mine does not count toward the city limit; a route may not include a second coal mine.",
+      "Towns and cities contribute normal revenue to earnings; the printed mine value is paid directly from the bank into the company or corporation treasury and is excluded from operating earnings.",
+      "Must run to at least one city or town to generate revenue; cannot solely count its starting mine.",
+      "Must include a station of the operating entity (for coal companies, the mine serves as their home station).",
+      "May be owned by coal companies, minor companies, major corporations, and national railways.",
+      "Rusted immediately without compensation upon the purchase of the first 3G train (or 4G train)."
+    ]
   },
   "1837_2g": {
     "id": "1837_2g",
     "game_id": "1837",
     "name": "2G",
     "price": 230,
-    "distance": 99,
-    "distance_type": "node_array",
+    "distance": 2,
+    "distance_type": "goods_stops",
     "qty": 6,
-    "rusts_on_id": "1837_4g",
-    "obsolete_on_id": null,
-    "available_on_id": "1837_3",
-    "notes": "Runs up to 99 revenue stops (structured node restrictions apply)."
+    "rusts_on": "Purchase of first 4G train",
+    "obsolete_on": null,
+    "available_on": "Phase 3 (first 3-train purchase)",
+    "summary": "Goods 2G train (starts at mine, visits up to 2 cities and unlimited towns)",
+    "notes": "Goods locomotive. Becomes available in Phase 3 with the first 3-train purchase, even if 1G trains remain. Pool: 6 trains at 230K. Rusted immediately upon purchase of the first 4G train.",
+    "rules": [
+      "Goods train: Starts at a coal mine and visits up to 2 cities, plus an unlimited number of towns along an unblocked route.",
+      "Starting mine does not count toward the city limit; cannot include a second mine.",
+      "Towns and cities contribute normal revenue; printed mine value is paid directly to treasury and excluded from operating earnings.",
+      "Must include a station of the operating entity (the mine serves as the home station for coal companies).",
+      "May be owned by coal companies, minor companies, major corporations, and national railways.",
+      "Rusted immediately without compensation upon the purchase of the first 4G train."
+    ]
   },
   "1837_3g": {
     "id": "1837_3g",
     "game_id": "1837",
     "name": "3G",
     "price": 590,
-    "distance": 99,
-    "distance_type": "node_array",
+    "distance": 3,
+    "distance_type": "goods_stops",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1837_4",
-    "notes": "Runs up to 99 revenue stops (structured node restrictions apply)."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 4 (first 4-train purchase)",
+    "summary": "Goods 3G train (starts at mine, visits up to 3 cities and unlimited towns; permanent)",
+    "notes": "Permanent goods locomotive. Becomes available in Phase 4 with the first 4-train purchase. Purchasing the first 3G train immediately rusts all 1G trains. Pool: 2 trains at 590K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Purchasing the first 3G train immediately rusts all 1G trains.",
+      "Goods train: Starts at a coal mine and visits up to 3 cities, plus an unlimited number of towns along an unblocked route.",
+      "Starting mine does not count toward the city limit; cannot include a second mine.",
+      "Towns and cities contribute normal revenue; printed mine value (Phase 4 value, or Phase 5 value once in Phase 5) is paid directly to treasury.",
+      "Must include a station of the operating entity (mine serves as home station for coal companies).",
+      "May be owned by coal companies, minor companies, major corporations, and national railways."
+    ]
   },
   "1837_4g": {
     "id": "1837_4g",
     "game_id": "1837",
     "name": "4G",
     "price": 1000,
-    "distance": 99,
-    "distance_type": "node_array",
+    "distance": 4,
+    "distance_type": "goods_stops",
     "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1837_5",
-    "notes": "Runs up to 99 revenue stops (structured node restrictions apply)."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5 (first 5-train purchase)",
+    "summary": "Goods 4G train (starts at mine, visits up to 4 cities and unlimited towns; permanent, unlimited)",
+    "notes": "Permanent goods locomotive. Becomes available in Phase 5 with the first 5-train purchase. Purchasing the first 4G train immediately rusts all 2G trains (and any remaining 1G trains). Unlimited pool available from the bank (3 physical cards provided). Cost 1000K.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Purchasing the first 4G train immediately rusts all 2G trains (and any remaining 1G trains).",
+      "Goods train: Starts at a coal mine and visits up to 4 cities, plus an unlimited number of towns along an unblocked route.",
+      "Starting mine does not count toward the city limit; cannot include a second mine.",
+      "Towns and cities contribute normal revenue; printed mine value (Phase 5 value) is paid directly to treasury.",
+      "Must include a station of the operating entity.",
+      "May be owned by minor companies, major corporations, and national railways (coal companies fold into majors at start of Phase 5)."
+    ]
   },
   "1840_y1": {
     "id": "1840_y1",
@@ -4913,6 +5298,7 @@
     "available_on_id": "1854_3",
     "notes": "Runs up to 3 major stops plus minor/town stops."
   },
+ 
   "1856_2": {
     "id": "1856_2",
     "game_id": "1856",
@@ -4921,10 +5307,17 @@
     "distance": 2,
     "distance_type": "stops",
     "qty": 6,
-    "rusts_on_id": "1856_4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
+    "rusts_on": "Phase Three (first 4-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase One",
+    "summary": "Standard 2-train (up to 2 cities)",
+    "notes": "Initial locomotive pool in Phase One[cite: 207, 213]. Pool: 6 trains at $100[cite: 207]. Train limit: 4[cite: 213]. Escrow capitalization applies[cite: 216, 217]. Rusted immediately upon purchase of first 4-train[cite: 213].",
+    "rules": [
+      "Runs up to 2 cities (large cities, small cities, or off-boards)[cite: 207, 220].",
+      "Route must include at least one city with an owned station marker and at least one other city[cite: 220].",
+      "All cities along the route must be counted[cite: 221].",
+      "Rusted and removed from play without compensation upon purchase of the first 4-train[cite: 213]."
+    ]
   },
   "1856_3": {
     "id": "1856_3",
@@ -4934,10 +5327,17 @@
     "distance": 3,
     "distance_type": "stops",
     "qty": 5,
-    "rusts_on_id": "1856_6",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 revenue stops."
+    "rusts_on": "Phase Five (first 6-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase Two",
+    "summary": "Standard 3-train (up to 3 cities)",
+    "notes": "Purchasing first 3-train advances game to Phase Two: green tiles available, corporations may buy privates ($0.5x-$2x cost), and ORs increase to 2 per SR[cite: 208, 213, 218]. Pool: 5 trains at $225[cite: 207]. Train limit: 4[cite: 213]. Rusted upon first 6-train[cite: 214].",
+    "rules": [
+      "Runs up to 3 cities[cite: 207, 220].",
+      "Must include an owned station marker and at least one other city[cite: 220].",
+      "May not reverse at junctions[cite: 220].",
+      "Rusted and removed from play without compensation upon purchase of the first 6-train[cite: 214]."
+    ]
   },
   "1856_4": {
     "id": "1856_4",
@@ -4947,10 +5347,17 @@
     "distance": 4,
     "distance_type": "stops",
     "qty": 4,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
+    "rusts_on": "Phase Six (first Diesel purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase Three",
+    "summary": "Standard 4-train (up to 4 cities)",
+    "notes": "Purchasing first 4-train advances game to Phase Three: all 2-trains scrapped, and train limit drops to 3[cite: 213]. Pool: 4 trains at $350[cite: 207]. Rusted upon first Diesel purchase[cite: 214].",
+    "rules": [
+      "Runs up to 4 cities[cite: 207, 220].",
+      "Must include an owned station marker[cite: 220].",
+      "Can be traded in toward a Diesel for a $250 discount ($750 cost)[cite: 207, 222].",
+      "Rusted and removed from play without compensation upon purchase of the first Diesel[cite: 214]."
+    ]
   },
   "1856_5": {
     "id": "1856_5",
@@ -4960,10 +5367,17 @@
     "distance": 5,
     "distance_type": "stops",
     "qty": 3,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase Four",
+    "summary": "Standard 5-train (permanent locomotive; up to 5 cities)",
+    "notes": "Permanent locomotive[cite: 207, 230]. Purchasing first 5-train advances game to Phase Four: brown tiles available, all private companies close, train limit drops to 2, middle off-board values used, and ORs increase to 3 per SR[cite: 208, 214]. Escrow ends for newly opened corps[cite: 217]. Pool: 3 trains at $550[cite: 207].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 207, 230].",
+      "Runs up to 5 cities[cite: 207, 220].",
+      "Must include an owned station marker[cite: 220].",
+      "Can be traded in toward a Diesel for $750[cite: 207, 222]."
+    ]
   },
   "1856_6": {
     "id": "1856_6",
@@ -4973,10 +5387,17 @@
     "distance": 6,
     "distance_type": "stops",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase Five",
+    "summary": "Standard 6-train (permanent; CGR formation & loan repayment trigger)",
+    "notes": "Permanent locomotive[cite: 207, 230]. Purchasing first 6-train advances game to Phase Five: all 3-trains rust immediately, all government loans must be repaid, CGR forms from defaulting corps, grey tiles available, small cities may be upgraded/downgraded, Great Lakes port token removed, Diesels become available, and second certificate limit applies[cite: 207, 209, 210, 214, 223, 224]. Pool: 2 trains at $700[cite: 207].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 207, 230].",
+      "Runs up to 6 cities[cite: 207, 220].",
+      "Purchasing first 6-train forces mandatory loan repayment and possible formation of the Canadian Government Railways (CGR)[cite: 214, 224].",
+      "Can be traded in toward a Diesel for $750[cite: 207, 222]."
+    ]
   },
   "1856_d": {
     "id": "1856_d",
@@ -4986,10 +5407,17 @@
     "distance": 999,
     "distance_type": "unlimited",
     "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1856_6",
-    "notes": "Diesel: Unlimited route distance."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase Five (after first 6-train purchase)",
+    "summary": "Diesel locomotive (unlimited route distance; permanent)",
+    "notes": "Permanent locomotive with unlimited route distance[cite: 207, 230]. Becomes available immediately upon purchase of the first 6-train[cite: 207, 214]. Purchasing first Diesel triggers Phase Six: all 4-trains rust, and bottom off-board values are used[cite: 214]. Cost: $1,100, or $750 with trade-in of a 4, 5, or 6-train[cite: 207, 222]. Supply is unlimited (proxies used if exhausted)[cite: 207, 208].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 207, 230].",
+      "Unlimited route distance: Runs to or through an unlimited number of cities[cite: 207, 220].",
+      "Costs $1,100 cash, or $750 when trading in a 4, 5, or 6-train[cite: 207, 222].",
+      "Purchasing the first Diesel immediately rusts all 4-trains[cite: 214]."
+    ]
   },
   "1856_8": {
     "id": "1856_8",
@@ -4998,12 +5426,20 @@
     "price": 1000,
     "distance": 8,
     "distance_type": "stops",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1856_6",
-    "notes": "Runs up to 8 revenue stops."
+    "qty": 6,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase Five (Variant)",
+    "summary": "Standard 8-train (alternate historical variant in place of Diesels)",
+    "notes": "Optional rule variant replacing Diesels[cite: 208, 227]. Pool: 6 trains at $1,000 (or $650 with trade-in of a 4, 5, or 6-train)[cite: 208, 227]. Purchasing the first 8-train triggers Phase Six and rusts all 4-trains[cite: 227].",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Runs up to 8 cities[cite: 207].",
+      "Costs $1,000 cash, or $650 with trade-in of a 4, 5, or 6-train[cite: 227].",
+      "First purchase rusts all 4-trains[cite: 227]."
+    ]
   },
+
   "1858_2h": {
     "id": "1858_2h",
     "game_id": "1858",
@@ -5285,10 +5721,21 @@
     "distance": 2,
     "distance_type": "major_minor",
     "qty": 5,
-    "rusts_on_id": "1860_4p2",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 major stops plus minor/town stops."
+    "rusts_on": "Phase 4 (first 4+2 purchase)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 2",
+    "summary": "Compound 2+1 train (up to 2 large stations + 1 small station or halt)",
+    "notes": "Initial locomotive pool at game start in Phase 2. Pool: 5 trains at £250. Train limit: 4 (or unlimited under variant). Operating rounds: 1 OR per SR. Yellow tiles available. Rusted immediately upon purchase of the first 4+2 train in Phase 4.",
+    "rules": [
+      "Calls at up to 2 large stations and up to 1 small station or halt.",
+      "Unused large station allowance can be converted to call at additional small stations or halts (1:1).",
+      "Must begin and end at a large or small station (cannot terminate at a halt).",
+      "Halts pay zero regular revenue, but award a 10 company credits (cc) subsidy directly into corporate treasury.",
+      "Must include a large station occupied by a corporate base token.",
+      "First run must visit company home base; subsequent runs must intersect previous runs at a station.",
+      "One train per operating turn may pass through ONE tokened-out station.",
+      "Rusted and removed from the game without compensation upon purchase of the first 4+2 train."
+    ]
   },
   "1860_3p2": {
     "id": "1860_3p2",
@@ -5298,10 +5745,20 @@
     "distance": 3,
     "distance_type": "major_minor",
     "qty": 4,
-    "rusts_on_id": "1860_6p3",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 major stops plus minor/town stops."
+    "rusts_on": "Phase 6 (first 6+3 purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 3",
+    "summary": "Compound 3+2 train (up to 3 large stations + 2 small stations or halts)",
+    "notes": "Purchasing first 3+2 advances game to Phase 3: green tiles become available, operating rounds increase to 2 per cycle after the next SR, and Ryde Pier revenue increases to £20. Pool: 4 trains at £300. Train limit: 4. Rusted upon purchase of first 6+3 train.",
+    "rules": [
+      "Calls at up to 3 large stations and up to 2 small stations or halts.",
+      "Unused large station allowance converts to additional small station/halt stops.",
+      "Must begin and end at a large or small station.",
+      "Halts pay 10cc subsidy directly to treasury.",
+      "Must include a corporate base token, and network runs must connect.",
+      "One train per turn may pass through ONE tokened-out station.",
+      "Rusted and removed from the game without compensation upon purchase of the first 6+3 train."
+    ]
   },
   "1860_4p2": {
     "id": "1860_4p2",
@@ -5311,10 +5768,19 @@
     "distance": 4,
     "distance_type": "major_minor",
     "qty": 3,
-    "rusts_on_id": "1860_7p4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 major stops plus minor/town stops."
+    "rusts_on": "Phase 7 (first 7+4 purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 4",
+    "summary": "Compound 4+2 train (up to 4 large stations + 2 small stations or halts)",
+    "notes": "Purchasing first 4+2 advances game to Phase 4: all 2+1 trains rust immediately, and train limit drops to 3. Pool: 3 trains at £350. Rusted upon purchase of first 7+4 train.",
+    "rules": [
+      "Calls at up to 4 large stations and up to 2 small stations or halts.",
+      "Unused large station allowance converts to small stations or halts.",
+      "Must begin and end at a large or small station.",
+      "Halts pay 10cc subsidy directly to treasury.",
+      "One train per turn may pass through ONE tokened-out station.",
+      "Rusted and removed from the game without compensation upon purchase of the first 7+4 train."
+    ]
   },
   "1860_5p3": {
     "id": "1860_5p3",
@@ -5324,10 +5790,19 @@
     "distance": 5,
     "distance_type": "major_minor",
     "qty": 2,
-    "rusts_on_id": "1860_8p4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 major stops plus minor/town stops."
+    "rusts_on": "Phase 8 (first 8+4 purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 5",
+    "summary": "Compound 5+3 train (up to 5 large stations + 3 small stations or halts)",
+    "notes": "Purchasing first 5+3 advances game to Phase 5: russet tiles become available, operating rounds increase to 3 per cycle after the next SR, and Ryde Pier revenue increases to £40. Pool: 2 trains at £400. Train limit: 3. Rusted upon purchase of first 8+4 train.",
+    "rules": [
+      "Calls at up to 5 large stations and up to 3 small stations or halts.",
+      "Unused large station allowance converts to small stations or halts.",
+      "Must begin and end at a large or small station.",
+      "Halts pay 10cc subsidy directly to treasury.",
+      "One train per turn may pass through ONE tokened-out station.",
+      "Rusted and removed from the game without compensation upon purchase of the first 8+4 train."
+    ]
   },
   "1860_6p3": {
     "id": "1860_6p3",
@@ -5337,10 +5812,19 @@
     "distance": 6,
     "distance_type": "major_minor",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 major stops plus minor/town stops."
+    "rusts_on": "Phase 9 (first 9+5 purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 6",
+    "summary": "Compound 6+3 train (up to 6 large stations + 3 small stations or halts)",
+    "notes": "Purchasing first 6+3 advances game to Phase 6: all 3+2 trains rust immediately, train limit drops to 2, and the Fishbourne Ferry Company certificate becomes available for £200 (buying Fishbourne immediately closes all other shipping private companies). Pool: 2 trains at £500. Rusted upon purchase of first 9+5 train.",
+    "rules": [
+      "Calls at up to 6 large stations and up to 3 small stations or halts.",
+      "Unused large station allowance converts to small stations or halts.",
+      "Must begin and end at a large or small station.",
+      "Halts pay 10cc subsidy directly to treasury.",
+      "One train per turn may pass through ONE tokened-out station.",
+      "Rusted and removed from the game without compensation upon purchase of the first 9+5 train."
+    ]
   },
   "1860_7p4": {
     "id": "1860_7p4",
@@ -5350,10 +5834,19 @@
     "distance": 7,
     "distance_type": "major_minor",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 7 major stops plus minor/town stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 7",
+    "summary": "Compound 7+4 permanent locomotive (up to 7 large stations + 4 small stations or halts)",
+    "notes": "Permanent locomotive. Purchasing first 7+4 advances game to Phase 7: all 4+2 trains rust immediately. Pool: 1 train at £600 (2 under beginner variant). Train limit: 2.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Calls at up to 7 large stations and up to 4 small stations or halts.",
+      "Unused large station allowance converts to small stations or halts.",
+      "Must begin and end at a large or small station.",
+      "Halts pay 10cc subsidy directly to treasury.",
+      "One train per turn may pass through ONE tokened-out station."
+    ]
   },
   "1860_8p4": {
     "id": "1860_8p4",
@@ -5363,10 +5856,19 @@
     "distance": 8,
     "distance_type": "major_minor",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 8 major stops plus minor/town stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 8",
+    "summary": "Compound 8+4 permanent locomotive (up to 8 large stations + 4 small stations or halts)",
+    "notes": "Permanent locomotive. Purchasing first 8+4 advances game to Phase 8: all 5+3 trains rust immediately, player certificate limits are abolished, and share sales no longer drop share prices. Pool: 1 train at £700. Train limit: 2.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Calls at up to 8 large stations and up to 4 small stations or halts.",
+      "Unused large station allowance converts to small stations or halts.",
+      "Must begin and end at a large or small station.",
+      "Halts pay 10cc subsidy directly to treasury.",
+      "One train per turn may pass through ONE tokened-out station."
+    ]
   },
   "1860_9p5": {
     "id": "1860_9p5",
@@ -5376,10 +5878,20 @@
     "distance": 9,
     "distance_type": "major_minor",
     "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 9 major stops plus minor/town stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 9",
+    "summary": "Compound 9+5 permanent locomotive (Southern Railway / Nationalisation trigger)",
+    "notes": "Permanent locomotive. Unlimited supply (6+ supplied; obsolete 2+1 cards act as proxies). Purchasing first 9+5 advances game to Phase 9: all 6+3 trains rust, Southern Railway forms, and track/base construction terminates after next SR. When all directed companies own at least one train, British Rail forms and triggers the endgame (infinite bank, 4 final ORs, progressive closures of lowest-dividend companies).",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Unlimited supply available at £800.",
+      "Calls at up to 9 large stations and up to 5 small stations or halts (under British Rail Nationalisation, scores up to 9 stations total).",
+      "Unused large station allowance converts to small stations or halts.",
+      "Must begin and end at a large or small station.",
+      "Halts pay 10cc subsidy directly to treasury.",
+      "One train per turn may pass through ONE tokened-out station."
+    ]
   },
   "1861_2": {
     "id": "1861_2",
@@ -6676,7 +7188,8 @@
     "available_on_id": null,
     "notes": "Runs up to 2 major stops plus minor/town stops."
   },
-  "1870_2": {
+  
+"1870_2": {
     "id": "1870_2",
     "game_id": "1870",
     "name": "2",
@@ -6684,10 +7197,17 @@
     "distance": 2,
     "distance_type": "stops",
     "qty": 7,
-    "rusts_on_id": "1870_4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
+    "rusts_on": "Phase Three (first 4-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase One",
+    "summary": "Standard 2-train (up to 2 cities)",
+    "notes": "Initial locomotive pool in Phase One[cite: 236, 263]. Pool: 7 trains at $80[cite: 236, 263]. Train limit: 4[cite: 236, 263]. 1 OR per SR[cite: 236, 263]. Rusted upon purchase of first 4-train[cite: 237, 263].",
+    "rules": [
+      "Runs up to 2 cities (large, small, or off-board)[cite: 235, 251].",
+      "Route must include at least one city containing an owned station marker[cite: 251].",
+      "Qualifies for double destination revenue if destination city is at the terminus of a connection run[cite: 252, 254].",
+      "Rusted and removed from play without compensation upon purchase of the first 4-train[cite: 237, 263]."
+    ]
   },
   "1870_3": {
     "id": "1870_3",
@@ -6697,10 +7217,16 @@
     "distance": 3,
     "distance_type": "stops",
     "qty": 6,
-    "rusts_on_id": "1870_6",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 revenue stops."
+    "rusts_on": "Phase Five (first 6-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase Two",
+    "summary": "Standard 3-train (up to 3 cities)",
+    "notes": "Purchasing first 3-train advances game to Phase Two: green tiles available, privates purchasable ($0.5x-$2x cost), and ORs increase to 2 per SR[cite: 236, 240, 263]. Pool: 6 trains at $180[cite: 236, 263]. Train limit: 4[cite: 236, 263]. Rusted upon first 6-train[cite: 237, 263].",
+    "rules": [
+      "Runs up to 3 cities[cite: 235, 251].",
+      "Must include an owned station marker[cite: 251].",
+      "Rusted and removed from play without compensation upon purchase of the first 6-train[cite: 237, 263]."
+    ]
   },
   "1870_4": {
     "id": "1870_4",
@@ -6710,10 +7236,16 @@
     "distance": 4,
     "distance_type": "stops",
     "qty": 5,
-    "rusts_on_id": "1870_8",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
+    "rusts_on": "Phase Six (first 8-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase Three",
+    "summary": "Standard 4-train (up to 4 cities)",
+    "notes": "Purchasing first 4-train advances game to Phase Three: all 2-trains rust, and train limit drops to 3[cite: 236, 237, 263]. Pool: 5 trains at $300[cite: 236, 263]. Rusted upon first 8-train[cite: 237, 263].",
+    "rules": [
+      "Runs up to 4 cities[cite: 235, 251].",
+      "Must include an owned station marker[cite: 251].",
+      "Rusted and removed from play without compensation upon purchase of the first 8-train[cite: 237, 263]."
+    ]
   },
   "1870_5": {
     "id": "1870_5",
@@ -6723,10 +7255,16 @@
     "distance": 5,
     "distance_type": "stops",
     "qty": 4,
-    "rusts_on_id": "1870_12",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops."
+    "rusts_on": "Phase Eight (first 12-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase Four",
+    "summary": "Standard 5-train (up to 5 cities)",
+    "notes": "Purchasing first 5-train advances game to Phase Four: brown tiles available, all privates close (placed Port/Cattle tokens remain until Phase Five), train limit drops to 2, middle off-board values used, and ORs increase to 3 per SR[cite: 237, 240, 263]. Pool: 4 trains at $450[cite: 236, 263]. Rusted upon first 12-train[cite: 238, 263].",
+    "rules": [
+      "Runs up to 5 cities[cite: 235, 251].",
+      "Must include an owned station marker[cite: 251].",
+      "Rusted and removed from play without compensation upon purchase of the first 12-train[cite: 238, 263]."
+    ]
   },
   "1870_6": {
     "id": "1870_6",
@@ -6736,10 +7274,16 @@
     "distance": 6,
     "distance_type": "stops",
     "qty": 3,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase Five",
+    "summary": "Standard 6-train (permanent locomotive; up to 6 cities)",
+    "notes": "Permanent locomotive[cite: 237, 259]. Purchasing first 6-train advances game to Phase Five: all 3-trains rust immediately, grey tiles available, and Port and Cattle tokens removed[cite: 237, 263]. Pool: 3 trains at $630[cite: 236, 263]. Train limit: 2[cite: 237, 263].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 237, 259].",
+      "Runs up to 6 cities[cite: 235, 251].",
+      "Must include an owned station marker[cite: 251]."
+    ]
   },
   "1870_8": {
     "id": "1870_8",
@@ -6749,10 +7293,16 @@
     "distance": 8,
     "distance_type": "stops",
     "qty": 3,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 8 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase Six",
+    "summary": "Standard 8-train (permanent locomotive; up to 8 cities)",
+    "notes": "Permanent locomotive[cite: 237, 259]. Purchasing first 8-train advances game to Phase Six: all 4-trains rust immediately, and bottom off-board values are used[cite: 237, 263]. Pool: 3 trains at $800[cite: 236, 263]. Train limit: 2[cite: 237, 263].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 237, 259].",
+      "Runs up to 8 cities[cite: 235, 251].",
+      "Must include an owned station marker[cite: 251]."
+    ]
   },
   "1870_10": {
     "id": "1870_10",
@@ -6762,10 +7312,16 @@
     "distance": 10,
     "distance_type": "stops",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 10 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase Seven",
+    "summary": "Standard 10-train (permanent locomotive; up to 10 cities)",
+    "notes": "Permanent locomotive[cite: 237, 259]. Pool: 2 trains at $950 in Phase Seven[cite: 236, 237, 263]. Train limit: 2[cite: 237, 263].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 237, 259].",
+      "Runs up to 10 cities[cite: 235, 251].",
+      "Must include an owned station marker[cite: 251]."
+    ]
   },
   "1870_12": {
     "id": "1870_12",
@@ -6775,10 +7331,17 @@
     "distance": 12,
     "distance_type": "stops",
     "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 12 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase Eight",
+    "summary": "Standard 12-train (permanent locomotive; unlimited supply)",
+    "notes": "Permanent locomotive[cite: 237, 259]. Purchasing first 12-train advances game to Phase Eight: all 5-trains rust immediately[cite: 237, 238, 263]. Pool is unlimited (6 physical cards provided; 2-train cards serve as proxies if exhausted)[cite: 235, 236, 263]. Price: $1,100[cite: 236, 263]. Train limit: 2[cite: 238, 263].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 237, 259].",
+      "Unlimited supply available from the bank[cite: 235, 236].",
+      "Runs up to 12 cities[cite: 235, 251].",
+      "Purchasing the first 12-train rusts all 5-trains[cite: 238, 263]."
+    ]
   },
   "1870_d": {
     "id": "1870_d",
@@ -6788,11 +7351,19 @@
     "distance": 999,
     "distance_type": "unlimited",
     "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1870_5",
-    "notes": "Diesel: Unlimited route distance."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase Five (Variant)",
+    "summary": "1830-style Diesel locomotive (variant; unlimited route distance)",
+    "notes": "Optional rule variant replacing 8 and 10-trains[cite: 256]. Diesels cost $1,100, or $800 with trade-in of a 4, 5, or 6-train[cite: 256]. Unlimited route distance[cite: 256]. First purchase triggers modified Phase Six and rusts all 4-trains[cite: 256, 257].",
+    "rules": [
+      "Permanent locomotive: Never rusts[cite: 259].",
+      "Runs to or through an unlimited number of cities[cite: 256].",
+      "Costs $1,100, or $800 with trade-in of a 4, 5, or 6-train[cite: 256].",
+      "First purchase rusts all 4-trains[cite: 257]."
+    ]
   },
+
   "1871_2h": {
     "id": "1871_2h",
     "game_id": "1871",
@@ -7061,10 +7632,20 @@
     "distance": 2,
     "distance_type": "stops",
     "qty": 10,
-    "rusts_on_id": "1880_4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
+    "rusts_on": "Phase B3 (first 4-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase A1",
+    "summary": "Standard 2-train (counts up to 2 consecutive stations)",
+    "notes": "Initial train pool in Phase A1. Pool: 10 trains at ¥100. Train limit: 4. Flotation requires 20% ownership; 50% initial capitalisation; only first 5 shares available in Bank. Rusted upon purchase of first 4-train.",
+    "rules": [
+      "Scores up to 2 consecutive stations (large or small) along an unblocked route; cannot omit intermediate cities.",
+      "Must include at least one station containing a station marker of the operating company.",
+      "Red off-board locations count as large stations; blue harbours count as small stations (both must be route termini).",
+      "Each ferry connection used along route deducts ¥10 from earnings (max 3 ferries).",
+      "Adds share price chart bonus (+5, +10, etc.) if applicable.",
+      "Selling the last 2-train interrupts the OR to trigger a Share Round; if a full OR passes without a train purchase, all remaining 2-trains are removed from play.",
+      "Rusted and removed from the game without compensation upon purchase of the first 4-train."
+    ]
   },
   "1880_2p2": {
     "id": "1880_2p2",
@@ -7074,10 +7655,19 @@
     "distance": 2,
     "distance_type": "major_minor",
     "qty": 5,
-    "rusts_on_id": "1880_4p4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 major stops plus minor/town stops."
+    "rusts_on": "Phase C1 (first 4+4 purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase A2",
+    "summary": "Plus 2+2 train (up to 2 large stations and up to 4 total stations)",
+    "notes": "Phase A2 train. Pool: 5 trains at ¥180. Train limit: 4. Rusted upon purchase of first 4+4 train.",
+    "rules": [
+      "Visits up to 4 stations total, with a maximum of 2 large stations on the route.",
+      "Small stations (including harbours) may substitute for large stations, but not vice versa.",
+      "Must include at least one station marker of the operating company.",
+      "Deducts ¥10 per ferry connection traversed (max 3 ferries).",
+      "Eligible for share price chart income bonus.",
+      "Rusted and removed from the game without compensation upon purchase of the first 4+4 train."
+    ]
   },
   "1880_3": {
     "id": "1880_3",
@@ -7087,10 +7677,18 @@
     "distance": 3,
     "distance_type": "stops",
     "qty": 5,
-    "rusts_on_id": "1880_6",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 revenue stops."
+    "rusts_on": "Phase C2 (first 6-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase B1",
+    "summary": "Standard 3-train (counts up to 3 consecutive stations)",
+    "notes": "Purchasing first 3-train advances game to Phase B1: green tiles become available, companies may lay 2 yellow tiles per turn, trains can be traded between same-director companies (min ¥1), companies with 50% sold receive second half of working capital, float requirement becomes 30%, and all 10 shares become available. Pool: 5 trains at ¥180. Train limit: 4. Rusted upon purchase of first 6-train.",
+    "rules": [
+      "Scores up to 3 consecutive stations (large and small) along an unblocked route.",
+      "Must include at least one station marker of the operating company.",
+      "Deducts ¥10 per ferry connection traversed.",
+      "Eligible for share price chart income bonus.",
+      "Rusted and removed from the game without compensation upon purchase of the first 6-train."
+    ]
   },
   "1880_3p3": {
     "id": "1880_3p3",
@@ -7100,10 +7698,18 @@
     "distance": 3,
     "distance_type": "major_minor",
     "qty": 5,
-    "rusts_on_id": "1880_6e",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 major stops plus minor/town stops."
+    "rusts_on": "Phase C3 (first 6E purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase B2",
+    "summary": "Plus 3+3 train (up to 3 large stations and up to 6 total stations)",
+    "notes": "Purchasing first 3+3 advances game to Phase B2: train limit drops from 4 to 3. Pool: 5 trains at ¥300. Rusted upon purchase of first 6E train.",
+    "rules": [
+      "Visits up to 6 stations total, with a maximum of 3 large stations on the route.",
+      "Small stations can substitute for large stations, but not vice versa.",
+      "Must include at least one station marker of the operating company.",
+      "Deducts ¥10 per ferry connection traversed.",
+      "Rusted and removed from the game without compensation upon purchase of the first 6E train."
+    ]
   },
   "1880_4": {
     "id": "1880_4",
@@ -7113,10 +7719,18 @@
     "distance": 4,
     "distance_type": "stops",
     "qty": 5,
-    "rusts_on_id": "1880_8",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
+    "rusts_on": "Phase D1 (first 8-train purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase B3",
+    "summary": "Standard 4-train (Communist Takeover trigger)",
+    "notes": "Purchasing first 4-train advances game to Phase B3: all 2-trains rust immediately, flotation requires 40% ownership, P7 Rocket of China forced into second 4-train, and Communist Takeover begins (stock market frozen, Director shares cannot be sold, privates pay no dividends, Foreign Investors become inactive). Pool: 5 trains at ¥300. Train limit: 3. Rusted upon first 8-train.",
+    "rules": [
+      "Scores up to 4 consecutive stations (large and small) along an unblocked route.",
+      "Must include at least one station marker of the operating company.",
+      "Deducts ¥10 per ferry connection traversed.",
+      "Purchasing the first 4-train rusts all 2-trains and initiates the Communist Takeover.",
+      "Rusted and removed from the game without compensation upon purchase of the first 8-train."
+    ]
   },
   "1880_4p4": {
     "id": "1880_4p4",
@@ -7126,10 +7740,18 @@
     "distance": 4,
     "distance_type": "major_minor",
     "qty": 5,
-    "rusts_on_id": "1880_8e",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 major stops plus minor/town stops."
+    "rusts_on": "Phase D2 (first 8E purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase C1",
+    "summary": "Plus 4+4 train (up to 4 large stations and up to 8 total stations)",
+    "notes": "Purchasing first 4+4 advances game to Phase C1: all 2+2 trains rust immediately, and brown tiles become available. Pool: 5 trains at ¥450. Train limit: 3. Minimum train capable of qualifying for the Trans-Siberian ¥50 bonus (A3 Russia to A15 Vladivostok). Rusted upon first 8E train.",
+    "rules": [
+      "Visits up to 8 stations total, with a maximum of 4 large stations on the route.",
+      "Small stations can substitute for large stations.",
+      "Qualifies for the Trans-Siberian bonus (+¥50) if running a single route connecting Russia (A3) and Vladivostok (A15).",
+      "Deducts ¥10 per ferry connection traversed.",
+      "Rusted and removed from the game without compensation upon purchase of the first 8E train."
+    ]
   },
   "1880_6": {
     "id": "1880_6",
@@ -7139,62 +7761,18 @@
     "distance": 6,
     "distance_type": "stops",
     "qty": 5,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops."
-  },
-  "1880_6e": {
-    "id": "1880_6e",
-    "game_id": "1880",
-    "name": "6E",
-    "price": 700,
-    "distance": 6,
-    "distance_type": "node_array",
-    "qty": 5,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops (structured node restrictions apply)."
-  },
-  "1880_8": {
-    "id": "1880_8",
-    "game_id": "1880",
-    "name": "8",
-    "price": 800,
-    "distance": 8,
-    "distance_type": "stops",
-    "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 8 revenue stops."
-  },
-  "1880_8e": {
-    "id": "1880_8e",
-    "game_id": "1880",
-    "name": "8E",
-    "price": 900,
-    "distance": 8,
-    "distance_type": "node_array",
-    "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 8 revenue stops (structured node restrictions apply)."
-  },
-  "1880_10": {
-    "id": "1880_10",
-    "game_id": "1880",
-    "name": "10",
-    "price": 1000,
-    "distance": 10,
-    "distance_type": "stops",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 10 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase C2",
+    "summary": "Standard 6-train (permanent; Shanghai Stock Exchange re-opening trigger)",
+    "notes": "Permanent locomotive. Purchasing first 6-train advances game to Phase C2: all 3-trains rust, flotation requires 60% ownership, 2R and restored 2-trains become available, and Shanghai Stock Exchange re-opens (Communist Takeover ends: normal share trading and price movements resume). Pool: 5 trains at ¥600. Train limit: 3. Qualifies for Trans-Siberian bonus.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Scores up to 6 consecutive stations (large and small) along an unblocked route.",
+      "Qualifies for the Trans-Siberian bonus (+¥50) when running between Russia (A3) and Vladivostok (A15).",
+      "Must include at least one station marker of the operating company.",
+      "Deducts ¥10 per ferry connection traversed."
+    ]
   },
   "1880_2r": {
     "id": "1880_2r",
@@ -7204,11 +7782,104 @@
     "distance": 2,
     "distance_type": "stops",
     "qty": 10,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1880_c2",
-    "notes": "Runs up to 2 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase C2 (after first 6-train)",
+    "summary": "Russian Broad-Gauge 2R locomotive (permanent auxiliary train)",
+    "notes": "Permanent auxiliary locomotive. Available for purchase in Phase C2 once the first 6-train is bought. Pool: 10 trains at ¥250. Does NOT trigger a Share Round when the last 2R train is bought. Occupies normal train limit slot.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Runs up to 2 consecutive stations.",
+      "Must include a station marker of the operating company.",
+      "Does not advance the Train Purchase Marker or trigger a Share Round upon sale of the final card.",
+      "Deducts ¥10 per ferry connection traversed."
+    ]
   },
+  "1880_6e": {
+    "id": "1880_6e",
+    "game_id": "1880",
+    "name": "6E",
+    "price": 700,
+    "distance": 6,
+    "distance_type": "express",
+    "qty": 5,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase C3",
+    "summary": "Express 6E train (skips intermediate cities; permanent)",
+    "notes": "Permanent express locomotive. Purchasing first 6E advances game to Phase C3: all 3+3 trains rust immediately, train limit drops to 2, grey tiles become available, and station marker costs double (¥80 for second, ¥200 for third). Pool: 5 trains at ¥700.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Express train: Scores up to 6 stations (large and small); any number of intermediate cities along the route may be omitted from scoring.",
+      "Route must contain at least one station marker belonging to the operating company.",
+      "Qualifies for the Trans-Siberian bonus (+¥50) if connecting Russia (A3) and Vladivostok (A15).",
+      "Deducts ¥10 per ferry connection traversed."
+    ]
+  },
+  "1880_8": {
+    "id": "1880_8",
+    "game_id": "1880",
+    "name": "8",
+    "price": 800,
+    "distance": 8,
+    "distance_type": "stops",
+    "qty": 2,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase D1",
+    "summary": "Standard 8-train (endgame countdown trigger; permanent)",
+    "notes": "Permanent locomotive. Purchasing first 8-train advances game to Phase D1: all 4-trains rust immediately. When the second 8-train is bought (or removed), the final Share Round is triggered, the Train Purchase Marker freezes, and each company operates exactly 3 more times before game end. Pool: 2 trains at ¥800. Train limit: 2.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Scores up to 8 consecutive stations (large and small).",
+      "Purchasing second 8-train triggers the final Share Round and freezes the Train Purchase Marker for the 3-round endgame.",
+      "Qualifies for the Trans-Siberian bonus (+¥50).",
+      "Deducts ¥10 per ferry connection traversed."
+    ]
+  },
+  "1880_8e": {
+    "id": "1880_8e",
+    "game_id": "1880",
+    "name": "8E",
+    "price": 900,
+    "distance": 8,
+    "distance_type": "express",
+    "qty": 2,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase D2",
+    "summary": "Express 8E train (skips intermediate cities; permanent)",
+    "notes": "Permanent express locomotive. Purchasing first 8E advances game to Phase D2: all 4+4 trains rust immediately. If unbought for a complete OR round, both 8E trains are permanently removed from play. Pool: 2 trains at ¥900. Train limit: 2.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Express train: Scores up to 8 stations (large and small); any number of intermediate cities on the route may be omitted.",
+      "Must include at least one station marker of the operating company.",
+      "Qualifies for the Trans-Siberian bonus (+¥50).",
+      "Deducts ¥10 per ferry connection traversed."
+    ]
+  },
+  "1880_10": {
+    "id": "1880_10",
+    "game_id": "1880",
+    "name": "10",
+    "price": 1000,
+    "distance": 10,
+    "distance_type": "stops",
+    "qty": null,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase D3",
+    "summary": "Standard 10-train (permanent; unlimited supply)",
+    "notes": "Permanent locomotive. Unlimited supply available in Phase D3 at ¥1000. Never removed from play. Train limit: 2.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Unlimited supply available from the Bank.",
+      "Scores up to 10 consecutive stations (large and small).",
+      "Qualifies for the Trans-Siberian bonus (+¥50).",
+      "Deducts ¥10 per ferry connection traversed."
+    ]
+  },
+
   "1880_romania_2": {
     "id": "1880_romania_2",
     "game_id": "1880_romania",
@@ -7220,136 +7891,6 @@
     "rusts_on_id": "1880_romania_4",
     "obsolete_on_id": null,
     "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
-  },
-  "1880_romania_2p2": {
-    "id": "1880_romania_2p2",
-    "game_id": "1880_romania",
-    "name": "2+2",
-    "price": 180,
-    "distance": 2,
-    "distance_type": "major_minor",
-    "qty": 5,
-    "rusts_on_id": "1880_romania_4p4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 major stops plus minor/town stops."
-  },
-  "1880_romania_3": {
-    "id": "1880_romania_3",
-    "game_id": "1880_romania",
-    "name": "3",
-    "price": 180,
-    "distance": 3,
-    "distance_type": "stops",
-    "qty": 5,
-    "rusts_on_id": "1880_romania_6",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 revenue stops."
-  },
-  "1880_romania_3p3": {
-    "id": "1880_romania_3p3",
-    "game_id": "1880_romania",
-    "name": "3+3",
-    "price": 300,
-    "distance": 3,
-    "distance_type": "major_minor",
-    "qty": 5,
-    "rusts_on_id": "1880_romania_6e",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 major stops plus minor/town stops."
-  },
-  "1880_romania_4": {
-    "id": "1880_romania_4",
-    "game_id": "1880_romania",
-    "name": "4",
-    "price": 300,
-    "distance": 4,
-    "distance_type": "stops",
-    "qty": 5,
-    "rusts_on_id": "1880_romania_8",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
-  },
-  "1880_romania_4p4": {
-    "id": "1880_romania_4p4",
-    "game_id": "1880_romania",
-    "name": "4+4",
-    "price": 600,
-    "distance": 4,
-    "distance_type": "major_minor",
-    "qty": 5,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 major stops plus minor/town stops."
-  },
-  "1880_romania_6": {
-    "id": "1880_romania_6",
-    "game_id": "1880_romania",
-    "name": "6",
-    "price": 600,
-    "distance": 6,
-    "distance_type": "stops",
-    "qty": 3,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops."
-  },
-  "1880_romania_6e": {
-    "id": "1880_romania_6e",
-    "game_id": "1880_romania",
-    "name": "6E",
-    "price": 700,
-    "distance": 6,
-    "distance_type": "node_array",
-    "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops (structured node restrictions apply)."
-  },
-  "1880_romania_8": {
-    "id": "1880_romania_8",
-    "game_id": "1880_romania",
-    "name": "8",
-    "price": 800,
-    "distance": 8,
-    "distance_type": "stops",
-    "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 8 revenue stops."
-  },
-  "1880_romania_8e": {
-    "id": "1880_romania_8e",
-    "game_id": "1880_romania",
-    "name": "8E",
-    "price": 900,
-    "distance": 8,
-    "distance_type": "node_array",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 8 revenue stops (structured node restrictions apply)."
-  },
-  "1880_romania_2r": {
-    "id": "1880_romania_2r",
-    "game_id": "1880_romania",
-    "name": "2R",
-    "price": 250,
-    "distance": 2,
-    "distance_type": "stops",
-    "qty": 10,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1880_romania_c2",
     "notes": "Runs up to 2 revenue stops."
   },
   "1882_2": {
@@ -10095,6 +10636,9 @@
     "available_on_id": null,
     "notes": "Runs up to 99 revenue stops (structured node restrictions apply)."
   },
+  
+  
+  
   "18_mex_4d": {
     "id": "18_mex_4d",
     "game_id": "18_mex",
@@ -11377,10 +11921,38 @@
     "distance": 2,
     "distance_type": "stops",
     "qty": 6,
-    "rusts_on_id": "18_scan_4",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
+    "rusts_on": "Phase 4 (first 4/3+3 purchase)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 2",
+    "summary": "Regular 2-train (max 2 cities, or 1 city and 1 town)",
+    "notes": "Phase 2 regular locomotive. Paired in train stack with 1+1 (total pool: 6 trains across both models). Train limit: Minor 2, Corporation 4. Incremental funding (2 shares to float). First off-map values used. Rusted upon purchase of first 4/3+3 train.",
+    "rules": [
+      "Scores up to 2 cities, or 1 city and 1 town along a legal continuous route.",
+      "Must include a city containing a station token of the operating company.",
+      "May visit an Off-Map Area only if containing an owned station token (must be at route terminus).",
+      "Eligible for +K20 Turku-Stockholm Ferry bonus if company owns Ferry token.",
+      "Rusted and removed from the game without compensation upon purchase of the first 4/3+3 train."
+    ]
+  },
+  "18_scan_1p1": {
+    "id": "18_scan_1p1",
+    "game_id": "18_scan",
+    "name": "1+1",
+    "price": 80,
+    "distance": 1,
+    "distance_type": "major_minor",
+    "qty": 6,
+    "rusts_on": "Phase 4 (first 4/3+3 purchase)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 2",
+    "summary": "Plus 1+1 train (max 1 city and 1 town)",
+    "notes": "Phase 2 plus locomotive. Costs K20 less than regular 2-train. Paired in stack with 2-train (total pool: 6). Rusted upon purchase of first 4/3+3 train.",
+    "rules": [
+      "Scores up to 1 city and up to 1 town along a continuous route.",
+      "Must include a city containing an owned station token.",
+      "Costs K80 (K20 discount relative to regular 2-train).",
+      "Rusted and removed from the game without compensation upon purchase of the first 4/3+3 train."
+    ]
   },
   "18_scan_3": {
     "id": "18_scan_3",
@@ -11390,10 +11962,37 @@
     "distance": 3,
     "distance_type": "stops",
     "qty": 4,
-    "rusts_on_id": "18_scan_5",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 3 revenue stops."
+    "rusts_on": "Phase 5 (first 5/4+4 purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 3",
+    "summary": "Regular 3-train (max 3 cities, or up to 2 towns with 1 city)",
+    "notes": "Purchasing first 3/2+2 advances game to Phase 3: green tiles become available, second off-map values used, and corporations require 3 shares to float (incremental funding). Paired in stack with 2+2 (total pool: 4). Train limit: Minor 2, Corporation 4. Rusted upon first 5/4+4 train.",
+    "rules": [
+      "Scores up to 3 cities, or up to 2 towns (assuming 1 city) along a continuous route.",
+      "Must include a city with an owned station token.",
+      "Eligible for Ferry bonus (+K20) and Kiruna Mine bonus (+K50) if applicable tokens owned.",
+      "Rusted and removed from the game without compensation upon purchase of the first 5/4+4 train."
+    ]
+  },
+  "18_scan_2p2": {
+    "id": "18_scan_2p2",
+    "game_id": "18_scan",
+    "name": "2+2",
+    "price": 180,
+    "distance": 2,
+    "distance_type": "major_minor",
+    "qty": 4,
+    "rusts_on": "Phase 5 (first 5/4+4 purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 3",
+    "summary": "Plus 2+2 train (max 2 cities and up to 3 towns)",
+    "notes": "Phase 3 plus locomotive. Costs K20 less than regular 3-train. Paired in stack with 3-train (total pool: 4). Rusted upon purchase of first 5/4+4 train.",
+    "rules": [
+      "Scores up to 2 cities and up to 3 towns (assuming 1 city) along a continuous route.",
+      "Must include an owned station token.",
+      "Costs K180 (K20 discount relative to regular 3-train).",
+      "Rusted and removed from the game without compensation upon purchase of the first 5/4+4 train."
+    ]
   },
   "18_scan_4": {
     "id": "18_scan_4",
@@ -11403,10 +12002,37 @@
     "distance": 4,
     "distance_type": "stops",
     "qty": 3,
-    "rusts_on_id": "18_scan_4d",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
+    "rusts_on": "Phase 4D (first 4D purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 4",
+    "summary": "Regular 4-train (max 4 cities, or up to 3 towns with 1 city)",
+    "notes": "Purchasing first 4/3+3 advances game to Phase 4: all 2 and 1+1 trains scrapped immediately, train limits drop by 1 (Minor 1, Corporation 3), and corporations require 4 shares to float. Paired in stack with 3+3 (total pool: 3). Rusted upon first 4D train.",
+    "rules": [
+      "Scores up to 4 cities, or up to 3 towns (assuming 1 city) along a continuous route.",
+      "Must include an owned station token.",
+      "Purchasing first 4/3+3 scraps all 2 and 1+1 trains.",
+      "Rusted and removed from the game without compensation upon purchase of the first 4D train."
+    ]
+  },
+  "18_scan_3p3": {
+    "id": "18_scan_3p3",
+    "game_id": "18_scan",
+    "name": "3+3",
+    "price": 280,
+    "distance": 3,
+    "distance_type": "major_minor",
+    "qty": 3,
+    "rusts_on": "Phase 4D (first 4D purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 4",
+    "summary": "Plus 3+3 train (max 3 cities and up to 5 towns)",
+    "notes": "Phase 4 plus locomotive. Costs K20 less than regular 4-train. Paired in stack with 4-train (total pool: 3). Rusted upon purchase of first 4D train.",
+    "rules": [
+      "Scores up to 3 cities and up to 5 towns (assuming 1 city) along a continuous route.",
+      "Must include an owned station token.",
+      "Costs K280 (K20 discount relative to regular 4-train).",
+      "Rusted and removed from the game without compensation upon purchase of the first 4D train."
+    ]
   },
   "18_scan_5": {
     "id": "18_scan_5",
@@ -11416,10 +12042,37 @@
     "distance": 5,
     "distance_type": "stops",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5",
+    "summary": "Regular 5-train (permanent; Phase 5 trigger)",
+    "notes": "Permanent locomotive. Purchasing first 5/4+4 advances game to Phase 5: all 3 and 2+2 trains scrapped, brown tiles available, third off-map values used, train limits drop (Corporation 2, SJ 3), all Private and Minor companies close immediately, SJ is eligible to form, remaining 5/4+4 train moves to Pool, 5E trains become available, and new corporations require 5 shares to float with full 10-share funding. Paired in stack with 4+4 (total pool: 2).",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Scores up to 5 cities, or up to 4 towns (assuming 1 city) along a continuous route.",
+      "Must include an owned station token.",
+      "Purchasing first 5/4+4 scraps all 3 and 2+2 trains and closes all Private and Minor companies."
+    ]
+  },
+  "18_scan_4p4": {
+    "id": "18_scan_4p4",
+    "game_id": "18_scan",
+    "name": "4+4",
+    "price": 480,
+    "distance": 4,
+    "distance_type": "major_minor",
+    "qty": 2,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5",
+    "summary": "Plus 4+4 permanent train (max 4 cities and up to 7 towns)",
+    "notes": "Permanent locomotive. Costs K20 less than regular 5-train. Paired in stack with 5-train (total pool: 2).",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Scores up to 4 cities and up to 7 towns (assuming 1 city) along a continuous route.",
+      "Must include an owned station token.",
+      "Costs K480 (K20 discount relative to regular 5-train)."
+    ]
   },
   "18_scan_5e": {
     "id": "18_scan_5e",
@@ -11427,26 +12080,46 @@
     "name": "5E",
     "price": 600,
     "distance": 5,
-    "distance_type": "node_array",
+    "distance_type": "express",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "18_scan_5",
-    "notes": "Runs up to 5 revenue stops (structured node restrictions apply)."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 5E (after first 5/4+4 purchase)",
+    "summary": "Express 5E train (up to 5 cities, ignores all towns; permanent)",
+    "notes": "Permanent express locomotive. Becomes available after first 5/4+4 train is purchased. Purchasing first 5E unlocks 4D trains (remaining 5E moves to Pool). Pool: 2 trains at K600. Train limit: Corporation 2, SJ 3.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Scores up to 5 cities along a continuous unbranched route.",
+      "Completely ignores all towns on route (treated as 0 value and do not count against city limit).",
+      "Cannot score Kiruna (town) or benefit from the Kiruna Mine bonus (+K50).",
+      "Eligible for Ferry bonus (+K20) across Turku-Stockholm Ferry if token owned.",
+      "Must include an owned station token."
+    ]
   },
   "18_scan_4d": {
     "id": "18_scan_4d",
     "game_id": "18_scan",
     "name": "4D",
     "price": 800,
-    "distance": 999,
-    "distance_type": "unlimited",
-    "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "18_scan_5e",
-    "notes": "Diesel: Unlimited route distance."
+    "distance": 4,
+    "distance_type": "high_speed",
+    "qty": 6,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 4D (after first 5E purchase)",
+    "summary": "High-Speed Diesel 4D train (up to 4 cities, 2x revenue, ignores towns; permanent)",
+    "notes": "Permanent high-speed locomotive. Becomes available after first 5E train is purchased. Purchasing first 4D scraps all remaining 4 and 3+3 trains immediately. Pool: 6 trains at K800. Train limit: Corporation 2, SJ 3.",
+    "rules": [
+      "Permanent locomotive: Never rusts.",
+      "Purchasing first 4D immediately scraps all 4 and 3+3 trains.",
+      "Scores up to 4 cities along a continuous route, ignoring all towns (treated as 0 value and do not count toward distance).",
+      "DOUBLES the total sum of all city values on its route!",
+      "DOUBLES the Turku-Stockholm Ferry bonus to +K40 if company owns Ferry bonus token!",
+      "Cannot score Kiruna (town) or benefit from the Kiruna Mine bonus.",
+      "Must include an owned station token."
+    ]
   },
+
   "18_sj_2": {
     "id": "18_sj_2",
     "game_id": "18_sj",

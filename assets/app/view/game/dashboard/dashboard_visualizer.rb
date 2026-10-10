@@ -3,7 +3,6 @@
 # rubocop:disable Layout/LineLength
 
 require 'view/game/actionable'
-require 'view/game/dashboard/dashboard_command_column'
 require 'view/game/dashboard/dashboard_map'
 require 'view/game/dashboard/dashboard_entity_order'
 require 'view/game/dashboard/dashboard_game_status'
@@ -14,6 +13,7 @@ require 'view/game/dashboard/draft_overlay'
 require 'view/game/dashboard/bidding_overlay'
 require 'view/game/dashboard/dashboard_tile_manifest'
 require 'view/game/dashboard/other_games_overlay'
+require 'view/game/dashboard/dashboard_action_window'
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
 module Engine
@@ -50,7 +50,183 @@ module View
       needs :show_move_history, store: true, default: false
       needs :par_menu_corp, store: true, default: nil
       needs :show_other_games_overlay, store: true, default: false
+      needs :show_actions_window, store: true, default: false
+
       include Actionable
+
+      def actions_window_open?
+        is_hotseat = @game_data && (@game_data[:mode] == :hotseat || @game_data['mode'] == 'hotseat')
+        return true if is_hotseat
+
+        user_id = @user&.dig('id') || @user&.dig(:id)
+        return false unless user_id
+
+        active_ids =
+          if @game.respond_to?(:active_players_id)
+            Array(@game.active_players_id).map(&:to_s)
+          else
+            []
+          end
+
+        active_ids.include?(user_id.to_s)
+      end
+
+      def render_action_hub_button
+        is_open = actions_window_open?
+        bg_color = is_open ? '#eff6ff' : '#ffffff'
+        border_style = is_open ? '2px solid #2563eb' : '1px solid #cbd5e1'
+        text_color = is_open ? '#1d4ed8' : '#334155'
+
+        click_action = lambda do
+          val = !actions_window_open?
+          Lib::Storage['dashboard_show_actions'] = val ? 'true' : 'false'
+          %x{
+            try {
+              localStorage.setItem('dashboard_show_actions', #{val ? 'true' : 'false'});
+            } catch(e) {}
+          }
+          store(:show_actions_window, val)
+          update
+        end
+
+        h(:button, {
+            attrs: {
+              id: 'btn-action-hub',
+              type: 'button',
+              title: is_open ? 'Actions Hub: Active (click to close)' : 'Open Actions Hub',
+            },
+            style: {
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+              minWidth: '48px',
+              padding: '0',
+              flexShrink: '0',
+              borderRadius: '8px',
+              backgroundColor: bg_color,
+              color: text_color,
+              border: border_style,
+              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
+              cursor: 'pointer',
+              lineHeight: '1',
+              zIndex: 10,
+              transition: 'all 0.2s ease',
+            },
+            on: { click: click_action },
+          }, [
+            h(:span, { style: { fontSize: '1.8rem', lineHeight: '1' } }, '⚡'),
+          ])
+      end
+
+      def render_history_button
+        val = Lib::Storage['cmd_history_overlay']
+        is_open = [true, 'true'].include?(val) || @show_history_overlay == true
+
+        h(:button, {
+            attrs: {
+              id: 'btn-history-overlay',
+              type: 'button',
+              title: is_open ? 'Close Game History' : 'Show Game History',
+            },
+            style: {
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+              minWidth: '48px',
+              padding: '0',
+              flexShrink: '0',
+              borderRadius: '8px',
+              backgroundColor: is_open ? '#eff6ff' : '#ffffff',
+              color: is_open ? '#1d4ed8' : '#334155',
+              border: is_open ? '2px solid #2563eb' : '1px solid #cbd5e1',
+              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
+              cursor: 'pointer',
+              lineHeight: '1',
+              zIndex: 10,
+              transition: 'all 0.2s ease',
+            },
+            on: {
+              click: lambda {
+                new_val = !is_open
+                Lib::Storage['cmd_history_overlay'] = new_val ? true : nil
+                store(:show_history_overlay, new_val)
+                update
+              },
+            },
+          }, [
+            h(:span, { style: { fontSize: '1.8rem', lineHeight: '1' } }, '📜'),
+          ])
+      end
+
+      def render_move_history_button
+        val = Lib::Storage['cmd_move_history_overlay']
+        is_open = [true, 'true'].include?(val) || @show_move_history == true
+
+        h(:button, {
+            attrs: {
+              id: 'btn-move-history-overlay',
+              type: 'button',
+              title: is_open ? 'Close Last Moves' : 'Show Last Moves',
+            },
+            style: {
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+              minWidth: '48px',
+              padding: '0',
+              flexShrink: '0',
+              borderRadius: '8px',
+              backgroundColor: is_open ? '#eff6ff' : '#ffffff',
+              color: is_open ? '#1d4ed8' : '#334155',
+              border: is_open ? '2px solid #2563eb' : '1px solid #cbd5e1',
+              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
+              cursor: 'pointer',
+              lineHeight: '1',
+              zIndex: 10,
+              transition: 'all 0.2s ease',
+            },
+            on: {
+              click: lambda {
+                new_val = !is_open
+                Lib::Storage['cmd_move_history_overlay'] = new_val ? true : nil
+                store(:show_move_history, new_val)
+                update
+              },
+            },
+          }, [
+            h(:span, { style: { fontSize: '1.8rem', lineHeight: '1' } }, '🕘'),
+          ])
+      end
+
+      def render_action_window
+        return nil unless actions_window_open?
+
+        close_handler = lambda {
+          Lib::Storage['dashboard_show_actions'] = 'false'
+          %x{
+            try {
+              localStorage.setItem('dashboard_show_actions', 'false');
+            } catch (e) {}
+          }
+          store(:show_actions_window, false)
+          update
+        }
+
+        h(::View::Game::Dashboard::DashboardActionWindow,
+          game: @game,
+          game_data: @game_data,
+          user: @user,
+          on_close: close_handler)
+      end
 
       def active_entity
         @game.round.active_step&.current_entity
@@ -429,9 +605,12 @@ module View
               zIndex: 99_999,
             },
           }, [
-              render_other_games_button,
-              render_sound_toggle_button,
-            ])
+            (actions_window_open? ? render_action_hub_button : nil),
+            render_history_button,
+            render_move_history_button,
+            render_other_games_button,
+            render_sound_toggle_button,
+            ].compact)
       end
 
       def render_other_games_button
@@ -570,7 +749,7 @@ badge_el,
 
       def render_phases_overlay
         val = Lib::Storage['dashboard_show_phases']
-        is_open = val == true || val == 'true'
+        is_open = [true, 'true'].include?(val)
         return nil unless is_open
 
         close_handler = lambda {
@@ -1032,7 +1211,6 @@ badge_el,
                           ctx.resume();
                         }
 
-                        // 32-bit FNV-1a hash of arbitrary username string
                         var str = String(playerName || 'player').trim().toLowerCase();
                         var hash = 2166136261;
                         for (var i = 0; i < str.length; i++) {
@@ -1041,26 +1219,13 @@ badge_el,
                         }
                         hash = hash >>> 0;
 
-                        // Pentatonic scale degrees (E4 to C6)
                         var pentatonic = [
-                          329.63, // E4
-                          392.00, // G4
-                          440.00, // A4
-                          493.88, // B4
-                          523.25, // C5
-                          587.33, // D5
-                          659.25, // E5
-                          783.99, // G5
-                          880.00, // A5
-                          987.77, // B5
-                          1046.50 // C6
+                          329.63, 392.00, 440.00, 493.88, 523.25,
+                          587.33, 659.25, 783.99, 880.00, 987.77, 1046.50
                         ];
 
-                        // 1. Root frequency index (0..5: E4 to D5)
                         var rootIdx = hash % 6;
                         var hRem = Math.floor(hash / 6);
-
-                        // 2. Consonant ascending interval step (2..5 pentatonic degrees)
                         var step = (hRem % 4) + 2;
                         var secondIdx = rootIdx + step;
                         hRem = Math.floor(hRem / 4);
@@ -1068,17 +1233,15 @@ badge_el,
                         var f1 = pentatonic[rootIdx];
                         var f2 = pentatonic[secondIdx];
 
-                        // 3. Rhythm contour (total duration bounded between 220ms and 250ms)
                         var rhythms = [
-                          { d1: 0.09, gap: 0.02, d2: 0.13 },  // Balanced
-                          { d1: 0.05, gap: 0.015, d2: 0.16 }, // Scotch snap
-                          { d1: 0.04, gap: 0.01, d2: 0.18 },  // Grace note
-                          { d1: 0.11, gap: 0.025, d2: 0.10 }  // Emphatic
+                          { d1: 0.09, gap: 0.02, d2: 0.13 },
+                          { d1: 0.05, gap: 0.015, d2: 0.16 },
+                          { d1: 0.04, gap: 0.01, d2: 0.18 },
+                          { d1: 0.11, gap: 0.025, d2: 0.10 }
                         ];
                         var rhythm = rhythms[hRem % 4];
                         hRem = Math.floor(hRem / 4);
 
-                        // 4. Harmonic overtone weight (10% to 25%)
                         var overtoneGain = 0.10 + ((hRem % 4) * 0.05);
 
                         var now = ctx.currentTime;
@@ -1188,7 +1351,6 @@ badge_el,
                       '} ' +
                       '.frame-opponent-turn { border: 4px solid #94a3b8 !important; } ' +
                       '.frame-opponent-turn::after { animation: frame-opponent-breath 3.5s ease-in-out infinite !important; } ' +
-
                       '#turn-notification-ribbon { ' +
                       '  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 999999; ' +
                       '  padding: 8px 24px; border-radius: 20px; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; ' +
@@ -1270,7 +1432,6 @@ badge_el,
                       '  82% { opacity: 0.8; transform: translate(-4px, -12px) scale(1); filter: blur(1px); } ' +
                       '  100% { opacity: 0; transform: translate(-8px, -22px) scale(1.4); filter: blur(4px); } ' +
                       '} ' +
-
                       '#panel-market { isolation: isolate; } ' +
                       '.hover-overlay, #market-hover-overlay, .market-hover-overlay, ' +
                       '.stock-market-tooltip, .market-tooltip, [class*="hover-overlay"], [id*="hover-overlay"] { ' +
@@ -1456,7 +1617,6 @@ badge_el,
                     };
 
                     createResizer('resizer-v-main', 'col-left', 'col-right', false);
-                    createResizer('resizer-h-cmd-map', 'command-space-top', 'map-panel-bot', true);
                     createResizer('resizer-h-entity-ledger', 'temporal-hub', 'panel-ledger', true);
                     createResizer('resizer-h-ledger-market', 'panel-ledger', 'panel-market', true);
 
@@ -1878,15 +2038,8 @@ badge_el,
             },
           }, [
             h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
-              h(:div, { attrs: { id: 'command-space-top' }, style: { flex: '0 0 9rem', minHeight: '6.5rem', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box' } }, [
-                h(:div, { attrs: { id: 'command-scroll-viewport' }, style: { padding: '1.45rem 0.25rem 0.2rem', height: '100%', minHeight: '0', boxSizing: 'border-box', overflow: 'hidden' } }, [
-                  h(View::Game::DashboardCommandColumn, game: @game, user: @user, game_data: @game_data),
-                ]),
-              ]),
 
-              h(:div, { attrs: { id: 'resizer-h-cmd-map' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
-
-              h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px 4px 0 0', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
+              h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', width: '100%', height: '100%', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
                 render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
                 h(:div, {
                     attrs: { id: 'map-scroll-canvas' },
@@ -1994,24 +2147,6 @@ badge_el,
                     gap: '0.5rem',
                   },
                 }, [
-                h(:style, {}, '
-            /* Target the div children directly to account for prepended style tags */
-            #command-space-top #dashboard-command-panel-bar > div:first-of-type {
-              display: none !important;
-            }
-            #command-space-top #dashboard-command-panel-bar > div:nth-of-type(2) {
-              flex: 1 1 auto !important;
-              min-width: 0 !important;
-              border-left: none !important;
-            }
-            #command-space-top #dashboard-command-panel-bar > div:nth-of-type(3) {
-              flex: 0 0 28% !important;
-              min-width: 15.5rem !important;
-              max-width: none !important;
-              box-sizing: border-box !important;
-              overflow: visible !important;
-            }
-          '),
                 render_active_turn_card,
                 h(:div, {
                     attrs: { class: 'entity-order-content' },
@@ -2057,6 +2192,7 @@ badge_el,
             render_other_games_overlay,
             render_top_nav_utility_cluster,
             render_phases_overlay,
+            render_action_window,
 
             h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
           ].compact)
