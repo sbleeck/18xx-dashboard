@@ -39,6 +39,8 @@ COMMIT_HASH=$(git rev-parse --short HEAD)
 echo "==> Current commit: $COMMIT_HASH on $CURRENT_BRANCH"
 
 # 3. Recompile frontend assets via Rake
+echo "==> Baking trains.json into assets/app/lib/trains_data.rb..."
+ruby -rjson -e 'src = Dir["assets/app/view/game/dashboard/train*.json"].first; File.write("assets/app/lib/trains_data.rb", "# frozen_string_literal: true\nmodule Engine\n  TRAINS_DATA = " + JSON.parse(File.read(src)).inspect + ".freeze\nend\n")'
 echo "==> Compiling frontend assets via Rake..."
 bundle exec rake assets
 

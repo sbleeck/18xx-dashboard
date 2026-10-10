@@ -16,7 +16,9 @@ module View
       needs :show_loan_table, default: false, store: true
 
       FONT_STD = '"Helvetica Neue", Helvetica, Arial, sans-serif'
-      FONT_MONEY = 'var(--font-money, "Courier New", monospace)'
+      FONT_MONEY = '"Courier New", Courier, monospace'
+      FONT_CASH = '"Arial Black", Gadget, sans-serif'
+      COLOR_CASH = '#4b0082' # Dark Purple (Indigo)
       COLOR_MONEY = 'var(--color-money-text, #4c1d95)'
       COLOR_BANK_GREEN = 'var(--bg-market-zone, #e6f4ea)'
 
@@ -152,18 +154,21 @@ module View
         end
 
         available_count = train_available_count(train, variant_name, from_pool: (type == 'pool'))
+        rem_text = train.respond_to?(:unlimited) && train.unlimited ? '(∞)' : "(#{available_count})"
         dom_id = "bank_train_#{type}_#{train.id}_#{variant_name.to_s.tr('/', '_')}"
         card_el = render_railcard(variant_name.to_s, card_classes, click_handler, entity: train)
 
-        card_td = h('td.left', { key: "#{dom_id}_card", style: { padding: '4px 6px', verticalAlign: 'middle' } }, [
+        card_td = h('td.left', { key: "#{dom_id}_card", style: { padding: '2px 4px', verticalAlign: 'middle' } }, [
           h(:div, { attrs: { id: dom_id }, style: { display: 'inline-flex', alignItems: 'center' } }, [card_el]),
         ])
 
-        info_td = h('td.right', { key: "#{dom_id}_info", style: { padding: '4px 6px', verticalAlign: 'middle', whiteSpace: 'nowrap' } }, [
-          h(:span,
-            { style: { fontFamily: FONT_MONEY, color: COLOR_MONEY, fontSize: '0.85rem', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' } }, @game.format_currency(price)),
-          h(:span, { style: { fontFamily: FONT_STD, color: '#555555', fontSize: '0.75rem', marginLeft: '4px' } },
-            "(#{available_count})"),
+        info_td = h('td.right', { key: "#{dom_id}_info", style: { padding: '2px 4px', verticalAlign: 'middle', whiteSpace: 'nowrap' } }, [
+          h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'flex-end' } }, [
+            h(:span, { style: { fontFamily: FONT_CASH, color: COLOR_CASH, fontWeight: 'bold', fontSize: '0.82rem' } },
+              @game.format_currency(price)),
+            h(:span,
+              { style: { fontFamily: FONT_STD, fontSize: '0.82rem', fontWeight: 'bold', color: '#000000', minWidth: '1.8rem', textAlign: 'right' } }, rem_text),
+          ]),
         ])
 
         [card_td, info_td]

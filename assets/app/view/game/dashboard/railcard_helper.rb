@@ -2,6 +2,7 @@
 
 # rubocop:disable Layout/LineLength
 require 'view/game/corporation'
+require 'lib/trains_data'
 
 module View
   module Game
@@ -582,105 +583,213 @@ module View
 
           return nil if raw_name.empty?
 
-          train_def = nil
-          if !train && @game.class.const_defined?(:TRAINS)
+          clean_name = raw_name.tr('()', '').strip
+          has_warranty = clean_name.end_with?('*')
+          clean_code = clean_name.sub(/\*+$/, '').strip
+          slug = clean_code.downcase.tr('+/ ', 'p__').gsub(/[^a-z0-9_]/, '')
+
+          gid = game_id_str
+
+          # 1. Agnostic lookup from compiled in-memory data store
+          store = (Engine::TRAINS_DATA if defined?(Engine::TRAINS_DATA)) || {}
+          direct_key = "#{gid}_#{slug}"
+          train_def = store[direct_key] || store[direct_key.to_sym]
+          parent_name = train_def ? (train_def['parent_name'] || train_def[:parent_name]) : nil
+
+          # 2. Generic scan for nested variants if not keyed directly
+          if !train_def && !store.empty?
+            store.each_value do |entry|
+              entry_gid = (entry['game_id'] || entry[:game_id]).to_s.downcase
+              next unless entry_gid == gid.downcase
+
+              entry_name = (entry['name'] || entry[:name]).to_s
+              if entry_name.casecmp?(clean_code)
+                train_def = entry
+                break
+              end
+
+              variants = entry['variants'] || entry[:variants]
+              if variants.is_a?(Hash)
+                variants.each do |v_key, v_def|
+                  v_name = (v_def['name'] || v_def[:name] || v_key).to_s
+                  next unless v_name.casecmp?(clean_code) || v_key.to_s.casecmp?(clean_code)
+
+                  train_def = entry.merge(v_def)
+                  parent_name = entry_name
+                  break
+                end
+              end
+              break if train_def
+            end
+          end
+
+          # 3. Fallback to engine TRAINS array if missing from JSON
+          if !train_def && @game.class.const_defined?(:TRAINS)
             raw_trains = @game.class::TRAINS
-            train_def = raw_trains.find { |td| td[:name] == raw_name } if raw_trains.is_a?(Array)
+            train_def = raw_trains.find { |td| [clean_code, raw_name].include?(td[:name].to_s) } if raw_trains.is_a?(Array)
           end
 
           price = if train
                     train.price
-                  else
-                    (train_def ? train_def[:price] : nil)
+                  elsif train_def
+                    train_def['price'] || train_def[:price]
                   end
+
           distance = if train
                        train.distance
-                     else
-                       (train_def ? train_def[:distance] : nil)
+                     elsif train_def
+                       train_def['distance'] || train_def[:distance]
                      end
+
           rusts_on = if train
                        train.rusts_on
-                     else
-                       (train_def ? train_def[:rusts_on] : nil)
+                     elsif train_def
+                       train_def['rusts_on'] || train_def[:rusts_on] || train_def['rusts_on_id'] || train_def[:rusts_on_id]
                      end
-          obsolete_on = if train
-                          train.respond_to?(:obsolete_on) ? train.obsolete_on : nil
-                        else
-                          (train_def ? train_def[:obsolete_on] : nil)
+          rusts_on = rusts_on.to_s.sub(/^.*_/, '').capitalize if rusts_on
+
+          obsolete_on = if train&.respond_to?(:obsolete_on)
+                          train.obsolete_on
+                        elsif train_def
+                          train_def['obsolete_on'] || train_def[:obsolete_on] || train_def['obsolete_on_id'] || train_def[:obsolete_on_id]
                         end
-          available_on = if train
-                           train.respond_to?(:available_on) ? train.available_on : nil
-                         else
-                           (train_def ? train_def[:available_on] : nil)
+          obsolete_on = obsolete_on.to_s.sub(/^.*_/, '').capitalize if obsolete_on
+
+          available_on = if train&.respond_to?(:available_on)
+                           train.available_on
+                         elsif train_def
+                           train_def['available_on'] || train_def[:available_on] || train_def['available_on_id'] || train_def[:available_on_id]
                          end
+          available_on = available_on.to_s.sub(/^.*_/, '').capitalize if available_on
+
           is_obsolete = train&.respond_to?(:obsolete) && train.obsolete
 
           lines = []
 
           cost_str = price && price.positive? ? " (#{@game.format_currency(price)})" : ''
           status_tag = is_obsolete ? ' [Obsolete]' : ''
-          lines << "#{raw_name} Train#{cost_str}#{status_tag}"
+          parent_tag = parent_name ? " (Band #{parent_name}#{cost_str})" : cost_str
+          lines << "#{clean_name} Train#{parent_tag}#{status_tag}"
 
-          dist_str = distance.to_s.strip
-          hex_based = raw_name.end_with?('H') || @game.respond_to?(:hex_edge_cost)
-
-          if dist_str == '999' || %w[D 2D 3D 4D].include?(raw_name.upcase)
-            lines << 'Route: Unlimited revenue stops (Diesel)'
-          elsif raw_name.upcase == 'E' && (dist_str == '99' || dist_str.empty?)
-            lines << 'Route: Unlimited route distance (Express)'
-          elsif dist_str == '0' || raw_name.upcase == 'P'
-            lines << 'Route: Auxiliary car (attaches to train; bonus revenue)'
-          elsif hex_based
-            count = raw_name.gsub(/[^0-9]/, '')
-            count = dist_str if count.empty? && dist_str =~ /^\d+$/
-            lines << "Route: Up to #{count} hex edges"
-          elsif raw_name.include?('+') || dist_str.include?('plus_train_distance')
-            m = dist_str.match(/plus_train_distance\((\d+)\)/)
-            val = m ? m[1] : raw_name.split('+').first
-            lines << "Route: Up to #{val} major stops and #{val} towns"
-          elsif distance.is_a?(Array)
-            pay_counts = distance.map { |node| node['pay'] || node[:pay] }.compact
-            lines << if pay_counts.any?
-                       "Route: Up to #{pay_counts.max} revenue stops"
-                     elsif /^\d+$/.match?(raw_name)
-                       "Route: Up to #{raw_name} revenue stops"
-                     else
-                       'Route: Special stop restrictions'
-                     end
-          elsif /^\d+$/.match?(dist_str)
-            lines << "Route: Up to #{dist_str} revenue stops"
-          elsif /^\d+$/.match?(raw_name)
-            lines << "Route: Up to #{raw_name} revenue stops"
+          if has_warranty
+            lines << 'Status: Warrantied (Immune to rust; consumes 1 warranty token/OR)'
+          elsif train_def && train_def['rusts_on'].nil? && train_def[:rusts_on].nil? && train_def['rusts_on_id'].nil? && train_def[:rusts_on_id].nil? && rusts_on.nil? && !is_obsolete
+            lines << 'Status: Permanent'
           end
 
-          gid = game_id_str
-          slug = raw_name.downcase.tr('+', 'p').gsub(/[^a-z0-9_]/, '')
-          quirk_key = "#{gid}_#{slug}"
-          note = TRAIN_QUIRKS[quirk_key]
+          permit = train_def ? (train_def['permit_required'] || train_def[:permit_required]) : nil
+          lines << "Permit: Requires #{permit} Permit" if permit
 
-          if !note && hex_based && @game.class.name.include?('1849')
-            note = if raw_name.start_with?('R')
-                     'Restricted gauge: Narrow gauge = 1 edge; standard gauge = 2 edges.'
-                   else
-                     'Standard/dual gauge = 1 edge; narrow gauge = 2 edges.'
-                   end
+          summary = train_def ? (train_def['summary'] || train_def[:summary]) : nil
+          if summary
+            lines << "Route: #{summary}"
+          else
+            dist_str = distance.to_s.strip
+            hex_based = clean_name.end_with?('H') || @game.respond_to?(:hex_edge_cost)
+
+            if dist_str == '999' || %w[D 2D 3D 4D].include?(clean_name.upcase)
+              lines << 'Route: Unlimited revenue stops (Diesel)'
+            elsif clean_name.upcase == 'E' && (dist_str == '99' || dist_str.empty?)
+              lines << 'Route: Unlimited route distance (Express)'
+            elsif dist_str == '0' || clean_name.upcase == 'P'
+              lines << 'Route: Auxiliary car (attaches to train for bonus revenue)'
+            elsif hex_based
+              count = clean_name.gsub(/[^0-9]/, '')
+              count = dist_str if count.empty? && dist_str =~ /^\d+$/
+              lines << "Route: Up to #{count} hex edges"
+            elsif clean_name.include?('+') || dist_str.include?('plus_train_distance')
+              m = dist_str.match(/plus_train_distance\((\d+)\)/)
+              val = m ? m[1] : clean_name.split('+').first
+              lines << "Route: Up to #{val} major stops and #{val} towns"
+            elsif distance.is_a?(Array)
+              pay_counts = distance.map { |node| node['pay'] || node[:pay] }.compact
+              lines << (pay_counts.any? ? "Route: Up to #{pay_counts.max} revenue stops" : 'Route: Special stop restrictions')
+            elsif /^\d+$/.match?(dist_str)
+              lines << "Route: Up to #{dist_str} revenue stops"
+            elsif /^\d+$/.match?(clean_name)
+              lines << "Route: Up to #{clean_name} revenue stops"
+            end
           end
 
-          lines << "Note: #{note}" if note
+          rules = train_def ? (train_def['rules'] || train_def[:rules]) : nil
+          rules.each { |r| lines << "• #{r}" } if rules.is_a?(Array)
+
+          notes = train_def ? (train_def['notes'] || train_def[:notes]) : nil
+          lines << "Note: #{notes}" if notes && !notes.empty?
 
           if rusts_on
-            lines << "Rusts on: #{rusts_on}"
+            rust_label = has_warranty ? "Rusts on: #{rusts_on} (Delayed by Warranty)" : "Rusts on: #{rusts_on}"
+            lines << rust_label
           elsif obsolete_on
             lines << "Obsoletes on: #{obsolete_on}"
-          elsif !is_obsolete
-            lines << 'Status: Permanent'
           end
 
           lines << "Available on: #{available_on}" if available_on
 
           lines.join("\n")
         end
-        # // --- END FIX ---
+
+        def train_data_store
+          @train_data_store ||= begin
+            raw = nil
+            %x{
+              if (typeof window !== 'undefined' && window.TRAINS_DATA) {
+                raw = window.TRAINS_DATA;
+              } else if (typeof window !== 'undefined' && window._trains) {
+                raw = window._trains;
+              } else if (typeof require !== 'undefined') {
+                try { raw = require('./trains.json'); } catch(e1) {
+                  try { raw = require('../trains.json'); } catch(e2) {
+                    try { raw = require('../../trains.json'); } catch(e3) {
+                      try { raw = require('../../../trains.json'); } catch(e4) { raw = null; }
+                    }
+                  }
+                }
+              }
+            }
+            if raw.nil? && defined?(File) && File.exist?('trains.json')
+              require 'json' unless defined?(JSON)
+              raw = JSON.parse(File.read('trains.json'))
+            end
+            raw || {}
+          end
+        end
+
+        def lookup_train_def(gid, clean_name)
+          store = train_data_store
+          return [nil, nil] if store.empty?
+
+          clean_code = clean_name.sub(/\*+$/, '').strip
+          slug = clean_code.downcase.tr('+/ ', 'p__').gsub(/[^a-z0-9_]/, '')
+
+          # 1. Direct O(1) match by game_id + slug (e.g., 1862_1f, 1849_e, 1835_2p2)
+          direct_key = "#{gid}_#{slug}"
+          direct_def = store[direct_key] || store[direct_key.to_sym]
+          return [direct_def, direct_def[:parent_name] || direct_def['parent_name']] if direct_def
+
+          # 2. Match parent trains or nested variants across the active game
+          store.each_value do |entry|
+            entry_gid = (entry[:game_id] || entry['game_id']).to_s.downcase
+            next unless entry_gid == gid.downcase
+
+            entry_name = (entry[:name] || entry['name']).to_s
+            return [entry, nil] if entry_name.casecmp?(clean_code)
+
+            # Search nested variants dictionary if present
+            variants = entry[:variants] || entry['variants']
+            next unless variants.is_a?(Hash)
+
+            variants.each do |v_key, v_def|
+              v_name = (v_def[:name] || v_def['name'] || v_key).to_s
+              if v_name.casecmp?(clean_code) || v_key.to_s.casecmp?(clean_code)
+                merged = entry.merge(v_def)
+                return [merged, entry_name]
+              end
+            end
+          end
+
+          [nil, nil]
+        end
 
         def render_major_railcard(corporation, click_handler = nil, card_classes = ['major-railcard'], wrapper_id = nil)
           return nil unless major_corporation?(corporation) || minor_entity?(corporation)
@@ -713,9 +822,7 @@ module View
             attrs: {
               class: classes.join(' '),
               title: corporation.respond_to?(:name) ? corporation.name.to_s : text,
-              # --- START FIX ---
               'data-corp': corporation.id,
-              # --- END FIX ---
             },
             style: {
               minWidth: '3.2rem',

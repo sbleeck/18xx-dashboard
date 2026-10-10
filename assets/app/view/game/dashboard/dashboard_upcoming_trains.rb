@@ -205,7 +205,44 @@ module View
         @depot = @game.depot
         return nil if @depot.trains.empty?
 
+        bank_train_syms = []
+        discarded = @depot.respond_to?(:discarded) ? (@depot.discarded || []) : []
+        bank_train_syms.concat(discarded.reject { |t| t.respond_to?(:rusted) && t.rusted }.map(&:sym))
+
+        step = @game.round.active_step
+        buy_step = step if step&.respond_to?(:buyable_trains)
+        buy_step = @game.round.steps.find { |s| s.respond_to?(:buyable_trains) } if !buy_step && @game.round.respond_to?(:steps)
+
+        fresh_syms = []
+        if buy_step
+          entity = @game.round.active_step&.current_entity ||
+                    (@game.round.respond_to?(:current_entity) ? @game.round.current_entity : nil) ||
+                    (@game.respond_to?(:current_entity) ? @game.current_entity : nil) ||
+                    @game.corporations&.first
+          if entity
+            begin
+              buyable = buy_step.buyable_trains(entity) || []
+              fresh = buyable.select do |t|
+                !discarded.include?(t) &&
+                  (@depot.upcoming.include?(t) || ((t.respond_to?(:from_depot?) && t.from_depot?) || t.owner == @depot))
+              end
+              fresh_syms = fresh.reject { |t| t.respond_to?(:rusted) && t.rusted }.map(&:sym)
+            rescue StandardError
+            end
+          end
+        end
+
+        if fresh_syms.empty?
+          upcoming_non_rusted = @depot.upcoming.reject { |t| t.respond_to?(:rusted) && t.rusted }
+          fresh_syms = [upcoming_non_rusted.first&.sym].compact
+        end
+
+        bank_train_syms.concat(fresh_syms)
+        bank_train_syms.uniq!
+
         upcoming_by_type = @depot.trains.reject(&:reserved).group_by(&:sym).map do |sym, trains|
+          next nil if bank_train_syms.include?(sym)
+
           remaining = @depot.upcoming.select { |t| t.sym == sym }
           next nil if remaining.empty?
 

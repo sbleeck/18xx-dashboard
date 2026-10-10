@@ -5147,6 +5147,820 @@
     "available_on_id": null,
     "notes": "Runs up to 3 revenue stops."
   },
+
+
+  "1862_a": {
+    "id": "1862_a",
+    "game_id": "1862",
+    "name": "A",
+    "price": 100,
+    "distance": 2,
+    "distance_type": "modal",
+    "qty": 7,
+    "rusts_on": "Phase C",
+    "obsolete_on": null,
+    "available_on": null,
+    "notes": "Comes with 1 free Warranty token. All company routes must intersect at major stations, with at least one visiting the home base.",
+    "variants": {
+      "1F": {
+        "name": "1F",
+        "mode": "Freight",
+        "permit_required": "Freight",
+        "summary": "Freight 1 (traverses up to 2 hexes)",
+        "rules": [
+          "Traverses up to 2 hexes (1 step from starting station).",
+          "Scores start and destination stations/ports/off-boards only.",
+          "Crow-flies distance bonus: +£20/hex (+£30/hex if connecting to/from a port).",
+          "Ignores small stations.",
+          "Must connect end-to-end with other non-permanent Freight trains as a single chain."
+        ]
+      },
+      "2L": {
+        "name": "2L",
+        "mode": "Local",
+        "permit_required": "Local",
+        "summary": "Local 2 (up to 2 major stations + all small stations)",
+        "rules": [
+          "Scores up to 2 major stations.",
+          "Scores ALL intervening small stations along route (£20 each).",
+          "Company treasury collects £10 per visited hex as a direct subsidy.",
+          "Cannot run to ports or red off-board areas."
+        ]
+      },
+      "2E": {
+        "name": "2E",
+        "mode": "Express",
+        "permit_required": "Express",
+        "summary": "Express 2 (up to 2 major stations, ports, or off-boards)",
+        "rules": [
+          "Scores up to 2 major stations, ports, or red off-board areas.",
+          "Ignores all small stations."
+        ]
+      }
+    }
+  },
+  "1862_1f": {
+    "id": "1862_1f",
+    "game_id": "1862",
+    "name": "1F",
+    "parent_name": "A",
+    "price": 100,
+    "rusts_on": "Phase C",
+    "mode": "Freight",
+    "permit_required": "Freight",
+    "summary": "Freight 1 (traverses up to 2 hexes)",
+    "rules": [
+      "Traverses up to 2 hexes (1 step from starting station).",
+      "Scores start and destination stations/ports/off-boards only.",
+      "Crow-flies distance bonus: +£20/hex (+£30/hex if connecting to/from a port).",
+      "Ignores small stations.",
+      "Must connect end-to-end with other non-permanent Freight trains as a single chain.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_2l": {
+    "id": "1862_2l",
+    "game_id": "1862",
+    "name": "2L",
+    "parent_name": "A",
+    "price": 100,
+    "rusts_on": "Phase C",
+    "mode": "Local",
+    "permit_required": "Local",
+    "summary": "Local 2 (up to 2 major stations + all small stations)",
+    "rules": [
+      "Scores up to 2 major stations.",
+      "Scores ALL intervening small stations along route (£20 each).",
+      "Company treasury collects £10 per visited hex as a direct subsidy.",
+      "Cannot run to ports or red off-board areas.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_2e": {
+    "id": "1862_2e",
+    "game_id": "1862",
+    "name": "2E",
+    "parent_name": "A",
+    "price": 100,
+    "rusts_on": "Phase C",
+    "mode": "Express",
+    "permit_required": "Express",
+    "summary": "Express 2 (up to 2 major stations, ports, or off-boards)",
+    "rules": [
+      "Scores up to 2 major stations, ports, or red off-board areas.",
+      "Ignores all small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_b": {
+    "id": "1862_b",
+    "game_id": "1862",
+    "name": "B",
+    "price": 200,
+    "distance": 3,
+    "distance_type": "modal",
+    "qty": 6,
+    "rusts_on": "Phase E",
+    "obsolete_on": null,
+    "available_on": null,
+    "notes": "Unlocks Green track tiles, Phase B, and 4 additional IPO companies.",
+    "variants": {
+      "2F": {
+        "name": "2F",
+        "mode": "Freight",
+        "permit_required": "Freight",
+        "summary": "Freight 2 (traverses up to 3 hexes)",
+        "rules": [
+          "Traverses up to 3 hexes (2 steps from starting station).",
+          "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+          "Ignores small stations.",
+          "Must connect end-to-end with other non-permanent Freight trains."
+        ]
+      },
+      "2/3L": {
+        "name": "2/3L",
+        "mode": "Local",
+        "permit_required": "Local",
+        "summary": "Local 2/3 (traverses up to 3 major stations, scores best 2)",
+        "rules": [
+          "Traverses up to 3 major stations, scoring the best 2.",
+          "Scores ALL intervening small stations along route (£20 each).",
+          "Company treasury collects £10 per visited hex as a direct subsidy.",
+          "Cannot run to ports or red off-board areas."
+        ]
+      },
+      "2/3E": {
+        "name": "2/3E",
+        "mode": "Express",
+        "permit_required": "Express",
+        "summary": "Express 2/3 (traverses up to 3 major stops, scores best 2)",
+        "rules": [
+          "Traverses up to 3 major stations, ports, or off-boards, scoring the best 2.",
+          "Ignores all small stations."
+        ]
+      }
+    }
+  },
+  "1862_2f": {
+    "id": "1862_2f",
+    "game_id": "1862",
+    "name": "2F",
+    "parent_name": "B",
+    "price": 200,
+    "rusts_on": "Phase E",
+    "mode": "Freight",
+    "permit_required": "Freight",
+    "summary": "Freight 2 (traverses up to 3 hexes)",
+    "rules": [
+      "Traverses up to 3 hexes (2 steps from starting station).",
+      "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+      "Ignores small stations.",
+      "Must connect end-to-end with other non-permanent Freight trains.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_2_3l": {
+    "id": "1862_2_3l",
+    "game_id": "1862",
+    "name": "2/3L",
+    "parent_name": "B",
+    "price": 200,
+    "rusts_on": "Phase E",
+    "mode": "Local",
+    "permit_required": "Local",
+    "summary": "Local 2/3 (traverses up to 3 major stations, scores best 2)",
+    "rules": [
+      "Traverses up to 3 major stations, scoring the best 2.",
+      "Scores ALL intervening small stations along route (£20 each).",
+      "Company treasury collects £10 per visited hex as a direct subsidy.",
+      "Cannot run to ports or red off-board areas.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_2_3e": {
+    "id": "1862_2_3e",
+    "game_id": "1862",
+    "name": "2/3E",
+    "parent_name": "B",
+    "price": 200,
+    "rusts_on": "Phase E",
+    "mode": "Express",
+    "permit_required": "Express",
+    "summary": "Express 2/3 (traverses up to 3 major stops, scores best 2)",
+    "rules": [
+      "Traverses up to 3 major stations, ports, or off-boards, scoring the best 2.",
+      "Ignores all small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_c": {
+    "id": "1862_c",
+    "game_id": "1862",
+    "name": "C",
+    "price": 280,
+    "distance": 3,
+    "distance_type": "modal",
+    "qty": 5,
+    "rusts_on": "Phase F",
+    "obsolete_on": null,
+    "available_on": null,
+    "notes": "Unlocks Phase C: un-warrantied A trains rust, off-board values increase to middle tier.",
+    "variants": {
+      "3F": {
+        "name": "3F",
+        "mode": "Freight",
+        "permit_required": "Freight",
+        "summary": "Freight 3 (traverses up to 4 hexes)",
+        "rules": [
+          "Traverses up to 4 hexes (3 steps from starting station).",
+          "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+          "Ignores small stations.",
+          "Must connect end-to-end with other non-permanent Freight trains."
+        ]
+      },
+      "3L": {
+        "name": "3L",
+        "mode": "Local",
+        "permit_required": "Local",
+        "summary": "Local 3 (up to 3 major stations + all small stations)",
+        "rules": [
+          "Scores up to 3 major stations.",
+          "Scores ALL intervening small stations along route (£20 each).",
+          "Company treasury collects £10 per visited hex as a direct subsidy.",
+          "Cannot run to ports or red off-board areas."
+        ]
+      },
+      "3E": {
+        "name": "3E",
+        "mode": "Express",
+        "permit_required": "Express",
+        "summary": "Express 3 (up to 3 major stations, ports, or off-boards)",
+        "rules": [
+          "Scores up to 3 major stations, ports, or red off-board areas.",
+          "Ignores all small stations."
+        ]
+      }
+    }
+  },
+  "1862_3f": {
+    "id": "1862_3f",
+    "game_id": "1862",
+    "name": "3F",
+    "parent_name": "C",
+    "price": 280,
+    "rusts_on": "Phase F",
+    "mode": "Freight",
+    "permit_required": "Freight",
+    "summary": "Freight 3 (traverses up to 4 hexes)",
+    "rules": [
+      "Traverses up to 4 hexes (3 steps from starting station).",
+      "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+      "Ignores small stations.",
+      "Must connect end-to-end with other non-permanent Freight trains.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_3l": {
+    "id": "1862_3l",
+    "game_id": "1862",
+    "name": "3L",
+    "parent_name": "C",
+    "price": 280,
+    "rusts_on": "Phase F",
+    "mode": "Local",
+    "permit_required": "Local",
+    "summary": "Local 3 (up to 3 major stations + all small stations)",
+    "rules": [
+      "Scores up to 3 major stations.",
+      "Scores ALL intervening small stations along route (£20 each).",
+      "Company treasury collects £10 per visited hex as a direct subsidy.",
+      "Cannot run to ports or red off-board areas.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_3e": {
+    "id": "1862_3e",
+    "game_id": "1862",
+    "name": "3E",
+    "parent_name": "C",
+    "price": 280,
+    "rusts_on": "Phase F",
+    "mode": "Express",
+    "permit_required": "Express",
+    "summary": "Express 3 (up to 3 major stations, ports, or off-boards)",
+    "rules": [
+      "Scores up to 3 major stations, ports, or red off-board areas.",
+      "Ignores all small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_d": {
+    "id": "1862_d",
+    "game_id": "1862",
+    "name": "D",
+    "price": 360,
+    "distance": 4,
+    "distance_type": "modal",
+    "qty": 4,
+    "rusts_on": "Phase G",
+    "obsolete_on": null,
+    "available_on": null,
+    "notes": "Comes with 1 free Warranty token. Unlocks Russet track tiles and 3 ORs per cycle.",
+    "variants": {
+      "5F": {
+        "name": "5F",
+        "mode": "Freight",
+        "permit_required": "Freight",
+        "summary": "Freight 5 (traverses up to 6 hexes)",
+        "rules": [
+          "Traverses up to 6 hexes (5 steps from starting station).",
+          "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+          "Ignores small stations.",
+          "Must connect end-to-end with other non-permanent Freight trains."
+        ]
+      },
+      "4L": {
+        "name": "4L",
+        "mode": "Local",
+        "permit_required": "Local",
+        "summary": "Local 4 (up to 4 major stations + all small stations)",
+        "rules": [
+          "Scores up to 4 major stations.",
+          "Scores ALL intervening small stations along route (£20 each).",
+          "Company treasury collects £10 per visited hex as a direct subsidy.",
+          "Cannot run to ports or red off-board areas."
+        ]
+      },
+      "4E": {
+        "name": "4E",
+        "mode": "Express",
+        "permit_required": "Express",
+        "summary": "Express 4 (up to 4 major stations, ports, or off-boards)",
+        "rules": [
+          "Scores up to 4 major stations, ports, or red off-board areas.",
+          "Ignores all small stations."
+        ]
+      }
+    }
+  },
+  "1862_5f": {
+    "id": "1862_5f",
+    "game_id": "1862",
+    "name": "5F",
+    "parent_name": "D",
+    "price": 360,
+    "rusts_on": "Phase G",
+    "mode": "Freight",
+    "permit_required": "Freight",
+    "summary": "Freight 5 (traverses up to 6 hexes)",
+    "rules": [
+      "Traverses up to 6 hexes (5 steps from starting station).",
+      "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+      "Ignores small stations.",
+      "Must connect end-to-end with other non-permanent Freight trains.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_4l": {
+    "id": "1862_4l",
+    "game_id": "1862",
+    "name": "4L",
+    "parent_name": "D",
+    "price": 360,
+    "rusts_on": "Phase G",
+    "mode": "Local",
+    "permit_required": "Local",
+    "summary": "Local 4 (up to 4 major stations + all small stations)",
+    "rules": [
+      "Scores up to 4 major stations.",
+      "Scores ALL intervening small stations along route (£20 each).",
+      "Company treasury collects £10 per visited hex as a direct subsidy.",
+      "Cannot run to ports or red off-board areas.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_4e": {
+    "id": "1862_4e",
+    "game_id": "1862",
+    "name": "4E",
+    "parent_name": "D",
+    "price": 360,
+    "rusts_on": "Phase G",
+    "mode": "Express",
+    "permit_required": "Express",
+    "summary": "Express 4 (up to 4 major stations, ports, or off-boards)",
+    "rules": [
+      "Scores up to 4 major stations, ports, or red off-board areas.",
+      "Ignores all small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_e": {
+    "id": "1862_e",
+    "game_id": "1862",
+    "name": "E",
+    "price": 500,
+    "distance": 5,
+    "distance_type": "modal",
+    "qty": 3,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": null,
+    "notes": "Permanent locomotive. Phase E: B trains rust, off-board values reach max tier, train limit becomes 2 per type.",
+    "variants": {
+      "6F": {
+        "name": "6F",
+        "mode": "Freight",
+        "permit_required": "Freight",
+        "summary": "Freight 6 (permanent, traverses up to 7 hexes)",
+        "rules": [
+          "Permanent locomotive: May operate independently or connect end-to-end.",
+          "Traverses up to 7 hexes (6 steps from starting station).",
+          "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+          "Ignores small stations."
+        ]
+      },
+      "4/5L": {
+        "name": "4/5L",
+        "mode": "Local",
+        "permit_required": "Local",
+        "summary": "Local 4/5 (traverses up to 5 major stations, scores best 4)",
+        "rules": [
+          "Traverses up to 5 major stations, scoring the best 4.",
+          "Scores ALL intervening small stations along route (£20 each).",
+          "Company treasury collects £10 per visited hex as a direct subsidy.",
+          "Cannot run to ports or red off-board areas."
+        ]
+      },
+      "4/5E": {
+        "name": "4/5E",
+        "mode": "Express",
+        "permit_required": "Express",
+        "summary": "Express 4/5 (traverses up to 5 major stops, scores best 4)",
+        "rules": [
+          "Traverses up to 5 major stations, ports, or off-boards, scoring the best 4.",
+          "Ignores all small stations."
+        ]
+      }
+    }
+  },
+  "1862_6f": {
+    "id": "1862_6f",
+    "game_id": "1862",
+    "name": "6F",
+    "parent_name": "E",
+    "price": 500,
+    "rusts_on": null,
+    "mode": "Freight",
+    "permit_required": "Freight",
+    "summary": "Freight 6 (permanent, traverses up to 7 hexes)",
+    "rules": [
+      "Permanent locomotive: May operate independently or connect end-to-end.",
+      "Traverses up to 7 hexes (6 steps from starting station).",
+      "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+      "Ignores small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_4_5l": {
+    "id": "1862_4_5l",
+    "game_id": "1862",
+    "name": "4/5L",
+    "parent_name": "E",
+    "price": 500,
+    "rusts_on": null,
+    "mode": "Local",
+    "permit_required": "Local",
+    "summary": "Local 4/5 (traverses up to 5 major stations, scores best 4)",
+    "rules": [
+      "Traverses up to 5 major stations, scoring the best 4.",
+      "Scores ALL intervening small stations along route (£20 each).",
+      "Company treasury collects £10 per visited hex as a direct subsidy.",
+      "Cannot run to ports or red off-board areas.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_4_5e": {
+    "id": "1862_4_5e",
+    "game_id": "1862",
+    "name": "4/5E",
+    "parent_name": "E",
+    "price": 500,
+    "rusts_on": null,
+    "mode": "Express",
+    "permit_required": "Express",
+    "summary": "Express 4/5 (traverses up to 5 major stops, scores best 4)",
+    "rules": [
+      "Traverses up to 5 major stations, ports, or off-boards, scoring the best 4.",
+      "Ignores all small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_f": {
+    "id": "1862_f",
+    "game_id": "1862",
+    "name": "F",
+    "price": 600,
+    "distance": 5,
+    "distance_type": "modal",
+    "qty": 2,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": null,
+    "notes": "Permanent locomotive. Phase F: C trains rust.",
+    "variants": {
+      "7F": {
+        "name": "7F",
+        "mode": "Freight",
+        "permit_required": "Freight",
+        "summary": "Freight 7 (permanent, traverses up to 8 hexes)",
+        "rules": [
+          "Permanent locomotive: May operate independently or connect end-to-end.",
+          "Traverses up to 8 hexes (7 steps from starting station).",
+          "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+          "Ignores small stations."
+        ]
+      },
+      "5L": {
+        "name": "5L",
+        "mode": "Local",
+        "permit_required": "Local",
+        "summary": "Local 5 (up to 5 major stations + all small stations)",
+        "rules": [
+          "Scores up to 5 major stations.",
+          "Scores ALL intervening small stations along route (£20 each).",
+          "Company treasury collects £10 per visited hex as a direct subsidy.",
+          "Cannot run to ports or red off-board areas."
+        ]
+      },
+      "5E": {
+        "name": "5E",
+        "mode": "Express",
+        "permit_required": "Express",
+        "summary": "Express 5 (up to 5 major stations, ports, or off-boards)",
+        "rules": [
+          "Scores up to 5 major stations, ports, or red off-board areas.",
+          "Ignores all small stations."
+        ]
+      }
+    }
+  },
+  "1862_7f": {
+    "id": "1862_7f",
+    "game_id": "1862",
+    "name": "7F",
+    "parent_name": "F",
+    "price": 600,
+    "rusts_on": null,
+    "mode": "Freight",
+    "permit_required": "Freight",
+    "summary": "Freight 7 (permanent, traverses up to 8 hexes)",
+    "rules": [
+      "Permanent locomotive: May operate independently or connect end-to-end.",
+      "Traverses up to 8 hexes (7 steps from starting station).",
+      "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+      "Ignores small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_5l": {
+    "id": "1862_5l",
+    "game_id": "1862",
+    "name": "5L",
+    "parent_name": "F",
+    "price": 600,
+    "rusts_on": null,
+    "mode": "Local",
+    "permit_required": "Local",
+    "summary": "Local 5 (up to 5 major stations + all small stations)",
+    "rules": [
+      "Scores up to 5 major stations.",
+      "Scores ALL intervening small stations along route (£20 each).",
+      "Company treasury collects £10 per visited hex as a direct subsidy.",
+      "Cannot run to ports or red off-board areas.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_5e": {
+    "id": "1862_5e",
+    "game_id": "1862",
+    "name": "5E",
+    "parent_name": "F",
+    "price": 600,
+    "rusts_on": null,
+    "mode": "Express",
+    "permit_required": "Express",
+    "summary": "Express 5 (up to 5 major stations, ports, or off-boards)",
+    "rules": [
+      "Scores up to 5 major stations, ports, or red off-board areas.",
+      "Ignores all small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_g": {
+    "id": "1862_g",
+    "game_id": "1862",
+    "name": "G",
+    "price": 700,
+    "distance": 6,
+    "distance_type": "modal",
+    "qty": 1,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": null,
+    "notes": "Permanent locomotive. Phase G: D trains rust, train limit drops to 3 trains total of any type.",
+    "variants": {
+      "8F": {
+        "name": "8F",
+        "mode": "Freight",
+        "permit_required": "Freight",
+        "summary": "Freight 8 (permanent, traverses up to 9 hexes)",
+        "rules": [
+          "Permanent locomotive: May operate independently or connect end-to-end.",
+          "Traverses up to 9 hexes (8 steps from starting station).",
+          "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+          "Ignores small stations."
+        ]
+      },
+      "5/6L": {
+        "name": "5/6L",
+        "mode": "Local",
+        "permit_required": "Local",
+        "summary": "Local 5/6 (traverses up to 6 major stations, scores best 5)",
+        "rules": [
+          "Traverses up to 6 major stations, scoring the best 5.",
+          "Scores ALL intervening small stations along route (£20 each).",
+          "Company treasury collects £10 per visited hex as a direct subsidy.",
+          "Cannot run to ports or red off-board areas."
+        ]
+      },
+      "5/6E": {
+        "name": "5/6E",
+        "mode": "Express",
+        "permit_required": "Express",
+        "summary": "Express 5/6 (traverses up to 6 major stops, scores best 5)",
+        "rules": [
+          "Traverses up to 6 major stations, ports, or off-boards, scoring the best 5.",
+          "Ignores all small stations."
+        ]
+      }
+    }
+  },
+  "1862_8f": {
+    "id": "1862_8f",
+    "game_id": "1862",
+    "name": "8F",
+    "parent_name": "G",
+    "price": 700,
+    "rusts_on": null,
+    "mode": "Freight",
+    "permit_required": "Freight",
+    "summary": "Freight 8 (permanent, traverses up to 9 hexes)",
+    "rules": [
+      "Permanent locomotive: May operate independently or connect end-to-end.",
+      "Traverses up to 9 hexes (8 steps from starting station).",
+      "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+      "Ignores small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_5_6l": {
+    "id": "1862_5_6l",
+    "game_id": "1862",
+    "name": "5/6L",
+    "parent_name": "G",
+    "price": 700,
+    "rusts_on": null,
+    "mode": "Local",
+    "permit_required": "Local",
+    "summary": "Local 5/6 (traverses up to 6 major stations, scores best 5)",
+    "rules": [
+      "Traverses up to 6 major stations, scoring the best 5.",
+      "Scores ALL intervening small stations along route (£20 each).",
+      "Company treasury collects £10 per visited hex as a direct subsidy.",
+      "Cannot run to ports or red off-board areas.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_5_6e": {
+    "id": "1862_5_6e",
+    "game_id": "1862",
+    "name": "5/6E",
+    "parent_name": "G",
+    "price": 700,
+    "rusts_on": null,
+    "mode": "Express",
+    "permit_required": "Express",
+    "summary": "Express 5/6 (traverses up to 6 major stops, scores best 5)",
+    "rules": [
+      "Traverses up to 6 major stations, ports, or off-boards, scoring the best 5.",
+      "Ignores all small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_h": {
+    "id": "1862_h",
+    "game_id": "1862",
+    "name": "H",
+    "price": 800,
+    "distance": 6,
+    "distance_type": "modal",
+    "qty": null,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": null,
+    "notes": "Permanent locomotive. Phase H: triggers LNER formation and game end after current set of ORs.",
+    "variants": {
+      "9F": {
+        "name": "9F",
+        "mode": "Freight",
+        "permit_required": "Freight",
+        "summary": "Freight 9 (permanent, traverses up to 10 hexes)",
+        "rules": [
+          "Permanent locomotive: May operate independently or connect end-to-end.",
+          "Traverses up to 10 hexes (9 steps from starting station).",
+          "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+          "Ignores small stations."
+        ]
+      },
+      "6L": {
+        "name": "6L",
+        "mode": "Local",
+        "permit_required": "Local",
+        "summary": "Local 6 (up to 6 major stations + all small stations)",
+        "rules": [
+          "Scores up to 6 major stations.",
+          "Scores ALL intervening small stations along route (£20 each).",
+          "Company treasury collects £10 per visited hex as a direct subsidy.",
+          "Cannot run to ports or red off-board areas."
+        ]
+      },
+      "6E": {
+        "name": "6E",
+        "mode": "Express",
+        "permit_required": "Express",
+        "summary": "Express 6 (up to 6 major stations, ports, or off-boards)",
+        "rules": [
+          "Scores up to 6 major stations, ports, or red off-board areas.",
+          "Ignores all small stations."
+        ]
+      }
+    }
+  },
+  "1862_9f": {
+    "id": "1862_9f",
+    "game_id": "1862",
+    "name": "9F",
+    "parent_name": "H",
+    "price": 800,
+    "rusts_on": null,
+    "mode": "Freight",
+    "permit_required": "Freight",
+    "summary": "Freight 9 (permanent, traverses up to 10 hexes)",
+    "rules": [
+      "Permanent locomotive: May operate independently or connect end-to-end.",
+      "Traverses up to 10 hexes (9 steps from starting station).",
+      "Scores endpoints only + £20/hex direct distance (+£30/hex for ports).",
+      "Ignores small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_6l": {
+    "id": "1862_6l",
+    "game_id": "1862",
+    "name": "6L",
+    "parent_name": "H",
+    "price": 800,
+    "rusts_on": null,
+    "mode": "Local",
+    "permit_required": "Local",
+    "summary": "Local 6 (up to 6 major stations + all small stations)",
+    "rules": [
+      "Scores up to 6 major stations.",
+      "Scores ALL intervening small stations along route (£20 each).",
+      "Company treasury collects £10 per visited hex as a direct subsidy.",
+      "Cannot run to ports or red off-board areas.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+  "1862_6e": {
+    "id": "1862_6e",
+    "game_id": "1862",
+    "name": "6E",
+    "parent_name": "H",
+    "price": 800,
+    "rusts_on": null,
+    "mode": "Express",
+    "permit_required": "Express",
+    "summary": "Express 6 (up to 6 major stations, ports, or off-boards)",
+    "rules": [
+      "Scores up to 6 major stations, ports, or red off-board areas.",
+      "Ignores all small stations.",
+      "All company routes must intersect at major stations (home base required)."
+    ]
+  },
+
+
   "1862_usa_canada_4": {
     "id": "1862_usa_canada_4",
     "game_id": "1862_usa_canada",
