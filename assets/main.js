@@ -62829,7 +62829,7 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
         $def(self, '$render_top_nav_utility_cluster', function $$render_top_nav_utility_cluster() {
           var self = this;
 
-          return self.$h("div", (new Map([["attrs", (new Map([["id", "top-nav-utility-cluster"]]))], ["style", (new Map([["position", "fixed"], ["top", "46px"], ["right", "12px"], ["height", "26px"], ["display", "flex"], ["flexDirection", "row"], ["alignItems", "center"], ["gap", "6px"], ["zIndex", 99999]]))]])), [self.$render_other_games_button(), self.$render_sound_toggle_button()])
+          return self.$h("div", (new Map([["attrs", (new Map([["id", "top-nav-utility-cluster"]]))], ["style", (new Map([["position", "fixed"], ["top", "40px"], ["right", "16px"], ["height", "48px"], ["display", "flex"], ["flexDirection", "row"], ["alignItems", "center"], ["gap", "8px"], ["zIndex", 99999]]))]])), [self.$render_other_games_button(), self.$render_sound_toggle_button()])
         });
         
         $def(self, '$render_other_games_button', function $$render_other_games_button() {
@@ -62840,7 +62840,7 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
           has_turns = turns_count['$positive?']();
           bg_color = ($truthy(has_turns) ? ("#16a34a") : ("#ffffff"));
           text_color = ($truthy(has_turns) ? ("#ffffff") : ("#334155"));
-          border_style = ($truthy(has_turns) ? ("1px solid #15803d") : ("1px solid #cbd5e1"));
+          border_style = ($truthy(has_turns) ? ("2px solid #15803d") : ("1px solid #cbd5e1"));
           btn_title = ($truthy(has_turns) ? ("" + (turns_count) + " other game(s) waiting on your turn") : ("View active games list"));
           click_action = $send(self, 'lambda', [], function $$19(){var self = $$19.$$s == null ? this : $$19.$$s, val = nil;
             if (self.show_other_games_overlay == null) self.show_other_games_overlay = nil;
@@ -62858,8 +62858,8 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
             self.$store("show_other_games_overlay", val);
             self.$fetch_user_games(true);
             return self.$update();}, {$$s: self});
-          badge_el = ($truthy(has_turns) ? (self.$h("span", (new Map([["style", (new Map([["position", "absolute"], ["top", "-4px"], ["right", "-4px"], ["backgroundColor", "#dc2626"], ["color", "#ffffff"], ["fontSize", "0.60rem"], ["fontWeight", "bold"], ["borderRadius", "10px"], ["minWidth", "13px"], ["height", "13px"], ["lineHeight", "13px"], ["textAlign", "center"], ["padding", "0 2px"], ["border", "1.5px solid #ffffff"], ["boxSizing", "border-box"]]))]])), turns_count.$to_s())) : nil);
-          return self.$h("button", (new Map([["attrs", (new Map([["id", "btn-other-games"], ["type", "button"], ["title", btn_title]]))], ["style", (new Map([["position", "relative"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["width", "24px"], ["height", "24px"], ["minWidth", "24px"], ["padding", "0"], ["flexShrink", "0"], ["borderRadius", "4px"], ["backgroundColor", bg_color], ["color", text_color], ["border", border_style], ["boxShadow", "0 1px 3px rgba(0, 0, 0, 0.15)"], ["cursor", "pointer"], ["lineHeight", "1"], ["zIndex", 10], ["transition", "all 0.2s ease"]]))], ["on", (new Map([["click", click_action]]))]])), [self.$h("span", (new Map([["style", (new Map([["fontSize", "0.90rem"], ["lineHeight", "1"]]))]])), "🎮"), badge_el].$compact());
+          badge_el = ($truthy(has_turns) ? (self.$h("span", (new Map([["style", (new Map([["position", "absolute"], ["top", "-6px"], ["right", "-6px"], ["backgroundColor", "#dc2626"], ["color", "#ffffff"], ["fontSize", "0.85rem"], ["fontWeight", "bold"], ["borderRadius", "12px"], ["minWidth", "22px"], ["height", "22px"], ["lineHeight", "20px"], ["textAlign", "center"], ["padding", "0 4px"], ["border", "2px solid #ffffff"], ["boxSizing", "border-box"]]))]])), turns_count.$to_s())) : nil);
+          return self.$h("button", (new Map([["attrs", (new Map([["id", "btn-other-games"], ["type", "button"], ["title", btn_title]]))], ["style", (new Map([["position", "relative"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["width", "48px"], ["height", "48px"], ["minWidth", "48px"], ["padding", "0"], ["flexShrink", "0"], ["borderRadius", "8px"], ["backgroundColor", bg_color], ["color", text_color], ["border", border_style], ["boxShadow", "0 2px 5px rgba(0, 0, 0, 0.18)"], ["cursor", "pointer"], ["lineHeight", "1"], ["zIndex", 10], ["transition", "all 0.2s ease"]]))], ["on", (new Map([["click", click_action]]))]])), [self.$h("span", (new Map([["style", (new Map([["fontSize", "1.8rem"], ["lineHeight", "1"]]))]])), "🎮"), badge_el].$compact());
         });
         
         $def(self, '$render_sound_toggle_button', function $$render_sound_toggle_button() {
@@ -62882,7 +62882,7 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
             } catch(e) {}
           ;
             return self.$update();}, {$$s: self});
-          return self.$h("button", (new Map([["attrs", (new Map([["id", "btn-sound-toggle"], ["type", "button"], ["title", ($truthy(enabled) ? ("Turn sound alert: ON (click to mute)") : ("Turn sound alert: OFF (click to unmute)"))]]))], ["style", (new Map([["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["width", "24px"], ["height", "24px"], ["minWidth", "24px"], ["padding", "0"], ["flexShrink", "0"], ["borderRadius", "4px"], ["backgroundColor", ($truthy(enabled) ? ("#f0fdf4") : ("#ffffff"))], ["border", ($truthy(enabled) ? ("1.5px solid #16a34a") : ("1px solid #cbd5e1"))], ["boxShadow", "0 1px 3px rgba(0, 0, 0, 0.15)"], ["cursor", "pointer"], ["lineHeight", "1"], ["zIndex", 10], ["transition", "background-color 0.2s ease, border-color 0.2s ease"]]))], ["on", (new Map([["click", toggle_action]]))]])), [self.$h("span", (new Map([["style", (new Map([["fontSize", "0.90rem"], ["lineHeight", "1"], ["filter", ($truthy(enabled) ? ("none") : ("grayscale(100%) opacity(35%)"))], ["transition", "filter 0.2s ease"]]))]])), "🎵")]);
+          return self.$h("button", (new Map([["attrs", (new Map([["id", "btn-sound-toggle"], ["type", "button"], ["title", ($truthy(enabled) ? ("Turn sound alert: ON (click to mute)") : ("Turn sound alert: OFF (click to unmute)"))]]))], ["style", (new Map([["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["width", "48px"], ["height", "48px"], ["minWidth", "48px"], ["padding", "0"], ["flexShrink", "0"], ["borderRadius", "8px"], ["backgroundColor", ($truthy(enabled) ? ("#f0fdf4") : ("#ffffff"))], ["border", ($truthy(enabled) ? ("2px solid #16a34a") : ("1px solid #cbd5e1"))], ["boxShadow", "0 2px 5px rgba(0, 0, 0, 0.18)"], ["cursor", "pointer"], ["lineHeight", "1"], ["zIndex", 10], ["transition", "background-color 0.2s ease, border-color 0.2s ease"]]))], ["on", (new Map([["click", toggle_action]]))]])), [self.$h("span", (new Map([["style", (new Map([["fontSize", "1.8rem"], ["lineHeight", "1"], ["filter", ($truthy(enabled) ? ("none") : ("grayscale(100%) opacity(35%)"))], ["transition", "filter 0.2s ease"]]))]])), "🎵")]);
         });
         
         $def(self, '$animate_last_action', function $$animate_last_action(action) {
