@@ -231,6 +231,47 @@ module View
 
       def render_zoom_controls(panel_id, position_styles = {})
         pid = panel_id.to_s
+        button_style = {
+          width: '20px',
+          height: '20px',
+          lineHeight: '16px',
+          textAlign: 'center',
+          fontSize: '13px',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          backgroundColor: '#fff',
+          border: '1px solid #999',
+          borderRadius: '3px',
+          padding: '0',
+          color: '#333',
+        }
+
+        buttons = [
+          h(:button, {
+              style: button_style,
+              attrs: { title: 'Zoom In', type: 'button', onclick: "window.zoomPanel('#{pid}', 1.15); return false;" },
+              on: { click: -> { `window.zoomPanel('#{pid}', 1.15)` } },
+            }, '+'),
+          h(:button, {
+              style: button_style,
+              attrs: { title: 'Zoom Out', type: 'button', onclick: "window.zoomPanel('#{pid}', 0.85); return false;" },
+              on: { click: -> { `window.zoomPanel('#{pid}', 0.85)` } },
+            }, '−'),
+          h(:button, {
+              style: button_style.merge(fontSize: '11px'),
+              attrs: { title: 'Reset to Fit', type: 'button', onclick: "window.resetPanelZoom('#{pid}'); return false;" },
+              on: { click: -> { `window.resetPanelZoom('#{pid}')` } },
+            }, '⟲'),
+        ]
+
+        if pid == 'map-panel-bot'
+          buttons << h(:button, {
+                         attrs: { id: 'meme-revenue-toggle-btn', title: 'Toggle large route revenue numbers', type: 'button' },
+                         style: button_style,
+                         on: { click: -> { `window.__toggleMemeRevenue && window.__toggleMemeRevenue()` } },
+                       }, '$')
+        end
+
         h(:div, {
             attrs: { class: 'panel-zoom-controls' },
             style: {
@@ -244,23 +285,7 @@ module View
               border: '1px solid #ccc',
               boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
             }.merge(position_styles),
-          }, [
-          h(:button, {
-              style: { width: '20px', height: '20px', lineHeight: '16px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: '#fff', border: '1px solid #999', borderRadius: '3px', padding: '0', color: '#333' },
-              attrs: { title: 'Zoom In', type: 'button', onclick: "window.zoomPanel('#{pid}', 1.15); return false;" },
-              on: { click: -> { `window.zoomPanel('#{pid}', 1.15)` } },
-            }, '+'),
-          h(:button, {
-              style: { width: '20px', height: '20px', lineHeight: '16px', textAlign: 'center', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: '#fff', border: '1px solid #999', borderRadius: '3px', padding: '0', color: '#333' },
-              attrs: { title: 'Zoom Out', type: 'button', onclick: "window.zoomPanel('#{pid}', 0.85); return false;" },
-              on: { click: -> { `window.zoomPanel('#{pid}', 0.85)` } },
-            }, '−'),
-          h(:button, {
-              style: { width: '20px', height: '20px', lineHeight: '16px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: '#fff', border: '1px solid #999', borderRadius: '3px', padding: '0', color: '#333' },
-              attrs: { title: 'Reset to Fit', type: 'button', onclick: "window.resetPanelZoom('#{pid}'); return false;" },
-              on: { click: -> { `window.resetPanelZoom('#{pid}')` } },
-            }, '⟲'),
-        ])
+          }, buttons)
       end
 
       def current_user_id
@@ -1538,30 +1563,46 @@ module View
                       styleTag.id = 'dashboard-map-svg-styles';
                       document.head.appendChild(styleTag);
                     }
+
                     styleTag.innerHTML = '#map-scroll-canvas svg { max-width: none !important; } ' +
-                                         '.scaler-content .tile__text { font-size: 0.75em !important; } ' +
-                                         '.scaler-content text.number { font-size: 0.55em !important; } ' +
-                                         '#panel-market { isolation: isolate; } ' +
-                                         '#panel-market .scaler-content { z-index: 1; } ' +
-                                         '#market-hover-overlay, .market-hover-overlay, .stock-market-tooltip, [class*="hover-overlay"] { ' +
-                                         '  z-index: 9999 !important; pointer-events: none; ' +
-                                         '} ' +
-                                         '#panel-market svg g.marker, #panel-market .market-marker, #panel-market svg g[id*="marker"], ' +
-                                         '#panel-market .stock-market-token, #panel-market [id^="stock-token-"] { ' +
-                                         '  pointer-events: auto !important; z-index: 2; ' +
-                                         '} ' +
-                                         '@keyframes map-hex-pulse { ' +
-                                         '  0% { stroke: #ff0055; stroke-width: 8px; fill-opacity: 0.18; } ' +
-                                         '  50% { stroke: #fbbf24; stroke-width: 10px; fill-opacity: 0.38; } ' +
-                                         '  100% { stroke: #ff0055; stroke-width: 8px; fill-opacity: 0.18; } ' +
-                                         '} ' +
-                                         '.map-hex-highlight .hex-highlight-poly { ' +
-                                         '  stroke: #ff0055 !important; ' +
-                                         '  stroke-width: 8px !important; ' +
-                                         '  fill: #ff0055 !important; ' +
-                                         '  fill-opacity: 0.25 !important; ' +
-                                         '  animation: map-hex-pulse 1.2s infinite ease-in-out !important; ' +
-                                         '}';
+                     '.scaler-content .tile__text { font-size: 0.75em !important; } ' +
+                     '.scaler-content text.number { font-size: 0.55em !important; } ' +
+                     '#panel-market { isolation: isolate; } ' +
+                     '#panel-market .scaler-content { z-index: 1; } ' +
+                     '#market-hover-overlay, .market-hover-overlay, .stock-market-tooltip, [class*="hover-overlay"] { ' +
+                     '  z-index: 9999 !important; pointer-events: none; ' +
+                     '} ' +
+                     '#panel-market svg g.marker, #panel-market .market-marker, #panel-market svg g[id*="marker"], ' +
+                     '#panel-market .stock-market-token, #panel-market [id^="stock-token-"] { ' +
+                     '  pointer-events: auto !important; z-index: 2; ' +
+                     '} ' +
+                     '@keyframes map-hex-pulse { ' +
+                     '  0% { ' +
+                     '    stroke: #00ffff; ' +
+                     '    stroke-width: 6px; ' +
+                     '    fill-opacity: 0.08; ' +
+                     '    filter: drop-shadow(0 0 4px #00ffff); ' +
+                     '  } ' +
+                     '  50% { ' +
+                     '    stroke: #00ffff; ' +
+                     '    stroke-width: 12px; ' +
+                     '    fill-opacity: 0.35; ' +
+                     '    filter: drop-shadow(0 0 14px #00ffff); ' +
+                     '  } ' +
+                     '  100% { ' +
+                     '    stroke: #00ffff; ' +
+                     '    stroke-width: 6px; ' +
+                     '    fill-opacity: 0.08; ' +
+                     '    filter: drop-shadow(0 0 4px #00ffff); ' +
+                     '  } ' +
+                     '} ' +
+                     '.map-hex-highlight .hex-highlight-poly { ' +
+                     '  stroke: #00ffff !important; ' +
+                     '  stroke-width: 8px !important; ' +
+                     '  fill: #00ffff !important; ' +
+                     '  fill-opacity: 0.20 !important; ' +
+                     '  animation: map-hex-pulse 1.3s infinite ease-in-out !important; ' +
+                     '}';
 
                     window.highlightMapHexes = function(hexIds) {
                       if (!hexIds) return;
@@ -1842,8 +1883,8 @@ module View
                     attrs: { class: 'panel-manifest-control' },
                     style: {
                       position: 'absolute',
-                      top: '8px',
-                      right: '18px',
+                      top: '36px',
+                      left: '6px',
                       zIndex: 30,
                       display: 'flex',
                     },

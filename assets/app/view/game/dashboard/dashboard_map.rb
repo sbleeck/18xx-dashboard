@@ -655,127 +655,30 @@ module View
         new_val = !show_meme_revenue?
         Lib::Storage['show_meme_revenue'] = new_val
         store(:show_meme_revenue, new_val)
+        `setTimeout(function() { window.__updateMemeBtnState && window.__updateMemeBtnState(); }, 0)`
       end
 
       def install_revenue_button_bridge
         active = show_meme_revenue?
         %x{
           var selfRef = #{self};
-
-          window.__toggleMemeRevenue = function() {
-            if (selfRef && selfRef.$toggle_meme_revenue) {
-              selfRef.$toggle_meme_revenue();
-            }
-          };
-
-          window.__updateMemeBtnState = function(btn) {
-            if (!btn) btn = document.getElementById('meme-revenue-toggle-btn');
+          window.__updateMemeBtnState = function() {
+            var btn = document.getElementById('meme-revenue-toggle-btn');
             if (!btn) return;
             var isActive = #{active};
-            btn.style.fontWeight = 'bold';
-            btn.style.fontSize = '14px';
-            btn.style.cursor = 'pointer';
-            btn.style.boxSizing = 'border-box';
-            btn.style.visibility = 'visible';
-            btn.style.opacity = '1';
-            btn.style.lineHeight = '1';
             btn.setAttribute('role', 'checkbox');
             btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
-            if (isActive) {
-              btn.style.backgroundColor = '#10b981';
-              btn.style.color = '#ffffff';
-              btn.style.borderColor = '#059669';
-            } else {
-              btn.style.backgroundColor = '#ffffff';
-              btn.style.color = '#363636';
-              btn.style.borderColor = '#dbdbdb';
-            }
+            btn.style.backgroundColor = isActive ? '#10b981' : '#ffffff';
+            btn.style.color = isActive ? '#ffffff' : '#333333';
+            btn.style.borderColor = isActive ? '#059669' : '#999999';
           };
-
-          window.__positionMemeRevenueBtn = function(btn) {
-            if (!btn) return;
-
-            // Locate any of the zoom panel buttons (+, -, o / ↺)
-            var allButtons = Array.from(document.querySelectorAll('button'));
-            var zoomBtn = allButtons.find(function(b) {
-              if (b.id === 'meme-revenue-toggle-btn') return false;
-              var t = (b.textContent || '').trim();
-              return t === '+' || t === '-' || t === '−' || t === 'o' || t === '↺' || t === '⟲' || t === '↻';
-            });
-
-            if (zoomBtn && zoomBtn.parentElement) {
-              var parent = zoomBtn.parentElement;
-
-              // Ensure the $ button is appended directly inside the same button box
-              if (btn.parentElement !== parent) {
-                parent.appendChild(btn);
-              }
-
-              // Match dimensions and margins from the sibling buttons
-              btn.style.position = 'static';
-              btn.style.display = 'inline-flex';
-              btn.style.alignItems = 'center';
-              btn.style.justifyContent = 'center';
-              btn.style.width = zoomBtn.offsetWidth ? (zoomBtn.offsetWidth + 'px') : '28px';
-              btn.style.height = zoomBtn.offsetHeight ? (zoomBtn.offsetHeight + 'px') : '28px';
-              btn.style.marginLeft = '4px';
-              btn.style.border = '1px solid #dbdbdb';
-              btn.style.borderRadius = '4px';
-              btn.style.padding = '0';
-              btn.style.zIndex = 'auto';
-              return;
-            }
-
-            // Fallback if the panel hasn't rendered yet
-            if (btn.parentElement !== document.body) {
-              document.body.appendChild(btn);
-            }
-            btn.style.position = 'fixed';
-            btn.style.zIndex = '999999';
-            btn.style.top = '10px';
-            btn.style.left = '10px';
+          window.__toggleMemeRevenue = function() {
+            if (selfRef && selfRef.$toggle_meme_revenue) selfRef.$toggle_meme_revenue();
           };
-
-          window.__ensureMemeRevenueBtn = function() {
-            var btn = document.getElementById('meme-revenue-toggle-btn');
-
-            if (!btn) {
-              btn = document.createElement('button');
-              btn.id = 'meme-revenue-toggle-btn';
-              btn.className = 'button';
-              btn.textContent = '$';
-              btn.setAttribute('title', 'Toggle Route Revenue Overlays');
-              btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (window.__toggleMemeRevenue) {
-                  window.__toggleMemeRevenue();
-                }
-              });
-            }
-
-            window.__positionMemeRevenueBtn(btn);
-            window.__updateMemeBtnState(btn);
-          };
-
-          window.__ensureMemeRevenueBtn();
-
-          if (!window.__meme_btn_observer_installed) {
-            window.__meme_btn_observer_installed = true;
-            var obs = new MutationObserver(function() {
-              if (window.__ensureMemeRevenueBtn) {
-                window.__ensureMemeRevenueBtn();
-              }
-            });
-            obs.observe(document.body, { childList: true, subtree: true });
-
-            window.addEventListener('resize', function() {
-              var b = document.getElementById('meme-revenue-toggle-btn');
-              if (b && window.__positionMemeRevenueBtn) {
-                window.__positionMemeRevenueBtn(b);
-              }
-            });
-          }
+          // The fixed button is rendered by DashboardVisualizer. Never create or move it here.
+          setTimeout(function() {
+            if (window.__updateMemeBtnState) window.__updateMemeBtnState();
+          }, 0);
         }
       end
 
