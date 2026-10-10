@@ -1428,24 +1428,6 @@ module View
         overlays = []
         overlays << h(View::Game::Dashboard::ManualRouteOverlay, game: @game, entity: entity, routes: @routes, selected_route: @selected_route) if show_manual_routes
 
-        if is_move_history_open
-          close_move_hist = lambda {
-            Lib::Storage['cmd_move_history_overlay'] = nil
-            store(:show_move_history, false)
-            update
-          }
-          overlays << h(View::Game::Dashboard::MoveHistoryOverlay, game: @game, game_data: @game_data, on_close: close_move_hist)
-        end
-
-        if is_history_open
-          close_hist = lambda {
-            Lib::Storage['cmd_history_overlay'] = nil
-            store(:show_history_overlay, false)
-            update
-          }
-          overlays << h(View::Game::Dashboard::HistoryOverlay, game: @game, game_data: @game_data, on_close: close_hist)
-        end
-
         # Keep the command bar as the component root. DashboardVisualizer uses direct-child
         # selectors for its three zones; wrapping the bar when an overlay opens causes that
         # selector to hide the entire command panel. Fixed-position overlays can safely be

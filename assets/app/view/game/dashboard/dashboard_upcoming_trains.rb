@@ -10,6 +10,7 @@ module View
       include View::Game::Dashboard::RailcardHelper
 
       needs :game
+      needs :dashboard_show_phases, store: true, default: false
 
       FONT_STD = '"Helvetica Neue", Helvetica, Arial, sans-serif'
       FONT_MONEY = '"Courier New", Courier, monospace'
@@ -211,7 +212,11 @@ module View
 
         step = @game.round.active_step
         buy_step = step if step&.respond_to?(:buyable_trains)
-        buy_step = @game.round.steps.find { |s| s.respond_to?(:buyable_trains) } if !buy_step && @game.round.respond_to?(:steps)
+        if !buy_step && @game.round.respond_to?(:steps)
+          buy_step = @game.round.steps.find do |s|
+            s.respond_to?(:buyable_trains)
+          end
+        end
 
         fresh_syms = []
         if buy_step
@@ -285,7 +290,7 @@ module View
             name = entry[:name]
             price = @game.format_currency(entry[:price])
             rem_text = train.unlimited ? '(∞)' : "(#{entry[:remaining].size})"
-            tooltip_node = render_train_phase_tooltip(train)
+            tooltip_node = nil
             wrapper_id = "upcoming_train_#{train.id}_#{name.tr('/', '_')}"
             card_node = render_railcard(
               name,
@@ -311,13 +316,16 @@ module View
               }, [
               card_node,
               h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'flex-end', flex: '1 1 auto' } }, [
-                h(:span, { style: { fontFamily: FONT_CASH, color: COLOR_CASH, fontWeight: 'bold', fontSize: '0.85rem' } }, price),
+                h(:span,
+                  { style: { fontFamily: FONT_CASH, color: COLOR_CASH, fontWeight: 'bold', fontSize: '0.85rem' } }, price),
                 h(:span,
                   { style: { fontFamily: FONT_STD, fontSize: '0.85rem', fontWeight: 'bold', color: '#000000', minWidth: '1.8rem', textAlign: 'right' } }, rem_text),
               ]),
             ])
           else
-            same_remaining = entries.map { |e| e[:remaining].size }.uniq.size == 1 && entries.none? { |e| e[:train].unlimited }
+            same_remaining = entries.map { |e| e[:remaining].size }.uniq.size == 1 && entries.none? do |e|
+              e[:train].unlimited
+            end
             common_rem = entries.first[:train].unlimited ? '(∞)' : "(#{entries.first[:remaining].size})"
 
             train_nodes = entries.map do |entry|
@@ -329,7 +337,7 @@ module View
                          else
                            (train.unlimited ? '(∞)' : "(#{entry[:remaining].size})")
                          end
-              tooltip_node = render_train_phase_tooltip(train)
+              tooltip_node = nil
               wrapper_id = "upcoming_train_#{train.id}_#{name.tr('/', '_')}"
               card_node = render_railcard(
                 name,
@@ -350,7 +358,8 @@ module View
                   },
                 }, [
                 card_node,
-                h(:span, { style: { fontFamily: FONT_CASH, color: COLOR_CASH, fontWeight: 'bold', fontSize: '0.82rem' } }, price),
+                h(:span,
+                  { style: { fontFamily: FONT_CASH, color: COLOR_CASH, fontWeight: 'bold', fontSize: '0.82rem' } }, price),
                 (if rem_text
                    h(:span, { style: { fontFamily: FONT_STD, fontSize: '0.82rem', fontWeight: 'bold', color: '#000000' } },
                      rem_text)
@@ -420,23 +429,68 @@ module View
                          visible_rows + [details]
                        end
 
+        phases_btn = h(:button, {
+                         attrs: {
+                           id: 'btn-show-phases',
+                           type: 'button',
+                           title: 'Toggle Phases Window',
+                         },
+                         style: {
+                           fontFamily: FONT_STD,
+                           fontSize: '0.72rem',
+                           fontWeight: 'bold',
+                           padding: '2px 7px',
+                           lineHeight: '1.2',
+                           backgroundColor: '#ffffff',
+                           color: '#1e293b',
+                           border: '1px solid #94a3b8',
+                           borderRadius: '3px',
+                           cursor: 'pointer',
+                           boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                           letterSpacing: '0',
+                           flexShrink: '0',
+                         },
+                         on: {
+                           click: lambda { |e|
+                             %x{
+                               if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
+                               if (window.toggleDashboardPhases) {
+                                 window.toggleDashboardPhases();
+                               } else {
+                                 var cur = localStorage.getItem('dashboard_show_phases') === 'true';
+                                 localStorage.setItem('dashboard_show_phases', (!cur) ? 'true' : 'false');
+                                 if (window._dashboardVisualizer && window._dashboardVisualizer.$update) {
+                                   window._dashboardVisualizer.$update();
+                                 }
+                               }
+                             }
+                             update
+                           },
+                         },
+                       }, 'Phases...')
+
         title_props = {
           attrs: { class: 'column-zone-market' },
           style: {
-            padding: '0.3rem',
+            padding: '0.3rem 0.5rem',
             backgroundColor: 'var(--bg-market-zone)',
             color: '#000000',
             fontFamily: FONT_STD,
             fontSize: '1.1rem',
             fontWeight: 'bold',
             letterSpacing: '1px',
-            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
             borderBottom: '1px solid #b3b3b3',
           },
         }
 
         h('div#upcoming_trains.card.column-zone-market', { style: { minWidth: '240px', maxWidth: '340px' } }, [
-          h('div.title', title_props, 'Upcoming Trains'),
+          h('div.title', title_props, [
+            h(:span, 'Upcoming Trains'),
+            phases_btn,
+          ]),
           h(:div, { style: { padding: '2px 4px', display: 'flex', flexDirection: 'column' } }, rows_content),
         ])
       end

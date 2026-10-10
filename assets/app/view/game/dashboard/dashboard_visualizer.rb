@@ -568,6 +568,26 @@ badge_el,
           ])
       end
 
+      def render_phases_overlay
+        val = Lib::Storage['dashboard_show_phases']
+        is_open = val == true || val == 'true'
+        return nil unless is_open
+
+        close_handler = lambda {
+          Lib::Storage['dashboard_show_phases'] = 'false'
+          %x{
+            try {
+              localStorage.setItem('dashboard_show_phases', 'false');
+            } catch (e) {}
+          }
+          update
+        }
+
+        h(::View::Game::Dashboard::PhasesOverlay,
+          game: @game,
+          on_close: close_handler)
+      end
+
       def animate_last_action(action)
         return unless action && defined?(Lib::CardAnimation)
 
@@ -983,6 +1003,18 @@ badge_el,
                         `document.body.style.backgroundColor = '#{frame_bg}'`
                         `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'hidden', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', height: '100vh', backgroundColor: '#{frame_bg}', transition: 'background-color 0.3s ease' })`
                         `document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 36px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 36px)' })`
+
+                        %x(
+                    window._dashboardVisualizer = comp;
+                    window.toggleDashboardPhases = function() {
+                      var cur = localStorage.getItem('dashboard_show_phases') === 'true';
+                      var next = !cur;
+                      localStorage.setItem('dashboard_show_phases', next ? 'true' : 'false');
+                      if (comp && comp.$update) {
+                        comp.$update();
+                      }
+                    };
+                  )
 
                         %x(
                     window.playTurnBeep = function(playerName) {
@@ -1805,6 +1837,11 @@ badge_el,
                      }
                    )
                          %x(
+                     window._dashboardVisualizer = null;
+                     window.toggleDashboardPhases = null;
+                   )
+
+                         %x(
                      var menuStyle = document.getElementById('dashboard-menu-overrides');
                      if (menuStyle) menuStyle.remove();
                      var ribbon = document.getElementById('turn-notification-ribbon');
@@ -2019,6 +2056,7 @@ badge_el,
             render_move_history_overlay,
             render_other_games_overlay,
             render_top_nav_utility_cluster,
+            render_phases_overlay,
 
             h(:div, { attrs: { id: 'turn-notification-ribbon' } }),
           ].compact)

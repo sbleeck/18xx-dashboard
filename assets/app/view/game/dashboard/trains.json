@@ -3743,110 +3743,472 @@
     "available_on_id": null,
     "notes": "Runs up to 8 revenue stops (structured node restrictions apply)."
   },
+ "1846_phase_i": {
+    "id": "1846_phase_i",
+    "game_id": "1846",
+    "name": "Phase I (2)",
+    "price": 80,
+    "distance": 2,
+    "distance_type": "stops",
+    "qty": 7,
+    "phased_out_on": "Phase III",
+    "rusts_on": "Phase IV",
+    "obsolete_on": null,
+    "available_on": "Game Start",
+    "notes": "Phase I train. Scaled pool: 5 in 3p, 6 in 4p, 7 in 5p. Two additional 2-trains begin with the Michigan Southern and Big 4 Independent Railroads. Train limit: 4. Phased out in Phase III (turns sideways; operates for one last round, ignored for train limit, cannot be traded). Removed from play in Phase IV.",
+    "variants": {
+      "2": {
+        "name": "2",
+        "mode": "Standard (N)",
+        "summary": "Standard 2-train (visits and counts up to 2 locations)",
+        "rules": [
+          "Visits up to 2 revenue locations (cities or off-board areas), counting both for revenue.",
+          "Route must include at least one city containing a station token of the operating corporation.",
+          "Cannot visit more than 2 locations or skip any intermediate cities along the route.",
+          "Phases out upon first Phase III purchase; completely removed upon first Phase IV purchase."
+        ]
+      }
+    }
+  },
   "1846_2": {
     "id": "1846_2",
     "game_id": "1846",
     "name": "2",
+    "parent_name": "Phase I (2)",
     "price": 80,
     "distance": 2,
     "distance_type": "stops",
-    "qty": null,
-    "rusts_on_id": "1846_6",
-    "obsolete_on_id": "1846_5",
-    "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
+    "qty": 7,
+    "phased_out_on": "Phase III",
+    "rusts_on": "Phase IV",
+    "mode": "Standard (N)",
+    "summary": "Standard 2-train (visits and counts up to 2 locations)",
+    "rules": [
+      "Visits up to 2 revenue locations (cities or off-board areas), counting all visited locations for revenue.",
+      "Must include at least one city containing a token belonging to the operating corporation.",
+      "Cannot skip any cities along the route.",
+      "Phases out in Phase III (turned sideways; runs routes one last round, does not count against train limit, cannot be sold between corporations). Removed from play in Phase IV."
+    ]
+  },
+  "1846_2_ind": {
+    "id": "1846_2_ind",
+    "game_id": "1846",
+    "name": "2 (Independent)",
+    "parent_name": "Phase I (2)",
+    "price": 0,
+    "distance": 2,
+    "distance_type": "stops",
+    "qty": 2,
+    "phased_out_on": "Phase III",
+    "rusts_on": "Phase IV",
+    "mode": "Standard (N)",
+    "summary": "Independent Railroad 2-train (Michigan Southern / Big 4)",
+    "rules": [
+      "Assigned at game start to either the Michigan Southern or Big 4 Independent Railroad.",
+      "Splits route revenue 50/50 between the owning player and the Independent Railroad treasury.",
+      "Transfers to a purchasing corporation alongside treasury funds and token upon acquisition; cannot run in the round it is purchased.",
+      "Subject to normal Phase I train limits and phase-out/removal schedules once integrated."
+    ]
+  },
+  "1846_phase_ii": {
+    "id": "1846_phase_ii",
+    "game_id": "1846",
+    "name": "Phase II (3/5 or 4)",
+    "price": 160,
+    "distance": 4,
+    "distance_type": "modal",
+    "qty": 6,
+    "phased_out_on": "Phase IV",
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase II",
+    "notes": "Double-sided certificate: 3/5 ($160) on one side, 4 ($180) on the other. Purchaser selects type from bank; certificate type cannot be altered once bought. Scaled pool: 4 in 3p, 5 in 4p, 6 in 5p. Purchasing the first Phase II train advances game to Phase II and unlocks green tiles. Train limit: 4. Phased out in Phase IV.",
+    "variants": {
+      "3/5": {
+        "name": "3/5",
+        "mode": "N/M (Count / Visit)",
+        "price": 160,
+        "summary": "3/5 train (visits up to 5 locations, counts best 3)",
+        "rules": [
+          "Visits up to 5 cities and/or off-board areas along a continuous legal route.",
+          "Counts up to 3 of those visited locations toward revenue.",
+          "At least one of the 3 counted revenue locations must contain a token of the corporation.",
+          "Cannot bypass or jump blocked cities; all traversed track and stations must form a valid legal route.",
+          "East-West bonus requires both off-board endpoints to be counted; skipped endpoints forfeit the bonus.",
+          "Mail Contract bonus (+$10/location) pays on all locations visited (up to 5), not just those counted.",
+          "Phases out upon first Phase IV train purchase (discarded after running routes in that round)."
+        ]
+      },
+      "4": {
+        "name": "4",
+        "mode": "Standard (N)",
+        "price": 180,
+        "summary": "Standard 4-train (visits and counts up to 4 locations)",
+        "rules": [
+          "Visits up to 4 revenue locations (cities or off-board areas), counting all toward revenue.",
+          "Must include at least one city containing a token belonging to the operating corporation.",
+          "Cannot skip any intermediate cities along the route.",
+          "Phases out upon first Phase IV train purchase (discarded after running routes in that round)."
+        ]
+      }
+    }
+  },
+  "1846_3_5": {
+    "id": "1846_3_5",
+    "game_id": "1846",
+    "name": "3/5",
+    "parent_name": "Phase II (3/5 or 4)",
+    "price": 160,
+    "distance": 3,
+    "distance_type": "count_of_visited",
+    "qty": 6,
+    "phased_out_on": "Phase IV",
+    "rusts_on": null,
+    "mode": "N/M (Count / Visit)",
+    "summary": "3/5 train (visits up to 5 locations, counts best 3)",
+    "rules": [
+      "Visits up to 5 cities and/or off-board areas along a continuous legal route.",
+      "Counts up to 3 of those visited locations toward revenue.",
+      "At least one of the 3 counted revenue locations must contain a token of the operating corporation.",
+      "Cannot bypass or jump blocked cities; traversed locations must form a contiguous path.",
+      "East-West route bonus requires both terminal off-board locations to be counted, not skipped.",
+      "Mail Contract bonus (+$10/location) applies to all visited locations (up to 5), not just counted locations.",
+      "Phases out in Phase IV (discarded after routes run)."
+    ]
   },
   "1846_4": {
     "id": "1846_4",
     "game_id": "1846",
     "name": "4",
+    "parent_name": "Phase II (3/5 or 4)",
     "price": 180,
     "distance": 4,
     "distance_type": "stops",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": "1846_6",
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
+    "qty": 6,
+    "phased_out_on": "Phase IV",
+    "rusts_on": null,
+    "mode": "Standard (N)",
+    "summary": "Standard 4-train (visits and counts up to 4 locations)",
+    "rules": [
+      "Visits up to 4 revenue locations (cities or off-board areas), counting all 4 toward revenue.",
+      "Must include at least one city containing a token belonging to the operating corporation.",
+      "Cannot skip any intermediate cities.",
+      "Phases out in Phase IV (discarded after routes run)."
+    ]
+  },
+  "1846_phase_iii": {
+    "id": "1846_phase_iii",
+    "game_id": "1846",
+    "name": "Phase III (4/6 or 5)",
+    "price": 450,
+    "distance": 5,
+    "distance_type": "modal",
+    "qty": 5,
+    "phased_out_on": null,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase III",
+    "notes": "Double-sided permanent train certificate: 4/6 ($450) on one side, 5 ($500) on the other. Purchaser selects type from bank; certificate type cannot be altered once bought. Scaled pool: 3 in 3p, 4 in 4p, 5 in 5p. Purchasing first Phase III train advances game to Phase III: unlocks brown tiles, higher off-board values, phases out Phase I trains, closes unbought independent railroads, and removes private companies (except corporate-owned Mail Contract). Train limit: 3. Permanent; never phases out or rusts.",
+    "variants": {
+      "4/6": {
+        "name": "4/6",
+        "mode": "N/M (Count / Visit)",
+        "price": 450,
+        "summary": "4/6 permanent train (visits up to 6 locations, counts best 4)",
+        "rules": [
+          "Visits up to 6 cities and/or off-board areas along a continuous legal route.",
+          "Counts up to 4 of those visited locations toward revenue.",
+          "At least one of the 4 counted locations must contain a token of the corporation.",
+          "Cannot bypass or jump blocked cities.",
+          "Both endpoints of an East-West route must be counted to collect the E-W bonus.",
+          "Mail Contract bonus applies to all visited locations (up to 6).",
+          "Permanent locomotive: Never phases out or rusts."
+        ]
+      },
+      "5": {
+        "name": "5",
+        "mode": "Standard (N)",
+        "price": 500,
+        "summary": "Standard 5 permanent train (visits and counts up to 5 locations)",
+        "rules": [
+          "Visits up to 5 cities and/or off-board areas, counting all 5 toward revenue.",
+          "Must include at least one city containing a token of the operating corporation.",
+          "Cannot skip any intermediate cities along the route.",
+          "Permanent locomotive: Never phases out or rusts."
+        ]
+      }
+    }
+  },
+  "1846_4_6": {
+    "id": "1846_4_6",
+    "game_id": "1846",
+    "name": "4/6",
+    "parent_name": "Phase III (4/6 or 5)",
+    "price": 450,
+    "distance": 4,
+    "distance_type": "count_of_visited",
+    "qty": 5,
+    "phased_out_on": null,
+    "rusts_on": null,
+    "mode": "N/M (Count / Visit)",
+    "summary": "4/6 permanent train (visits up to 6 locations, counts best 4)",
+    "rules": [
+      "Visits up to 6 cities and/or off-board areas along a continuous legal route.",
+      "Counts up to 4 of those visited locations toward revenue.",
+      "At least one of the 4 counted revenue locations must contain a token of the operating corporation.",
+      "Cannot bypass blocked cities.",
+      "East-West bonus requires counting both terminal off-board locations.",
+      "Mail Contract bonus applies to all visited locations (up to 6).",
+      "Permanent train: Never phases out or rusts."
+    ]
   },
   "1846_5": {
     "id": "1846_5",
     "game_id": "1846",
     "name": "5",
+    "parent_name": "Phase III (4/6 or 5)",
     "price": 500,
     "distance": 5,
     "distance_type": "stops",
+    "qty": 5,
+    "phased_out_on": null,
+    "rusts_on": null,
+    "mode": "Standard (N)",
+    "summary": "Standard 5 permanent train (visits and counts up to 5 locations)",
+    "rules": [
+      "Visits up to 5 cities and/or off-board areas, counting all 5 toward revenue.",
+      "Must include at least one city containing a token of the operating corporation.",
+      "Cannot skip intermediate cities along the route.",
+      "Permanent train: Never phases out or rusts."
+    ]
+  },
+  "1846_phase_iv": {
+    "id": "1846_phase_iv",
+    "game_id": "1846",
+    "name": "Phase IV (7/8 or 6)",
+    "price": 800,
+    "distance": 6,
+    "distance_type": "modal",
     "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops."
+    "phased_out_on": null,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase IV",
+    "notes": "Double-sided permanent train certificate: 7/8 ($900) on one side, 6 ($800) on the other. Unlimited pool (9 cards supplied; Phase I cards act as proxies if exhausted). Purchasing first Phase IV train advances game to Phase IV: unlocks gray tiles, permanently removes remaining Phase I trains, phases out Phase II trains, clears city token reservations, and removes private company markers. Train limit: 2. Permanent; never phases out or rusts.",
+    "variants": {
+      "7/8": {
+        "name": "7/8",
+        "mode": "N/M (Count / Visit)",
+        "price": 900,
+        "summary": "7/8 permanent train (visits up to 8 locations, counts best 7)",
+        "rules": [
+          "Visits up to 8 cities and/or off-board areas along a continuous legal route.",
+          "Counts up to 7 of those visited locations toward revenue.",
+          "At least one of the 7 counted locations must contain a token of the corporation.",
+          "Cannot bypass or jump blocked cities.",
+          "Both endpoints of an East-West route must be counted to collect the E-W bonus.",
+          "Mail Contract bonus applies to all visited locations (up to 8).",
+          "Permanent locomotive: Never phases out or rusts."
+        ]
+      },
+      "6": {
+        "name": "6",
+        "mode": "Standard (N)",
+        "price": 800,
+        "summary": "Standard 6 permanent train (visits and counts up to 6 locations)",
+        "rules": [
+          "Visits up to 6 revenue locations (cities or off-board areas), counting all 6 toward revenue.",
+          "Must include at least one city containing a token of the operating corporation.",
+          "Cannot skip any intermediate cities along the route.",
+          "Permanent locomotive: Never phases out or rusts."
+        ]
+      }
+    }
+  },
+  "1846_7_8": {
+    "id": "1846_7_8",
+    "game_id": "1846",
+    "name": "7/8",
+    "parent_name": "Phase IV (7/8 or 6)",
+    "price": 900,
+    "distance": 7,
+    "distance_type": "count_of_visited",
+    "qty": null,
+    "phased_out_on": null,
+    "rusts_on": null,
+    "mode": "N/M (Count / Visit)",
+    "summary": "7/8 permanent train (visits up to 8 locations, counts best 7)",
+    "rules": [
+      "Visits up to 8 cities and/or off-board areas along a continuous legal route.",
+      "Counts up to 7 of those visited locations toward revenue.",
+      "At least one of the 7 counted revenue locations must contain a token of the operating corporation.",
+      "Cannot bypass blocked cities.",
+      "East-West bonus requires counting both terminal off-board locations.",
+      "Mail Contract bonus applies to all visited locations (up to 8).",
+      "Permanent train: Never phases out or rusts."
+    ]
   },
   "1846_6": {
     "id": "1846_6",
     "game_id": "1846",
     "name": "6",
+    "parent_name": "Phase IV (7/8 or 6)",
     "price": 800,
     "distance": 6,
     "distance_type": "stops",
     "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops."
+    "phased_out_on": null,
+    "rusts_on": null,
+    "mode": "Standard (N)",
+    "summary": "Standard 6 permanent train (visits and counts up to 6 locations)",
+    "rules": [
+      "Visits up to 6 revenue locations (cities or off-board areas), counting all 6 toward revenue.",
+      "Must include at least one city containing a token of the operating corporation.",
+      "Cannot skip intermediate cities along the route.",
+      "Permanent train: Never phases out or rusts."
+    ]
   },
-  "1846_two_player_variant_2": {
-    "id": "1846_two_player_variant_2",
+  "1846_two_player_variant_phase_i": {
+    "id": "1846_two_player_variant_phase_i",
     "game_id": "1846_two_player_variant",
-    "name": "2",
+    "name": "Phase I (2)",
     "price": 80,
     "distance": 2,
     "distance_type": "stops",
-    "qty": null,
-    "rusts_on_id": "1846_two_player_variant_6",
-    "obsolete_on_id": "1846_two_player_variant_5",
-    "available_on_id": null,
-    "notes": "Runs up to 2 revenue stops."
+    "qty": 4,
+    "phased_out_on": "Phase III",
+    "rusts_on": "Phase IV",
+    "obsolete_on": null,
+    "available_on": "Game Start",
+    "notes": "Two-player variant Phase I train pool (4 cards). Standard 2-train rules apply. Phased out in Phase III; removed in Phase IV.",
+    "variants": {
+      "2": {
+        "name": "2",
+        "mode": "Standard (N)",
+        "summary": "Standard 2-train (visits and counts up to 2 locations)",
+        "rules": [
+          "Visits up to 2 revenue locations, counting both for revenue.",
+          "Route must include at least one city with a corporate token.",
+          "Phases out in Phase III; removed in Phase IV."
+        ]
+      }
+    }
   },
-  "1846_two_player_variant_4": {
-    "id": "1846_two_player_variant_4",
+  "1846_two_player_variant_phase_ii": {
+    "id": "1846_two_player_variant_phase_ii",
     "game_id": "1846_two_player_variant",
-    "name": "4",
-    "price": 180,
+    "name": "Phase II (3/5 or 4)",
+    "price": 160,
     "distance": 4,
-    "distance_type": "stops",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": "1846_two_player_variant_6",
-    "available_on_id": null,
-    "notes": "Runs up to 4 revenue stops."
+    "distance_type": "modal",
+    "qty": 3,
+    "phased_out_on": "Phase IV",
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase II",
+    "notes": "Two-player variant Phase II pool (3 cards). Dual-sided 3/5 ($160) or 4 ($180). Phased out in Phase IV.",
+    "variants": {
+      "3/5": {
+        "name": "3/5",
+        "mode": "N/M (Count / Visit)",
+        "price": 160,
+        "summary": "3/5 train (visits up to 5 locations, counts best 3)",
+        "rules": [
+          "Visits up to 5 locations along a legal path, counts best 3.",
+          "Must include a token in at least one counted city.",
+          "Phases out in Phase IV."
+        ]
+      },
+      "4": {
+        "name": "4",
+        "mode": "Standard (N)",
+        "price": 180,
+        "summary": "Standard 4-train (visits and counts up to 4 locations)",
+        "rules": [
+          "Visits and counts up to 4 locations.",
+          "Must include a token in at least one city.",
+          "Phases out in Phase IV."
+        ]
+      }
+    }
   },
-  "1846_two_player_variant_5": {
-    "id": "1846_two_player_variant_5",
+  "1846_two_player_variant_phase_iii": {
+    "id": "1846_two_player_variant_phase_iii",
     "game_id": "1846_two_player_variant",
-    "name": "5",
-    "price": 500,
+    "name": "Phase III (4/6 or 5)",
+    "price": 450,
     "distance": 5,
-    "distance_type": "stops",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 5 revenue stops."
+    "distance_type": "modal",
+    "qty": 2,
+    "phased_out_on": null,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase III",
+    "notes": "Two-player variant Phase III pool (2 cards). Dual-sided 4/6 ($450) or 5 ($500). Permanent; never phases out or rusts.",
+    "variants": {
+      "4/6": {
+        "name": "4/6",
+        "mode": "N/M (Count / Visit)",
+        "price": 450,
+        "summary": "4/6 permanent train (visits up to 6 locations, counts best 4)",
+        "rules": [
+          "Visits up to 6 locations along a legal path, counts best 4.",
+          "Must include a corporate token in at least one counted city.",
+          "Permanent locomotive: Never phases out or rusts."
+        ]
+      },
+      "5": {
+        "name": "5",
+        "mode": "Standard (N)",
+        "price": 500,
+        "summary": "Standard 5 permanent train (visits and counts up to 5 locations)",
+        "rules": [
+          "Visits and counts up to 5 locations.",
+          "Must include a corporate token in at least one city.",
+          "Permanent locomotive: Never phases out or rusts."
+        ]
+      }
+    }
   },
-  "1846_two_player_variant_6": {
-    "id": "1846_two_player_variant_6",
+  "1846_two_player_variant_phase_iv": {
+    "id": "1846_two_player_variant_phase_iv",
     "game_id": "1846_two_player_variant",
-    "name": "6",
+    "name": "Phase IV (7/8 or 6)",
     "price": 800,
     "distance": 6,
-    "distance_type": "stops",
+    "distance_type": "modal",
     "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 revenue stops."
+    "phased_out_on": null,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase IV",
+    "notes": "Two-player variant Phase IV pool (unlimited). Dual-sided 7/8 ($900) or 6 ($800). Permanent; never phases out or rusts.",
+    "variants": {
+      "7/8": {
+        "name": "7/8",
+        "mode": "N/M (Count / Visit)",
+        "price": 900,
+        "summary": "7/8 permanent train (visits up to 8 locations, counts best 7)",
+        "rules": [
+          "Visits up to 8 locations along a legal path, counts best 7.",
+          "Must include a corporate token in at least one counted city.",
+          "Permanent locomotive: Never phases out or rusts."
+        ]
+      },
+      "6": {
+        "name": "6",
+        "mode": "Standard (N)",
+        "price": 800,
+        "summary": "Standard 6 permanent train (visits and counts up to 6 locations)",
+        "rules": [
+          "Visits and counts up to 6 locations.",
+          "Must include a corporate token in at least one city.",
+          "Permanent locomotive: Never phases out or rusts."
+        ]
+      }
+    }
   },
+ 
   "1847_ae_3": {
     "id": "1847_ae_3",
     "game_id": "1847_ae",
@@ -4042,7 +4404,9 @@
     "available_on_id": "1848_5",
     "notes": "Runs up to 2 revenue stops (structured node restrictions apply)."
   },
-  "1849_4h": {
+
+  
+ "1849_4h": {
     "id": "1849_4h",
     "game_id": "1849",
     "name": "4H",
@@ -4050,10 +4414,23 @@
     "distance": 4,
     "distance_type": "hex_edges",
     "qty": 4,
-    "rusts_on_id": "1849_8h",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Standard/dual gauge = 1 edge; narrow gauge = 2 edges."
+    "rusts_on": "Phase 8 (first 8H purchase)",
+    "obsolete_on": null,
+    "available_on": "Game Start / Phase 4",
+    "summary": "4H Train (traverses up to 4 standard gauge hex edges)",
+    "notes": "Initial train class available at game start in Phase 4. Total pool of 4 trains. Corporation train limit is 4. Eliminated immediately without compensation upon purchase of the first 8H train in Phase 8.",
+    "rules": [
+      "Traverses up to 4 hex edges across standard gauge track (starting hex is not counted).",
+      "Narrow gauge track costs 2 hex edges per hex traversed.",
+      "Dual gauge track costs 1 hex edge per hex traversed (treated as the entering gauge without penalty).",
+      "Route must include at least two cities, or one city and one town (ports cannot satisfy this minimum).",
+      "May visit up to two ports (each port track arrow counts as 1 hex edge).",
+      "Must include at least one city containing a station token of the operating corporation.",
+      "Gauge changes permitted only at towns or cities.",
+      "The hex northeast of Messina with a dividing line counts as 2 hexes (3 hexes total to Calabria).",
+      "Multiple routes operated by the same corporation must run disjoint track along their entire length (may only meet or cross at stations on separate track).",
+      "Eliminated from the game immediately without compensation upon purchase of the first 8H train."
+    ]
   },
   "1849_6h": {
     "id": "1849_6h",
@@ -4062,11 +4439,24 @@
     "price": 200,
     "distance": 6,
     "distance_type": "hex_edges",
-    "qty": null,
-    "rusts_on_id": "1849_10h",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Standard/dual gauge = 1 edge; narrow gauge = 2 edges."
+    "qty": 4,
+    "rusts_on": "Phase 10 (first 10H purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 6",
+    "summary": "6H Train (traverses up to 6 standard gauge hex edges)",
+    "notes": "Purchasing first 6H advances game to Phase 6: enables green tiles, increases operating rounds to 2 per cycle, allows corporations to purchase private companies from players (L. 1 to 2x face value), and unlocks L. 144 starting share price. Pool: 4 trains (3 in 5-corp game). Train limit: 4. Eliminated upon first 10H purchase.",
+    "rules": [
+      "Traverses up to 6 hex edges across standard gauge track (starting hex is not counted).",
+      "Narrow gauge track costs 2 hex edges per hex traversed.",
+      "Dual gauge track costs 1 hex edge per hex traversed.",
+      "Route must include at least two cities, or one city and one town (ports cannot satisfy this minimum).",
+      "May visit up to two ports (each port track arrow counts as 1 hex edge).",
+      "Must include at least one city containing a station token of the operating corporation.",
+      "Gauge changes permitted only at towns or cities.",
+      "The hex northeast of Messina with a dividing line counts as 2 hexes (3 hexes total to Calabria).",
+      "Multiple routes operated by the same corporation must be disjoint along their entire length.",
+      "Eliminated from the game immediately without compensation upon purchase of the first 10H train."
+    ]
   },
   "1849_8h": {
     "id": "1849_8h",
@@ -4075,11 +4465,24 @@
     "price": 350,
     "distance": 8,
     "distance_type": "hex_edges",
-    "qty": null,
-    "rusts_on_id": "1849_16h",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Standard/dual gauge = 1 edge; narrow gauge = 2 edges."
+    "qty": 3,
+    "rusts_on": "Phase 16 (first 16H purchase)",
+    "obsolete_on": null,
+    "available_on": "Phase 8",
+    "summary": "8H Train (traverses up to 8 standard gauge hex edges)",
+    "notes": "Purchasing first 8H advances game to Phase 8: immediately eliminates all 4H trains, reduces train limit from 4 to 3 (excess trains discarded without compensation to bank pool), unlocks brown tiles and all starting share values, scores grey cities at middle value, and enables bonds in the Bonds variant. Pool: 3 trains (2 in 5-corp game). Eliminated upon first 16H purchase.",
+    "rules": [
+      "Traverses up to 8 hex edges across standard gauge track (starting hex is not counted).",
+      "Narrow gauge track costs 2 hex edges per hex traversed.",
+      "Dual gauge track costs 1 hex edge per hex traversed.",
+      "Route must include at least two cities, or one city and one town (ports cannot satisfy this minimum).",
+      "May visit up to two ports (each port track arrow counts as 1 hex edge).",
+      "Must include at least one city containing a station token of the operating corporation.",
+      "Gauge changes permitted only at towns or cities.",
+      "The hex northeast of Messina with a dividing line counts as 2 hexes (3 hexes total to Calabria).",
+      "Multiple routes operated by the same corporation must be disjoint along their entire length.",
+      "Eliminated from the game immediately without compensation upon purchase of the first 16H train."
+    ]
   },
   "1849_10h": {
     "id": "1849_10h",
@@ -4089,10 +4492,23 @@
     "distance": 10,
     "distance_type": "hex_edges",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Standard/dual gauge = 1 edge; narrow gauge = 2 edges."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 10",
+    "summary": "10H Permanent Locomotive (traverses up to 10 standard gauge hex edges)",
+    "notes": "Permanent locomotive. Purchasing first 10H advances game to Phase 10: immediately eliminates all 6H trains, reduces train limit from 3 to 2 (excess discarded to bank pool), increases operating rounds to 3 per cycle (effective after next SR), and unlocks L. 216 starting share price. Pool: 2 trains.",
+    "rules": [
+      "Permanent locomotive: Never eliminated or rusted.",
+      "Traverses up to 10 hex edges across standard gauge track (starting hex is not counted).",
+      "Narrow gauge track costs 2 hex edges per hex traversed.",
+      "Dual gauge track costs 1 hex edge per hex traversed.",
+      "Route must include at least two cities, or one city and one town (ports cannot satisfy this minimum).",
+      "May visit up to two ports (each port track arrow counts as 1 hex edge).",
+      "Must include at least one city containing a station token of the operating corporation.",
+      "Gauge changes permitted only at towns or cities.",
+      "The hex northeast of Messina with a dividing line counts as 2 hexes (3 hexes total to Calabria).",
+      "Multiple routes operated by the same corporation must be disjoint along their entire length."
+    ]
   },
   "1849_12h": {
     "id": "1849_12h",
@@ -4102,10 +4518,23 @@
     "distance": 12,
     "distance_type": "hex_edges",
     "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Standard/dual gauge = 1 edge; narrow gauge = 2 edges."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 12",
+    "summary": "12H Permanent Locomotive (traverses up to 12 standard gauge hex edges)",
+    "notes": "Permanent locomotive. Purchasing first 12H advances game to Phase 12: triggers the 1908 Messina Earthquake (Messina tile downgraded to yellow, laid station tokens destroyed permanently unless reopened; Garibaldi closes if home was Messina and has no secondary base), closes and removes all remaining private companies without compensation, scores grey cities at highest value, and enables E tokens/trains in the Electric Dreams variant. Pool: 1 train. Train limit: 2.",
+    "rules": [
+      "Permanent locomotive: Never eliminated or rusted.",
+      "Traverses up to 12 hex edges across standard gauge track (starting hex is not counted).",
+      "Narrow gauge track costs 2 hex edges per hex traversed.",
+      "Dual gauge track costs 1 hex edge per hex traversed.",
+      "Route must include at least two cities, or one city and one town (ports cannot satisfy this minimum).",
+      "May visit up to two ports (each port track arrow counts as 1 hex edge).",
+      "Must include at least one city containing a station token of the operating corporation.",
+      "Gauge changes permitted only at towns or cities.",
+      "The hex northeast of Messina with a dividing line counts as 2 hexes (3 hexes total to Calabria).",
+      "Multiple routes operated by the same corporation must be disjoint along their entire length."
+    ]
   },
   "1849_16h": {
     "id": "1849_16h",
@@ -4114,24 +4543,24 @@
     "price": 1100,
     "distance": 16,
     "distance_type": "hex_edges",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Standard/dual gauge = 1 edge; narrow gauge = 2 edges."
-  },
-  "1849_e": {
-    "id": "1849_e",
-    "game_id": "1849",
-    "name": "E",
-    "price": 550,
-    "distance": 99,
-    "distance_type": "unlimited_express",
-    "qty": 6,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1849_12h",
-    "notes": "Unlimited hexes. Cannot use narrow gauge; 2x revenue on B14, C5, H12, M13."
+    "qty": 5,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 16",
+    "summary": "16H Permanent Locomotive (traverses up to 16 standard gauge hex edges)",
+    "notes": "Permanent locomotive. Purchasing first 16H advances game to Phase 16: immediately eliminates all 8H trains, unlocks the R6H reverse-gauge train for purchase from the bank, and allows stock market tokens to enter the blue zone. Pool: 5 trains (4 in 5-corp game). Train limit: 2.",
+    "rules": [
+      "Permanent locomotive: Never eliminated or rusted.",
+      "Traverses up to 16 hex edges across standard gauge track (starting hex is not counted).",
+      "Narrow gauge track costs 2 hex edges per hex traversed.",
+      "Dual gauge track costs 1 hex edge per hex traversed.",
+      "Route must include at least two cities, or one city and one town (ports cannot satisfy this minimum).",
+      "May visit up to two ports (each port track arrow counts as 1 hex edge).",
+      "Must include at least one city containing a station token of the operating corporation.",
+      "Gauge changes permitted only at towns or cities.",
+      "The hex northeast of Messina with a dividing line counts as 2 hexes (3 hexes total to Calabria).",
+      "Multiple routes operated by the same corporation must be disjoint along their entire length."
+    ]
   },
   "1849_r6h": {
     "id": "1849_r6h",
@@ -4141,102 +4570,50 @@
     "distance": 6,
     "distance_type": "hex_edges",
     "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1849_16h",
-    "notes": "Restricted gauge: Narrow gauge = 1 edge; standard gauge = 2 edges."
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 16 (after first 16H purchase)",
+    "summary": "R6H Reverse-Gauge Permanent Locomotive (traverses up to 6 narrow gauge hex edges)",
+    "notes": "Permanent reverse-gauge locomotive ('R' for Reverse). Becomes available only after the first 16H train is purchased from the bank in Phase 16. Reverses gauge costs to favor mountain narrow gauge networks. Pool: 2 trains. Train limit: 2.",
+    "rules": [
+      "Permanent locomotive: Never eliminated or rusted.",
+      "Traverses up to 6 hex edges under reversed gauge calculation (starting hex is not counted).",
+      "Narrow gauge track costs 1 hex edge per hex traversed.",
+      "Standard gauge track costs 2 hex edges per hex traversed.",
+      "Dual gauge track costs 1 hex edge per hex traversed if route is entirely dual gauge; otherwise treated as entering gauge throughout (narrow = 1, standard = 2).",
+      "Route must include at least two cities, or one city and one town (ports cannot satisfy this minimum).",
+      "May visit up to two ports (each port track arrow counts as 1 hex edge).",
+      "Must include at least one city containing a station token of the operating corporation.",
+      "Gauge changes permitted only at towns or cities.",
+      "The hex northeast of Messina with a dividing line counts as 2 hexes (3 hexes total to Calabria).",
+      "Multiple routes operated by the same corporation must be disjoint along their entire length."
+    ]
   },
-  "1849_boot_4h": {
-    "id": "1849_boot_4h",
-    "game_id": "1849_boot",
-    "name": "4H",
-    "price": 100,
-    "distance": 4,
-    "distance_type": "hex_edges",
-    "qty": 4,
-    "rusts_on_id": "1849_boot_8h",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 4 hex edges."
-  },
-  "1849_boot_6h": {
-    "id": "1849_boot_6h",
-    "game_id": "1849_boot",
-    "name": "6H",
-    "price": 200,
-    "distance": 6,
-    "distance_type": "hex_edges",
-    "qty": 4,
-    "rusts_on_id": "1849_boot_10h",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 6 hex edges."
-  },
-  "1849_boot_8h": {
-    "id": "1849_boot_8h",
-    "game_id": "1849_boot",
-    "name": "8H",
-    "price": 350,
-    "distance": 8,
-    "distance_type": "hex_edges",
-    "qty": null,
-    "rusts_on_id": "1849_boot_16h",
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 8 hex edges."
-  },
-  "1849_boot_10h": {
-    "id": "1849_boot_10h",
-    "game_id": "1849_boot",
-    "name": "10H",
+  "1849_e": {
+    "id": "1849_e",
+    "game_id": "1849",
+    "name": "E",
     "price": 550,
-    "distance": 10,
-    "distance_type": "hex_edges",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 10 hex edges."
+    "distance": 999,
+    "distance_type": "unlimited_express",
+    "qty": 6,
+    "rusts_on": null,
+    "obsolete_on": null,
+    "available_on": "Phase 12 (Electric Dreams variant, requires E token)",
+    "summary": "Electric Locomotive (Electric Dreams variant: unlimited standard/dual distance, 2x major cities)",
+    "notes": "Electric Dreams variant train. Six E trains available at L. 550 each. A corporation must purchase an E token from the bank (first costs L. 1,100 in Phase 12 / L. 800 in Phase 16; subsequent cost L. 800 in Phase 12 / L. 550 in Phase 16) before purchasing an E train. Max 1 E token per corporation. Subject to normal train limit (2). Permanent.",
+    "rules": [
+      "Permanent locomotive: Never eliminated or rusted.",
+      "Unlimited movement distance across standard gauge and dual gauge track.",
+      "Strictly prohibited from moving along narrow gauge track.",
+      "Doubles revenue of the four major Sicilian cities: Catania (C5), Messina (B14), Palermo (H12), and Siracusa (M13).",
+      "Route must include at least two cities, or one city and one town (ports cannot satisfy this minimum).",
+      "May visit up to two ports (each port track arrow counts as 1 hex edge).",
+      "Must include at least one city containing a station token of the operating corporation.",
+      "Cannot be operated without an owning corporation holding an active E token."
+    ]
   },
-  "1849_boot_12h": {
-    "id": "1849_boot_12h",
-    "game_id": "1849_boot",
-    "name": "12H",
-    "price": 800,
-    "distance": 12,
-    "distance_type": "hex_edges",
-    "qty": 1,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 12 hex edges."
-  },
-  "1849_boot_16h": {
-    "id": "1849_boot_16h",
-    "game_id": "1849_boot",
-    "name": "16H",
-    "price": 1100,
-    "distance": 16,
-    "distance_type": "hex_edges",
-    "qty": null,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": null,
-    "notes": "Runs up to 16 hex edges."
-  },
-  "1849_boot_r6h": {
-    "id": "1849_boot_r6h",
-    "game_id": "1849_boot",
-    "name": "R6H",
-    "price": 600,
-    "distance": 6,
-    "distance_type": "hex_edges",
-    "qty": 2,
-    "rusts_on_id": null,
-    "obsolete_on_id": null,
-    "available_on_id": "1849_boot_16h",
-    "notes": "Runs up to 6 hex edges."
-  },
+
   "1850_2": {
     "id": "1850_2",
     "game_id": "1850",
