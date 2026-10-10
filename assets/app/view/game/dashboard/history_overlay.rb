@@ -153,7 +153,6 @@ module View
             nil
           end
           @on_close&.call if @on_close.respond_to?(:call)
-          # Do not alter style.display on the DOM node directly; allow VDOM unmount
         end
 
         def normalize_round_action_ids(raw)
@@ -369,56 +368,6 @@ module View
           }
         end
 
-        def start_drag(e)
-          %x{
-            var ev = #{e};
-            if (!ev || ev.button !== 0) return;
-            var target = ev.target;
-            if (target && (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || (target.closest && target.closest('button, input')))) {
-              return;
-            }
-            if (ev.preventDefault) ev.preventDefault();
-
-            var hud = document.getElementById('history_floating_hud');
-            if (!hud) return;
-
-            var rect = hud.getBoundingClientRect();
-            var startX = ev.clientX;
-            var startY = ev.clientY;
-            var origLeft = rect.left;
-            var origTop = rect.top;
-
-            hud.style.transform = 'none';
-            hud.style.left = origLeft + 'px';
-            hud.style.top = origTop + 'px';
-            hud.style.margin = '0';
-            document.body.style.userSelect = 'none';
-
-            var onMove = function(me) {
-              var dx = me.clientX - startX;
-              var dy = me.clientY - startY;
-              var maxLeft = window.innerWidth - hud.offsetWidth - 10;
-              var maxTop = window.innerHeight - hud.offsetHeight - 10;
-              var newLeft = Math.max(10, Math.min(maxLeft, origLeft + dx));
-              var newTop = Math.max(10, Math.min(maxTop, origTop + dy));
-              hud.style.left = newLeft + 'px';
-              hud.style.top = newTop + 'px';
-            };
-
-            var onUp = function() {
-              window.removeEventListener('mousemove', onMove);
-              window.removeEventListener('mouseup', onUp);
-              document.body.style.userSelect = '';
-              try {
-                localStorage.setItem('hist_hud_pos', JSON.stringify({ left: hud.style.left, top: hud.style.top }));
-              } catch(err) {}
-            };
-
-            window.addEventListener('mousemove', onMove);
-            window.addEventListener('mouseup', onUp);
-          }
-        end
-
         def nav_btn(label, onclick, disabled: false, primary: false, danger: false)
           bg = if disabled
                  '#f1f5f9'
@@ -477,176 +426,282 @@ module View
           is_hist = viewing_history?
           is_minimized = history_minimized?
 
-          saved_pos = %x{
-            (function() {
-              try {
-                var p = JSON.parse(localStorage.getItem('hist_hud_pos'));
-                if (p && typeof p.left === 'string' && typeof p.top === 'string' && p.left.indexOf('px') !== -1 && p.top.indexOf('px') !== -1) {
-                  return p;
+          saved_left = %x((function() {
+            try {
+              var l = sessionStorage.getItem('history_overlay_left');
+              return (l && l !== 'undefined' && l !== 'null' && !isNaN(parseFloat(l))) ? parseFloat(l) : null;
+            } catch(e) { return null; }
+          })())
+          saved_top = %x((function() {
+            try {
+              var t = sessionStorage.getItem('history_overlay_top');
+              return (t && t !== 'undefined' && t !== 'null' && !isNaN(parseFloat(t))) ? parseFloat(t) : null;
+            } catch(e) { return null; }
+          })())
+
+          on_header_mousedown = lambda do |event|
+            %x{
+              var ev = #{event} || window.event;
+              if (!ev) return;
+
+              var target = ev.target || ev.srcElement;
+              if (target) {
+                var tag = (target.tagName || '').toUpperCase();
+                if (tag === 'BUTTON' || tag === 'INPUT' ||
+                    (target.closest && target.closest('button'))) {
+                  return;
                 }
-              } catch(e) {}
-              return null;
-            })()
-          }
-          pos_native = Native(saved_pos) if saved_pos
-          has_pos = pos_native && pos_native['left'] && pos_native['top']
+              }
+
+              var header = ev.currentTarget;
+              var modal = header && header.parentElement;
+              if (!header || !modal) return;
+
+              if (ev.preventDefault) ev.preventDefault();
+
+              header.style.cursor = 'grabbing';
+
+              var rect = modal.getBoundingClientRect();
+              var shiftX = ev.clientX - rect.left;
+              var shiftY = ev.clientY - rect.top;
+
+              modal.style.position = 'fixed';
+              modal.style.left = rect.left + 'px';
+              modal.style.top = rect.top + 'px';
+              modal.style.margin = '0';
+              modal.style.transform = 'none';
+
+              function onMouseMove(moveEv) {
+                var mEv = moveEv || window.event;
+                if (mEv.preventDefault) mEv.preventDefault();
+
+                var newLeft = mEv.clientX - shiftX;
+                var newTop = mEv.clientY - shiftY;
+                var maxLeft = window.innerWidth - 60;
+                var maxTop = window.innerHeight - 40;
+
+                if (newLeft < 10) newLeft = 10;
+                if (newLeft > maxLeft) newLeft = maxLeft;
+                if (newTop < 0) newTop = 0;
+                if (newTop > maxTop) newTop = maxTop;
+
+                modal.style.left = newLeft + 'px';
+                modal.style.top = newTop + 'px';
+              }
+
+              function onMouseUp(upEv) {
+                document.removeEventListener('mousemove', onMouseMove, true);
+                document.removeEventListener('mouseup', onMouseUp, true);
+                window.removeEventListener('mousemove', onMouseMove, true);
+                window.removeEventListener('mouseup', onMouseUp, true);
+
+                header.style.cursor = 'grab';
+
+                var finalRect = modal.getBoundingClientRect();
+                if (finalRect &&
+                    !isNaN(finalRect.left) && !isNaN(finalRect.top)) {
+                  try {
+                    sessionStorage.setItem('history_overlay_left', finalRect.left);
+                    sessionStorage.setItem('history_overlay_top', finalRect.top);
+                  } catch (err) {}
+                }
+              }
+
+              document.addEventListener('mousemove', onMouseMove, true);
+              document.addEventListener('mouseup', onMouseUp, true);
+              window.addEventListener('mousemove', onMouseMove, true);
+              window.addEventListener('mouseup', onMouseUp, true);
+            }
+          end
+
+          reset_pos = lambda do
+            %x(
+            try {
+              sessionStorage.removeItem('history_overlay_left');
+              sessionStorage.removeItem('history_overlay_top');
+            } catch(e) {}
+            var modal = document.getElementById('history_floating_hud');
+            if (modal) {
+              modal.style.left = '50%';
+              modal.style.top = '80px';
+              modal.style.transform = 'translateX(-50%)';
+              modal.style.margin = '0';
+            }
+            )
+            update
+          end
 
           hud_style = {
             position: 'fixed',
-            top: has_pos ? pos_native['top'] : '80px',
-            left: has_pos ? pos_native['left'] : '50%',
-            transform: has_pos ? 'none' : 'translateX(-50%)',
             width: '560px',
             maxWidth: '92vw',
             backgroundColor: '#ffffff',
             borderRadius: '8px',
             boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.15)',
             border: '1px solid #94a3b8',
-            zIndex: '999999',
+            zIndex: '100001',
             pointerEvents: 'auto',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            userSelect: 'none',
+            margin: '0',
           }
 
-          h('div#history_floating_hud', { style: hud_style }, [
-            h('div#history_hud_handle', {
-                style: {
-                  padding: '0.55rem 0.9rem',
-                  borderBottom: '1px solid #e2e8f0',
-                  backgroundColor: '#f1f5f9',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'grab',
-                },
-                on: {
-                  mousedown: ->(e) { start_drag(e) },
-                },
-              }, [
-              h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' } }, [
-                h(:span, { style: { fontSize: '1rem', color: '#64748b' } }, '⠿'),
-                h(:h3, { style: { margin: '0', fontSize: '1rem', color: '#0f172a', fontWeight: 'bold' } },
-                  'Game History Navigation'),
-                h(:span, {
-                    style: {
-                      fontSize: '0.72rem',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      fontWeight: 'bold',
-                      display: 'none',
-                      backgroundColor: 'transparent',
-                      color: '#64748b',
-                      border: 'none',
-                    },
-                  }, ''),
-              ]),
-              h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.2rem' } }, [
-                h(:button, {
-                    attrs: { type: 'button', title: is_minimized ? 'Expand' : 'Minimize' },
-                    style: {
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '1.1rem',
-                      color: '#64748b',
-                      cursor: 'pointer',
-                      padding: '2px 7px',
-                      lineHeight: '1',
-                    },
-                    on: { click: -> { toggle_history_minimized } },
-                  }, is_minimized ? '□' : '−'),
-                h(:button, {
-                    attrs: { id: 'btn_close_history_overlay', type: 'button', title: 'Close Navigation HUD' },
-                    style: {
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '1.25rem',
-                      color: '#64748b',
-                      cursor: 'pointer',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      lineHeight: '1',
-                      pointerEvents: 'auto',
-                      zIndex: '10',
-                    },
-                    on: {
-                      click: lambda { |e|
-                        %x{
-                        if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
-                      }
-                        close_overlay
-                      },
-                    },
-                  }, '✕'),
-              ]),
-            ]),
+          if saved_left && saved_top
+            hud_style[:left] = "#{saved_left}px"
+            hud_style[:top] = "#{saved_top}px"
+            hud_style[:transform] = 'none'
+          else
+            hud_style[:left] = '50%'
+            hud_style[:top] = '80px'
+            hud_style[:transform] = 'translateX(-50%)'
+          end
 
-            h(:div, { style: { padding: '0.85rem 1rem', display: is_minimized ? 'none' : 'flex', flexDirection: 'column', gap: '0.65rem' } }, [
-              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem' } }, [
-                h(:input, {
-                    attrs: {
-                      id: 'hist_slider_input',
-                      type: 'range',
-                      min: 1,
-                      max: [total, 1].max,
-                      value: curr,
-                    },
-                    style: { width: '100%', cursor: 'pointer', accentColor: '#2563eb' },
-                    on: {
-                      input: lambda { |e|
-                        val = `#{e} && #{e}.target ? #{e}.target.value : null`
-                        schedule_scrub(val) if val
-                      },
-                      change: lambda { |e|
-                        %x{
+          dialog_box = h(:div, {
+                           attrs: { id: 'history_floating_hud' },
+                           style: hud_style,
+                         }, [
+h(:div, {
+    attrs: { id: 'history_hud_handle' },
+    style: {
+      padding: '0.55rem 0.9rem',
+      borderBottom: is_minimized ? 'none' : '1px solid #e2e8f0',
+      backgroundColor: '#f1f5f9',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      cursor: 'grab',
+      userSelect: 'none',
+    },
+    on: {
+      mousedown: on_header_mousedown,
+      dblclick: reset_pos,
+    },
+  }, [
+                        h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' } }, [
+                          h(:span, { style: { fontSize: '1rem', color: '#64748b' } }, '⠿'),
+                          h(:h3, { style: { margin: '0', fontSize: '1rem', color: '#0f172a', fontWeight: 'bold' } },
+                            'Game History Navigation'),
+                        ]),
+                        h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.2rem' } }, [
+                          h(:button, {
+                              attrs: { type: 'button', title: is_minimized ? 'Expand' : 'Minimize' },
+                              style: {
+                                background: 'none',
+                                border: 'none',
+                                fontSize: '1.1rem',
+                                color: '#64748b',
+                                cursor: 'pointer',
+                                padding: '2px 7px',
+                                lineHeight: '1',
+                              },
+                              on: { click: -> { toggle_history_minimized } },
+                            }, is_minimized ? '□' : '−'),
+                          h(:button, {
+                              attrs: { id: 'btn_close_history_overlay', type: 'button', title: 'Close Navigation HUD' },
+                              style: {
+                                background: 'none',
+                                border: 'none',
+                                fontSize: '1.25rem',
+                                color: '#64748b',
+                                cursor: 'pointer',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                lineHeight: '1',
+                                pointerEvents: 'auto',
+                                zIndex: '10',
+                              },
+                              on: {
+                                click: lambda { |e|
+                                  %x{
+                          if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
+                        }
+                                  close_overlay
+                                },
+                              },
+                            }, '✕'),
+                        ]),
+                      ]),
+
+h(:div, { style: { padding: '0.85rem 1rem', display: is_minimized ? 'none' : 'flex', flexDirection: 'column', gap: '0.65rem' } }, [
+  h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem' } }, [
+    h(:input, {
+        attrs: {
+          id: 'hist_slider_input',
+          type: 'range',
+          min: 1,
+          max: [total, 1].max,
+          value: curr,
+        },
+        style: { width: '100%', cursor: 'pointer', accentColor: '#2563eb' },
+        on: {
+          input: lambda { |e|
+            val = `#{e} && #{e}.target ? #{e}.target.value : null`
+            schedule_scrub(val) if val
+          },
+          change: lambda { |e|
+            %x{
                           if (window.__hist_scrub_timer) {
                             clearTimeout(window.__hist_scrub_timer);
                             window.__hist_scrub_timer = null;
                           }
                         }
-                        val = `#{e} && #{e}.target ? #{e}.target.value : null`
-                        set_action(val) if val
-                      },
-                    },
-                  }),
-                h(:div, { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b' } }, [
-                  h(:span, 'Action 1 (Start)'),
-                  h(:span, { attrs: { id: 'hist_viewing_text' }, style: { fontWeight: 'bold', color: '#0f172a' } },
-                    "Viewing: Action ##{curr} of #{total}"),
-                  h(:span, "Action #{total} (Live)"),
-                ]),
-              ]),
+            val = `#{e} && #{e}.target ? #{e}.target.value : null`
+            set_action(val) if val
+          },
+        },
+      }),
+    h(:div, { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b' } }, [
+      h(:span, 'Action 1 (Start)'),
+      h(:span, { attrs: { id: 'hist_viewing_text' }, style: { fontWeight: 'bold', color: '#0f172a' } },
+        "Viewing: Action ##{curr} of #{total}"),
+      h(:span, "Action #{total} (Live)"),
+    ]),
+  ]),
 
-              h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', flexWrap: 'nowrap' } }, [
-                nav_btn('|◀', -> { set_action(1) }, disabled: curr <= 1),
-                nav_btn('◀|', -> { jump_prev_round }, disabled: prev_round_action.nil?),
-                nav_btn('◀', -> { step_action(-1) }, disabled: curr <= 1),
-                nav_btn('▶', -> { step_action(1) }, disabled: curr >= total),
-                nav_btn('|▶', -> { jump_next_round }, disabled: next_round_action.nil?),
-                nav_btn('▶|', -> { set_action(total) }, disabled: !is_hist),
-              ]),
+  h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', flexWrap: 'nowrap' } }, [
+    nav_btn('|◀', -> { set_action(1) }, disabled: curr <= 1),
+    nav_btn('◀|', -> { jump_prev_round }, disabled: prev_round_action.nil?),
+    nav_btn('◀', -> { step_action(-1) }, disabled: curr <= 1),
+    nav_btn('▶', -> { step_action(1) }, disabled: curr >= total),
+    nav_btn('|▶', -> { jump_next_round }, disabled: next_round_action.nil?),
+    nav_btn('▶|', -> { set_action(total) }, disabled: !is_hist),
+  ]),
 
-              h(:div, {
-                  style: {
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderTop: '1px solid #e2e8f0',
-                    paddingTop: '0.65rem',
-                    marginTop: '0.2rem',
-                  },
-                }, [
-                h(:div, { style: { fontSize: '0.76rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
-                  current_move_text),
-                h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.4rem' } }, [
-                  (nav_btn('Return to Live', -> { set_action(total) }, primary: true) if is_hist),
-                  nav_btn('⚡ Play From Here', -> { play_from_here }, disabled: !is_hist, danger: is_hist),
-                ].compact),
-              ]),
-            ]),
-          ])
+  h(:div, {
+      style: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderTop: '1px solid #e2e8f0',
+        paddingTop: '0.65rem',
+        marginTop: '0.2rem',
+      },
+    }, [
+    h(:div, { style: { fontSize: '0.76rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+      current_move_text),
+    h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.4rem' } }, [
+      (nav_btn('Return to Live', -> { set_action(total) }, primary: true) if is_hist),
+      nav_btn('⚡ Play From Here', -> { play_from_here }, disabled: !is_hist, danger: is_hist),
+    ].compact),
+  ]),
+]),
+                    ])
+
+          h(:div, {
+              attrs: { id: 'history-overlay-container' },
+              style: {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                right: '0',
+                bottom: '0',
+                backgroundColor: 'transparent',
+                pointerEvents: 'auto',
+                zIndex: '100000',
+              },
+            }, [dialog_box])
         end
       end
     end
