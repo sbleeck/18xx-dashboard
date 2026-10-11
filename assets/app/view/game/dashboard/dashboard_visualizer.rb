@@ -1443,6 +1443,83 @@ badge_el,
 
                         %x(
                     window._dashboardVisualizer = comp;
+
+                    window.ensureDashboardOverlayPortal = function() {
+                      var overlaySelectors = [
+                        '#manual-route-overlay-container',
+                        '#draft-overlay-container',
+                        '#par-prompt-overlay-container',
+                        '#dashboard-bidding-panel',
+                        '#tile-manifest-overlay-container',
+                        '#history-overlay-container',
+                        '#move-history-overlay-container',
+                        '#other-games-overlay-container',
+                        '#phases-overlay-container',
+                        '[data-dashboard-overlay-root="true"]'
+                      ];
+
+                      var nodes = document.querySelectorAll(overlaySelectors.join(','));
+                      for (var i = 0; i < nodes.length; i++) {
+                        var node = nodes[i];
+                        if (!node || node === document.body) continue;
+                        node.setAttribute('data-dashboard-overlay-root', 'true');
+                        node.style.setProperty('position', 'fixed', 'important');
+                        node.style.setProperty('z-index', '2147483000', 'important');
+                        node.style.setProperty('isolation', 'isolate', 'important');
+                        if (node.parentNode !== document.body) {
+                          document.body.appendChild(node);
+                        }
+                      }
+                    };
+
+                    var overlayStyleTag = document.getElementById('dashboard-global-overlay-styles');
+                    if (!overlayStyleTag) {
+                      overlayStyleTag = document.createElement('style');
+                      overlayStyleTag.id = 'dashboard-global-overlay-styles';
+                      document.head.appendChild(overlayStyleTag);
+                    }
+                    overlayStyleTag.textContent = '' +
+                      '#manual-route-overlay-container,' +
+                      '#draft-overlay-container,' +
+                      '#par-prompt-overlay-container,' +
+                      '#dashboard-bidding-panel,' +
+                      '#tile-manifest-overlay-container,' +
+                      '#history-overlay-container,' +
+                      '#move-history-overlay-container,' +
+                      '#other-games-overlay-container,' +
+                      '#phases-overlay-container,' +
+                      '[data-dashboard-overlay-root="true"] {' +
+                      ' position: fixed !important;' +
+                      ' z-index: 2147483000 !important;' +
+                      ' isolation: isolate !important;' +
+                      ' max-width: 100vw !important;' +
+                      ' max-height: 100vh !important;' +
+                      ' }' +
+                      '#manual-route-overlay-dialog,' +
+                      '#draft-overlay-dialog,' +
+                      '#par-prompt-overlay-dialog {' +
+                      ' z-index: 2147483001 !important;' +
+                      ' }';
+
+                    if (window._dashboardOverlayObserver) {
+                      window._dashboardOverlayObserver.disconnect();
+                    }
+                    window._dashboardOverlayObserver = new MutationObserver(function() {
+                      if (window._dashboardOverlayPortalPending) return;
+                      window._dashboardOverlayPortalPending = true;
+                      requestAnimationFrame(function() {
+                        window._dashboardOverlayPortalPending = false;
+                        if (window.ensureDashboardOverlayPortal) {
+                          window.ensureDashboardOverlayPortal();
+                        }
+                      });
+                    });
+                    window._dashboardOverlayObserver.observe(document.body, {
+                      childList: true,
+                      subtree: true
+                    });
+                    window.ensureDashboardOverlayPortal();
+
                     window.toggleDashboardPhases = function() {
                       var cur = localStorage.getItem('dashboard_show_phases') === 'true';
                       var next = !cur;
@@ -2227,6 +2304,11 @@ badge_el,
                   setTimeout(window.init18xxResizers, 200);)
                       },
               postpatch: lambda { |_old, _vnode|
+                           %x{
+                             if (window.ensureDashboardOverlayPortal) {
+                               window.ensureDashboardOverlayPortal();
+                             }
+                           }
                            prev_id = Lib::Storage["viz_last_act_#{game_storage_id}"]&.to_i || 0
                            curr_id = last_action_id.to_i
 
@@ -2257,6 +2339,14 @@ badge_el,
                          %x(
                      window._dashboardVisualizer = null;
                      window.toggleDashboardPhases = null;
+                     window.ensureDashboardOverlayPortal = null;
+                     window._dashboardOverlayPortalPending = false;
+                     if (window._dashboardOverlayObserver) {
+                       window._dashboardOverlayObserver.disconnect();
+                       window._dashboardOverlayObserver = null;
+                     }
+                     var overlayStyleTag = document.getElementById('dashboard-global-overlay-styles');
+                     if (overlayStyleTag) overlayStyleTag.remove();
                    )
 
                          %x(

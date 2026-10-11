@@ -2863,106 +2863,21 @@ module View
               }, player_label),
           ])
 
-          rebuild_status_strip = lambda do
-            %x{
-      setTimeout(function() {
-        var source = document.querySelector('#action-status-source #spreadsheet');
-        var target = document.getElementById('action-status-spreadsheet');
-        if (!source || !target) return;
-        var sourceTable = source.querySelector('table');
-        var styleNode = source.querySelector('style');
-        if (!sourceTable) return;
-        var corporationId = String(#{corp_id});
-        var sourceRows = Array.prototype.slice.call(sourceTable.querySelectorAll('tbody tr[data-corp]'));
-        var sourceCorpRow = sourceRows.find(function(row) {
-          return String(row.getAttribute('data-corp')) === corporationId;
-        });
-        if (!sourceCorpRow) return;
-        target.innerHTML = '';
-        if (styleNode) {
-          var copiedStyle = document.createElement('style');
-          copiedStyle.textContent = String(styleNode.textContent || '').split('#spreadsheet').join('#action-status-spreadsheet');
-          target.appendChild(copiedStyle);
-        }
-        var sourceHead = sourceTable.querySelector('thead');
-        var sourceHeaderRow = sourceHead && sourceHead.querySelector('tr:last-child');
-        if (!sourceHeaderRow) return;
-        function logicalRanges(cells) {
-          var logicalColumn = 0;
-          return cells.map(function(cell) {
-            var span = parseInt(cell.getAttribute('colspan') || '1', 10);
-            var range = { cell: cell, start: logicalColumn, finish: logicalColumn + span };
-            logicalColumn += span;
-            return range;
-          });
-        }
-        var headerRanges = logicalRanges(Array.prototype.slice.call(sourceHeaderRow.children));
-        var corporationHeaders = headerRanges.filter(function(range) {
-          return range.cell.classList.contains('header-corporate');
-        });
-        if (!corporationHeaders.length) return;
-        var corporateStart = corporationHeaders[0].start;
-        var corporateFinish = corporationHeaders[corporationHeaders.length - 1].finish;
-        var rowRanges = logicalRanges(Array.prototype.slice.call(sourceCorpRow.children));
-        var copiedTable = document.createElement('table');
-        copiedTable.className = sourceTable.className;
-        copiedTable.setAttribute('style', sourceTable.getAttribute('style') || '');
-        var copiedHead = document.createElement('thead');
-        var copiedHeadRow = document.createElement('tr');
-        corporationHeaders.forEach(function(range) { copiedHeadRow.appendChild(range.cell.cloneNode(true)); });
-        copiedHead.appendChild(copiedHeadRow);
-        copiedTable.appendChild(copiedHead);
-        var copiedBody = document.createElement('tbody');
-        var copiedCorpRow = document.createElement('tr');
-        copiedCorpRow.className = sourceCorpRow.className;
-        copiedCorpRow.setAttribute('data-corp', corporationId);
-        rowRanges.forEach(function(range) {
-          if (range.start >= corporateStart && range.finish <= corporateFinish) {
-            copiedCorpRow.appendChild(range.cell.cloneNode(true));
-          }
-        });
-        copiedBody.appendChild(copiedCorpRow);
-        copiedTable.appendChild(copiedBody);
-        target.appendChild(copiedTable);
-        var idNodes = target.querySelectorAll('[id]');
-        for (var index = 0; index < idNodes.length; index++) {
-          idNodes[index].id = 'action-status-' + idNodes[index].id;
-        }
-      }, 0);
-    }
-          end
           h(:div, {
               style: {
                 flex: '0 0 auto',
                 display: 'flex',
-                flexDirection: 'column',
+                flexDirection: 'row',
+                alignItems: 'stretch',
+                justifyContent: 'flex-start',
                 width: '100%',
+                minHeight: '3.75rem',
                 boxSizing: 'border-box',
-                backgroundColor: '#f8fafc',
+                backgroundColor: '#f8f9fa',
                 borderBottom: '1px solid #cbd5e1',
+                overflow: 'hidden',
               },
             }, [
-            # // --- START FIX ---
-            # // --- DELETE --- /*
-            # // --- DELETE ---  * First line: exact visualizer-style player card,
-            # // --- DELETE ---  * followed by the full corporation name.
-            # // --- DELETE ---  */
-            # First line: exact visualizer-style player card,
-            # followed by the full corporation name.
-            # // --- END FIX ---
-            h(:div, {
-                style: {
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'stretch',
-                  justifyContent: 'flex-start',
-                  width: '100%',
-                  minHeight: '3.75rem',
-                  boxSizing: 'border-box',
-                  backgroundColor: '#f8f9fa',
-                  overflow: 'hidden',
-                },
-              }, [
               player_card,
               h(:div, {
                   attrs: { class: 'action-window-entity-order-content' },
@@ -2980,59 +2895,7 @@ module View
                 }, [
                   h(::View::Game::DashboardEntityOrder, round: @game.round),
                 ]),
-            ]),
-
-            # // --- START FIX ---
-            # // --- DELETE --- /*
-            # // --- DELETE ---  * Second line: the selected corporation status cells.
-            # // --- DELETE ---  */
-            # Second line: the selected corporation status cells.
-            # // --- END FIX ---
-            h('div#action-status-spreadsheet', {
-                hook: {
-                  insert: lambda do |_vnode|
-                    rebuild_status_strip.call
-                  end,
-
-                  postpatch: lambda do |_old_vnode, _vnode|
-                    rebuild_status_strip.call
-                  end,
-                },
-                style: {
-                  display: 'block',
-                  width: '100%',
-                  minHeight: '4.5rem',
-                  overflowX: 'auto',
-                  overflowY: 'hidden',
-                  padding: '0.45rem 1rem 0.75rem',
-                  boxSizing: 'border-box',
-                  backgroundColor: '#f8fafc',
-                },
-              }),
-
-            # // --- START FIX ---
-            # // --- DELETE --- /*
-            # // --- DELETE ---  * Hidden authoritative copy of DashboardGameStatus.
-            # // --- DELETE ---  */
-            # Hidden authoritative copy of DashboardGameStatus.
-            # // --- END FIX ---
-            h('div#action-status-source', {
-                style: {
-                  position: 'absolute',
-                  left: '-100000px',
-                  top: '-100000px',
-                  width: '1800px',
-                  visibility: 'hidden',
-                  pointerEvents: 'none',
-                },
-              }, [
-              h(
-                ::View::Game::DashboardGameStatus,
-                game: @game,
-                game_data: @game_data
-              ),
-            ]),
-          ])
+            ])
         end
 
         def render_command_content
@@ -3194,7 +3057,7 @@ module View
           action_summary = if visible_action_labels.empty?
                              'Review the current position, then use the default action when ready.'
                            else
-                             ''
+                             "Available now: #{visible_action_labels.join(' · ')}"
                            end
           if game_finished
             zone_2_content << h(:div, {
@@ -3390,7 +3253,7 @@ module View
                     color: '#1e3a8a',
                   },
                 }, [
-                  h(:div, { style: { fontSize: '0.78rem', fontWeight: '800', letterSpacing: '0.04em', textTransform: 'uppercase' } }, 'Currently available actions'),
+                  h(:div, { style: { fontSize: '0.78rem', fontWeight: '800', letterSpacing: '0.04em', textTransform: 'uppercase' } }, 'Current choices'),
                   h(:div, { style: { fontSize: '0.9rem', fontWeight: '600', lineHeight: '1.3' } }, action_summary),
                 ]),
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%', padding: '0.2rem 0', boxSizing: 'border-box' } }, zone_2_content.compact),
