@@ -493,7 +493,7 @@ module View
             window.clearMapHexHighlights();
             var list = Array.isArray(hexIds) ? hexIds : (hexIds.to_a ? hexIds.to_a() : [hexIds]);
             var len = list.length || 0;
-            for (var i = 0; i < len; i++) {
+for (var i = 0; i < list.length; i++) {
               var rawId = String(list[i]);
               var targets = [
                 document.getElementById('hex-' + rawId),
@@ -862,7 +862,7 @@ module View
         if (!hexIds) return;
         window.clearMapHexHighlights();
         var list = Array.isArray(hexIds) ? hexIds : (hexIds.to_a ? hexIds.to_a() : [hexIds]);
-        for (var i = 0; i < len; i++) {
+for (var i = 0; i < list.length; i++) {
           var rawId = String(list[i]);
           var targets = [
             document.getElementById('hex-' + rawId),

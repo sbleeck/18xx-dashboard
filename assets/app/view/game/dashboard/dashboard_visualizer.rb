@@ -54,8 +54,27 @@ module View
 
       include Actionable
 
-      def actions_window_open?
-        is_hotseat = @game_data && (@game_data[:mode] == :hotseat || @game_data['mode'] == 'hotseat')
+      def action_required_for_me?
+        is_hotseat =
+          @game_data &&
+          (
+            @game_data[:mode] == :hotseat ||
+            @game_data['mode'] == 'hotseat'
+          )
+
+        entity = active_entity
+        return false unless entity
+
+        actions =
+          begin
+            @game.round.actions_for(entity) || []
+          rescue NotImplementedError, StandardError
+            []
+          end
+
+        actionable = actions.any? { |action| action.to_s != 'undo' && action.to_s != 'redo' }
+        return false unless actionable
+
         return true if is_hotseat
 
         user_id = @user&.dig('id') || @user&.dig(:id)
@@ -71,29 +90,84 @@ module View
         active_ids.include?(user_id.to_s)
       end
 
+      def actions_window_open?
+        return true if action_required_for_me?
+
+        stored = Lib::Storage['dashboard_show_actions']
+
+        @show_actions_window == true ||
+          stored == true ||
+          stored == 'true'
+      end
+
       def render_action_hub_button
         is_open = actions_window_open?
-        bg_color = is_open ? '#eff6ff' : '#ffffff'
-        border_style = is_open ? '2px solid #2563eb' : '1px solid #cbd5e1'
-        text_color = is_open ? '#1d4ed8' : '#334155'
+        is_required = action_required_for_me?
+
+        bg_color =
+          if is_required
+            '#dcfce7'
+          elsif is_open
+            '#eff6ff'
+          else
+            '#ffffff'
+          end
+
+        border_style =
+          if is_required
+            '2px solid #16a34a'
+          elsif is_open
+            '2px solid #2563eb'
+          else
+            '1px solid #cbd5e1'
+          end
+
+        text_color =
+          if is_required
+            '#15803d'
+          elsif is_open
+            '#1d4ed8'
+          else
+            '#334155'
+          end
 
         click_action = lambda do
-          val = !actions_window_open?
-          Lib::Storage['dashboard_show_actions'] = val ? 'true' : 'false'
+          # The window is mandatory while this user has actions.
+          next if is_required
+
+          new_value = !actions_window_open?
+
+          Lib::Storage['dashboard_show_actions'] =
+            new_value ? 'true' : 'false'
+
           %x{
-            try {
-              localStorage.setItem('dashboard_show_actions', #{val ? 'true' : 'false'});
-            } catch(e) {}
-          }
-          store(:show_actions_window, val)
+      try {
+        localStorage.setItem(
+          'dashboard_show_actions',
+          #{new_value ? 'true' : 'false'}
+        );
+      } catch(e) {}
+    }
+
+          store(:show_actions_window, new_value)
           update
         end
+
+        title =
+          if is_required
+            'Actions Hub: action required'
+          elsif is_open
+            'Close Actions Hub'
+          else
+            'Open Actions Hub'
+          end
 
         h(:button, {
             attrs: {
               id: 'btn-action-hub',
               type: 'button',
-              title: is_open ? 'Actions Hub: Active (click to close)' : 'Open Actions Hub',
+              title: title,
+              'aria-pressed': is_open ? 'true' : 'false',
             },
             style: {
               position: 'relative',
@@ -110,14 +184,21 @@ module View
               color: text_color,
               border: border_style,
               boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
-              cursor: 'pointer',
+              cursor: is_required ? 'default' : 'pointer',
               lineHeight: '1',
               zIndex: 10,
               transition: 'all 0.2s ease',
             },
-            on: { click: click_action },
+            on: {
+              click: click_action,
+            },
           }, [
-            h(:span, { style: { fontSize: '1.8rem', lineHeight: '1' } }, '⚡'),
+            h(:span, {
+                style: {
+                  fontSize: '1.8rem',
+                  lineHeight: '1',
+                },
+              }, '⚡'),
           ])
       end
 
@@ -210,16 +291,21 @@ module View
       def render_action_window
         return nil unless actions_window_open?
 
-        close_handler = lambda {
+        close_handler = lambda do
+          # The Action Hub cannot be closed while I must act.
+          next if action_required_for_me?
+
           Lib::Storage['dashboard_show_actions'] = 'false'
+
           %x{
-            try {
-              localStorage.setItem('dashboard_show_actions', 'false');
-            } catch (e) {}
-          }
+      try {
+        localStorage.setItem('dashboard_show_actions', 'false');
+      } catch (e) {}
+    }
+
           store(:show_actions_window, false)
           update
-        }
+        end
 
         h(::View::Game::Dashboard::DashboardActionWindow,
           game: @game,
@@ -553,11 +639,13 @@ module View
 
         close_handler = lambda do
           Lib::Storage['show_other_games_overlay'] = nil
+
           %x{
-            try {
-              localStorage.removeItem('show_other_games_overlay');
-            } catch(e) {}
-          }
+      try {
+        localStorage.removeItem('show_other_games_overlay');
+      } catch(e) {}
+    }
+
           store(:show_other_games_overlay, false)
           update
         end
@@ -615,7 +703,7 @@ module View
               zIndex: 99_999,
             },
           }, [
-            (actions_window_open? ? render_action_hub_button : nil),
+            render_action_hub_button,
             render_history_button,
             render_move_history_button,
             render_other_games_button,

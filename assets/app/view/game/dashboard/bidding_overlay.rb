@@ -116,19 +116,26 @@ module View
         end
 
         def maximum_bid
-          value = if step.respond_to?(:max_bid)
-                    begin
-                      step.max_bid(entity)
-                    rescue ArgumentError
-                      step.max_bid
-                    end
-                  elsif entity.respond_to?(:cash)
-                    entity.cash
-                  end
+          item = target
+          return entity.cash.to_i if item.nil? && entity.respond_to?(:cash)
+
+          value =
+            if step.respond_to?(:max_bid)
+              begin
+                step.max_bid(entity, item)
+              rescue ArgumentError
+                step.max_bid(entity)
+              end
+            elsif entity.respond_to?(:cash)
+              entity.cash
+            else
+              0
+            end
+
           value = value.to_i
-          value.positive? ? value : minimum_bid(target)
+          value.positive? ? value : minimum_bid(item)
         rescue StandardError
-          minimum_bid(target)
+          entity.respond_to?(:cash) ? entity.cash.to_i : 0
         end
 
         def company_color(item)
