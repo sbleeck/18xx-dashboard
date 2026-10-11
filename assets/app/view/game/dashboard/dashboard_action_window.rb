@@ -11,6 +11,8 @@ require 'view/game/actionable'
 require 'view/game/abilities'
 require 'view/game/buy_companies'
 require 'view/game/dashboard/results_overlay'
+require 'view/game/dashboard/dashboard_game_status'
+require 'view/game/dashboard/dashboard_entity_order'
 require 'view/game/dashboard/dashboard_card_animation'
 require 'view/game/dashboard/dashboard_loan_animation'
 require 'view/game/history_and_undo'
@@ -2498,12 +2500,12 @@ module View
               components << h(DoubleHeadTrains) if actions.include?('double_head_trains')
               components << h(CombinedTrains) if actions.include?('combined_trains')
               if actions.include?('lay_tile')
-                components << render_action_row('Lay Tile:', h(:span, { style: { fontSize: '0.88rem', color: '#1e293b', fontWeight: '600' } }, ''))
+                components << render_action_row('Lay Tile:', h(:span, { style: { fontSize: '0.88rem', color: '#475569', fontWeight: '600' } }, 'Select a legal hex on the map.'))
               end
               if home_token_step?(step, actions)
                 components << render_home_token_step(step, step&.current_entity || current_entity)
               elsif actions.include?('place_token')
-                components << render_action_row('Place Token:', h(:span, { style: { fontSize: '0.85rem', color: '#475569', fontStyle: 'italic' } }, ''))
+                components << render_action_row('Place Token:', h(:span, { style: { fontSize: '0.88rem', color: '#475569', fontWeight: '600' } }, 'Select a legal city on the map.'))
 
               end
               components << render_buy_tokens(step, step&.current_entity || current_entity) if actions.include?('buy_token')
@@ -2688,6 +2690,214 @@ module View
           end
         end
 
+        def render_operating_identity_panel(entity, player_name, _bg_color, _text_color)
+          corp_id = entity.respond_to?(:id) ? entity.id.to_s : ''
+
+          entity_name =
+            if entity.respond_to?(:name) && entity.name
+              entity.name.to_s
+            else
+              corp_id
+            end
+
+          player_label =
+            if player_name && !player_name.to_s.empty?
+              player_name.to_s
+            elsif entity.respond_to?(:owner) &&
+                  entity.owner.respond_to?(:name) &&
+                  entity.owner.name
+              entity.owner.name.to_s
+            else
+              ''
+            end
+
+          is_hotseat =
+            @game_data &&
+            (
+              @game_data[:mode] == :hotseat ||
+              @game_data['mode'] == 'hotseat'
+            )
+
+          user_id = @user&.dig('id') || @user&.dig(:id)
+
+          is_my_turn =
+            is_hotseat ||
+            (
+              user_id &&
+              @game.respond_to?(:active_players_id) &&
+              Array(@game.active_players_id)
+                .map(&:to_s)
+                .include?(user_id.to_s)
+            )
+
+          logo_src = begin
+            (entity.respond_to?(:simple_logo) && entity.simple_logo) ||
+              (entity.respond_to?(:logo) && entity.logo)
+          rescue StandardError
+            nil
+          end
+
+          corp_color =
+            if entity.respond_to?(:color) && entity.color
+              entity.color
+            else
+              '#2563eb'
+            end
+
+          corp_text_color =
+            if entity.respond_to?(:text_color) && entity.text_color
+              entity.text_color
+            else
+              '#ffffff'
+            end
+
+          marker_content =
+            if logo_src
+              h(:img, {
+                  attrs: {
+                    src: logo_src,
+                    alt: corp_id,
+                  },
+                  style: {
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
+                    borderRadius: '50%',
+                    objectFit: 'contain',
+                  },
+                })
+            else
+              h(:span, {
+                  style: {
+                    lineHeight: '26px',
+                    fontSize: '0.72rem',
+                    fontWeight: 'bold',
+                    color: corp_text_color,
+                  },
+                }, corp_id[0..3])
+            end
+
+          corp_marker = h(:div, {
+                            attrs: {
+                              class: 'active-turn-corp-marker',
+                              title: entity_name,
+                            },
+                            style: {
+                              width: '26px',
+                              height: '26px',
+                              minWidth: '26px',
+                              borderRadius: '50%',
+                              backgroundColor: corp_color,
+                              border: '1.5px solid #ffffff',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                              flexShrink: '0',
+                              marginRight: '0.45rem',
+                            },
+                          }, [marker_content])
+
+          card_bg = is_my_turn ? '#16a34a' : '#e2e8f0'
+          card_text_color = is_my_turn ? '#ffffff' : '#334155'
+
+          border_right =
+            if is_my_turn
+              '2px solid #15803d'
+            else
+              '1px solid #cbd5e1'
+            end
+
+          player_card = h(:div, {
+                            attrs: {
+                              class: 'active-turn-card',
+                              title: if is_my_turn
+                                       "Active: #{player_label} (Your turn)"
+                                     else
+                                       "Active: #{player_label}"
+                                     end,
+                            },
+                            style: {
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'flex-start',
+                              flex: '0 0 auto',
+                              alignSelf: 'stretch',
+                              height: '100%',
+                              minWidth: '9.5rem',
+                              maxWidth: '13.5rem',
+                              padding: '0 0.85rem',
+                              borderTopLeftRadius: '3px',
+                              borderBottomLeftRadius: '3px',
+                              borderTopRightRadius: '0',
+                              borderBottomRightRadius: '0',
+                              backgroundColor: card_bg,
+                              color: card_text_color,
+                              border: 'none',
+                              borderRight: border_right,
+                              boxShadow: 'none',
+                              fontSize: '1rem',
+                              fontWeight: 'bold',
+                              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                              letterSpacing: '0.3px',
+                              lineHeight: '1',
+                              boxSizing: 'border-box',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              cursor: 'default',
+                              userSelect: 'none',
+                              transition: 'background-color 0.25s ease, color 0.25s ease',
+                              flexShrink: '0',
+                            },
+                          }, [
+            corp_marker,
+
+            h(:span, {
+                style: {
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  fontWeight: '700',
+                },
+              }, player_label),
+          ])
+
+          h(:div, {
+              style: {
+                flex: '0 0 auto',
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'stretch',
+                justifyContent: 'flex-start',
+                width: '100%',
+                minHeight: '3.75rem',
+                boxSizing: 'border-box',
+                backgroundColor: '#f8f9fa',
+                borderBottom: '1px solid #cbd5e1',
+                overflow: 'hidden',
+              },
+            }, [
+              player_card,
+              h(:div, {
+                  attrs: { class: 'action-window-entity-order-content' },
+                  style: {
+                    flex: '1 1 auto',
+                    minWidth: '0',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    padding: '0 0.5rem',
+                    boxSizing: 'border-box',
+                  },
+                }, [
+                  h(::View::Game::DashboardEntityOrder, round: @game.round),
+                ]),
+            ])
+        end
+
         def render_command_content
           step = @game.round.active_step
           entity = current_entity
@@ -2836,31 +3046,19 @@ module View
               h(:div, { style: { fontSize: '1.6rem', fontWeight: 'bold', color: '#000000', textAlign: 'center', wordBreak: 'break-word', lineHeight: '1.2' } }, player_display_name),
             ])
           else
-            logo_src = begin
-              setting_for(:simple_logos, @game) ? entity&.simple_logo : entity&.logo
-            rescue StandardError
-              nil
-            end
-
-            logo_element = if logo_src
-                             h(:img, { attrs: { src: logo_src }, style: { width: '50px', height: '50px', objectFit: 'contain', flexShrink: '0' } })
-                           else
-                             h(:div, { style: { width: '50px', height: '50px', fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: bg_color, color: text_color, borderRadius: '6px', flexShrink: '0' } }, entity&.id || 'N/A')
-                           end
-
-            entity_name = entity.respond_to?(:name) ? entity.name : (entity&.id || '')
-
-            zone_1 = h(:div, { style: { flex: '0 0 auto', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', padding: '0.75rem 1rem', width: '100%', boxSizing: 'border-box', gap: '1rem', backgroundColor: '#f8fafc' } }, [
-              logo_element,
-              h(:div, { style: { display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' } }, [
-                h(:div, { style: { fontSize: '1.4rem', fontWeight: '900', color: '#0f172a', lineHeight: '1.1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, entity_name),
-                h(:div, { style: { fontSize: '0.95rem', fontWeight: 'bold', color: '#475569', marginTop: '0.1rem' } }, player_name),
-              ]),
-            ])
+            zone_1 = render_operating_identity_panel(entity, player_name, bg_color, text_color)
           end
 
           show_manual_routes = @show_manual_routes || Lib::Storage['cmd_manual_routes'] == true || Lib::Storage['cmd_manual_routes'] == 'true'
           zone_2_content = []
+          visible_action_labels = actions.reject { |action_name| %w[pass undo redo].include?(action_name.to_s) }.map do |action_name|
+            action_name.to_s.tr('_', ' ').split.map(&:capitalize).join(' ')
+          end.uniq
+          action_summary = if visible_action_labels.empty?
+                             'Review the current position, then use the default action when ready.'
+                           else
+                             "Available now: #{visible_action_labels.join(' · ')}"
+                           end
           if game_finished
             zone_2_content << h(:div, {
                                   style: {
@@ -3027,7 +3225,39 @@ module View
             zone_2_content << ground_truth_actions if ground_truth_actions
           end
 
-          zone_2 = h(:div, { style: { flex: '1 1 auto', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', boxSizing: 'border-box', overflowY: 'auto' } }, zone_2_content.compact)
+          zone_2 = h(:div, {
+                       style: {
+                         flex: '1 1 auto',
+                         width: '100%',
+                         display: 'flex',
+                         flexDirection: 'column',
+                         alignItems: 'stretch',
+                         justifyContent: 'flex-start',
+                         gap: '0.55rem',
+                         padding: '0.75rem 1rem',
+                         boxSizing: 'border-box',
+                         overflowY: 'auto',
+                         backgroundColor: '#f8fafc',
+                       },
+                     }, [
+              h(:div, {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.2rem',
+                    padding: '0.65rem 0.8rem',
+                    border: '1px solid #bfdbfe',
+                    borderLeft: '4px solid #2563eb',
+                    borderRadius: '6px',
+                    backgroundColor: '#eff6ff',
+                    color: '#1e3a8a',
+                  },
+                }, [
+                  h(:div, { style: { fontSize: '0.78rem', fontWeight: '800', letterSpacing: '0.04em', textTransform: 'uppercase' } }, 'Current choices'),
+                  h(:div, { style: { fontSize: '0.9rem', fontWeight: '600', lineHeight: '1.3' } }, action_summary),
+                ]),
+              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%', padding: '0.2rem 0', boxSizing: 'border-box' } }, zone_2_content.compact),
+            ])
 
           advance_text = 'Pass'
           advance_color = '#e0e0e0'
@@ -3124,7 +3354,7 @@ module View
 
           zone_3 = h(:div, { style: { flex: '0 0 auto', display: 'flex', flexDirection: 'column', padding: '0.75rem 1rem', boxSizing: 'border-box', gap: '0.75rem', width: '100%', backgroundColor: '#f8fafc' } }, [
             (render_zone3_abilities(entity) if has_abilities),
-            h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', width: '100%' } }, [
+            h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: '0.6rem', width: '100%' } }, [
               h(:div, {
                   attrs: { class: 'cmd-undo-redo-wrapper' },
                   style: { flex: '0 0 auto' },
@@ -3199,11 +3429,24 @@ module View
                 '),
                 h(HistoryAndUndo, last_action_id: last_action_id),
               ]),
+              h(:span, {
+                  style: {
+                    marginLeft: 'auto',
+                    fontSize: '0.72rem',
+                    fontWeight: '700',
+                    color: '#64748b',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    whiteSpace: 'nowrap',
+                  },
+                }, 'Default'),
               h(:button, {
                   style: {
-                    flex: '1 1 auto',
+                    flex: '0 0 auto',
+                    minWidth: '9rem',
                     height: '2.2rem',
-                    fontSize: '1rem',
+                    padding: '0 1.1rem',
+                    fontSize: '0.9rem',
                     fontWeight: 'bold',
                     backgroundColor: advance_color,
                     color: advance_text_color,
