@@ -11,6 +11,7 @@ require 'view/game/actionable'
 require 'view/game/abilities'
 require 'view/game/buy_companies'
 require 'view/game/dashboard/results_overlay'
+require 'view/game/dashboard/dashboard_game_status'
 require 'view/game/dashboard/dashboard_card_animation'
 require 'view/game/dashboard/dashboard_loan_animation'
 require 'view/game/history_and_undo'
@@ -2688,6 +2689,550 @@ module View
           end
         end
 
+        def render_operating_identity_panel(entity, player_name, _bg_color, _text_color)
+          corp_id = entity.respond_to?(:id) ? entity.id.to_s : ''
+
+          entity_name =
+            if entity.respond_to?(:name) && entity.name
+              entity.name.to_s
+            else
+              corp_id
+            end
+
+          player_label =
+            if player_name && !player_name.to_s.empty?
+              player_name.to_s
+            elsif entity.respond_to?(:owner) &&
+                  entity.owner.respond_to?(:name) &&
+                  entity.owner.name
+              entity.owner.name.to_s
+            else
+              ''
+            end
+
+          is_hotseat =
+            @game_data &&
+            (
+              @game_data[:mode] == :hotseat ||
+              @game_data['mode'] == 'hotseat'
+            )
+
+          user_id = @user&.dig('id') || @user&.dig(:id)
+
+          is_my_turn =
+            is_hotseat ||
+            (
+              user_id &&
+              @game.respond_to?(:active_players_id) &&
+              Array(@game.active_players_id)
+                .map(&:to_s)
+                .include?(user_id.to_s)
+            )
+
+          logo_src = begin
+            (entity.respond_to?(:simple_logo) && entity.simple_logo) ||
+              (entity.respond_to?(:logo) && entity.logo)
+          rescue StandardError
+            nil
+          end
+
+          corp_color =
+            if entity.respond_to?(:color) && entity.color
+              entity.color
+            else
+              '#2563eb'
+            end
+
+          corp_text_color =
+            if entity.respond_to?(:text_color) && entity.text_color
+              entity.text_color
+            else
+              '#ffffff'
+            end
+
+          marker_content =
+            if logo_src
+              h(:img, {
+                  attrs: {
+                    src: logo_src,
+                    alt: corp_id,
+                  },
+                  style: {
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
+                    borderRadius: '50%',
+                    objectFit: 'contain',
+                  },
+                })
+            else
+              h(:span, {
+                  style: {
+                    lineHeight: '26px',
+                    fontSize: '0.72rem',
+                    fontWeight: 'bold',
+                    color: corp_text_color,
+                  },
+                }, corp_id[0..3])
+            end
+
+          corp_marker = h(:div, {
+                            attrs: {
+                              class: 'active-turn-corp-marker',
+                              title: entity_name,
+                            },
+                            style: {
+                              width: '26px',
+                              height: '26px',
+                              minWidth: '26px',
+                              borderRadius: '50%',
+                              backgroundColor: corp_color,
+                              border: '1.5px solid #ffffff',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                              flexShrink: '0',
+                              marginRight: '0.45rem',
+                            },
+                          }, [marker_content])
+
+          card_bg = is_my_turn ? '#16a34a' : '#e2e8f0'
+          card_text_color = is_my_turn ? '#ffffff' : '#334155'
+
+          border_right =
+            if is_my_turn
+              '2px solid #15803d'
+            else
+              '1px solid #cbd5e1'
+            end
+
+          player_card = h(:div, {
+                            attrs: {
+                              class: 'active-turn-card',
+                              title: if is_my_turn
+                                       "Active: #{player_label} (Your turn)"
+                                     else
+                                       "Active: #{player_label}"
+                                     end,
+                            },
+                            style: {
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'flex-start',
+                              flex: '0 0 auto',
+                              alignSelf: 'stretch',
+                              height: '100%',
+                              minWidth: '9.5rem',
+                              maxWidth: '13.5rem',
+                              padding: '0 0.85rem',
+                              borderTopLeftRadius: '3px',
+                              borderBottomLeftRadius: '3px',
+                              borderTopRightRadius: '0',
+                              borderBottomRightRadius: '0',
+                              backgroundColor: card_bg,
+                              color: card_text_color,
+                              border: 'none',
+                              borderRight: border_right,
+                              boxShadow: 'none',
+                              fontSize: '1rem',
+                              fontWeight: 'bold',
+                              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                              letterSpacing: '0.3px',
+                              lineHeight: '1',
+                              boxSizing: 'border-box',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              cursor: 'default',
+                              userSelect: 'none',
+                              transition: 'background-color 0.25s ease, color 0.25s ease',
+                              flexShrink: '0',
+                            },
+                          }, [
+            corp_marker,
+
+            h(:span, {
+                style: {
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  fontWeight: '700',
+                },
+              }, player_label),
+          ])
+
+          rebuild_status_strip = lambda do
+            %x{
+      setTimeout(function() {
+        var source =
+          document.querySelector(
+            '#action-status-source #spreadsheet'
+          );
+
+        var target =
+          document.getElementById(
+            'action-status-spreadsheet'
+          );
+
+        if (!source || !target) {
+          return;
+        }
+
+        var table =
+          source.querySelector('table');
+
+        var styleNode =
+          source.querySelector('style');
+
+        if (!table) {
+          return;
+        }
+
+        var headerRow =
+          table.querySelector(
+            'thead tr:last-child'
+          );
+
+        if (!headerRow) {
+          return;
+        }
+
+        /*
+         * Find the corporation row without putting the corporation ID
+         * inside a CSS selector. This works with IDs such as "B&O".
+         */
+        var corporationId =
+          String(#{corp_id});
+
+        var bodyRows =
+          Array.prototype.slice.call(
+            table.querySelectorAll(
+              'tbody tr[data-corp]'
+            )
+          );
+
+        var corpRow = null;
+
+        bodyRows.forEach(function(row) {
+          if (
+            String(
+              row.getAttribute('data-corp')
+            ) === corporationId
+          ) {
+            corpRow = row;
+          }
+        });
+
+        if (!corpRow) {
+          return;
+        }
+
+        /*
+         * Select each corporation value by its own class or ID.
+         * Do not use header indexes because the main table uses colspan.
+         */
+        var cashCell =
+          corpRow.querySelector(
+            'td.corporation-cash'
+          );
+
+        var trainsCell =
+          corpRow.querySelector(
+            'td.corporation-trains'
+          );
+
+        var tokensCell =
+          trainsCell ?
+            trainsCell.nextElementSibling :
+            null;
+
+        var privatesCell = null;
+
+        var rowCells =
+          Array.prototype.slice.call(
+            corpRow.children
+          );
+
+        rowCells.forEach(function(cell) {
+          if (
+            String(cell.id || '') ===
+            'companies_' + corporationId
+          ) {
+            privatesCell = cell;
+          }
+        });
+
+        var lastCell =
+          corpRow.lastElementChild;
+
+        function findHeader(label) {
+          var headerCells =
+            Array.prototype.slice.call(
+              headerRow.children
+            );
+
+          var result = null;
+
+          headerCells.forEach(function(cell) {
+            if (
+              String(
+                cell.textContent || ''
+              ).trim() === label
+            ) {
+              result = cell;
+            }
+          });
+
+          return result;
+        }
+
+        var requestedColumns = [
+          {
+            header: findHeader('Cash'),
+            cell: cashCell
+          },
+          {
+            header: findHeader('Trains'),
+            cell: trainsCell
+          },
+          {
+            header: findHeader('Tokens'),
+            cell: tokensCell
+          },
+          {
+            header: findHeader('Privates'),
+            cell: privatesCell
+          },
+          {
+            header: findHeader('Last'),
+            cell: lastCell
+          }
+        ];
+
+        requestedColumns =
+          requestedColumns.filter(
+            function(column) {
+              return !!(
+                column.header &&
+                column.cell
+              );
+            }
+          );
+
+        if (!requestedColumns.length) {
+          return;
+        }
+
+        target.innerHTML = '';
+
+        /*
+         * Copy the exact status-table styles and retarget the
+         * #spreadsheet selectors to this smaller table.
+         */
+        if (styleNode) {
+          var copiedStyle =
+            document.createElement('style');
+
+          copiedStyle.textContent =
+            String(
+              styleNode.textContent || ''
+            )
+              .split('#spreadsheet')
+              .join(
+                '#action-status-spreadsheet'
+              );
+
+          target.appendChild(
+            copiedStyle
+          );
+        }
+
+        var focusedTable =
+          document.createElement('table');
+
+        var focusedHead =
+          document.createElement('thead');
+
+        var focusedHeadRow =
+          document.createElement('tr');
+
+        var focusedBody =
+          document.createElement('tbody');
+
+        var focusedCorpRow =
+          document.createElement('tr');
+
+        focusedCorpRow.className =
+          corpRow.className;
+
+        focusedCorpRow.setAttribute(
+          'data-corp',
+          corporationId
+        );
+
+        requestedColumns.forEach(
+          function(column) {
+            focusedHeadRow.appendChild(
+              column.header.cloneNode(true)
+            );
+
+            focusedCorpRow.appendChild(
+              column.cell.cloneNode(true)
+            );
+          }
+        );
+
+        focusedHead.appendChild(
+          focusedHeadRow
+        );
+
+        focusedBody.appendChild(
+          focusedCorpRow
+        );
+
+        focusedTable.appendChild(
+          focusedHead
+        );
+
+        focusedTable.appendChild(
+          focusedBody
+        );
+
+        target.appendChild(
+          focusedTable
+        );
+
+        /*
+         * The source table remains mounted off screen.
+         * Rename IDs in the copy so the page has no duplicate IDs.
+         */
+        var idNodes =
+          target.querySelectorAll('[id]');
+
+        for (
+          var index = 0;
+          index < idNodes.length;
+          index++
+        ) {
+          idNodes[index].id =
+            'action-status-' +
+            idNodes[index].id;
+        }
+      }, 0);
+    }
+          end
+
+          h(:div, {
+              style: {
+                flex: '0 0 auto',
+                display: 'flex',
+                flexDirection: 'column',
+                width: '100%',
+                boxSizing: 'border-box',
+                backgroundColor: '#f8fafc',
+                borderBottom: '1px solid #cbd5e1',
+              },
+            }, [
+            # // --- START FIX ---
+            # // --- DELETE --- /*
+            # // --- DELETE ---  * First line: exact visualizer-style player card,
+            # // --- DELETE ---  * followed by the full corporation name.
+            # // --- DELETE ---  */
+            # First line: exact visualizer-style player card,
+            # followed by the full corporation name.
+            # // --- END FIX ---
+            h(:div, {
+                style: {
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'stretch',
+                  justifyContent: 'flex-start',
+                  width: '100%',
+                  minHeight: '3.75rem',
+                  boxSizing: 'border-box',
+                  backgroundColor: '#f8f9fa',
+                  overflow: 'hidden',
+                },
+              }, [
+              player_card,
+
+              h(:div, {
+                  attrs: {
+                    title: entity_name,
+                  },
+                  style: {
+                    flex: '1 1 auto',
+                    minWidth: '0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 1rem',
+                    boxSizing: 'border-box',
+                    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                    fontSize: '1.3rem',
+                    fontWeight: '900',
+                    lineHeight: '1.1',
+                    color: '#0f172a',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  },
+                }, entity_name),
+            ]),
+
+            # // --- START FIX ---
+            # // --- DELETE --- /*
+            # // --- DELETE ---  * Second line: the selected corporation status cells.
+            # // --- DELETE ---  */
+            # Second line: the selected corporation status cells.
+            # // --- END FIX ---
+            h('div#action-status-spreadsheet', {
+                hook: {
+                  insert: lambda do |_vnode|
+                    rebuild_status_strip.call
+                  end,
+
+                  postpatch: lambda do |_old_vnode, _vnode|
+                    rebuild_status_strip.call
+                  end,
+                },
+                style: {
+                  display: 'block',
+                  width: '100%',
+                  minHeight: '4.5rem',
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  padding: '0.45rem 1rem 0.75rem',
+                  boxSizing: 'border-box',
+                  backgroundColor: '#f8fafc',
+                },
+              }),
+
+            # // --- START FIX ---
+            # // --- DELETE --- /*
+            # // --- DELETE ---  * Hidden authoritative copy of DashboardGameStatus.
+            # // --- DELETE ---  */
+            # Hidden authoritative copy of DashboardGameStatus.
+            # // --- END FIX ---
+            h('div#action-status-source', {
+                style: {
+                  position: 'absolute',
+                  left: '-100000px',
+                  top: '-100000px',
+                  width: '1800px',
+                  visibility: 'hidden',
+                  pointerEvents: 'none',
+                },
+              }, [
+              h(
+                ::View::Game::DashboardGameStatus,
+                game: @game,
+                game_data: @game_data
+              ),
+            ]),
+          ])
+        end
+
         def render_command_content
           step = @game.round.active_step
           entity = current_entity
@@ -2836,27 +3381,7 @@ module View
               h(:div, { style: { fontSize: '1.6rem', fontWeight: 'bold', color: '#000000', textAlign: 'center', wordBreak: 'break-word', lineHeight: '1.2' } }, player_display_name),
             ])
           else
-            logo_src = begin
-              setting_for(:simple_logos, @game) ? entity&.simple_logo : entity&.logo
-            rescue StandardError
-              nil
-            end
-
-            logo_element = if logo_src
-                             h(:img, { attrs: { src: logo_src }, style: { width: '50px', height: '50px', objectFit: 'contain', flexShrink: '0' } })
-                           else
-                             h(:div, { style: { width: '50px', height: '50px', fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: bg_color, color: text_color, borderRadius: '6px', flexShrink: '0' } }, entity&.id || 'N/A')
-                           end
-
-            entity_name = entity.respond_to?(:name) ? entity.name : (entity&.id || '')
-
-            zone_1 = h(:div, { style: { flex: '0 0 auto', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', padding: '0.75rem 1rem', width: '100%', boxSizing: 'border-box', gap: '1rem', backgroundColor: '#f8fafc' } }, [
-              logo_element,
-              h(:div, { style: { display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' } }, [
-                h(:div, { style: { fontSize: '1.4rem', fontWeight: '900', color: '#0f172a', lineHeight: '1.1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, entity_name),
-                h(:div, { style: { fontSize: '0.95rem', fontWeight: 'bold', color: '#475569', marginTop: '0.1rem' } }, player_name),
-              ]),
-            ])
+            zone_1 = render_operating_identity_panel(entity, player_name, bg_color, text_color)
           end
 
           show_manual_routes = @show_manual_routes || Lib::Storage['cmd_manual_routes'] == true || Lib::Storage['cmd_manual_routes'] == 'true'
