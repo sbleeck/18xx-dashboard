@@ -339,10 +339,141 @@ module View
           )
         end
 
+        def selectable_targets
+          return [] unless step.respond_to?(:visible_corporations)
+          return [] if step.respond_to?(:auctioning) && step.auctioning
+
+          Array(step.visible_corporations).compact
+        rescue StandardError
+          []
+        end
+
+        def select_target(item)
+          Lib::Storage['dashboard_bidding_selected_target'] = item.id.to_s
+          update
+        end
+
+        def selected_target
+          selected_id = Lib::Storage['dashboard_bidding_selected_target']
+          return nil unless selected_id
+
+          selectable_targets.find do |item|
+            item.respond_to?(:id) && item.id.to_s == selected_id.to_s
+          end
+        end
+
+        def render_target_picker(bidder)
+          items = selectable_targets
+          return h(:div, {}) if items.empty?
+
+          cards = items.map do |item|
+            h(:button, {
+                style: {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.65rem',
+                  width: '100%',
+                  padding: '0.65rem 0.75rem',
+                  backgroundColor: company_color(item),
+                  color: company_text_color(item),
+                  border: '1px solid #94a3b8',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontWeight: 'bold',
+                },
+                on: {
+                  click: -> { select_target(item) },
+                },
+              }, [
+                item_logo(item),
+                h(:span, {}, "#{item.respond_to?(:sym) ? item.sym : item.id} — #{item.name}"),
+              ])
+          end
+
+          pass_action = lambda do
+            process_action(Engine::Action::Pass.new(bidder))
+          end
+
+          h(:div, {
+              attrs: { id: 'dashboard-bidding-panel' },
+              style: {
+                position: 'fixed',
+                top: '1rem',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 'min(760px, 94vw)',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                zIndex: '100100',
+                backgroundColor: '#ffffff',
+                border: '1px solid #64748b',
+                borderRadius: '9px',
+                boxShadow: '0 10px 28px rgba(15, 23, 42, 0.28)',
+              },
+            }, [
+              h(:div, {
+                  style: {
+                    padding: '0.75rem 1rem',
+                    backgroundColor: '#f8fafc',
+                    borderBottom: '1px solid #cbd5e1',
+                  },
+                }, [
+                  h(:div, {
+                      style: {
+                        fontSize: '1.15rem',
+                        fontWeight: 'bold',
+                        color: '#0f172a',
+                      },
+                    }, 'Select a Parliamentary Charter'),
+                  h(:div, {
+                      style: {
+                        marginTop: '0.2rem',
+                        fontSize: '0.85rem',
+                        color: '#64748b',
+                      },
+                    }, "Active Player: #{bidder.name}"),
+                ]),
+              h(:div, {
+                  style: {
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '0.6rem',
+                    padding: '0.85rem',
+                  },
+                }, cards),
+              h(:div, {
+                  style: {
+                    padding: '0.65rem 0.85rem',
+                    borderTop: '1px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                  },
+                }, [
+                  h(:button, {
+                      style: {
+                        height: '1.85rem',
+                        padding: '0 12px',
+                        border: 'none',
+                        borderRadius: '5px',
+                        backgroundColor: '#ea7c22',
+                        color: '#ffffff',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                      },
+                      on: { click: pass_action },
+                    }, 'Pass'),
+                ]),
+            ])
+        end
+
         def render
-          item = target
           bidder = entity
-          return h(:div, {}) unless item && bidder
+          return h(:div, {}) unless bidder
+
+          item = target || selected_target
+
+          return render_target_picker(bidder) unless item
 
           legal_actions = actions
           return h(:div, {}) unless legal_actions.include?('bid') || legal_actions.include?('pass')
@@ -386,6 +517,7 @@ module View
             end
             Lib::Storage[price_key] = nil
             Lib::Storage[signature_key] = nil
+            Lib::Storage['dashboard_bidding_selected_target'] = nil
             process_action(Engine::Action::Bid.new(bidder, **args))
           end
 

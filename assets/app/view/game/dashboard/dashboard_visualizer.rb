@@ -218,7 +218,14 @@ module View
           nil
         end
 
-        if auction_target && (actions.include?('bid') || actions.include?('pass'))
+        use_bidding_overlay =
+          (actions.include?('bid') || actions.include?('pass')) &&
+          (
+            auction_target ||
+            step.respond_to?(:visible_corporations)
+          )
+
+        if use_bidding_overlay
           h(::View::Game::Dashboard::BiddingOverlay,
             game: @game,
             bidder: actor)
@@ -570,7 +577,7 @@ badge_el,
 
       def render_phases_overlay
         val = Lib::Storage['dashboard_show_phases']
-        is_open = val == true || val == 'true'
+        is_open = [true, 'true'].include?(val)
         return nil unless is_open
 
         close_handler = lambda {
