@@ -482,12 +482,38 @@ module View
 
         return nil unless actions.include?('bid') || auction_target
 
+        available_items =
+          begin
+            step.respond_to?(:available) ? Array(step.available).compact : []
+          rescue StandardError
+            []
+          end
+
+        direct_purchase_available =
+          step.respond_to?(:may_purchase?) &&
+          available_items.any? do |item|
+            step.may_purchase?(item)
+          rescue StandardError
+            false
+          end
+
+        free_choice_selection =
+          !auction_target &&
+          !direct_purchase_available &&
+          available_items.any? &&
+          step.respond_to?(:may_bid?) &&
+          available_items.all? do |item|
+            step.may_bid?(item)
+          rescue StandardError
+            false
+          end
+
         use_bidding_overlay =
           (actions.include?('bid') || actions.include?('pass')) &&
           (
             auction_target ||
             step.respond_to?(:visible_corporations) ||
-            step.respond_to?(:available)
+            free_choice_selection
           )
 
         if use_bidding_overlay
