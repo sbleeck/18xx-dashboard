@@ -24,6 +24,7 @@ module View
 
         needs :game, store: true
         needs :actor, default: nil
+        needs :user, default: nil
 
         def resolve_pending_par(step, entity, actions)
           pending = nil
@@ -260,26 +261,73 @@ module View
             end
           end
 
-          acquired_items = []
-          if @game.respond_to?(:companies) && @game.companies
-            acquired_items.concat(@game.companies.select do |c|
-              c.respond_to?(:owner) && c.owner && c.owner.respond_to?(:player?) && c.owner.player? && (!c.respond_to?(:closed?) || !c.closed?)
-            end)
-          end
-          if @game.respond_to?(:minors) && @game.minors
-            acquired_items.concat(@game.minors.select do |m|
-              m.respond_to?(:owner) && m.owner && m.owner.respond_to?(:player?) && m.owner.player? && (!m.respond_to?(:closed?) || !m.closed?)
-            end)
-          end
-          draft_items.concat(acquired_items)
+          show_owners =
+            if @game.respond_to?(:show_company_owners?)
+              @game.show_company_owners?
+            else
+              true
+            end
 
-          draft_items = draft_items.compact.uniq.reject do |item|
-            item.respond_to?(:closed?) && item.closed?
-          end
+          all_game_items =
+            (@game.respond_to?(:companies) ? @game.companies : []) +
+            (@game.respond_to?(:minors) ? @game.minors : [])
 
-          all_game_items = (@game.respond_to?(:companies) ? @game.companies : []) +
-                           (@game.respond_to?(:minors) ? @game.minors : [])
-          items = draft_items.sort_by { |item| all_game_items.index(item) || 999 }
+          hidden_draft =
+            @game.respond_to?(:show_company_owners?) &&
+            !@game.show_company_owners?
+
+          viewer =
+            if @game.respond_to?(:current_user)
+              @game.current_user
+            else
+              entity
+            end
+
+          my_drafted_items =
+            if hidden_draft
+              all_game_items.select do |item|
+                item.respond_to?(:owner) && item.owner == viewer
+              end
+            else
+              []
+            end
+
+          if hidden_draft
+            available_items =
+              draft_items.reject do |item|
+                item.respond_to?(:owner) && item.owner
+              end
+
+            items = (available_items + my_drafted_items)
+                      .compact
+                      .uniq
+                      .reject { |item| item.respond_to?(:closed?) && item.closed? }
+                      .sort_by { |item| all_game_items.index(item) || 999 }
+          else
+            acquired_items = []
+
+            if @game.respond_to?(:companies) && @game.companies
+              acquired_items.concat(@game.companies.select do |c|
+                c.respond_to?(:owner) && c.owner && c.owner.respond_to?(:player?) && c.owner.player? &&
+                  (!c.respond_to?(:closed?) || !c.closed?)
+              end)
+            end
+
+            if @game.respond_to?(:minors) && @game.minors
+              acquired_items.concat(@game.minors.select do |m|
+                m.respond_to?(:owner) && m.owner && m.owner.respond_to?(:player?) && m.owner.player? &&
+                  (!m.respond_to?(:closed?) || !m.closed?)
+              end)
+            end
+
+            draft_items.concat(acquired_items)
+
+            items = draft_items
+                      .compact
+                      .uniq
+                      .reject { |item| item.respond_to?(:closed?) && item.closed? }
+                      .sort_by { |item| all_game_items.index(item) || 999 }
+          end
 
           players = @game.players || []
 
@@ -304,7 +352,13 @@ module View
           }
 
           rows = items.map do |item|
-            is_owned = item.respond_to?(:owner) && item.owner && item.owner.respond_to?(:player?) && item.owner.player?
+            is_owned =
+              show_owners &&
+              item.respond_to?(:owner) &&
+              item.owner &&
+              item.owner.respond_to?(:player?) &&
+              item.owner.player?
+
             item_price = if step.respond_to?(:min_bid)
                            begin
                              step.min_bid(item)
@@ -344,7 +398,11 @@ module View
             can_afford = (entity.respond_to?(:cash) ? entity.cash : 0) >= item_price
 
             # Determine eligibility and appropriate verb (Bid, Buy, Choose)
-            is_actionable = !pending_corp && !is_owned && can_afford
+
+            is_available = draft_items.include?(item) &&
+                           (!item.respond_to?(:owner) || item.owner.nil?)
+
+            is_actionable = !pending_corp && is_available && can_afford
             action_mode = nil
 
             is_draft = step.class.name.to_s =~ /draft/i ||
