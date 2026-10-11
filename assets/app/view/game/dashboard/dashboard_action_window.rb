@@ -3253,9 +3253,14 @@ module View
                     color: '#1e3a8a',
                   },
                 }, [
-                  h(:div, { style: { fontSize: '0.78rem', fontWeight: '800', letterSpacing: '0.04em', textTransform: 'uppercase' } }, 'Current choices'),
-                  h(:div, { style: { fontSize: '0.9rem', fontWeight: '600', lineHeight: '1.3' } }, action_summary),
-                ]),
+  h(:div, {
+      style: {
+        fontSize: '0.9rem',
+        fontWeight: '700',
+        lineHeight: '1.3',
+      },
+    }, 'Current possible actions'),
+                 ]),
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%', padding: '0.2rem 0', boxSizing: 'border-box' } }, zone_2_content.compact),
             ])
 
@@ -3547,193 +3552,7 @@ module View
             ].compact)
         end
 
-        # def render
-        #   saved_pos = %x{
-        #     (function() {
-        #       try {
-        #         var p = JSON.parse(localStorage.getItem('action_window_pos'));
-        #         if (p && typeof p.left === 'string' && typeof p.top === 'string') {
-        #           var leftNum = parseFloat(p.left);
-        #           var topNum = parseFloat(p.top);
-        #           if (!isNaN(leftNum) && !isNaN(topNum) &&
-        #               leftNum >= 10 && leftNum <= (window.innerWidth - 80) &&
-        #               topNum >= 0 && topNum <= (window.innerHeight - 40)) {
-        #             return p;
-        #           }
-        #           localStorage.removeItem('action_window_pos');
-        #         }
-        #       } catch(e) {}
-        #       return null;
-        #     })()
-        #   }
-        #   pos_native = Native(saved_pos) if saved_pos
-        #   has_pos = pos_native && pos_native['left'] && pos_native['top']
-
-        #   saved_size = %x{
-        #     (function() {
-        #       try {
-        #         var s = JSON.parse(localStorage.getItem('action_window_size'));
-        #         if (s && typeof s.width === 'string' && typeof s.height === 'string' && s.width.indexOf('px') !== -1 && s.height.indexOf('px') !== -1) {
-        #           return s;
-        #         }
-        #       } catch(e) {}
-        #       return null;
-        #     })()
-        #   }
-        #   size_native = Native(saved_size) if saved_size
-        #   has_size = size_native && size_native['width'] && size_native['height']
-
-        #   default_left = `Math.max(10, Math.round(((window.innerWidth || 1200) - 400) / 2)) + 'px'`
-        #   left_pos = has_pos ? pos_native['left'] : default_left
-        #   top_pos = has_pos ? pos_native['top'] : '80px'
-
-        #   is_min = minimized?
-        #   hud_width = has_size ? size_native['width'] : '400px'
-        #   hud_height = if is_min
-        #                  'auto'
-        #                else
-        #                  (has_size ? size_native['height'] : '550px')
-        #                end
-
-        #   hud_style = {
-        #     position: 'fixed',
-        #     top: top_pos,
-        #     left: left_pos,
-        #     width: hud_width,
-        #     height: hud_height,
-        #     maxWidth: '96vw',
-        #     maxHeight: is_min ? 'auto' : '92vh',
-        #     minWidth: '300px',
-        #     minHeight: is_min ? '0' : '160px',
-        #     backgroundColor: '#ffffff',
-        #     borderRadius: '8px',
-        #     boxShadow: '0 20px 45px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.15)',
-        #     border: '1.5px solid #2563eb',
-        #     zIndex: '10000005',
-        #     pointerEvents: 'auto',
-        #     display: 'flex',
-        #     flexDirection: 'column',
-        #     overflow: 'hidden',
-        #     resize: 'none',
-        #     userSelect: 'none',
-        #   }
-        #   btn_style = {
-        #     background: 'none',
-        #     border: 'none',
-        #     fontSize: '1.1rem',
-        #     color: '#94a3b8',
-        #     cursor: 'pointer',
-        #     padding: '0 4px',
-        #     borderRadius: '3px',
-        #     lineHeight: '1',
-        #     display: 'inline-flex',
-        #     alignItems: 'center',
-        #     justifyContent: 'center',
-        #   }
-
-        #   h('div#action_floating_window', {
-        #       style: hud_style,
-        #       on: {
-        #         mouseup: lambda {
-        #           %x{
-        #             var hud = document.getElementById('action_floating_window');
-        #             if (hud && hud.style.width && hud.style.height && !#{is_min}) {
-        #               try {
-        #                 localStorage.setItem('action_window_size', JSON.stringify({ width: hud.style.width, height: hud.style.height }));
-        #               } catch(e) {}
-        #             }
-        #           }
-        #         },
-        #       },
-        #     }, [
-        #     h('div#action_hud_handle', {
-        #         style: {
-        #           padding: '0.45rem 0.75rem',
-        #           backgroundColor: '#0f172a',
-        #           color: '#ffffff',
-        #           borderBottom: is_min ? 'none' : '1px solid #334155',
-        #           display: 'flex',
-        #           justifyContent: 'space-between',
-        #           alignItems: 'center',
-        #           cursor: 'grab',
-        #           flexShrink: '0',
-        #         },
-        #         on: {
-        #           mousedown: ->(e) { start_drag(e) },
-        #         },
-        #       }, [
-        #       h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.45rem', pointerEvents: 'none' } }, [
-        #         h(:span, { style: { fontSize: '1.1rem', color: '#f59e0b', lineHeight: '1' } }, '⚡'),
-        #         h(:h3, { style: { margin: '0', fontSize: '0.9rem', color: '#f8fafc', fontWeight: '800', letterSpacing: '0.3px' } },
-        #           'Actions Hub'),
-        #       ]),
-        #       h(:div, { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
-        #         h(:button, {
-        #             attrs: { id: 'btn_minimize_action_window', type: 'button', title: is_min ? 'Restore' : 'Minimize' },
-        #             style: btn_style,
-        #             on: {
-        #               click: lambda { |e|
-        #                 `if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();`
-        #                 toggle_minimize
-        #               },
-        #             },
-        #           }, is_min ? '▢' : '—'),
-        #         h(:button, {
-        #             attrs: { id: 'btn_close_action_window', type: 'button', title: 'Close' },
-        #             style: btn_style,
-        #             on: {
-        #               click: lambda { |e|
-        #                 `if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();`
-        #                 close_window
-        #               },
-        #             },
-        #           }, '✕'),
-        #       ]),
-        #     ]),
-
-        #     h('div#action_window_scroll_body', {
-        #         style: {
-        #           flex: '1',
-        #           overflowY: 'auto',
-        #           backgroundColor: '#ffffff',
-        #           userSelect: 'text',
-        #           display: is_min ? 'none' : 'flex',
-        #           flexDirection: 'column',
-        #           alignItems: 'stretch',
-        #           justifyContent: 'flex-start',
-        #           padding: '0',
-        #           margin: '0',
-        #           boxSizing: 'border-box',
-        #         },
-        #       }, [
-        #       render_command_content,
-        #     ]),
-
-        #     (unless is_min
-        #        h('div#action_window_resize_grip', {
-        #            attrs: { title: 'Drag to resize' },
-        #            style: {
-        #              position: 'absolute',
-        #              right: '0',
-        #              bottom: '0',
-        #              width: '28px',
-        #              height: '28px',
-        #              cursor: 'nwse-resize',
-        #              background: 'linear-gradient(135deg, transparent 0%, transparent 48%, #94a3b8 49%, #94a3b8 55%, transparent 56%, transparent 65%, #475569 66%, #475569 72%, transparent 73%)',
-        #              zIndex: '10000010',
-        #              pointerEvents: 'auto',
-        #              touchAction: 'none',
-        #            },
-        #            on: {
-        #              mousedown: ->(e) { start_resize(e) },
-        #              touchstart: ->(e) { start_resize(e) },
-        #            },
-        #          })
-        #      end),
-        #   ])
-        # end
-        #
-
+   
         def render
           h(:div, {
               attrs: { id: 'action_floating_window' },
@@ -3747,7 +3566,7 @@ module View
                 backgroundColor: '#ffffff',
                 border: '2px solid #2563eb',
                 borderRadius: '8px',
-                overflow: 'hidden',
+                overflow: 'visible',
                 display: 'flex',
                 flexDirection: 'column',
               },
