@@ -3194,7 +3194,7 @@ module View
           action_summary = if visible_action_labels.empty?
                              'Review the current position, then use the default action when ready.'
                            else
-                             "Available now: #{visible_action_labels.join(' · ')}"
+                             ''
                            end
           if game_finished
             zone_2_content << h(:div, {
@@ -3390,7 +3390,7 @@ module View
                     color: '#1e3a8a',
                   },
                 }, [
-                  h(:div, { style: { fontSize: '0.78rem', fontWeight: '800', letterSpacing: '0.04em', textTransform: 'uppercase' } }, 'Current choices'),
+                  h(:div, { style: { fontSize: '0.78rem', fontWeight: '800', letterSpacing: '0.04em', textTransform: 'uppercase' } }, 'Currently available actions'),
                   h(:div, { style: { fontSize: '0.9rem', fontWeight: '600', lineHeight: '1.3' } }, action_summary),
                 ]),
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%', padding: '0.2rem 0', boxSizing: 'border-box' } }, zone_2_content.compact),
