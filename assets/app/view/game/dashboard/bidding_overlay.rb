@@ -340,10 +340,18 @@ module View
         end
 
         def selectable_targets
-          return [] unless step.respond_to?(:visible_corporations)
           return [] if step.respond_to?(:auctioning) && step.auctioning
 
-          Array(step.visible_corporations).compact
+          items =
+            if step.respond_to?(:visible_corporations)
+              step.visible_corporations
+            elsif step.respond_to?(:available)
+              step.available
+            else
+              []
+            end
+
+          Array(items).compact
         rescue StandardError
           []
         end
@@ -367,28 +375,91 @@ module View
           return h(:div, {}) if items.empty?
 
           cards = items.map do |item|
-            h(:button, {
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  width: '100%',
-                  padding: '0.65rem 0.75rem',
-                  backgroundColor: company_color(item),
-                  color: company_text_color(item),
-                  border: '1px solid #94a3b8',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontWeight: 'bold',
-                },
-                on: {
-                  click: -> { select_target(item) },
-                },
-              }, [
-                item_logo(item),
-                h(:span, {}, "#{item.respond_to?(:sym) ? item.sym : item.id} — #{item.name}"),
-              ])
+            click_handler = -> { select_target(item) }
+
+            if private?(item)
+              item_price = minimum_bid(item)
+              label = item.respond_to?(:sym) && item.sym ? item.sym.to_s : item.id.to_s
+              tooltip = build_entity_tooltip(item, price: item_price)
+
+              railcard = render_railcard(
+                label,
+                %w[game-card action-buy clickable],
+                click_handler,
+                tooltip,
+                nil,
+                "auction_selection_#{item.id}",
+                %w[cmd-company-wrapper status-company-wrapper],
+                entity: item
+              )
+
+              h(:div, {
+                  style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    width: '100%',
+                    minHeight: '3.25rem',
+                    padding: '0.55rem 0.7rem',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #94a3b8',
+                    borderRadius: '6px',
+                    boxSizing: 'border-box',
+                    cursor: 'pointer',
+                  },
+                  on: {
+                    click: click_handler,
+                  },
+                }, [
+                  railcard,
+                  h(:div, {
+                      style: {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.15rem',
+                        minWidth: '0',
+                      },
+                    }, [
+                      h(:span, {
+                          style: {
+                            fontWeight: 'bold',
+                            color: '#0f172a',
+                          },
+                        }, item.name.to_s),
+                      h(:span, {
+                          style: {
+                            fontFamily: FONT_MONEY,
+                            fontSize: '0.82rem',
+                            fontWeight: 'bold',
+                            color: '#4c1d95',
+                          },
+                        }, "Minimum bid: #{@game.format_currency(item_price)}"),
+                    ]),
+                ])
+            else
+              h(:button, {
+                  style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    width: '100%',
+                    padding: '0.65rem 0.75rem',
+                    backgroundColor: company_color(item),
+                    color: company_text_color(item),
+                    border: '1px solid #94a3b8',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontWeight: 'bold',
+                  },
+                  on: {
+                    click: click_handler,
+                  },
+                }, [
+                  item_logo(item),
+                  h(:span, {}, "#{item.respond_to?(:sym) ? item.sym : item.id} — #{item.name}"),
+                ])
+            end
           end
 
           pass_action = lambda do
@@ -412,20 +483,28 @@ module View
                 boxShadow: '0 10px 28px rgba(15, 23, 42, 0.28)',
               },
             }, [
-              h(:div, {
-                  style: {
-                    padding: '0.75rem 1rem',
-                    backgroundColor: '#f8fafc',
-                    borderBottom: '1px solid #cbd5e1',
-                  },
-                }, [
+h(:div, {
+    attrs: {
+      title: 'Drag to move',
+    },
+    style: {
+      padding: '0.75rem 1rem',
+      backgroundColor: '#f8fafc',
+      borderBottom: '1px solid #cbd5e1',
+      cursor: 'move',
+      userSelect: 'none',
+    },
+    on: {
+      mousedown: ->(event) { begin_drag(event) },
+    },
+  }, [
                   h(:div, {
                       style: {
                         fontSize: '1.15rem',
                         fontWeight: 'bold',
                         color: '#0f172a',
                       },
-                    }, 'Select a Parliamentary Charter'),
+                    }, 'Select an Item for Auction'),
                   h(:div, {
                       style: {
                         marginTop: '0.2rem',
@@ -434,36 +513,36 @@ module View
                       },
                     }, "Active Player: #{bidder.name}"),
                 ]),
-              h(:div, {
-                  style: {
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                    gap: '0.6rem',
-                    padding: '0.85rem',
-                  },
-                }, cards),
-              h(:div, {
-                  style: {
-                    padding: '0.65rem 0.85rem',
-                    borderTop: '1px solid #e2e8f0',
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                  },
-                }, [
-                  h(:button, {
-                      style: {
-                        height: '1.85rem',
-                        padding: '0 12px',
-                        border: 'none',
-                        borderRadius: '5px',
-                        backgroundColor: '#ea7c22',
-                        color: '#ffffff',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                      },
-                      on: { click: pass_action },
-                    }, 'Pass'),
-                ]),
+h(:div, {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+      gap: '0.6rem',
+      padding: '0.85rem',
+    },
+  }, cards),
+h(:div, {
+    style: {
+      padding: '0.65rem 0.85rem',
+      borderTop: '1px solid #e2e8f0',
+      display: 'flex',
+      justifyContent: 'flex-end',
+    },
+  }, [
+    h(:button, {
+        style: {
+          height: '1.85rem',
+          padding: '0 12px',
+          border: 'none',
+          borderRadius: '5px',
+          backgroundColor: '#ea7c22',
+          color: '#ffffff',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+        },
+        on: { click: pass_action },
+      }, 'Pass'),
+  ]),
             ])
         end
 

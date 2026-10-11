@@ -400,7 +400,8 @@ module View
           (actions.include?('bid') || actions.include?('pass')) &&
           (
             auction_target ||
-            step.respond_to?(:visible_corporations)
+            step.respond_to?(:visible_corporations) ||
+            step.respond_to?(:available)
           )
 
         if use_bidding_overlay
