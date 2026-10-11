@@ -53290,7 +53290,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
           });
           
           $def(self, '$render_operating_identity_panel', function $$render_operating_identity_panel(entity, player_name, _bg_color, _text_color) {
-            var $a, $b, self = this, corp_id = nil, entity_name = nil, player_label = nil, is_hotseat = nil, $ret_or_1 = nil, $ret_or_2 = nil, user_id = nil, is_my_turn = nil, $ret_or_3 = nil, logo_src = nil, corp_color = nil, corp_text_color = nil, marker_content = nil, corp_marker = nil, card_bg = nil, card_text_color = nil, border_right = nil, player_card = nil, rebuild_status_strip = nil;
+            var $a, $b, self = this, corp_id = nil, entity_name = nil, player_label = nil, is_hotseat = nil, $ret_or_1 = nil, $ret_or_2 = nil, user_id = nil, is_my_turn = nil, $ret_or_3 = nil, logo_src = nil, corp_color = nil, corp_text_color = nil, marker_content = nil, corp_marker = nil, card_bg = nil, card_text_color = nil, border_right = nil, player_card = nil;
 
             
             corp_id = ($truthy(entity['$respond_to?']("id")) ? (entity.$id().$to_s()) : (""));
@@ -53325,81 +53325,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
             card_text_color = ($truthy(is_my_turn) ? ("#ffffff") : ("#334155"));
             border_right = ($truthy(is_my_turn) ? ("2px solid #15803d") : ("1px solid #cbd5e1"));
             player_card = self.$h("div", (new Map([["attrs", (new Map([["class", "active-turn-card"], ["title", ($truthy(is_my_turn) ? ("Active: " + (player_label) + " (Your turn)") : ("Active: " + (player_label)))]]))], ["style", (new Map([["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "flex-start"], ["flex", "0 0 auto"], ["alignSelf", "stretch"], ["height", "100%"], ["minWidth", "9.5rem"], ["maxWidth", "13.5rem"], ["padding", "0 0.85rem"], ["borderTopLeftRadius", "3px"], ["borderBottomLeftRadius", "3px"], ["borderTopRightRadius", "0"], ["borderBottomRightRadius", "0"], ["backgroundColor", card_bg], ["color", card_text_color], ["border", "none"], ["borderRight", border_right], ["boxShadow", "none"], ["fontSize", "1rem"], ["fontWeight", "bold"], ["fontFamily", "\"Helvetica Neue\", Helvetica, Arial, sans-serif"], ["letterSpacing", "0.3px"], ["lineHeight", "1"], ["boxSizing", "border-box"], ["whiteSpace", "nowrap"], ["overflow", "hidden"], ["cursor", "default"], ["userSelect", "none"], ["transition", "background-color 0.25s ease, color 0.25s ease"], ["flexShrink", "0"]]))]])), [corp_marker, self.$h("span", (new Map([["style", (new Map([["whiteSpace", "nowrap"], ["overflow", "hidden"], ["textOverflow", "ellipsis"], ["fontWeight", "700"]]))]])), player_label)]);
-            rebuild_status_strip = $send(self, 'lambda', [], function $$113(){
-              
-      setTimeout(function() {
-        var source = document.querySelector('#action-status-source #spreadsheet');
-        var target = document.getElementById('action-status-spreadsheet');
-        if (!source || !target) return;
-        var sourceTable = source.querySelector('table');
-        var styleNode = source.querySelector('style');
-        if (!sourceTable) return;
-        var corporationId = String(corp_id);
-        var sourceRows = Array.prototype.slice.call(sourceTable.querySelectorAll('tbody tr[data-corp]'));
-        var sourceCorpRow = sourceRows.find(function(row) {
-          return String(row.getAttribute('data-corp')) === corporationId;
-        });
-        if (!sourceCorpRow) return;
-        target.innerHTML = '';
-        if (styleNode) {
-          var copiedStyle = document.createElement('style');
-          copiedStyle.textContent = String(styleNode.textContent || '').split('#spreadsheet').join('#action-status-spreadsheet');
-          target.appendChild(copiedStyle);
-        }
-        var sourceHead = sourceTable.querySelector('thead');
-        var sourceHeaderRow = sourceHead && sourceHead.querySelector('tr:last-child');
-        if (!sourceHeaderRow) return;
-        function logicalRanges(cells) {
-          var logicalColumn = 0;
-          return cells.map(function(cell) {
-            var span = parseInt(cell.getAttribute('colspan') || '1', 10);
-            var range = { cell: cell, start: logicalColumn, finish: logicalColumn + span };
-            logicalColumn += span;
-            return range;
-          });
-        }
-        var headerRanges = logicalRanges(Array.prototype.slice.call(sourceHeaderRow.children));
-        var corporationHeaders = headerRanges.filter(function(range) {
-          return range.cell.classList.contains('header-corporate');
-        });
-        if (!corporationHeaders.length) return;
-        var corporateStart = corporationHeaders[0].start;
-        var corporateFinish = corporationHeaders[corporationHeaders.length - 1].finish;
-        var rowRanges = logicalRanges(Array.prototype.slice.call(sourceCorpRow.children));
-        var copiedTable = document.createElement('table');
-        copiedTable.className = sourceTable.className;
-        copiedTable.setAttribute('style', sourceTable.getAttribute('style') || '');
-        var copiedHead = document.createElement('thead');
-        var copiedHeadRow = document.createElement('tr');
-        corporationHeaders.forEach(function(range) { copiedHeadRow.appendChild(range.cell.cloneNode(true)); });
-        copiedHead.appendChild(copiedHeadRow);
-        copiedTable.appendChild(copiedHead);
-        var copiedBody = document.createElement('tbody');
-        var copiedCorpRow = document.createElement('tr');
-        copiedCorpRow.className = sourceCorpRow.className;
-        copiedCorpRow.setAttribute('data-corp', corporationId);
-        rowRanges.forEach(function(range) {
-          if (range.start >= corporateStart && range.finish <= corporateFinish) {
-            copiedCorpRow.appendChild(range.cell.cloneNode(true));
-          }
-        });
-        copiedBody.appendChild(copiedCorpRow);
-        copiedTable.appendChild(copiedBody);
-        target.appendChild(copiedTable);
-        var idNodes = target.querySelectorAll('[id]');
-        for (var index = 0; index < idNodes.length; index++) {
-          idNodes[index].id = 'action-status-' + idNodes[index].id;
-        }
-      }, 0);
-    });
-            return self.$h("div", (new Map([["style", (new Map([["flex", "0 0 auto"], ["display", "flex"], ["flexDirection", "column"], ["width", "100%"], ["boxSizing", "border-box"], ["backgroundColor", "#f8fafc"], ["borderBottom", "1px solid #cbd5e1"]]))]])), [self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["alignItems", "stretch"], ["justifyContent", "flex-start"], ["width", "100%"], ["minHeight", "3.75rem"], ["boxSizing", "border-box"], ["backgroundColor", "#f8f9fa"], ["overflow", "hidden"]]))]])), [player_card, self.$h("div", (new Map([["attrs", (new Map([["class", "action-window-entity-order-content"]]))], ["style", (new Map([["flex", "1 1 auto"], ["minWidth", "0"], ["height", "100%"], ["display", "flex"], ["alignItems", "center"], ["overflowX", "auto"], ["overflowY", "hidden"], ["padding", "0 0.5rem"], ["boxSizing", "border-box"]]))]])), [self.$h($$$($$$($$$('View'), 'Game'), 'DashboardEntityOrder'), (new Map([["round", self.game.$round()]])))])]), self.$h("div#action-status-spreadsheet", (new Map([["hook", (new Map([["insert", $send(self, 'lambda', [], function $$114(_vnode){
-              
-              if (_vnode == null) _vnode = nil;
-              return rebuild_status_strip.$call();})], ["postpatch", $send(self, 'lambda', [], function $$115(_old_vnode, _vnode){
-              
-              if (_old_vnode == null) _old_vnode = nil;
-              if (_vnode == null) _vnode = nil;
-              return rebuild_status_strip.$call();})]]))], ["style", (new Map([["display", "block"], ["width", "100%"], ["minHeight", "4.5rem"], ["overflowX", "auto"], ["overflowY", "hidden"], ["padding", "0.45rem 1rem 0.75rem"], ["boxSizing", "border-box"], ["backgroundColor", "#f8fafc"]]))]]))), self.$h("div#action-status-source", (new Map([["style", (new Map([["position", "absolute"], ["left", "-100000px"], ["top", "-100000px"], ["width", "1800px"], ["visibility", "hidden"], ["pointerEvents", "none"]]))]])), [self.$h($$$($$$($$$('View'), 'Game'), 'DashboardGameStatus'), (new Map([["game", self.game], ["game_data", self.game_data]])))])]);
+            return self.$h("div", (new Map([["style", (new Map([["flex", "0 0 auto"], ["display", "flex"], ["flexDirection", "row"], ["alignItems", "stretch"], ["justifyContent", "flex-start"], ["width", "100%"], ["minHeight", "3.75rem"], ["boxSizing", "border-box"], ["backgroundColor", "#f8f9fa"], ["borderBottom", "1px solid #cbd5e1"], ["overflow", "hidden"]]))]])), [player_card, self.$h("div", (new Map([["attrs", (new Map([["class", "action-window-entity-order-content"]]))], ["style", (new Map([["flex", "1 1 auto"], ["minWidth", "0"], ["height", "100%"], ["display", "flex"], ["alignItems", "center"], ["overflowX", "auto"], ["overflowY", "hidden"], ["padding", "0 0.5rem"], ["boxSizing", "border-box"]]))]])), [self.$h($$$($$$($$$('View'), 'Game'), 'DashboardEntityOrder'), (new Map([["round", self.game.$round()]])))])]);
           });
           
           $def(self, '$render_command_content', function $$render_command_content() {
@@ -53473,7 +53399,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
             };
             base_revenue = 0;
             if (($truthy(self.$active_routes()['$any?']()) && ($not(self.cmd_router_running)))) {
-              $send(self.$active_routes(), 'each', [], function $$116(r){
+              $send(self.$active_routes(), 'each', [], function $$113(r){
                 
                 if (r == null) r = nil;
                 try {
@@ -53523,16 +53449,16 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
             };
             show_manual_routes = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = self.show_manual_routes)) ? ($ret_or_2) : ($$$($$('Lib'), 'Storage')['$[]']("cmd_manual_routes")['$=='](true))))) ? ($ret_or_1) : ($$$($$('Lib'), 'Storage')['$[]']("cmd_manual_routes")['$==']("true")));
             zone_2_content = [];
-            visible_action_labels = $send($send(actions, 'reject', [], function $$117(action_name){
+            visible_action_labels = $send($send(actions, 'reject', [], function $$114(action_name){
               
               if (action_name == null) action_name = nil;
-              return ["pass", "undo", "redo"]['$include?'](action_name.$to_s());}), 'map', [], function $$118(action_name){
+              return ["pass", "undo", "redo"]['$include?'](action_name.$to_s());}), 'map', [], function $$115(action_name){
               
               if (action_name == null) action_name = nil;
               return $send(action_name.$to_s().$tr("_", " ").$split(), 'map', [], "capitalize".$to_proc()).$join(" ");}).$uniq();
-            action_summary = ($truthy(visible_action_labels['$empty?']()) ? ("Review the current position, then use the default action when ready.") : (""));
+            action_summary = ($truthy(visible_action_labels['$empty?']()) ? ("Review the current position, then use the default action when ready.") : ("Available now: " + (visible_action_labels.$join(" · "))));
             if ($truthy(game_finished)) {
-              zone_2_content['$<<'](self.$h("div", (new Map([["style", (new Map([["width", "100%"], ["height", "100%"], ["display", "flex"], ["flexDirection", "row"], ["alignItems", "center"], ["justifyContent", "center"], ["gap", "0.75rem"]]))]])), [self.$h("strong", (new Map([["style", (new Map([["fontSize", "1rem"], ["color", "#0f172a"]]))]])), "End of Game"), self.$h("button", (new Map([["style", (new Map([["height", "1.65rem"], ["padding", "0 12px"], ["fontSize", "0.82rem"], ["fontWeight", "bold"], ["backgroundColor", "#16a34a"], ["color", "#ffffff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$119(){var self = $$119.$$s == null ? this : $$119.$$s;
+              zone_2_content['$<<'](self.$h("div", (new Map([["style", (new Map([["width", "100%"], ["height", "100%"], ["display", "flex"], ["flexDirection", "row"], ["alignItems", "center"], ["justifyContent", "center"], ["gap", "0.75rem"]]))]])), [self.$h("strong", (new Map([["style", (new Map([["fontSize", "1rem"], ["color", "#0f172a"]]))]])), "End of Game"), self.$h("button", (new Map([["style", (new Map([["height", "1.65rem"], ["padding", "0 12px"], ["fontSize", "0.82rem"], ["fontWeight", "bold"], ["backgroundColor", "#16a34a"], ["color", "#ffffff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$116(){var self = $$116.$$s == null ? this : $$116.$$s;
 
                 
                 $$$($$('Lib'), 'Storage')['$[]=']("show_results_overlay", true);
@@ -53542,7 +53468,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
               if ($truthy(self.cmd_router_running)) {
                 zone_2_content['$<<'](self.$h("div", (new Map([["style", (new Map([["padding", "0.2rem"], ["textAlign", "center"], ["color", "#666"], ["fontStyle", "italic"], ["fontSize", "0.9rem"]]))]])), "🔄 Computing optimal network tracks..."))
               } else if ($truthy(show_manual_routes)) {
-                zone_2_content['$<<'](self.$render_action_row("Revenue:", [self.$h("div", (new Map([["style", (new Map([["fontSize", "1.2rem"], ["fontWeight", "bold"], ["color", $$('COLOR_MONEY')], ["fontFamily", $$('FONT_MONEY')], ["minWidth", "4.5rem"], ["textAlign", "center"], ["height", "1.8rem"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"]]))]])), formatted_revenue), self.$h("button", (new Map([["style", (new Map([["padding", "0 8px"], ["height", "1.8rem"], ["fontSize", "0.8rem"], ["fontWeight", "bold"], ["backgroundColor", "#64748b"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"], ["marginLeft", "0.4rem"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$120(){var $ac, self = $$120.$$s == null ? this : $$120.$$s, target_route = nil;
+                zone_2_content['$<<'](self.$render_action_row("Revenue:", [self.$h("div", (new Map([["style", (new Map([["fontSize", "1.2rem"], ["fontWeight", "bold"], ["color", $$('COLOR_MONEY')], ["fontFamily", $$('FONT_MONEY')], ["minWidth", "4.5rem"], ["textAlign", "center"], ["height", "1.8rem"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"]]))]])), formatted_revenue), self.$h("button", (new Map([["style", (new Map([["padding", "0 8px"], ["height", "1.8rem"], ["fontSize", "0.8rem"], ["fontWeight", "bold"], ["backgroundColor", "#64748b"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"], ["marginLeft", "0.4rem"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$117(){var $ac, self = $$117.$$s == null ? this : $$117.$$s, target_route = nil;
                   if (self.routes == null) self.routes = nil;
                   if (self.game == null) self.game = nil;
                   if (self.selected_route == null) self.selected_route = nil;
@@ -53562,15 +53488,15 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
                   return self.$update();}, {$$s: self})]]))]])), "Close Manual")]))
               } else {
                 
-                spinner_items = [self.$h("button", (new Map([["style", (new Map([["width", "1.8rem"], ["height", "1.8rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["cursor", "pointer"], ["backgroundColor", "#e0e0e0"], ["border", "1px solid #999"], ["borderRadius", "4px"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["padding", "0"], ["lineHeight", "1"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$121(){var self = $$121.$$s == null ? this : $$121.$$s;
+                spinner_items = [self.$h("button", (new Map([["style", (new Map([["width", "1.8rem"], ["height", "1.8rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["cursor", "pointer"], ["backgroundColor", "#e0e0e0"], ["border", "1px solid #999"], ["borderRadius", "4px"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["padding", "0"], ["lineHeight", "1"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$118(){var self = $$118.$$s == null ? this : $$118.$$s;
 
                   
                   $$$($$('Lib'), 'Storage')['$[]='](storage_key, [$rb_minus(current_revenue, 10), 0].$max());
-                  return self.$update();}, {$$s: self})]]))]])), "-"), self.$h("div", (new Map([["style", (new Map([["fontSize", "1.2rem"], ["fontWeight", "bold"], ["color", $$('COLOR_MONEY')], ["fontFamily", $$('FONT_MONEY')], ["minWidth", "4.5rem"], ["textAlign", "center"], ["height", "1.8rem"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["lineHeight", "1"]]))]])), formatted_revenue), self.$h("button", (new Map([["style", (new Map([["width", "1.8rem"], ["height", "1.8rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["cursor", "pointer"], ["backgroundColor", "#e0e0e0"], ["border", "1px solid #999"], ["borderRadius", "4px"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["padding", "0"], ["lineHeight", "1"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$122(){var self = $$122.$$s == null ? this : $$122.$$s;
+                  return self.$update();}, {$$s: self})]]))]])), "-"), self.$h("div", (new Map([["style", (new Map([["fontSize", "1.2rem"], ["fontWeight", "bold"], ["color", $$('COLOR_MONEY')], ["fontFamily", $$('FONT_MONEY')], ["minWidth", "4.5rem"], ["textAlign", "center"], ["height", "1.8rem"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["lineHeight", "1"]]))]])), formatted_revenue), self.$h("button", (new Map([["style", (new Map([["width", "1.8rem"], ["height", "1.8rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["cursor", "pointer"], ["backgroundColor", "#e0e0e0"], ["border", "1px solid #999"], ["borderRadius", "4px"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["padding", "0"], ["lineHeight", "1"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$119(){var self = $$119.$$s == null ? this : $$119.$$s;
 
                   
                   $$$($$('Lib'), 'Storage')['$[]='](storage_key, $rb_plus(current_revenue, 10));
-                  return self.$update();}, {$$s: self})]]))]])), "+"), self.$h("button", (new Map([["style", (new Map([["padding", "0 8px"], ["height", "1.8rem"], ["fontSize", "0.8rem"], ["fontWeight", "bold"], ["backgroundColor", "#2563eb"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"], ["marginLeft", "0.4rem"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["lineHeight", "1"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$123(){var self = $$123.$$s == null ? this : $$123.$$s;
+                  return self.$update();}, {$$s: self})]]))]])), "+"), self.$h("button", (new Map([["style", (new Map([["padding", "0 8px"], ["height", "1.8rem"], ["fontSize", "0.8rem"], ["fontWeight", "bold"], ["backgroundColor", "#2563eb"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"], ["marginLeft", "0.4rem"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["lineHeight", "1"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$120(){var self = $$120.$$s == null ? this : $$120.$$s;
 
                   
                   self.$store("show_manual_routes", true);
@@ -53583,11 +53509,11 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
               raw_options = ($truthy(step['$respond_to?']("dividend_options")) ? (step.$dividend_options(entity)) : ($truthy(step['$respond_to?']("dividend_types")) ? (step.$dividend_types()) : ([])));
               options = $send(($truthy(raw_options['$is_a?']($$('Hash'))) ? (raw_options.$keys()) : (self.$Array(raw_options))), 'map', [], "to_s".$to_proc());
               half_kind = ($truthy(options['$include?']("split")) ? ("split") : ("half"));
-              zone_2_content['$<<'](self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["justifyContent", "center"], ["gap", "0.5rem"], ["width", "100%"], ["maxWidth", "520px"], ["margin", "0 auto"]]))]])), [((($truthy(actions['$include?']("payout")) || ($truthy(options['$include?']("payout")))) || ($truthy(actions['$include?']("dividend")))) ? (self.$h("button", (new Map([["style", (new Map([["flex", "1"], ["padding", "0.45rem 0.6rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["backgroundColor", "#28a745"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $lambda(function $$124(){var self = $$124.$$s == null ? this : $$124.$$s;
+              zone_2_content['$<<'](self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["justifyContent", "center"], ["gap", "0.5rem"], ["width", "100%"], ["maxWidth", "520px"], ["margin", "0 auto"]]))]])), [((($truthy(actions['$include?']("payout")) || ($truthy(options['$include?']("payout")))) || ($truthy(actions['$include?']("dividend")))) ? (self.$h("button", (new Map([["style", (new Map([["flex", "1"], ["padding", "0.45rem 0.6rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["backgroundColor", "#28a745"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $lambda(function $$121(){var self = $$121.$$s == null ? this : $$121.$$s;
 
-                return self.$process_action($$$($$$($$('Engine'), 'Action'), 'Dividend').$new(entity, (new Map([["kind", "payout"], ["extra_revenue", $rb_minus(current_revenue, base_revenue)]]))))}, {$$s: self})]]))]])), "Pay Out Full")) : nil), ((($truthy(actions['$include?']("withhold")) || ($truthy(options['$include?']("withhold")))) || ($truthy(actions['$include?']("dividend")))) ? (self.$h("button", (new Map([["style", (new Map([["flex", "1"], ["padding", "0.45rem 0.6rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["backgroundColor", "#007bff"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $lambda(function $$125(){var self = $$125.$$s == null ? this : $$125.$$s;
+                return self.$process_action($$$($$$($$('Engine'), 'Action'), 'Dividend').$new(entity, (new Map([["kind", "payout"], ["extra_revenue", $rb_minus(current_revenue, base_revenue)]]))))}, {$$s: self})]]))]])), "Pay Out Full")) : nil), ((($truthy(actions['$include?']("withhold")) || ($truthy(options['$include?']("withhold")))) || ($truthy(actions['$include?']("dividend")))) ? (self.$h("button", (new Map([["style", (new Map([["flex", "1"], ["padding", "0.45rem 0.6rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["backgroundColor", "#007bff"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $lambda(function $$122(){var self = $$122.$$s == null ? this : $$122.$$s;
 
-                return self.$process_action($$$($$$($$('Engine'), 'Action'), 'Dividend').$new(entity, (new Map([["kind", "withhold"], ["extra_revenue", $rb_minus(current_revenue, base_revenue)]]))))}, {$$s: self})]]))]])), "Hold Revenue")) : nil), (((($truthy(actions['$include?']("half")) || ($truthy(actions['$include?']("split")))) || ($truthy(options['$include?']("half")))) || ($truthy(options['$include?']("split")))) ? (self.$h("button", (new Map([["style", (new Map([["flex", "1"], ["padding", "0.45rem 0.6rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["backgroundColor", "#007bff"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $lambda(function $$126(){var self = $$126.$$s == null ? this : $$126.$$s;
+                return self.$process_action($$$($$$($$('Engine'), 'Action'), 'Dividend').$new(entity, (new Map([["kind", "withhold"], ["extra_revenue", $rb_minus(current_revenue, base_revenue)]]))))}, {$$s: self})]]))]])), "Hold Revenue")) : nil), (((($truthy(actions['$include?']("half")) || ($truthy(actions['$include?']("split")))) || ($truthy(options['$include?']("half")))) || ($truthy(options['$include?']("split")))) ? (self.$h("button", (new Map([["style", (new Map([["flex", "1"], ["padding", "0.45rem 0.6rem"], ["fontSize", "1.1rem"], ["fontWeight", "bold"], ["backgroundColor", "#007bff"], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $lambda(function $$123(){var self = $$123.$$s == null ? this : $$123.$$s;
 
                 return self.$process_action($$$($$$($$('Engine'), 'Action'), 'Dividend').$new(entity, (new Map([["kind", half_kind], ["extra_revenue", $rb_minus(current_revenue, base_revenue)]]))))}, {$$s: self})]]))]])), "Split / Half")) : nil)].$compact()));
             };
@@ -53608,7 +53534,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
                 zone_2_content['$<<'](ground_truth_actions)
               };
             };
-            zone_2 = self.$h("div", (new Map([["style", (new Map([["flex", "1 1 auto"], ["width", "100%"], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "stretch"], ["justifyContent", "flex-start"], ["gap", "0.55rem"], ["padding", "0.75rem 1rem"], ["boxSizing", "border-box"], ["overflowY", "auto"], ["backgroundColor", "#f8fafc"]]))]])), [self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.2rem"], ["padding", "0.65rem 0.8rem"], ["border", "1px solid #bfdbfe"], ["borderLeft", "4px solid #2563eb"], ["borderRadius", "6px"], ["backgroundColor", "#eff6ff"], ["color", "#1e3a8a"]]))]])), [self.$h("div", (new Map([["style", (new Map([["fontSize", "0.78rem"], ["fontWeight", "800"], ["letterSpacing", "0.04em"], ["textTransform", "uppercase"]]))]])), "Currently available actions"), self.$h("div", (new Map([["style", (new Map([["fontSize", "0.9rem"], ["fontWeight", "600"], ["lineHeight", "1.3"]]))]])), action_summary)]), self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.45rem"], ["width", "100%"], ["padding", "0.2rem 0"], ["boxSizing", "border-box"]]))]])), zone_2_content.$compact())]);
+            zone_2 = self.$h("div", (new Map([["style", (new Map([["flex", "1 1 auto"], ["width", "100%"], ["display", "flex"], ["flexDirection", "column"], ["alignItems", "stretch"], ["justifyContent", "flex-start"], ["gap", "0.55rem"], ["padding", "0.75rem 1rem"], ["boxSizing", "border-box"], ["overflowY", "auto"], ["backgroundColor", "#f8fafc"]]))]])), [self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.2rem"], ["padding", "0.65rem 0.8rem"], ["border", "1px solid #bfdbfe"], ["borderLeft", "4px solid #2563eb"], ["borderRadius", "6px"], ["backgroundColor", "#eff6ff"], ["color", "#1e3a8a"]]))]])), [self.$h("div", (new Map([["style", (new Map([["fontSize", "0.78rem"], ["fontWeight", "800"], ["letterSpacing", "0.04em"], ["textTransform", "uppercase"]]))]])), "Current choices"), self.$h("div", (new Map([["style", (new Map([["fontSize", "0.9rem"], ["fontWeight", "600"], ["lineHeight", "1.3"]]))]])), action_summary)]), self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.45rem"], ["width", "100%"], ["padding", "0.2rem 0"], ["boxSizing", "border-box"]]))]])), zone_2_content.$compact())]);
             advance_text = "Pass";
             advance_color = "#e0e0e0";
             advance_text_color = "#a0a0a0";
@@ -53617,7 +53543,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
             if ($truthy(actions['$include?']("pass"))) {
               
               advance_disabled = false;
-              advance_action = $lambda(function $$127(){var self = $$127.$$s == null ? this : $$127.$$s;
+              advance_action = $lambda(function $$124(){var self = $$124.$$s == null ? this : $$124.$$s;
 
                 return self.$process_action($$$($$$($$('Engine'), 'Action'), 'Pass').$new(entity))}, {$$s: self});
               
@@ -53684,7 +53610,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
               
               advance_disabled = false;
               advance_text = "Submit " + (formatted_revenue);
-              advance_action = $send(self, 'lambda', [], function $$128(){var self = $$128.$$s == null ? this : $$128.$$s, routes_to_submit = nil;
+              advance_action = $send(self, 'lambda', [], function $$125(){var self = $$125.$$s == null ? this : $$125.$$s, routes_to_submit = nil;
                 if (self.game == null) self.game = nil;
 
                 
@@ -53697,7 +53623,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
                 
                 advance_disabled = false;
                 advance_text = "Pay Out Full";
-                advance_action = $send(self, 'lambda', [], function $$129(){var self = $$129.$$s == null ? this : $$129.$$s;
+                advance_action = $send(self, 'lambda', [], function $$126(){var self = $$126.$$s == null ? this : $$126.$$s;
 
                   return self.$process_action($$$($$$($$('Engine'), 'Action'), 'Dividend').$new(entity, (new Map([["kind", "payout"], ["extra_revenue", $rb_minus(current_revenue, base_revenue)]]))))}, {$$s: self});
               };
@@ -53715,7 +53641,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
               }
             };
             has_abilities = (function() {if ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = game_finished['$!']())) ? (actions['$include?']("choose")['$!']()) : ($ret_or_3)))) ? (entity) : ($ret_or_2))))) {
-              return $send(($truthy(($ret_or_2 = self.game.$companies())) ? ($ret_or_2) : ([])), 'any?', [], function $$130(c){var is_owner = nil, $ret_or_4 = nil, abilities = nil;
+              return $send(($truthy(($ret_or_2 = self.game.$companies())) ? ($ret_or_2) : ([])), 'any?', [], function $$127(c){var is_owner = nil, $ret_or_4 = nil, abilities = nil;
 
                 
                 if (c == null) c = nil;
@@ -53730,7 +53656,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
                 if ($truthy(c['$respond_to?']("abilities"))) {
                   abilities.$concat(($truthy(($ret_or_2 = c.$abilities())) ? ($ret_or_2) : ([])))
                 };
-                return $send(abilities, 'any?', [], function $$131(a){
+                return $send(abilities, 'any?', [], function $$128(a){
                   
                   if (a == null) a = nil;
                   if (($truthy(a['$respond_to?']("passive?")) && ($truthy(a['$passive?']())))) {
@@ -53765,7 +53691,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
               self.routes = [];
               self.$store("routes", self.routes, (new Map([["skip", true]])));
               self.$store("selected_route", nil, (new Map([["skip", true]])));
-              $send(self, 'lambda', [], function $$132(){var self = $$132.$$s == null ? this : $$132.$$s, flash_cb = nil, router = nil, router_entity = nil, p_timeout = nil, r_timeout = nil;
+              $send(self, 'lambda', [], function $$129(){var self = $$129.$$s == null ? this : $$129.$$s, flash_cb = nil, router = nil, router_entity = nil, p_timeout = nil, r_timeout = nil;
                 if (self.game == null) self.game = nil;
 
                 
@@ -53773,7 +53699,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
                 
                 try {
                   
-                  flash_cb = $send(self, 'lambda', [], function $$133(msg){var self = $$133.$$s == null ? this : $$133.$$s;
+                  flash_cb = $send(self, 'lambda', [], function $$130(msg){var self = $$130.$$s == null ? this : $$130.$$s;
 
                     
                     if (msg == null) msg = nil;
@@ -53788,7 +53714,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
                   if ($truthy(r_timeout['$zero?']())) {
                     r_timeout = 10000
                   };
-                  router.$compute(router_entity, (new Map([["routes", []], ["path_timeout", p_timeout], ["route_timeout", r_timeout], ["callback", $send(self, 'lambda', [], function $$134(computed_routes){var $ai, $aj, self = $$134.$$s == null ? this : $$134.$$s, routes_list = nil, auto_rev = nil;
+                  router.$compute(router_entity, (new Map([["routes", []], ["path_timeout", p_timeout], ["route_timeout", r_timeout], ["callback", $send(self, 'lambda', [], function $$131(computed_routes){var $ai, $aj, self = $$131.$$s == null ? this : $$131.$$s, routes_list = nil, auto_rev = nil;
 
                     
                     if (computed_routes == null) computed_routes = nil;
@@ -53796,7 +53722,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
                     self.$store("routes", routes_list, (new Map([["skip", true]])));
                     self.$store("selected_route", routes_list.$first(), (new Map([["skip", true]])));
                     auto_rev = 0;
-                    $send(routes_list, 'each', [], function $$135(r){
+                    $send(routes_list, 'each', [], function $$132(r){
                       
                       if (r == null) r = nil;
                       try {
@@ -53884,7 +53810,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
             hud_height = ($truthy(is_min) ? ("auto") : (($truthy(has_size) ? (size_native['$[]']("height")) : ("550px"))));
             hud_style = (new Map([["position", "fixed"], ["top", top_pos], ["left", left_pos], ["width", hud_width], ["height", hud_height], ["maxWidth", "96vw"], ["maxHeight", ($truthy(is_min) ? ("auto") : ("92vh"))], ["minWidth", "300px"], ["minHeight", ($truthy(is_min) ? ("0") : ("160px"))], ["backgroundColor", "#ffffff"], ["borderRadius", "8px"], ["boxShadow", "0 20px 45px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.15)"], ["border", "1.5px solid #2563eb"], ["zIndex", "10000005"], ["pointerEvents", "auto"], ["display", "flex"], ["flexDirection", "column"], ["overflow", "hidden"], ["resize", "none"], ["userSelect", "none"]]));
             btn_style = (new Map([["background", "none"], ["border", "none"], ["fontSize", "1.1rem"], ["color", "#94a3b8"], ["cursor", "pointer"], ["padding", "0 4px"], ["borderRadius", "3px"], ["lineHeight", "1"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"]]));
-            return self.$h("div#action_floating_window", (new Map([["style", hud_style], ["on", (new Map([["mouseup", $send(self, 'lambda', [], function $$136(){
+            return self.$h("div#action_floating_window", (new Map([["style", hud_style], ["on", (new Map([["mouseup", $send(self, 'lambda', [], function $$133(){
               
                     var hud = document.getElementById('action_floating_window');
                     if (hud && hud.style.width && hud.style.height && !is_min) {
@@ -53892,25 +53818,25 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
                         localStorage.setItem('action_window_size', JSON.stringify({ width: hud.style.width, height: hud.style.height }));
                       } catch(e) {}
                     }
-                  })]]))]])), [self.$h("div#action_hud_handle", (new Map([["style", (new Map([["padding", "0.45rem 0.75rem"], ["backgroundColor", "#0f172a"], ["color", "#ffffff"], ["borderBottom", ($truthy(is_min) ? ("none") : ("1px solid #334155"))], ["display", "flex"], ["justifyContent", "space-between"], ["alignItems", "center"], ["cursor", "grab"], ["flexShrink", "0"]]))], ["on", (new Map([["mousedown", $lambda(function $$137(e){var self = $$137.$$s == null ? this : $$137.$$s;
+                  })]]))]])), [self.$h("div#action_hud_handle", (new Map([["style", (new Map([["padding", "0.45rem 0.75rem"], ["backgroundColor", "#0f172a"], ["color", "#ffffff"], ["borderBottom", ($truthy(is_min) ? ("none") : ("1px solid #334155"))], ["display", "flex"], ["justifyContent", "space-between"], ["alignItems", "center"], ["cursor", "grab"], ["flexShrink", "0"]]))], ["on", (new Map([["mousedown", $lambda(function $$134(e){var self = $$134.$$s == null ? this : $$134.$$s;
 
               
               if (e == null) e = nil;
-              return self.$start_drag(e);}, {$$s: self})]]))]])), [self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["alignItems", "center"], ["gap", "0.45rem"], ["pointerEvents", "none"]]))]])), [self.$h("span", (new Map([["style", (new Map([["fontSize", "1.1rem"], ["color", "#f59e0b"], ["lineHeight", "1"]]))]])), "⚡"), self.$h("h3", (new Map([["style", (new Map([["margin", "0"], ["fontSize", "0.9rem"], ["color", "#f8fafc"], ["fontWeight", "800"], ["letterSpacing", "0.3px"]]))]])), "Actions Hub")]), self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["alignItems", "center"], ["gap", "4px"]]))]])), [self.$h("button", (new Map([["attrs", (new Map([["id", "btn_minimize_action_window"], ["type", "button"], ["title", ($truthy(is_min) ? ("Restore") : ("Minimize"))]]))], ["style", btn_style], ["on", (new Map([["click", $send(self, 'lambda', [], function $$138(e){var self = $$138.$$s == null ? this : $$138.$$s;
-
-              
-              if (e == null) e = nil;
-              if (e && e.stopPropagation) e.stopPropagation();;
-              return self.$toggle_minimize();}, {$$s: self})]]))]])), ($truthy(is_min) ? ("▢") : ("—"))), self.$h("button", (new Map([["attrs", (new Map([["id", "btn_close_action_window"], ["type", "button"], ["title", "Close"]]))], ["style", btn_style], ["on", (new Map([["click", $send(self, 'lambda', [], function $$139(e){var self = $$139.$$s == null ? this : $$139.$$s;
+              return self.$start_drag(e);}, {$$s: self})]]))]])), [self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["alignItems", "center"], ["gap", "0.45rem"], ["pointerEvents", "none"]]))]])), [self.$h("span", (new Map([["style", (new Map([["fontSize", "1.1rem"], ["color", "#f59e0b"], ["lineHeight", "1"]]))]])), "⚡"), self.$h("h3", (new Map([["style", (new Map([["margin", "0"], ["fontSize", "0.9rem"], ["color", "#f8fafc"], ["fontWeight", "800"], ["letterSpacing", "0.3px"]]))]])), "Actions Hub")]), self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["alignItems", "center"], ["gap", "4px"]]))]])), [self.$h("button", (new Map([["attrs", (new Map([["id", "btn_minimize_action_window"], ["type", "button"], ["title", ($truthy(is_min) ? ("Restore") : ("Minimize"))]]))], ["style", btn_style], ["on", (new Map([["click", $send(self, 'lambda', [], function $$135(e){var self = $$135.$$s == null ? this : $$135.$$s;
 
               
               if (e == null) e = nil;
               if (e && e.stopPropagation) e.stopPropagation();;
-              return self.$close_window();}, {$$s: self})]]))]])), "✕")])]), self.$h("div#action_window_scroll_body", (new Map([["style", (new Map([["flex", "1"], ["overflowY", "auto"], ["backgroundColor", "#ffffff"], ["userSelect", "text"], ["display", ($truthy(is_min) ? ("none") : ("flex"))], ["flexDirection", "column"], ["alignItems", "stretch"], ["justifyContent", "flex-start"], ["padding", "0"], ["margin", "0"], ["boxSizing", "border-box"]]))]])), [self.$render_command_content()]), ($truthy(is_min) ? (nil) : (self.$h("div#action_window_resize_grip", (new Map([["attrs", (new Map([["title", "Drag to resize"]]))], ["style", (new Map([["position", "absolute"], ["right", "0"], ["bottom", "0"], ["width", "28px"], ["height", "28px"], ["cursor", "nwse-resize"], ["background", "linear-gradient(135deg, transparent 0%, transparent 48%, #94a3b8 49%, #94a3b8 55%, transparent 56%, transparent 65%, #475569 66%, #475569 72%, transparent 73%)"], ["zIndex", "10000010"], ["pointerEvents", "auto"], ["touchAction", "none"]]))], ["on", (new Map([["mousedown", $lambda(function $$140(e){var self = $$140.$$s == null ? this : $$140.$$s;
+              return self.$toggle_minimize();}, {$$s: self})]]))]])), ($truthy(is_min) ? ("▢") : ("—"))), self.$h("button", (new Map([["attrs", (new Map([["id", "btn_close_action_window"], ["type", "button"], ["title", "Close"]]))], ["style", btn_style], ["on", (new Map([["click", $send(self, 'lambda', [], function $$136(e){var self = $$136.$$s == null ? this : $$136.$$s;
 
               
               if (e == null) e = nil;
-              return self.$start_resize(e);}, {$$s: self})], ["touchstart", $lambda(function $$141(e){var self = $$141.$$s == null ? this : $$141.$$s;
+              if (e && e.stopPropagation) e.stopPropagation();;
+              return self.$close_window();}, {$$s: self})]]))]])), "✕")])]), self.$h("div#action_window_scroll_body", (new Map([["style", (new Map([["flex", "1"], ["overflowY", "auto"], ["backgroundColor", "#ffffff"], ["userSelect", "text"], ["display", ($truthy(is_min) ? ("none") : ("flex"))], ["flexDirection", "column"], ["alignItems", "stretch"], ["justifyContent", "flex-start"], ["padding", "0"], ["margin", "0"], ["boxSizing", "border-box"]]))]])), [self.$render_command_content()]), ($truthy(is_min) ? (nil) : (self.$h("div#action_window_resize_grip", (new Map([["attrs", (new Map([["title", "Drag to resize"]]))], ["style", (new Map([["position", "absolute"], ["right", "0"], ["bottom", "0"], ["width", "28px"], ["height", "28px"], ["cursor", "nwse-resize"], ["background", "linear-gradient(135deg, transparent 0%, transparent 48%, #94a3b8 49%, #94a3b8 55%, transparent 56%, transparent 65%, #475569 66%, #475569 72%, transparent 73%)"], ["zIndex", "10000010"], ["pointerEvents", "auto"], ["touchAction", "none"]]))], ["on", (new Map([["mousedown", $lambda(function $$137(e){var self = $$137.$$s == null ? this : $$137.$$s;
+
+              
+              if (e == null) e = nil;
+              return self.$start_resize(e);}, {$$s: self})], ["touchstart", $lambda(function $$138(e){var self = $$138.$$s == null ? this : $$138.$$s;
 
               
               if (e == null) e = nil;
@@ -67004,6 +66930,83 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
             document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 36px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 36px)' });
             
                     window._dashboardVisualizer = comp;
+
+                    window.ensureDashboardOverlayPortal = function() {
+                      var overlaySelectors = [
+                        '#manual-route-overlay-container',
+                        '#draft-overlay-container',
+                        '#par-prompt-overlay-container',
+                        '#dashboard-bidding-panel',
+                        '#tile-manifest-overlay-container',
+                        '#history-overlay-container',
+                        '#move-history-overlay-container',
+                        '#other-games-overlay-container',
+                        '#phases-overlay-container',
+                        '[data-dashboard-overlay-root="true"]'
+                      ];
+
+                      var nodes = document.querySelectorAll(overlaySelectors.join(','));
+                      for (var i = 0; i < nodes.length; i++) {
+                        var node = nodes[i];
+                        if (!node || node === document.body) continue;
+                        node.setAttribute('data-dashboard-overlay-root', 'true');
+                        node.style.setProperty('position', 'fixed', 'important');
+                        node.style.setProperty('z-index', '2147483000', 'important');
+                        node.style.setProperty('isolation', 'isolate', 'important');
+                        if (node.parentNode !== document.body) {
+                          document.body.appendChild(node);
+                        }
+                      }
+                    };
+
+                    var overlayStyleTag = document.getElementById('dashboard-global-overlay-styles');
+                    if (!overlayStyleTag) {
+                      overlayStyleTag = document.createElement('style');
+                      overlayStyleTag.id = 'dashboard-global-overlay-styles';
+                      document.head.appendChild(overlayStyleTag);
+                    }
+                    overlayStyleTag.textContent = '' +
+                      '#manual-route-overlay-container,' +
+                      '#draft-overlay-container,' +
+                      '#par-prompt-overlay-container,' +
+                      '#dashboard-bidding-panel,' +
+                      '#tile-manifest-overlay-container,' +
+                      '#history-overlay-container,' +
+                      '#move-history-overlay-container,' +
+                      '#other-games-overlay-container,' +
+                      '#phases-overlay-container,' +
+                      '[data-dashboard-overlay-root="true"] {' +
+                      ' position: fixed !important;' +
+                      ' z-index: 2147483000 !important;' +
+                      ' isolation: isolate !important;' +
+                      ' max-width: 100vw !important;' +
+                      ' max-height: 100vh !important;' +
+                      ' }' +
+                      '#manual-route-overlay-dialog,' +
+                      '#draft-overlay-dialog,' +
+                      '#par-prompt-overlay-dialog {' +
+                      ' z-index: 2147483001 !important;' +
+                      ' }';
+
+                    if (window._dashboardOverlayObserver) {
+                      window._dashboardOverlayObserver.disconnect();
+                    }
+                    window._dashboardOverlayObserver = new MutationObserver(function() {
+                      if (window._dashboardOverlayPortalPending) return;
+                      window._dashboardOverlayPortalPending = true;
+                      requestAnimationFrame(function() {
+                        window._dashboardOverlayPortalPending = false;
+                        if (window.ensureDashboardOverlayPortal) {
+                          window.ensureDashboardOverlayPortal();
+                        }
+                      });
+                    });
+                    window._dashboardOverlayObserver.observe(document.body, {
+                      childList: true,
+                      subtree: true
+                    });
+                    window.ensureDashboardOverlayPortal();
+
                     window.toggleDashboardPhases = function() {
                       var cur = localStorage.getItem('dashboard_show_phases') === 'true';
                       var next = !cur;
@@ -67788,6 +67791,11 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
             
             if (_old == null) _old = nil;
             if (_vnode == null) _vnode = nil;
+            
+                             if (window.ensureDashboardOverlayPortal) {
+                               window.ensureDashboardOverlayPortal();
+                             }
+                           ;
             prev_id = ($truthy(($ret_or_1 = ($l = $$$($$('Lib'), 'Storage')['$[]']("viz_last_act_" + (game_storage_id)), ($l === nil || $l == null) ? nil : $l.$to_i()))) ? ($ret_or_1) : (0));
             curr_id = last_action_id.$to_i();
             if (($truthy($rb_gt(curr_id, prev_id)) && ($truthy(prev_id['$positive?']())))) {
@@ -67816,6 +67824,14 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
             
                      window._dashboardVisualizer = null;
                      window.toggleDashboardPhases = null;
+                     window.ensureDashboardOverlayPortal = null;
+                     window._dashboardOverlayPortalPending = false;
+                     if (window._dashboardOverlayObserver) {
+                       window._dashboardOverlayObserver.disconnect();
+                       window._dashboardOverlayObserver = null;
+                     }
+                     var overlayStyleTag = document.getElementById('dashboard-global-overlay-styles');
+                     if (overlayStyleTag) overlayStyleTag.remove();
                    ;
             
                      var menuStyle = document.getElementById('dashboard-menu-overrides');
