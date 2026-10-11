@@ -12,6 +12,7 @@ require 'view/game/abilities'
 require 'view/game/buy_companies'
 require 'view/game/dashboard/results_overlay'
 require 'view/game/dashboard/dashboard_game_status'
+require 'view/game/dashboard/dashboard_entity_order'
 require 'view/game/dashboard/dashboard_card_animation'
 require 'view/game/dashboard/dashboard_loan_animation'
 require 'view/game/history_and_undo'
@@ -2499,12 +2500,12 @@ module View
               components << h(DoubleHeadTrains) if actions.include?('double_head_trains')
               components << h(CombinedTrains) if actions.include?('combined_trains')
               if actions.include?('lay_tile')
-                components << render_action_row('Lay Tile:', h(:span, { style: { fontSize: '0.88rem', color: '#1e293b', fontWeight: '600' } }, ''))
+                components << render_action_row('Lay Tile:', h(:span, { style: { fontSize: '0.88rem', color: '#475569', fontWeight: '600' } }, 'Select a legal hex on the map.'))
               end
               if home_token_step?(step, actions)
                 components << render_home_token_step(step, step&.current_entity || current_entity)
               elsif actions.include?('place_token')
-                components << render_action_row('Place Token:', h(:span, { style: { fontSize: '0.85rem', color: '#475569', fontStyle: 'italic' } }, ''))
+                components << render_action_row('Place Token:', h(:span, { style: { fontSize: '0.88rem', color: '#475569', fontWeight: '600' } }, 'Select a legal city on the map.'))
 
               end
               components << render_buy_tokens(step, step&.current_entity || current_entity) if actions.include?('buy_token')
@@ -2865,264 +2866,71 @@ module View
           rebuild_status_strip = lambda do
             %x{
       setTimeout(function() {
-        var source =
-          document.querySelector(
-            '#action-status-source #spreadsheet'
-          );
-
-        var target =
-          document.getElementById(
-            'action-status-spreadsheet'
-          );
-
-        if (!source || !target) {
-          return;
-        }
-
-        var table =
-          source.querySelector('table');
-
-        var styleNode =
-          source.querySelector('style');
-
-        if (!table) {
-          return;
-        }
-
-        var headerRow =
-          table.querySelector(
-            'thead tr:last-child'
-          );
-
-        if (!headerRow) {
-          return;
-        }
-
-        /*
-         * Find the corporation row without putting the corporation ID
-         * inside a CSS selector. This works with IDs such as "B&O".
-         */
-        var corporationId =
-          String(#{corp_id});
-
-        var bodyRows =
-          Array.prototype.slice.call(
-            table.querySelectorAll(
-              'tbody tr[data-corp]'
-            )
-          );
-
-        var corpRow = null;
-
-        bodyRows.forEach(function(row) {
-          if (
-            String(
-              row.getAttribute('data-corp')
-            ) === corporationId
-          ) {
-            corpRow = row;
-          }
+        var source = document.querySelector('#action-status-source #spreadsheet');
+        var target = document.getElementById('action-status-spreadsheet');
+        if (!source || !target) return;
+        var sourceTable = source.querySelector('table');
+        var styleNode = source.querySelector('style');
+        if (!sourceTable) return;
+        var corporationId = String(#{corp_id});
+        var sourceRows = Array.prototype.slice.call(sourceTable.querySelectorAll('tbody tr[data-corp]'));
+        var sourceCorpRow = sourceRows.find(function(row) {
+          return String(row.getAttribute('data-corp')) === corporationId;
         });
-
-        if (!corpRow) {
-          return;
-        }
-
-        /*
-         * Select each corporation value by its own class or ID.
-         * Do not use header indexes because the main table uses colspan.
-         */
-        var cashCell =
-          corpRow.querySelector(
-            'td.corporation-cash'
-          );
-
-        var trainsCell =
-          corpRow.querySelector(
-            'td.corporation-trains'
-          );
-
-        var tokensCell =
-          trainsCell ?
-            trainsCell.nextElementSibling :
-            null;
-
-        var privatesCell = null;
-
-        var rowCells =
-          Array.prototype.slice.call(
-            corpRow.children
-          );
-
-        rowCells.forEach(function(cell) {
-          if (
-            String(cell.id || '') ===
-            'companies_' + corporationId
-          ) {
-            privatesCell = cell;
-          }
-        });
-
-        var lastCell =
-          corpRow.lastElementChild;
-
-        function findHeader(label) {
-          var headerCells =
-            Array.prototype.slice.call(
-              headerRow.children
-            );
-
-          var result = null;
-
-          headerCells.forEach(function(cell) {
-            if (
-              String(
-                cell.textContent || ''
-              ).trim() === label
-            ) {
-              result = cell;
-            }
-          });
-
-          return result;
-        }
-
-        var requestedColumns = [
-          {
-            header: findHeader('Cash'),
-            cell: cashCell
-          },
-          {
-            header: findHeader('Trains'),
-            cell: trainsCell
-          },
-          {
-            header: findHeader('Tokens'),
-            cell: tokensCell
-          },
-          {
-            header: findHeader('Privates'),
-            cell: privatesCell
-          },
-          {
-            header: findHeader('Last'),
-            cell: lastCell
-          }
-        ];
-
-        requestedColumns =
-          requestedColumns.filter(
-            function(column) {
-              return !!(
-                column.header &&
-                column.cell
-              );
-            }
-          );
-
-        if (!requestedColumns.length) {
-          return;
-        }
-
+        if (!sourceCorpRow) return;
         target.innerHTML = '';
-
-        /*
-         * Copy the exact status-table styles and retarget the
-         * #spreadsheet selectors to this smaller table.
-         */
         if (styleNode) {
-          var copiedStyle =
-            document.createElement('style');
-
-          copiedStyle.textContent =
-            String(
-              styleNode.textContent || ''
-            )
-              .split('#spreadsheet')
-              .join(
-                '#action-status-spreadsheet'
-              );
-
-          target.appendChild(
-            copiedStyle
-          );
+          var copiedStyle = document.createElement('style');
+          copiedStyle.textContent = String(styleNode.textContent || '').split('#spreadsheet').join('#action-status-spreadsheet');
+          target.appendChild(copiedStyle);
         }
-
-        var focusedTable =
-          document.createElement('table');
-
-        var focusedHead =
-          document.createElement('thead');
-
-        var focusedHeadRow =
-          document.createElement('tr');
-
-        var focusedBody =
-          document.createElement('tbody');
-
-        var focusedCorpRow =
-          document.createElement('tr');
-
-        focusedCorpRow.className =
-          corpRow.className;
-
-        focusedCorpRow.setAttribute(
-          'data-corp',
-          corporationId
-        );
-
-        requestedColumns.forEach(
-          function(column) {
-            focusedHeadRow.appendChild(
-              column.header.cloneNode(true)
-            );
-
-            focusedCorpRow.appendChild(
-              column.cell.cloneNode(true)
-            );
+        var sourceHead = sourceTable.querySelector('thead');
+        var sourceHeaderRow = sourceHead && sourceHead.querySelector('tr:last-child');
+        if (!sourceHeaderRow) return;
+        function logicalRanges(cells) {
+          var logicalColumn = 0;
+          return cells.map(function(cell) {
+            var span = parseInt(cell.getAttribute('colspan') || '1', 10);
+            var range = { cell: cell, start: logicalColumn, finish: logicalColumn + span };
+            logicalColumn += span;
+            return range;
+          });
+        }
+        var headerRanges = logicalRanges(Array.prototype.slice.call(sourceHeaderRow.children));
+        var corporationHeaders = headerRanges.filter(function(range) {
+          return range.cell.classList.contains('header-corporate');
+        });
+        if (!corporationHeaders.length) return;
+        var corporateStart = corporationHeaders[0].start;
+        var corporateFinish = corporationHeaders[corporationHeaders.length - 1].finish;
+        var rowRanges = logicalRanges(Array.prototype.slice.call(sourceCorpRow.children));
+        var copiedTable = document.createElement('table');
+        copiedTable.className = sourceTable.className;
+        copiedTable.setAttribute('style', sourceTable.getAttribute('style') || '');
+        var copiedHead = document.createElement('thead');
+        var copiedHeadRow = document.createElement('tr');
+        corporationHeaders.forEach(function(range) { copiedHeadRow.appendChild(range.cell.cloneNode(true)); });
+        copiedHead.appendChild(copiedHeadRow);
+        copiedTable.appendChild(copiedHead);
+        var copiedBody = document.createElement('tbody');
+        var copiedCorpRow = document.createElement('tr');
+        copiedCorpRow.className = sourceCorpRow.className;
+        copiedCorpRow.setAttribute('data-corp', corporationId);
+        rowRanges.forEach(function(range) {
+          if (range.start >= corporateStart && range.finish <= corporateFinish) {
+            copiedCorpRow.appendChild(range.cell.cloneNode(true));
           }
-        );
-
-        focusedHead.appendChild(
-          focusedHeadRow
-        );
-
-        focusedBody.appendChild(
-          focusedCorpRow
-        );
-
-        focusedTable.appendChild(
-          focusedHead
-        );
-
-        focusedTable.appendChild(
-          focusedBody
-        );
-
-        target.appendChild(
-          focusedTable
-        );
-
-        /*
-         * The source table remains mounted off screen.
-         * Rename IDs in the copy so the page has no duplicate IDs.
-         */
-        var idNodes =
-          target.querySelectorAll('[id]');
-
-        for (
-          var index = 0;
-          index < idNodes.length;
-          index++
-        ) {
-          idNodes[index].id =
-            'action-status-' +
-            idNodes[index].id;
+        });
+        copiedBody.appendChild(copiedCorpRow);
+        copiedTable.appendChild(copiedBody);
+        target.appendChild(copiedTable);
+        var idNodes = target.querySelectorAll('[id]');
+        for (var index = 0; index < idNodes.length; index++) {
+          idNodes[index].id = 'action-status-' + idNodes[index].id;
         }
       }, 0);
     }
           end
-
           h(:div, {
               style: {
                 flex: '0 0 auto',
@@ -3156,28 +2964,22 @@ module View
                 },
               }, [
               player_card,
-
               h(:div, {
-                  attrs: {
-                    title: entity_name,
-                  },
+                  attrs: { class: 'action-window-entity-order-content' },
                   style: {
                     flex: '1 1 auto',
                     minWidth: '0',
+                    height: '100%',
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '0 1rem',
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    padding: '0 0.5rem',
                     boxSizing: 'border-box',
-                    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-                    fontSize: '1.3rem',
-                    fontWeight: '900',
-                    lineHeight: '1.1',
-                    color: '#0f172a',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
                   },
-                }, entity_name),
+                }, [
+                  h(::View::Game::DashboardEntityOrder, round: @game.round),
+                ]),
             ]),
 
             # // --- START FIX ---
@@ -3386,6 +3188,14 @@ module View
 
           show_manual_routes = @show_manual_routes || Lib::Storage['cmd_manual_routes'] == true || Lib::Storage['cmd_manual_routes'] == 'true'
           zone_2_content = []
+          visible_action_labels = actions.reject { |action_name| %w[pass undo redo].include?(action_name.to_s) }.map do |action_name|
+            action_name.to_s.tr('_', ' ').split.map(&:capitalize).join(' ')
+          end.uniq
+          action_summary = if visible_action_labels.empty?
+                             'Review the current position, then use the default action when ready.'
+                           else
+                             "Available now: #{visible_action_labels.join(' · ')}"
+                           end
           if game_finished
             zone_2_content << h(:div, {
                                   style: {
@@ -3552,7 +3362,39 @@ module View
             zone_2_content << ground_truth_actions if ground_truth_actions
           end
 
-          zone_2 = h(:div, { style: { flex: '1 1 auto', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', boxSizing: 'border-box', overflowY: 'auto' } }, zone_2_content.compact)
+          zone_2 = h(:div, {
+                       style: {
+                         flex: '1 1 auto',
+                         width: '100%',
+                         display: 'flex',
+                         flexDirection: 'column',
+                         alignItems: 'stretch',
+                         justifyContent: 'flex-start',
+                         gap: '0.55rem',
+                         padding: '0.75rem 1rem',
+                         boxSizing: 'border-box',
+                         overflowY: 'auto',
+                         backgroundColor: '#f8fafc',
+                       },
+                     }, [
+              h(:div, {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.2rem',
+                    padding: '0.65rem 0.8rem',
+                    border: '1px solid #bfdbfe',
+                    borderLeft: '4px solid #2563eb',
+                    borderRadius: '6px',
+                    backgroundColor: '#eff6ff',
+                    color: '#1e3a8a',
+                  },
+                }, [
+                  h(:div, { style: { fontSize: '0.78rem', fontWeight: '800', letterSpacing: '0.04em', textTransform: 'uppercase' } }, 'Current choices'),
+                  h(:div, { style: { fontSize: '0.9rem', fontWeight: '600', lineHeight: '1.3' } }, action_summary),
+                ]),
+              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%', padding: '0.2rem 0', boxSizing: 'border-box' } }, zone_2_content.compact),
+            ])
 
           advance_text = 'Pass'
           advance_color = '#e0e0e0'
@@ -3649,7 +3491,7 @@ module View
 
           zone_3 = h(:div, { style: { flex: '0 0 auto', display: 'flex', flexDirection: 'column', padding: '0.75rem 1rem', boxSizing: 'border-box', gap: '0.75rem', width: '100%', backgroundColor: '#f8fafc' } }, [
             (render_zone3_abilities(entity) if has_abilities),
-            h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', width: '100%' } }, [
+            h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: '0.6rem', width: '100%' } }, [
               h(:div, {
                   attrs: { class: 'cmd-undo-redo-wrapper' },
                   style: { flex: '0 0 auto' },
@@ -3724,11 +3566,24 @@ module View
                 '),
                 h(HistoryAndUndo, last_action_id: last_action_id),
               ]),
+              h(:span, {
+                  style: {
+                    marginLeft: 'auto',
+                    fontSize: '0.72rem',
+                    fontWeight: '700',
+                    color: '#64748b',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    whiteSpace: 'nowrap',
+                  },
+                }, 'Default'),
               h(:button, {
                   style: {
-                    flex: '1 1 auto',
+                    flex: '0 0 auto',
+                    minWidth: '9rem',
                     height: '2.2rem',
-                    fontSize: '1rem',
+                    padding: '0 1.1rem',
+                    fontSize: '0.9rem',
                     fontWeight: 'bold',
                     backgroundColor: advance_color,
                     color: advance_text_color,
