@@ -3585,6 +3585,84 @@ module View
         def render
           h(:div, {
               attrs: { id: 'action_floating_window' },
+
+              hook: {
+                insert: lambda do |_vnode|
+                  %x{
+            try {
+              var hud = document.getElementById('action_floating_window');
+              if (!hud) return;
+
+              var savedPos = JSON.parse(
+                localStorage.getItem('action_window_pos') || '{}'
+              );
+
+              var savedSize = JSON.parse(
+                localStorage.getItem('action_window_size') || '{}'
+              );
+
+              var width = parseFloat(savedSize.width);
+              var height = parseFloat(savedSize.height);
+              var left = parseFloat(savedPos.left);
+              var top = parseFloat(savedPos.top);
+
+              if (isFinite(width)) {
+                width = Math.max(
+                  300,
+                  Math.min(width, Math.max(300, window.innerWidth - 20))
+                );
+
+                hud.style.width = width + 'px';
+                hud.style.maxWidth = 'none';
+              }
+
+              if (isFinite(height)) {
+                height = Math.max(
+                  160,
+                  Math.min(height, Math.max(160, window.innerHeight - 20))
+                );
+
+                hud.style.height = height + 'px';
+                hud.style.maxHeight = 'none';
+              }
+
+              var currentWidth = hud.getBoundingClientRect().width;
+              var currentHeight = hud.getBoundingClientRect().height;
+
+              if (isFinite(left)) {
+                left = Math.max(
+                  10,
+                  Math.min(
+                    left,
+                    Math.max(10, window.innerWidth - currentWidth - 10)
+                  )
+                );
+
+                hud.style.left = left + 'px';
+                hud.style.right = 'auto';
+              }
+
+              if (isFinite(top)) {
+                top = Math.max(
+                  0,
+                  Math.min(
+                    top,
+                    Math.max(0, window.innerHeight - currentHeight - 10)
+                  )
+                );
+
+                hud.style.top = top + 'px';
+              }
+            } catch (err) {
+              console.warn(
+                'Could not restore action window position or size:',
+                err
+              );
+            }
+          }
+                end,
+              },
+
               style: {
                 position: 'fixed',
                 top: '80px',
@@ -3618,6 +3696,7 @@ module View
               h(:div, {
                   style: {
                     flex: '1',
+                    minHeight: '0',
                     overflowY: 'auto',
                   },
                 }, [
