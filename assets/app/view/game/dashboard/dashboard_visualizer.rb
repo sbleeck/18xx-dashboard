@@ -394,7 +394,16 @@ module View
           nil
         end
 
-        if auction_target && (actions.include?('bid') || actions.include?('pass'))
+        return nil unless actions.include?('bid') || auction_target
+
+        use_bidding_overlay =
+          (actions.include?('bid') || actions.include?('pass')) &&
+          (
+            auction_target ||
+            step.respond_to?(:visible_corporations)
+          )
+
+        if use_bidding_overlay
           h(::View::Game::Dashboard::BiddingOverlay,
             game: @game,
             bidder: actor)

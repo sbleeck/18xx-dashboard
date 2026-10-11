@@ -108,7 +108,7 @@ module View
           value = value.to_i
           if value.zero?
             highest = bids_for(item).map { |bid| bid_price(bid) }.max
-            value = highest ? highest + PRICE_STEP : 100
+            value = highest ? highest + PRICE_STEP : 0
           end
           value
         rescue StandardError
@@ -349,12 +349,12 @@ module View
         end
 
         def select_target(item)
-          Lib::Storage['dashboard_bidding_selected_target'] = item.id.to_s
+          Lib::Storage["dashboard_bidding_selected_target_#{@game.id}"] = item.id.to_s
           update
         end
 
         def selected_target
-          selected_id = Lib::Storage['dashboard_bidding_selected_target']
+          selected_id = Lib::Storage["dashboard_bidding_selected_target_#{@game.id}"]
           return nil unless selected_id
 
           selectable_targets.find do |item|
@@ -517,7 +517,7 @@ module View
             end
             Lib::Storage[price_key] = nil
             Lib::Storage[signature_key] = nil
-            Lib::Storage['dashboard_bidding_selected_target'] = nil
+            Lib::Storage["dashboard_bidding_selected_target_#{@game.id}"] = nil
             process_action(Engine::Action::Bid.new(bidder, **args))
           end
 

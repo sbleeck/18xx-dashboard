@@ -2375,19 +2375,49 @@ module View
           end
 
           if actions.include?('par')
-            pending_corp = if step&.respond_to?(:corporation_pending_par) && step&.corporation_pending_par
-                             step.corporation_pending_par
-                           elsif step&.respond_to?(:corporation) && step&.corporation
-                             step.corporation
-                           elsif step&.respond_to?(:par_corporation) && step&.par_corporation
-                             step.par_corporation
-                           elsif step&.respond_to?(:parring) && step&.parring
-                             step.parring
-                           elsif step&.respond_to?(:corporations) && step.corporations&.one?
-                             step.corporations.first
-                           elsif corporation_or_minor?(step&.current_entity || current_entity)
-                             step&.current_entity || current_entity
-                           end
+            pending_corp =
+              if step&.respond_to?(:auctioning_corporation) &&
+                 step.auctioning_corporation
+                step.auctioning_corporation
+
+              elsif step&.current_entity&.respond_to?(:companies)
+                charter = step.current_entity.companies.find do |company|
+                  @game.corporations.any? do |corporation|
+                    corporation.id.to_s == company.id.to_s &&
+                      !corporation.ipoed
+                  end
+                end
+
+                @game.corporations.find do |corporation|
+                  charter &&
+                    corporation.id.to_s == charter.id.to_s
+                end
+
+              elsif step&.respond_to?(:corporation_pending_par) &&
+                    step.corporation_pending_par
+                step.corporation_pending_par
+
+              elsif step&.respond_to?(:corporation) &&
+                    step.corporation
+                step.corporation
+
+              elsif step&.respond_to?(:par_corporation) &&
+                    step.par_corporation
+                step.par_corporation
+
+              elsif step&.respond_to?(:parring) &&
+                    step.parring
+                step.parring
+
+              elsif step&.respond_to?(:corporations) &&
+                    step.corporations&.one?
+                step.corporations.first
+
+              elsif corporation_or_minor?(
+                step&.current_entity || current_entity
+              )
+                step&.current_entity || current_entity
+              end
 
             unless pending_corp
               transacted_company = nil
@@ -3552,7 +3582,6 @@ module View
             ].compact)
         end
 
-   
         def render
           h(:div, {
               attrs: { id: 'action_floating_window' },
