@@ -895,7 +895,33 @@ module View
               in_step && (s.respond_to?(:buyable) ? s.buyable : true) && step.can_buy?(active_player, bundle)
             end
           end
-          can_buy_treasury = valid_treasury_buys.any?
+          buyable_share_company = nil
+
+          if active_player &&
+             player_actions.include?('buy_company') &&
+             @game.respond_to?(:buyable_bank_owned_companies)
+
+            buyable_share_company =
+              @game.buyable_bank_owned_companies.find do |company|
+                next false if step.respond_to?(:can_buy_company?) &&
+                              !step.can_buy_company?(active_player, company)
+
+                grants_this_corporation = false
+
+                @game.abilities(company, :shares) do |ability|
+                  grants_this_corporation ||= Array(ability.shares).any? do |share|
+                    share.respond_to?(:corporation) &&
+                      share.corporation == corporation
+                  end
+                end
+
+                grants_this_corporation
+              end
+          end
+
+          can_buy_treasury =
+            valid_treasury_buys.any? ||
+            !buyable_share_company.nil?
 
           if treasury_percent.positive?
             classes = ['game-card']
@@ -905,7 +931,18 @@ module View
             dropdowns = []
             click_handler = nil
 
-            if can_buy_treasury && !can_issue_treasury
+            if buyable_share_company && !can_issue_treasury
+              click_handler = lambda { |_event|
+                process_action(
+                  Engine::Action::BuyCompany.new(
+                    active_player,
+                    company: buyable_share_company,
+                    price: buyable_share_company.value
+                  )
+                )
+              }
+
+            elsif can_buy_treasury && !can_issue_treasury
               click_handler = if valid_treasury_buys.uniq { |s| s.to_bundle.percent }.size > 1
                                 lambda {
                                   Lib::Storage['buy_treasury_menu_corp'] = corporation.id
@@ -914,9 +951,15 @@ module View
                               else
                                 lambda { |_event|
                                   source_selector = "#treasury_shares_#{corporation.id} .game-card"
-                                  exec_buy_shares(source_selector, active_player, valid_treasury_buys.first.to_bundle, corporation.id)
+                                  exec_buy_shares(
+                                    source_selector,
+                                    active_player,
+                                    valid_treasury_buys.first.to_bundle,
+                                    corporation.id
+                                  )
                                 }
                               end
+
             elsif can_issue_treasury
               click_handler = if treasury_issuable_bundles.size > 1
                                 lambda {
