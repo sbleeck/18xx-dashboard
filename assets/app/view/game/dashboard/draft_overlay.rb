@@ -251,8 +251,8 @@ module View
             end
 
             if candidates.empty?
-              candidates.concat(@game.companies || []) if @game.respond_to?(:companies)
-              candidates.concat(@game.minors || []) if @game.respond_to?(:minors)
+              candidates.concat(@game.companies || []) if @game.respond_to?(:companies) && @game.companies
+              candidates.concat(@game.minors || []) if @game.respond_to?(:minors) && @game.minors
             end
 
             candidates.each do |c|
@@ -269,8 +269,8 @@ module View
             end
 
           all_game_items =
-            (@game.respond_to?(:companies) ? @game.companies : []) +
-            (@game.respond_to?(:minors) ? @game.minors : [])
+            (@game.respond_to?(:companies) && @game.companies ? @game.companies : []) +
+            (@game.respond_to?(:minors) && @game.minors ? @game.minors : [])
 
           hidden_draft =
             @game.respond_to?(:show_company_owners?) &&
@@ -494,7 +494,7 @@ module View
               card_classes,
               (can_choose_item ? exec_action : nil),
               tooltip,
-              nil,
+              [],
               wrapper_id,
               wrapper_classes,
               entity: item
