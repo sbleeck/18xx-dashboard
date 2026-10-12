@@ -239,10 +239,12 @@ module View
                     }
 
                     /* The current player's complete column is always white. */
+                    #spreadsheet thead th.header-player:nth-child(#{active_player_nth}),
+                    #spreadsheet thead tr > th:nth-child(#{active_player_nth}),
                     #spreadsheet tbody tr.company-row-unfloated > *:nth-child(#{active_player_nth}),
                     #spreadsheet tbody tr.company-row-closed > *:nth-child(#{active_player_nth}),
                     #spreadsheet tbody tr > *:nth-child(#{active_player_nth}) {
-                      background-color: #ffffff !important;
+                                            background-color: #ffffff !important;
                       color: #000000 !important;
                       opacity: 1 !important;
                       filter: none !important;
