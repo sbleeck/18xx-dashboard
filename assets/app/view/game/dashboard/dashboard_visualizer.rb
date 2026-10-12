@@ -1820,6 +1820,33 @@ window.addEventListener('resize', window.positionDashboardButtons);
                           }
                         }
                       }
+                        if (panelId === 'panel-ledger') {
+  var sizer = panel.querySelector('.ledger-sizer');
+  var cw = wrapper.scrollWidth || 0;
+  var ch = wrapper.scrollHeight || 0;
+
+  if (sizer && cw > 0 && ch > 0) {
+    var scrollCanvas =
+      panel.querySelector('#panel-ledger-scroll');
+
+    var viewportW = scrollCanvas.clientWidth;
+    var viewportH = scrollCanvas.clientHeight;
+
+    var scaledW = cw * effScale;
+    var scaledH = ch * effScale;
+
+    var targetW =
+      scaledW > viewportW ? Math.ceil(scaledW) : viewportW;
+
+    var targetH =
+      scaledH > viewportH ? Math.ceil(scaledH) : viewportH;
+
+    sizer.style.width = targetW + 'px';
+    sizer.style.height = targetH + 'px';
+    sizer.style.minWidth = targetW + 'px';
+    sizer.style.minHeight = targetH + 'px';
+  }
+}
 
                       var dynStyle = document.getElementById('dynamic-scaler-styles');
                       if (!dynStyle) return;
@@ -2352,33 +2379,64 @@ createPanHandler('panel-ledger');
                     position: 'relative',
                   },
                 }, [
-                  render_zoom_controls('panel-ledger', { top: '6px', right: '6px' }),
+      render_zoom_controls('panel-ledger', { top: '6px', right: '6px' }),
+
+      h(:div, {
+          attrs: { id: 'panel-ledger-scroll' },
+          style: {
+            width: '100%',
+            height: '100%',
+            overflowX: 'auto',
+            overflowY: 'auto',
+            position: 'relative',
+          },
+        }, [
+
+          h(:div, {
+              attrs: { class: 'ledger-sizer' },
+              style: {
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                minWidth: '100%',
+                minHeight: '100%',
+              },
+            }, [
+
+              h(:div, {
+                  attrs: { class: 'scaler-content' },
+                  style: {
+                    position: 'absolute',
+                    top: '0',
+                    left: '0',
+                    width: 'max-content',
+                    height: 'max-content',
+                    transformOrigin: 'top left',
+                  },
+                }, [
 
                   h(:div, {
-                      attrs: { class: 'scaler-content' },
                       style: {
-                        position: 'absolute',
-                        top: '0',
-                        left: '0',
+                        display: 'flex',
+                        flexDirection: 'column',
                         width: 'max-content',
-                        height: 'max-content',
-                        transformOrigin: 'top left',
+                        minWidth: '100%',
                       },
                     }, [
-                      h(:div, {
-                          style: {
-                            display: 'flex',
-                            flexDirection: 'column',
-                            width: 'max-content',
-                            minWidth: '100%',
-                          },
-                        }, [
-                          h(View::Game::DashboardGameStatus,
-                            game: @game,
-                            user: @user),
-                        ]),
+
+                      h(View::Game::DashboardGameStatus,
+                        game: @game,
+                        user: @user),
+
                     ]),
+
                 ]),
+
+            ]),
+
+        ]),
+
+    ]),
 
               h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
