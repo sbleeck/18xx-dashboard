@@ -425,6 +425,7 @@ module View
 
         @extra_size = extra.size
 
+        has_pd = @game.respond_to?(:priority_deal_player) && @game.priority_deal_player
         player_headers = display_players.map.with_index do |player, index|
           props = {
             attrs: { class: ('thick-right' if index == display_players.size - 1) },
@@ -433,30 +434,50 @@ module View
               minWidth: PLAYER_COL_MAX_WIDTH,
               maxWidth: PLAYER_COL_MAX_WIDTH,
               position: 'relative',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              textAlign: 'left',
-              paddingRight: '22px',
+              textAlign: 'center',
+              padding: '4px 2px',
             },
           }
           props[:attrs][:class] = [props[:attrs][:class], 'header-player'].compact.join(' ')
-          content = render_sort_link(player.name, player.id)
-          if @game.respond_to?(:priority_deal_player) && player == @game.priority_deal_player
-            content += [h(:svg, {
-                            attrs: { viewBox: '0 0 16 16', width: '16', height: '16', title: 'Priority Deal' },
-                            style: { position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', fill: COLOR_CASH },
+          name_container = h(:div, {
+                               style: {
+                                 overflow: 'hidden',
+                                 textOverflow: 'ellipsis',
+                                 whiteSpace: 'nowrap',
+                                 width: '100%',
+                                 textAlign: 'center',
+                               },
+                             }, render_sort_link(player.name, player.id))
+          pd_marker = if has_pd && player == @game.priority_deal_player
+                        h(:div, {
+                            style: {
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '14px',
+                              marginBottom: '2px',
+                            },
                           }, [
-              h(:rect, attrs: { x: '0', y: '2', width: '6', height: '1' }),
-              h(:rect, attrs: { x: '1', y: '3', width: '4', height: '7' }),
-              h(:rect, attrs: { x: '11', y: '1', width: '2', height: '4' }),
-              h(:rect, attrs: { x: '4', y: '5', width: '10', height: '5' }),
-              h(:rect, attrs: { x: '1', y: '10', width: '14', height: '2' }),
-              h(:polygon, attrs: { points: '14,10 16,12 14,12' }),
-              h(:circle, attrs: { cx: '3.5', cy: '13.5', r: '1.5' }),
-              h(:circle, attrs: { cx: '8.5', cy: '13.5', r: '1.5' }),
-              h(:circle, attrs: { cx: '12.5', cy: '13.5', r: '1.5' }),
-            ])]
-          end
+                          h(:svg, {
+                              attrs: { viewBox: '0 0 16 16', width: '14', height: '14', title: 'Priority Deal' },
+                              style: { fill: COLOR_CASH, display: 'block' },
+                            }, [
+                            h(:rect, attrs: { x: '0', y: '2', width: '6', height: '1' }),
+                            h(:rect, attrs: { x: '1', y: '3', width: '4', height: '7' }),
+                            h(:rect, attrs: { x: '11', y: '1', width: '2', height: '4' }),
+                            h(:rect, attrs: { x: '4', y: '5', width: '10', height: '5' }),
+                            h(:rect, attrs: { x: '1', y: '10', width: '14', height: '2' }),
+                            h(:polygon, attrs: { points: '14,10 16,12 14,12' }),
+                            h(:circle, attrs: { cx: '3.5', cy: '13.5', r: '1.5' }),
+                            h(:circle, attrs: { cx: '8.5', cy: '13.5', r: '1.5' }),
+                            h(:circle, attrs: { cx: '12.5', cy: '13.5', r: '1.5' }),
+                          ]),
+                        ])
+                      elsif has_pd
+                        h(:div, { style: { height: '14px', marginBottom: '2px' } }, '')
+                      end
+
+          content = [pd_marker, name_container].compact
           h(:th, props, content)
         end
 

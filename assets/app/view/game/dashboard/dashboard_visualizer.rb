@@ -719,7 +719,6 @@ module View
             attrs: { id: 'top-nav-utility-cluster' },
             style: {
               position: 'fixed',
-              top: '40px',
               right: '16px',
               height: '48px',
               display: 'flex',
@@ -1275,7 +1274,7 @@ badge_el,
             hook: {
               insert: lambda {
                         Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
-                        `window.scrollTo(0, 0)`
+                        # `window.scrollTo(0, 0)`
                         `document.body.style.overflow = 'hidden'`
                         fetch_user_games(false)
 
@@ -1309,6 +1308,27 @@ badge_el,
 
                         %x(
                     window._dashboardVisualizer = comp;
+                    window.positionDashboardButtons = function() {
+  var menu = document.getElementById('game_menu');
+  var cluster = document.getElementById('top-nav-utility-cluster');
+
+  if (!menu || !cluster) return;
+
+  var r = menu.getBoundingClientRect();
+
+  cluster.style.top =
+    Math.round(
+      r.top + ((r.height - cluster.offsetHeight) / 2)
+    ) + 'px';
+
+  cluster.style.right = '16px';
+};
+
+
+setTimeout(window.positionDashboardButtons, 300);
+
+window.addEventListener('resize', window.positionDashboardButtons);
+
                     window.toggleDashboardPhases = function() {
                       var cur = localStorage.getItem('dashboard_show_phases') === 'true';
                       var next = !cur;
@@ -2114,6 +2134,11 @@ createPanHandler('panel-ledger');
                   setTimeout(window.init18xxResizers, 200);)
                       },
               postpatch: lambda { |_old, _vnode|
+                           %x{
+  if (window.positionDashboardButtons) {
+    window.positionDashboardButtons();
+  }
+}
                            prev_id = Lib::Storage["viz_last_act_#{game_storage_id}"]&.to_i || 0
                            curr_id = last_action_id.to_i
 
@@ -2170,7 +2195,7 @@ createPanHandler('panel-ledger');
               flexDirection: 'row',
               flex: '1 1 auto',
               width: '100vw',
-              height: 'calc(100% - 26px)',
+              height: 'calc(100% - 56px)',
               minHeight: '0',
               boxSizing: 'border-box',
               position: 'relative',
