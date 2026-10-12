@@ -204,7 +204,6 @@ module View
         return nil unless @game.respond_to?(:depot) && @game.depot
 
         @depot = @game.depot
-        return nil if @depot.trains.empty?
 
         bank_train_syms = []
         discarded = @depot.respond_to?(:discarded) ? (@depot.discarded || []) : []
@@ -245,10 +244,11 @@ module View
         bank_train_syms.concat(fresh_syms)
         bank_train_syms.uniq!
 
-        upcoming_by_type = @depot.trains.reject(&:reserved).group_by(&:sym).map do |sym, trains|
+        depot_trains = (@depot.respond_to?(:trains) && @depot.trains) || []
+        upcoming_by_type = depot_trains.reject(&:reserved).group_by(&:sym).map do |sym, trains|
           next nil if bank_train_syms.include?(sym)
 
-          remaining = @depot.upcoming.select { |t| t.sym == sym }
+          remaining = (@depot.upcoming || []).select { |t| t.sym == sym }
           next nil if remaining.empty?
 
           train = trains.first
@@ -259,8 +259,6 @@ module View
             phase: train_phase(train),
           }
         end.compact
-
-        return nil if upcoming_by_type.empty?
 
         phase_rows = upcoming_by_type.group_by { |item| item[:phase] }.map do |_phase, items|
           entries = []
