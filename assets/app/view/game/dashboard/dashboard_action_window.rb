@@ -12,7 +12,6 @@ require 'view/game/abilities'
 require 'view/game/buy_companies'
 require 'view/game/dashboard/results_overlay'
 require 'view/game/dashboard/dashboard_game_status'
-require 'view/game/dashboard/dashboard_entity_order'
 require 'view/game/dashboard/dashboard_card_animation'
 require 'view/game/dashboard/dashboard_loan_animation'
 require 'view/game/history_and_undo'
@@ -392,19 +391,38 @@ module View
 
           h(:div, {
               style: {
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'flex-start',
-                justifyContent: 'flex-start',
-                gap: '0.4rem',
+                display: 'grid',
+                gridTemplateColumns: '7.5rem minmax(0, 1fr)',
+                alignItems: 'start',
+                columnGap: '0.75rem',
                 width: '100%',
                 maxWidth: '100%',
                 margin: '0',
-                padding: '0.2rem 0',
+                padding: '0.35rem 0',
+                boxSizing: 'border-box',
               },
             }, [
-            h(:span, { style: { fontSize: '0.92rem', fontWeight: 'bold', color: '#333', minWidth: '7.5rem', textAlign: 'left', flexShrink: '0', paddingTop: '0.2rem' } }, label),
-            h(:div, { style: { display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem', maxWidth: '100%' } }, items),
+            h(:span, {
+                style: {
+                  fontSize: '0.88rem',
+                  fontWeight: '650',
+                  color: '#334155',
+                  textAlign: 'left',
+                  paddingTop: '0.28rem',
+                  lineHeight: '1.25',
+                },
+              }, label),
+            h(:div, {
+                style: {
+                  display: 'flex',
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  minWidth: '0',
+                  maxWidth: '100%',
+                },
+              }, items),
           ])
         end
 
@@ -682,7 +700,7 @@ module View
               end
             }
             top_buttons << h(:button, {
-                               style: { padding: '0.3rem 0.6rem', fontSize: '0.9rem', fontWeight: 'bold', fontFamily: loan_amount.positive? ? FONT_MONEY : 'inherit', backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' },
+                               style: { padding: '0.3rem 0.6rem', fontSize: '0.9rem', fontWeight: 'bold', fontFamily: loan_amount.positive? ? FONT_MONEY : 'inherit', backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #94a3b8', borderRadius: '5px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(15,23,42,0.08)' },
                                on: { click: click_take },
                              }, btn_text)
           end
@@ -1050,9 +1068,9 @@ module View
                              fontSize: '0.85rem',
                              fontWeight: 'bold',
                              fontFamily: loan_amount.positive? ? FONT_MONEY : 'inherit',
-                             backgroundColor: '#dc2626',
-                             color: '#fff',
-                             border: 'none',
+                             backgroundColor: '#ffffff',
+                             color: '#0f172a',
+                             border: '1px solid #94a3b8',
                              borderRadius: '4px',
                              cursor: 'pointer',
                              boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
@@ -2720,212 +2738,103 @@ module View
           end
         end
 
-        def render_operating_identity_panel(entity, player_name, _bg_color, _text_color)
-          corp_id = entity.respond_to?(:id) ? entity.id.to_s : ''
+        def clean_round_name
+          round = @game.round
+          return 'Round' unless round
+          return 'Stock Round' if round.respond_to?(:stock?) && round.stock?
+          return 'Operating Round' if round.respond_to?(:operating?) && round.operating?
 
-          entity_name =
-            if entity.respond_to?(:name) && entity.name
-              entity.name.to_s
-            else
-              corp_id
-            end
-
-          player_label =
-            if player_name && !player_name.to_s.empty?
-              player_name.to_s
-            elsif entity.respond_to?(:owner) &&
-                  entity.owner.respond_to?(:name) &&
-                  entity.owner.name
-              entity.owner.name.to_s
-            else
-              ''
-            end
-
-          is_hotseat =
-            @game_data &&
-            (
-              @game_data[:mode] == :hotseat ||
-              @game_data['mode'] == 'hotseat'
-            )
-
-          user_id = @user&.dig('id') || @user&.dig(:id)
-
-          is_my_turn =
-            is_hotseat ||
-            (
-              user_id &&
-              @game.respond_to?(:active_players_id) &&
-              Array(@game.active_players_id)
-                .map(&:to_s)
-                .include?(user_id.to_s)
-            )
-
-          logo_src = begin
-            (entity.respond_to?(:simple_logo) && entity.simple_logo) ||
-              (entity.respond_to?(:logo) && entity.logo)
+          raw_name = round.class.name.to_s.split('::').last.to_s
+          described = begin
+            @game.round_description(raw_name) if @game.respond_to?(:round_description)
           rescue StandardError
             nil
           end
+          name = described.to_s.strip
+          name = raw_name.gsub(/([a-z0-9])([A-Z])/, '\1 \2') if name.empty?
+          name = name.gsub(%r{\b\d+(?:/\d+)?\b}, '')
+          name = name.gsub(/\s+/, ' ').strip
+          name = "#{name} Round" unless name.downcase.end_with?('round')
+          name
+        rescue StandardError
+          'Round'
+        end
 
-          corp_color =
-            if entity.respond_to?(:color) && entity.color
-              entity.color
-            else
-              '#2563eb'
+        def render_operating_identity_panel(entity, player_name, _bg_color, _text_color)
+          player_label = active_player&.name || player_name
+          player_label ||= entity.name if entity&.respond_to?(:player?) && entity.player? && entity.respond_to?(:name)
+          player_label = player_label.to_s
+
+          acting_company = corporation_or_minor?(entity) ? entity : nil
+          entity_label = if acting_company&.respond_to?(:id) && acting_company.id
+                           acting_company.id.to_s
+                         elsif acting_company&.respond_to?(:name) && acting_company.name
+                           acting_company.name.to_s
+                         end
+          context_label = [player_label, entity_label].reject(&:empty?).uniq.join(' · ')
+          context_label = 'Current player' if context_label.empty?
+
+          marker = nil
+          if acting_company
+            logo_src = begin
+              (acting_company.respond_to?(:simple_logo) && acting_company.simple_logo) ||
+                (acting_company.respond_to?(:logo) && acting_company.logo)
+            rescue StandardError
+              nil
             end
-
-          corp_text_color =
-            if entity.respond_to?(:text_color) && entity.text_color
-              entity.text_color
-            else
-              '#ffffff'
-            end
-
-          marker_content =
-            if logo_src
-              h(:img, {
-                  attrs: {
-                    src: logo_src,
-                    alt: corp_id,
-                  },
-                  style: {
-                    width: '100%',
-                    height: '100%',
-                    display: 'block',
-                    borderRadius: '50%',
-                    objectFit: 'contain',
-                  },
-                })
-            else
-              h(:span, {
-                  style: {
-                    lineHeight: '26px',
-                    fontSize: '0.72rem',
-                    fontWeight: 'bold',
-                    color: corp_text_color,
-                  },
-                }, corp_id[0..3])
-            end
-
-          corp_marker = h(:div, {
-                            attrs: {
-                              class: 'active-turn-corp-marker',
-                              title: entity_name,
-                            },
-                            style: {
-                              width: '26px',
-                              height: '26px',
-                              minWidth: '26px',
-                              borderRadius: '50%',
-                              backgroundColor: corp_color,
-                              border: '1.5px solid #ffffff',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              overflow: 'hidden',
-                              flexShrink: '0',
-                              marginRight: '0.45rem',
-                            },
-                          }, [marker_content])
-
-          card_bg = is_my_turn ? '#16a34a' : '#e2e8f0'
-          card_text_color = is_my_turn ? '#ffffff' : '#334155'
-
-          border_right =
-            if is_my_turn
-              '2px solid #15803d'
-            else
-              '1px solid #cbd5e1'
-            end
-
-          player_card = h(:div, {
-                            attrs: {
-                              class: 'active-turn-card',
-                              title: if is_my_turn
-                                       "Active: #{player_label} (Your turn)"
-                                     else
-                                       "Active: #{player_label}"
-                                     end,
-                            },
-                            style: {
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'flex-start',
-                              flex: '0 0 auto',
-                              alignSelf: 'stretch',
-                              height: '100%',
-                              minWidth: '9.5rem',
-                              maxWidth: '13.5rem',
-                              padding: '0 0.85rem',
-                              borderTopLeftRadius: '3px',
-                              borderBottomLeftRadius: '3px',
-                              borderTopRightRadius: '0',
-                              borderBottomRightRadius: '0',
-                              backgroundColor: card_bg,
-                              color: card_text_color,
-                              border: 'none',
-                              borderRight: border_right,
-                              boxShadow: 'none',
-                              fontSize: '1rem',
-                              fontWeight: 'bold',
-                              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-                              letterSpacing: '0.3px',
-                              lineHeight: '1',
-                              boxSizing: 'border-box',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              cursor: 'default',
-                              userSelect: 'none',
-                              transition: 'background-color 0.25s ease, color 0.25s ease',
-                              flexShrink: '0',
-                            },
-                          }, [
-            corp_marker,
-
-            h(:span, {
-                style: {
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  fontWeight: '700',
-                },
-              }, player_label),
-          ])
+            marker_content = if logo_src
+                               h(:img, {
+                                   attrs: { src: logo_src, alt: entity_label.to_s },
+                                   style: { width: '100%', height: '100%', display: 'block', borderRadius: '50%', objectFit: 'contain' },
+                                 })
+                             else
+                               h(:span, {
+                                   style: { fontSize: '0.65rem', fontWeight: 'bold', color: acting_company.respond_to?(:text_color) ? (acting_company.text_color || '#ffffff') : '#ffffff' },
+                                 }, entity_label.to_s[0..3])
+                             end
+            marker = h(:div, {
+                         attrs: { title: acting_company.respond_to?(:name) ? acting_company.name.to_s : entity_label.to_s },
+                         style: {
+                           width: '28px',
+                           height: '28px',
+                           minWidth: '28px',
+                           borderRadius: '50%',
+                           backgroundColor: acting_company.respond_to?(:color) ? (acting_company.color || '#475569') : '#475569',
+                           border: '1px solid #cbd5e1',
+                           display: 'flex',
+                           alignItems: 'center',
+                           justifyContent: 'center',
+                           overflow: 'hidden',
+                           flexShrink: '0',
+                         },
+                       }, [marker_content])
+          end
 
           h(:div, {
               style: {
                 flex: '0 0 auto',
                 display: 'flex',
                 flexDirection: 'row',
-                alignItems: 'stretch',
-                justifyContent: 'flex-start',
+                alignItems: 'center',
+                gap: '0.65rem',
                 width: '100%',
-                minHeight: '3.75rem',
+                minHeight: '3.7rem',
+                padding: '0.65rem 0.9rem',
                 boxSizing: 'border-box',
-                backgroundColor: '#f8f9fa',
-                borderBottom: '1px solid #cbd5e1',
-                overflow: 'hidden',
+                backgroundColor: '#ffffff',
+                borderBottom: '1px solid #e2e8f0',
               },
             }, [
-              player_card,
-              h(:div, {
-                  attrs: { class: 'action-window-entity-order-content' },
-                  style: {
-                    flex: '1 1 auto',
-                    minWidth: '0',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    overflowX: 'auto',
-                    overflowY: 'hidden',
-                    padding: '0 0.5rem',
-                    boxSizing: 'border-box',
-                  },
-                }, [
-                  h(::View::Game::DashboardEntityOrder, round: @game.round),
-                ]),
-            ])
+              marker,
+              h(:div, { style: { display: 'flex', flexDirection: 'column', minWidth: '0', gap: '0.12rem' } }, [
+                h(:div, {
+                    style: { fontSize: '1rem', fontWeight: '700', color: '#0f172a', lineHeight: '1.2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+                  }, context_label),
+                h(:div, {
+                    style: { fontSize: '0.82rem', fontWeight: '500', color: '#64748b', lineHeight: '1.2' },
+                  }, clean_round_name),
+              ]),
+            ].compact)
         end
 
         def render_command_content
@@ -3057,38 +2966,11 @@ module View
           formatted_revenue = @game.respond_to?(:format_revenue_currency) ? @game.format_revenue_currency(current_revenue) : @game.format_currency(current_revenue)
 
           game_finished = @game.finished
-          is_draft_round = is_draft ||
-                            (@game.round.class.name =~ /Draft|Auction/i) ||
-                            (step&.class&.name =~ /Draft|Auction|Waterfall/i)
-
-          is_stock_round = begin
-            @game.round.is_a?(Engine::Round::Stock)
-          rescue StandardError
-            false
-          end ||
-                           (@game.round.class.name =~ /Stock/i) ||
-                           (@game.round.respond_to?(:stock?) && @game.round.stock?)
 
           player_display_name = active_player&.name || (entity.respond_to?(:name) ? entity.name : nil) || player_name
-
-          if is_stock_round || is_draft_round || (entity.respond_to?(:player?) && entity.player?)
-            zone_1 = h(:div, { style: { flex: '0 0 auto', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: '0.75rem', width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc' } }, [
-              h(:div, { style: { fontSize: '1.6rem', fontWeight: 'bold', color: '#000000', textAlign: 'center', wordBreak: 'break-word', lineHeight: '1.2' } }, player_display_name),
-            ])
-          else
-            zone_1 = render_operating_identity_panel(entity, player_name, bg_color, text_color)
-          end
-
+          zone_1 = render_operating_identity_panel(entity, player_display_name, bg_color, text_color)
           show_manual_routes = @show_manual_routes || Lib::Storage['cmd_manual_routes'] == true || Lib::Storage['cmd_manual_routes'] == 'true'
           zone_2_content = []
-          visible_action_labels = actions.reject { |action_name| %w[pass undo redo].include?(action_name.to_s) }.map do |action_name|
-            action_name.to_s.tr('_', ' ').split.map(&:capitalize).join(' ')
-          end.uniq
-          action_summary = if visible_action_labels.empty?
-                             'Review the current position, then use the default action when ready.'
-                           else
-                             "Available now: #{visible_action_labels.join(' · ')}"
-                           end
           if game_finished
             zone_2_content << h(:div, {
                                   style: {
@@ -3263,37 +3145,22 @@ module View
                          flexDirection: 'column',
                          alignItems: 'stretch',
                          justifyContent: 'flex-start',
-                         gap: '0.55rem',
-                         padding: '0.75rem 1rem',
+                         padding: '0.85rem 1rem',
                          boxSizing: 'border-box',
                          overflowY: 'auto',
-                         backgroundColor: '#f8fafc',
+                         backgroundColor: '#ffffff',
                        },
                      }, [
               h(:div, {
                   style: {
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.2rem',
-                    padding: '0.65rem 0.8rem',
-                    border: '1px solid #bfdbfe',
-                    borderLeft: '4px solid #2563eb',
-                    borderRadius: '6px',
-                    backgroundColor: '#eff6ff',
-                    color: '#1e3a8a',
+                    gap: '0.55rem',
+                    width: '100%',
+                    boxSizing: 'border-box',
                   },
-                }, [
-  h(:div, {
-      style: {
-        fontSize: '0.9rem',
-        fontWeight: '700',
-        lineHeight: '1.3',
-      },
-    }, 'Current possible actions'),
-                 ]),
-              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%', padding: '0.2rem 0', boxSizing: 'border-box' } }, zone_2_content.compact),
+                }, zone_2_content.compact),
             ])
-
           advance_text = 'Pass'
           advance_color = '#e0e0e0'
           advance_text_color = '#a0a0a0'
@@ -3306,15 +3173,15 @@ module View
             advance_action = -> { process_action(Engine::Action::Pass.new(entity)) }
 
             case phase
-            when :build_track then advance_text = 'Skip Build'
-            when :place_token then advance_text = 'Skip Token'
-            when :buy_train then advance_text = 'Done Buying'
-            when :issue_shares then advance_text = 'Skip Issue'
-            when :redeem then advance_text = 'Skip Redeem'
-            when :par then advance_text = 'Skip Par'
+            when :build_track then advance_text = 'Skip'
+            when :place_token then advance_text = 'Skip'
+            when :buy_train then advance_text = 'Done'
+            when :issue_shares then advance_text = 'Skip'
+            when :redeem then advance_text = 'Skip'
+            when :par then advance_text = 'Skip'
             when :merge then advance_text = 'Done / Pass'
-            when :loan then advance_text = 'Done / Pass'
-            when :buy_shares then advance_text = 'Done / Pass'
+            when :loan then advance_text = 'Done'
+            when :buy_shares then advance_text = 'Done'
             when :choose, :bid, :acquisition then advance_text = is_draft ? 'Pass / Blank' : 'Pass'
             when :assign
               offer_for_sale = begin
@@ -3387,7 +3254,7 @@ module View
             end
           end
 
-          zone_3 = h(:div, { style: { flex: '0 0 auto', display: 'flex', flexDirection: 'column', padding: '0.75rem 1rem', boxSizing: 'border-box', gap: '0.75rem', width: '100%', backgroundColor: '#f8fafc' } }, [
+          zone_3 = h(:div, { style: { flex: '0 0 auto', display: 'flex', flexDirection: 'column', padding: '0.65rem 1rem', boxSizing: 'border-box', gap: '0.65rem', width: '100%', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' } }, [
             (render_zone3_abilities(entity) if has_abilities),
             h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: '0.6rem', width: '100%' } }, [
               h(:div, {
@@ -3464,31 +3331,21 @@ module View
                 '),
                 h(HistoryAndUndo, last_action_id: last_action_id),
               ]),
-              h(:span, {
-                  style: {
-                    marginLeft: 'auto',
-                    fontSize: '0.72rem',
-                    fontWeight: '700',
-                    color: '#64748b',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    whiteSpace: 'nowrap',
-                  },
-                }, 'Default'),
+              h(:div, { style: { marginLeft: 'auto' } }),
               h(:button, {
                   style: {
                     flex: '0 0 auto',
-                    minWidth: '9rem',
-                    height: '2.2rem',
+                    minWidth: '7.5rem',
+                    height: '2.35rem',
                     padding: '0 1.1rem',
                     fontSize: '0.9rem',
                     fontWeight: 'bold',
                     backgroundColor: advance_color,
                     color: advance_text_color,
-                    border: 'none',
-                    borderRadius: '4px',
+                    border: advance_disabled ? '1px solid #cbd5e1' : '1px solid #0f766e',
+                    borderRadius: '6px',
                     cursor: advance_disabled ? 'not-allowed' : 'pointer',
-                    boxShadow: advance_disabled ? 'none' : '0 2px 4px rgba(0,0,0,0.1)',
+                    boxShadow: advance_disabled ? 'none' : '0 2px 5px rgba(15,23,42,0.18)',
                   },
                   attrs: { disabled: advance_disabled },
                   on: { click: advance_action },
@@ -3574,9 +3431,7 @@ module View
             }, [
               price_dialog_style,
               zone_1,
-              h(:div, { style: { height: '1px', backgroundColor: '#cbd5e1', width: '100%' } }),
               zone_2,
-              h(:div, { style: { height: '1px', backgroundColor: '#cbd5e1', width: '100%' } }),
               zone_3,
               *overlays,
             ].compact)
