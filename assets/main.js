@@ -53461,7 +53461,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
             player_label = player_label.$to_s();
             acting_company = ($truthy(self['$corporation_or_minor?'](entity)) ? (entity) : (nil));
             entity_label = (($truthy(($c = acting_company, ($c === nil || $c == null) ? nil : $c['$respond_to?']("id"))) && ($truthy(acting_company.$id()))) ? (acting_company.$id().$to_s()) : (($truthy(($d = acting_company, ($d === nil || $d == null) ? nil : $d['$respond_to?']("name"))) && ($truthy(acting_company.$name()))) ? (acting_company.$name().$to_s()) : nil));
-            context_label = $send([player_label, entity_label], 'reject', [], "empty?".$to_proc()).$uniq().$join(" · ");
+            context_label = $send($send([player_label, entity_label].$compact(), 'map', [], "to_s".$to_proc()), 'reject', [], "empty?".$to_proc()).$uniq().$join(" · ");
             if ($truthy(context_label['$empty?']())) {
               context_label = "Current player"
             };
@@ -65013,10 +65013,10 @@ Opal.modules["view/game/dashboard/draft_overlay"] = function(Opal) {/* Generated
               } finally {$t_break.is_orphan = true;}})();
               if ($truthy(candidates['$empty?']())) {
                 
-                if ($truthy(self.game['$respond_to?']("companies"))) {
+                if (($truthy(self.game['$respond_to?']("companies")) && ($truthy(self.game.$companies())))) {
                   candidates.$concat(($truthy(($ret_or_1 = self.game.$companies())) ? ($ret_or_1) : ([])))
                 };
-                if ($truthy(self.game['$respond_to?']("minors"))) {
+                if (($truthy(self.game['$respond_to?']("minors")) && ($truthy(self.game.$minors())))) {
                   candidates.$concat(($truthy(($ret_or_1 = self.game.$minors())) ? ($ret_or_1) : ([])))
                 };
               };
@@ -65032,7 +65032,7 @@ Opal.modules["view/game/dashboard/draft_overlay"] = function(Opal) {/* Generated
                 };});
             };
             show_owners = ($truthy(self.game['$respond_to?']("show_company_owners?")) ? (self.game['$show_company_owners?']()) : (true));
-            all_game_items = $rb_plus(($truthy(self.game['$respond_to?']("companies")) ? (self.game.$companies()) : ([])), ($truthy(self.game['$respond_to?']("minors")) ? (self.game.$minors()) : ([])));
+            all_game_items = $rb_plus((($truthy(self.game['$respond_to?']("companies")) && ($truthy(self.game.$companies()))) ? (self.game.$companies()) : ([])), (($truthy(self.game['$respond_to?']("minors")) && ($truthy(self.game.$minors()))) ? (self.game.$minors()) : ([])));
             hidden_draft = ($truthy(($ret_or_1 = self.game['$respond_to?']("show_company_owners?"))) ? (self.game['$show_company_owners?']()['$!']()) : ($ret_or_1));
             viewer = ($truthy(self.game['$respond_to?']("current_user")) ? (self.game.$current_user()) : (entity));
             my_drafted_items = ($truthy(hidden_draft) ? ($send(all_game_items, 'select', [], function $$15(item){
@@ -65287,7 +65287,7 @@ Opal.modules["view/game/dashboard/draft_overlay"] = function(Opal) {/* Generated
               item_id = ($truthy(item['$respond_to?']("id")) ? (item.$id()) : (item.$to_s()));
               wrapper_id = "draft_company_wrapper_" + (item_id);
               wrapper_classes = ["status-company-wrapper"];
-              item_card = self.$render_railcard(card_label, card_classes, ($truthy(can_choose_item) ? (exec_action) : (nil)), tooltip, nil, wrapper_id, wrapper_classes, (new Map([["entity", item]])));
+              item_card = self.$render_railcard(card_label, card_classes, ($truthy(can_choose_item) ? (exec_action) : (nil)), tooltip, [], wrapper_id, wrapper_classes, (new Map([["entity", item]])));
               choose_btn = ($truthy(can_choose_item) ? (((btn_text = ($truthy(($g = item_price, ($g === nil || $g == null) ? nil : $g['$positive?']())) ? ("" + (btn_verb) + " " + (self.game.$format_currency(item_price))) : (btn_verb))), self.$h("button", (new Map([["style", (new Map([["padding", "0 10px"], ["height", "1.6rem"], ["fontSize", "0.82rem"], ["fontWeight", "bold"], ["fontFamily", $$('FONT_MONEY')], ["backgroundColor", (($eqeq(action_mode, "bid") && ($not(is_draft))) ? ("#0284c7") : ("#16a34a"))], ["color", "#fff"], ["border", "none"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", exec_action]]))]])), btn_text))) : nil);
               btn_cell_children = ($truthy(choose_btn) ? ([choose_btn]) : ([]));
               row_cells = [self.$h("td", (new Map([["style", (new Map([["padding", "6px 8px"], ["borderBottom", "1px solid #cbd5e1"], ["borderRight", "1px solid #e2e8f0"], ["width", "1%"], ["whiteSpace", "nowrap"]]))]])), [item_card]), self.$h("td", (new Map([["style", (new Map([["padding", "6px 8px"], ["borderBottom", "1px solid #cbd5e1"], ["borderRight", "2px solid #cbd5e1"], ["width", "8.5rem"], ["whiteSpace", "nowrap"]]))]])), btn_cell_children)];
