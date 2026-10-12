@@ -843,6 +843,7 @@ module View
             redeem
             redeem_shares
             corporate_buy_shares
+            buy_shares
           ]).any?
 
         can_redeem =
@@ -2055,7 +2056,8 @@ module View
         half_held = false if clean_rev.empty? || held
 
         font_color = '#dc2626' if held
-        font_color = '#d97706' if half_held
+        clean_rev = "-#{clean_rev}" if held
+        clean_rev = "½ #{clean_rev}" if half_held
 
         is_hovered_cell = (Lib::Storage['hovered_last_corp'] == corporation.id)
         rev_class = "td.padded_number.column-zone-corporate#{'.money-value' unless font_color}"
@@ -2549,7 +2551,10 @@ module View
           else
             Engine::Action::BuyShares.new(
               corporation,
-              bundle: bundle
+              bundle: bundle,
+              shares: shares,
+              share_price: share_price,
+              percent: percent
             )
           end
 
