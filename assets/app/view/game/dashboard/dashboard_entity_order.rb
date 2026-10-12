@@ -244,7 +244,27 @@ module View
             item_style[:opacity] = '0.4'
           end
 
-          elements << h(:div, { style: item_style }, [h(:div, { style: marker_style }, [marker_content])])
+          corp_id =
+            if entity.respond_to?(:id)
+              entity.id.to_s
+            else
+              entity.to_s
+            end
+
+          elements << h(:div, {
+                          style: item_style,
+                        }, [
+            h(:div, {
+                attrs: {
+                  class: 'entity-order-token',
+                  'data-corp': corp_id,
+                },
+                style: marker_style.merge(
+                cursor: 'pointer',
+                pointerEvents: 'auto'
+              ),
+              }, [marker_content]),
+          ])
 
           next unless index < entities.size - 1
 

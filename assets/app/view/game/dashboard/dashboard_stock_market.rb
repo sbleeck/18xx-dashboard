@@ -871,6 +871,14 @@ module View
               }
               if (stCorp) return { corpId: String(stCorp), type: 'status' };
             }
+                // 4. Entity Order Marker
+var orderEl = target.closest('.entity-order-token');
+if (orderEl) {
+  var oCorp = orderEl.getAttribute('data-corp');
+  if (oCorp) {
+    return { corpId: String(oCorp), type: 'order' };
+  }
+}
 
             return null;
           }
@@ -919,6 +927,15 @@ module View
                 statusEls[t].classList.add('marker-pulsing');
               }
             }
+              if (currentType !== 'order') {
+  var orderTokens = window.document.querySelectorAll(
+    '.entity-order-token[data-corp="' + corpId + '"]'
+  );
+
+  for (var o = 0; o < orderTokens.length; o++) {
+    orderTokens[o].classList.add('marker-pulsing');
+  }
+}
           }
 
           var activeCorp = null;
