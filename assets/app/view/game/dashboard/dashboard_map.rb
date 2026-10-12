@@ -363,42 +363,105 @@ module View
         end
       end
 
-      class Revenue < Base
-        unless method_defined?(:orig_render)
-          alias orig_render render
+      # Dashboard-only revenue rendering at 2x size.
+      # The original components live outside the dashboard folder, so we reopen
+      # them here and preserve their logic while doubling their backgrounds.
+      class SingleRevenue < Snabberb::Component
+        def render
+          return h(:g) if @revenue.zero? && !@force
 
-          def render
-            rendered = orig_render
-            %x{
-              function enlargeRevenue(vnode) {
-                if (!vnode) return;
-                if (Array.isArray(vnode)) {
-                  for (var i = 0; i < vnode.length; i++) enlargeRevenue(vnode[i]);
-                  return;
-                }
-                var sel = vnode.sel || '';
-                if (typeof sel === 'string' && (sel === 'text' || sel.indexOf('text.') === 0 || sel.indexOf('text#') === 0)) {
-                  if (!vnode.data) vnode.data = {};
-                  if (!vnode.data.attrs) vnode.data.attrs = {};
-                  if (!vnode.data.style) vnode.data.style = {};
+          circle_props = {
+            attrs: {
+              r: radius_for_revenue(@revenue) * 2,
+              fill: 'white',
+            },
+            style: {
+              stroke: '#777777',
+            },
+          }
+          text_props = {
+            attrs: {
+              fill: 'black',
+              'dominant-baseline': 'central',
+              transform: 'translate(0 -1)',
+            },
+          }
 
-                  var cur = parseFloat(vnode.data.style['font-size'] || vnode.data.attrs['font-size']) || 11;
-                  var newSize = (cur * 1.35).toFixed(1) + 'px';
+          h(
+            :g,
+            { attrs: { transform: @transform } },
+            [
+              h(:circle, circle_props),
+              h('text.number', text_props, @revenue),
+            ]
+          )
+        end
+      end
 
-                  vnode.data.attrs['font-size'] = newSize;
-                  vnode.data.style['font-size'] = newSize;
-                  vnode.data.style['font-weight'] = 'bold';
-                }
-                if (vnode.children && Array.isArray(vnode.children)) {
-                  for (var j = 0; j < vnode.children.length; j++) {
-                    enlargeRevenue(vnode.children[j]);
-                  }
-                }
-              }
-              enlargeRevenue(#{rendered});
+      class MultiRevenue < Snabberb::Component
+        DASHBOARD_HEIGHT = 38
+
+        def render
+          computed_revenues = @revenues.map do |rev|
+            phase, revenue = rev
+            text = "#{'D' if phase == :diesel}#{revenue}"
+
+            {
+              text: text,
+              width: text.size * 26,
+              color: phase == :diesel ? :gray : phase,
             }
-            rendered
           end
+
+          step_size = (computed_revenues.size / @rows.to_f).ceil
+          total_width = Array.new(@rows) do |row|
+            computed_revenues[(row - 1) * step_size, step_size].sum do |revenue|
+              revenue[:width]
+            end
+          end
+
+          row = 0
+          t_x = -(total_width[row] * 0.5)
+          index = 0
+          t_y = 0
+          children = computed_revenues.flat_map do |rev|
+            fill = rev[:color].start_with?('#') ? rev[:color] : color_for(rev[:color])
+            font_color = contrast_on(fill)
+            width = rev[:width]
+
+            rect_attrs = {
+              fill: fill,
+              transform: "translate(#{t_x} #{t_y})",
+              height: DASHBOARD_HEIGHT,
+              width: width,
+              x: 0,
+              y: -20,
+            }
+
+            text_props = {
+              attrs: {
+                transform: "translate(#{t_x + (width * 0.5)} #{t_y})",
+                fill: font_color,
+                stroke: font_color,
+                'dominant-baseline': 'central',
+              },
+            }
+
+            t_x += width
+            index += 1
+            if index == step_size && index < computed_revenues.size
+              row += 1
+              t_x = -(total_width[row] * 0.5)
+              t_y += DASHBOARD_HEIGHT
+            end
+
+            [
+              h(:rect, attrs: rect_attrs),
+              h('text.number', text_props, rev[:text]),
+            ]
+          end
+
+          h(:g, { attrs: { transform: @transform } }, children)
         end
       end
 
@@ -1096,10 +1159,10 @@ for (var i = 0; i < list.length; i++) {
                        end
             if cost_str
               scale_factor = case cost_str.length
-                             when 1..3 then 2.2
-                             when 4    then 1.7
-                             when 5    then 1.3
-                             else 1.0
+                             when 1..3 then 4.4
+                             when 4    then 3.4
+                             when 5    then 2.6
+                             else 2.0
                              end
 
               rot_angle = hex.layout == :pointy ? 60 : 90
@@ -1346,6 +1409,12 @@ for (var i = 0; i < list.length; i++) {
       def render_map(width, height)
         h(:svg, { attrs: { id: 'map', width: width.to_s, height: height.to_s } }, [
           h(:defs, [
+            h(:style, {}, %(
+              #map text.number {
+                font-size: 150% !important;
+                font-weight: 900 !important;
+              }
+            )),
             h(:pattern, {
                 attrs: {
                   id: 'cyan-hatch',
