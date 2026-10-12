@@ -783,7 +783,16 @@ module View
         # Include actions exposed through either the corporation or its
         # controlling player.
         corp_actions = status_corporation_actions(corporation)
-
+        player_actions = if active_player && @game.round.respond_to?(:actions_for)
+                           begin; @game.round.actions_for(active_player); rescue StandardError; []; end
+                         elsif step.respond_to?(:actions)
+                           begin; step.actions(active_player) || []; rescue StandardError; []; end
+                         elsif step.respond_to?(:current_actions)
+                           step.current_actions || []
+                         else
+                           []
+                         end || []
+        player_actions = player_actions.compact.map(&:to_s)
         corporation_controlled =
           is_active_row ||
           (corporation.respond_to?(:owner) && corporation.owner == active_player)
@@ -822,9 +831,10 @@ module View
         is_directed = corporation.respond_to?(:owner) && (corporation.owner == active_player)
 
         corp_bg = corporation.color || '#ffffff'
-        star_bg = is_unfloated ? '#6b7280' : corp_bg
-        star_color = is_unfloated ? '#d1d5db' : '#ffffff'
-        star_border = is_unfloated ? '1px solid #4b5563' : '1px solid rgba(0,0,0,0.35)'
+        is_for_sale = corporation.respond_to?(:owner) ? !corporation.owner : is_unfloated
+        star_bg = is_for_sale ? '#6b7280' : '#fdfbf7'
+        star_color = is_for_sale ? '#d1d5db' : '#000000'
+        star_border = is_for_sale ? '1px solid #4b5563' : '1px solid #888888'
 
         tr_props = tr_default_props(is_active_row)
         tr_props[:attrs] ||= {}
@@ -876,15 +886,38 @@ module View
           end
           treasury_issuable_bundles = issuable_bundles.select { |b| bundle_owner(b) == corporation }
           can_issue_treasury = can_issue && (treasury_issuable_bundles.any? || (!@game.class.name.include?('1846') && !issuable_bundles.any? { |b| bundle_owner(b) != corporation } && !t_shares.empty?))
+          step_buyable = active_player && step.respond_to?(:buyable_shares) ? (step.buyable_shares(active_player) || []) : nil
+          valid_treasury_buys = []
+          if active_player && step.respond_to?(:can_buy?) && player_actions.include?('buy_shares')
+            valid_treasury_buys = t_shares.select do |s|
+              bundle = s.to_bundle
+              in_step = step_buyable.nil? || step_buyable.any? { |b| (b.respond_to?(:shares) ? b.shares : [b]).include?(s) }
+              in_step && (s.respond_to?(:buyable) ? s.buyable : true) && step.can_buy?(active_player, bundle)
+            end
+          end
+          can_buy_treasury = valid_treasury_buys.any?
 
           if treasury_percent.positive?
             classes = ['game-card']
             classes << 'action-sell' if can_issue_treasury
-            classes << 'clickable' if can_issue_treasury
+            classes << 'action-buy' if can_buy_treasury && !can_issue_treasury
+            classes << 'clickable' if can_issue_treasury || can_buy_treasury
             dropdowns = []
             click_handler = nil
 
-            if can_issue_treasury
+            if can_buy_treasury && !can_issue_treasury
+              click_handler = if valid_treasury_buys.uniq { |s| s.to_bundle.percent }.size > 1
+                                lambda {
+                                  Lib::Storage['buy_treasury_menu_corp'] = corporation.id
+                                  update
+                                }
+                              else
+                                lambda { |_event|
+                                  source_selector = "#treasury_shares_#{corporation.id} .game-card"
+                                  exec_buy_shares(source_selector, active_player, valid_treasury_buys.first.to_bundle, corporation.id)
+                                }
+                              end
+            elsif can_issue_treasury
               click_handler = if treasury_issuable_bundles.size > 1
                                 lambda {
                                   Lib::Storage['issue_menu_corp'] = corporation.id
@@ -899,6 +932,24 @@ module View
                                   )
                                 }
                               end
+            end
+
+            if Lib::Storage['buy_treasury_menu_corp'] == corporation.id && can_buy_treasury
+              options = valid_treasury_buys.uniq { |s| s.to_bundle.percent }.map do |share|
+                bundle = share.to_bundle
+                {
+                  label: "Buy #{bundle.percent}%",
+                  action: lambda { |_event|
+                    Lib::Storage['buy_treasury_menu_corp'] = nil
+                    source_selector = "#treasury_shares_#{corporation.id} .game-card"
+                    exec_buy_shares(source_selector, active_player, bundle, corporation.id)
+                  },
+                }
+              end
+              dropdowns << render_choice_menu('Buy from Treasury:', options, lambda {
+                Lib::Storage['buy_treasury_menu_corp'] = nil
+                update
+              })
             end
 
             if Lib::Storage['issue_menu_corp'] == corporation.id && can_issue_treasury
@@ -1700,10 +1751,14 @@ module View
             Lib::Storage["bid_price_#{corporation.id}"] = nil
             update
           }
-        elsif step.respond_to?(:can_buy?) && active_player
+        elsif step.respond_to?(:can_buy?) && active_player && player_actions.include?('buy_shares') && corporation.respond_to?(:ipoed) && corporation.ipoed
+          step_buyable = step.respond_to?(:buyable_shares) ? (step.buyable_shares(active_player) || []) : nil
           ipo_shares = corporation.respond_to?(:ipo_shares) ? corporation.ipo_shares : []
-          valid_ipo_shares = ipo_shares.select { |s| (s.respond_to?(:buyable) ? s.buyable : true) && step.can_buy?(active_player, s.to_bundle) }
-
+          valid_ipo_shares = ipo_shares.select do |s|
+            bundle = s.to_bundle
+            in_step = step_buyable.nil? || step_buyable.any? { |b| (b.respond_to?(:shares) ? b.shares : [b]).include?(s) }
+            in_step && (s.respond_to?(:buyable) ? s.buyable : true) && step.can_buy?(active_player, bundle)
+          end
           unless valid_ipo_shares.empty?
             ipo_click_handler = if valid_ipo_shares.uniq { |s| s.to_bundle.percent }.size > 1
                                   lambda {
