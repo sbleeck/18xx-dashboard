@@ -1668,17 +1668,37 @@ badge_el,
 
                         %x(window.init18xxResizers = function() {
                     var savedResizers = {};
+
                     try {
-                      savedResizers = JSON.parse(sessionStorage.getItem('18xx_viz_resizers')) || {};
-                      window.scalerUserZoom = JSON.parse(sessionStorage.getItem('18xx_viz_zoom')) || { 'map-panel-bot': 1.0, 'panel-market': 1.0 };
-                      window.scalerPanOffset = JSON.parse(sessionStorage.getItem('18xx_viz_pan')) || {
-                        'map-panel-bot': { x: 0, y: 0 },
-                        'panel-market': { x: 0, y: 0 }
-                      };
-                    } catch(e) {
-                      window.scalerUserZoom = { 'map-panel-bot': 1.0, 'panel-market': 1.0 };
-                      window.scalerPanOffset = { 'map-panel-bot': { x: 0, y: 0 }, 'panel-market': { x: 0, y: 0 } };
-                    }
+  savedResizers = JSON.parse(sessionStorage.getItem('18xx_viz_resizers')) || {};
+
+  window.scalerUserZoom =
+    JSON.parse(sessionStorage.getItem('18xx_viz_zoom')) || {
+      'map-panel-bot': 1.0,
+      'panel-market': 1.0,
+      'panel-ledger': 1.0,
+    };
+
+  window.scalerPanOffset =
+    JSON.parse(sessionStorage.getItem('18xx_viz_pan')) || {
+      'map-panel-bot': { x: 0, y: 0 },
+      'panel-market': { x: 0, y: 0 },
+      'panel-ledger': { x: 0, y: 0 },
+    };
+} catch(e) {
+  window.scalerUserZoom = {
+    'map-panel-bot': 1.0,
+    'panel-market': 1.0,
+    'panel-ledger': 1.0,
+  };
+
+  window.scalerPanOffset = {
+    'map-panel-bot': { x: 0, y: 0 },
+    'panel-market': { x: 0, y: 0 },
+    'panel-ledger': { x: 0, y: 0 },
+  };
+}
+
 
                     var createResizer = function(resizerId, prevId, nextId, isVertical) {
                       var resizer = document.getElementById(resizerId);
@@ -1890,8 +1910,9 @@ badge_el,
                       }, { passive: false });
                     };
 
-                    createPanHandler('map-panel-bot');
-                    createPanHandler('panel-market');
+createPanHandler('map-panel-bot');
+createPanHandler('panel-market');
+createPanHandler('panel-ledger');
 
                     var styleTag = document.getElementById('dashboard-map-svg-styles');
                     if (!styleTag) {
@@ -2085,7 +2106,7 @@ badge_el,
                       }
                     });
 
-                    ['map-panel-bot', 'panel-market'].forEach(function(id) {
+['map-panel-bot', 'panel-market', 'panel-ledger'].forEach(function(id) {
                       var el = document.getElementById(id);
                       if (el) fitObserver.observe(el);
                     });
@@ -2293,11 +2314,46 @@ badge_el,
 
               h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
 
-              h(:div, { attrs: { id: 'panel-ledger' }, style: { flex: '1 1 auto', overflow: 'auto', border: '1px solid #ccc', padding: '0.4rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box' } }, [
-                h(:div, { style: { display: 'flex', flexDirection: 'column', width: 'max-content', minWidth: '100%' } }, [
-                  h(View::Game::DashboardGameStatus, game: @game, user: @user),
+              h(:div, {
+                  attrs: { id: 'panel-ledger' },
+                  style: {
+                    flex: '1 1 auto',
+                    minHeight: '0',
+                    overflow: 'hidden',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: '#fff',
+                    boxSizing: 'border-box',
+                    position: 'relative',
+                  },
+                }, [
+                  render_zoom_controls('panel-ledger', { top: '6px', right: '6px' }),
+
+                  h(:div, {
+                      attrs: { class: 'scaler-content' },
+                      style: {
+                        position: 'absolute',
+                        top: '0',
+                        left: '0',
+                        width: 'max-content',
+                        height: 'max-content',
+                        transformOrigin: 'top left',
+                      },
+                    }, [
+                      h(:div, {
+                          style: {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            width: 'max-content',
+                            minWidth: '100%',
+                          },
+                        }, [
+                          h(View::Game::DashboardGameStatus,
+                            game: @game,
+                            user: @user),
+                        ]),
+                    ]),
                 ]),
-              ]),
 
               h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
