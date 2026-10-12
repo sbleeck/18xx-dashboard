@@ -2771,7 +2771,15 @@ module View
                          elsif acting_company&.respond_to?(:name) && acting_company.name
                            acting_company.name.to_s
                          end
-          context_label = [player_label, entity_label].reject(&:empty?).uniq.join(' · ')
+
+          context_label =
+            [player_label, entity_label]
+              .compact
+              .map(&:to_s)
+              .reject(&:empty?)
+              .uniq
+              .join(' · ')
+
           context_label = 'Current player' if context_label.empty?
 
           marker = nil
