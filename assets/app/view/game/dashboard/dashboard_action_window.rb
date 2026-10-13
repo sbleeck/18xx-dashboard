@@ -2498,6 +2498,7 @@ module View
                                   (step&.respond_to?(:description) && step.description =~ /Draft|Auction/i) ||
                                   (@game.respond_to?(:round) && @game.round.class.name =~ /Draft|Auction/i)
                                 ))
+          return nil if is_draft_or_auction
 
           case @game.round
           when Engine::Round::Stock

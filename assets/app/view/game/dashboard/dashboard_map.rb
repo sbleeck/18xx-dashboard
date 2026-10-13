@@ -424,88 +424,140 @@ module View
         end
       end
 
-      class MultiRevenue < Snabberb::Component
-        def render
-          box_height = 21 * MAP_MONEY_SCALE
+      module DashboardRevenueBadge
+        FONT_SIZE = 17 * MAP_MONEY_SCALE
+        PURPLE_NEGATIVE = '#b3e26a'
 
-          computed_revenues = @revenues.map do |phase, revenue|
-            text = "#{'D' if phase == :diesel}#{revenue}"
+        def revenue_badge(text, x: 0, y: 0, fill: '#ffffff', phase: nil)
+          text = text.to_s
 
-            {
-              text: text,
-              width: [text.size * 11 * MAP_MONEY_SCALE, 22 * MAP_MONEY_SCALE].max,
-              color: phase == :diesel ? :gray : phase,
-            }
-          end
-
-          step_size = (computed_revenues.size / @rows.to_f).ceil
-
-          total_width = Array.new(@rows) do |row|
-            computed_revenues[row * step_size, step_size].to_a.sum do |revenue|
-              revenue[:width]
+          radius =
+            case text.length
+            when 1..2 then 0.72
+            when 3    then 0.84
+            else           0.96
             end
-          end
 
-          row = 0
-          index_in_row = 0
-          t_x = -(total_width[row].to_f * 0.5)
-          t_y = 0
+          text_color =
+            if phase.to_s == 'brown'
+              PURPLE_NEGATIVE
+            else
+              MAP_MONEY_COLOR
+            end
 
-          children = computed_revenues.flat_map do |revenue|
-            fill =
-              if revenue[:color].to_s.start_with?('#')
-                revenue[:color]
-              else
-                color_for(revenue[:color])
-              end
-
-            width = revenue[:width]
-
-            text_fill =
-              revenue[:color].to_s == 'brown' ? '#ffffff' : MAP_MONEY_COLOR
-
-            result = [
-              h(:rect, {
+          h(
+            :g,
+            {
+              attrs: {
+                transform: "translate(#{x} #{y})",
+                class: 'dashboard-money dashboard-revenue-badge',
+                'font-size': "#{FONT_SIZE}px",
+              },
+            },
+            [
+              h(:circle, {
                   attrs: {
-                    x: t_x.to_s,
-                    y: (t_y - (box_height * 0.5)).to_s,
-                    width: width.to_s,
-                    height: box_height.to_s,
+                    cx: '0',
+                    cy: '0',
+                    r: "#{radius}em",
                     fill: fill,
-                    stroke: '#ffffff',
-                    'stroke-width': (0.7 * MAP_MONEY_SCALE).to_s,
+                    stroke: '#777777',
+                    'stroke-width': '0.08em',
                   },
                 }),
               h('text.number', {
                   attrs: {
-                    x: (t_x + (width * 0.5)).to_s,
-                    y: t_y.to_s,
-                    fill: text_fill,
+                    x: '0',
+                    y: '0',
+                    fill: text_color,
                     stroke: 'none',
                     'text-anchor': 'middle',
                     'dominant-baseline': 'central',
                     'alignment-baseline': 'central',
                     'font-family': MAP_MONEY_FONT,
                     'font-weight': '700',
-                    'font-size': "#{15 * MAP_MONEY_SCALE}px",
-                    class: 'dashboard-money',
                   },
-                }, revenue[:text]),
+                }, text),
             ]
+          )
+        end
+      end
 
-            t_x += width
-            index_in_row += 1
+      class SingleRevenue < Snabberb::Component
+        include DashboardRevenueBadge
 
-            if index_in_row == step_size &&
-               ((row + 1) * step_size) < computed_revenues.size
-              row += 1
-              index_in_row = 0
-              t_x = -(total_width[row].to_f * 0.5)
-              t_y += box_height
-            end
+        def render
+          return h(:g) if @revenue.zero? && !@force
 
-            result
+          h(
+            :g,
+            {
+              attrs: {
+                transform: @transform,
+                class: 'dashboard-money dashboard-revenue dashboard-single-revenue',
+              },
+            },
+            [
+              revenue_badge(@revenue),
+            ]
+          )
+        end
+      end
+
+      class MultiRevenue < Snabberb::Component
+        include DashboardRevenueBadge
+
+        def render
+          computed_revenues = @revenues.map do |phase, revenue|
+            display_phase = phase == :diesel ? :gray : phase
+
+            fill =
+              if display_phase.to_s.start_with?('#')
+                display_phase
+              else
+                color_for(display_phase)
+              end
+
+            {
+              text: "#{'D' if phase == :diesel}#{revenue}",
+              fill: fill,
+              phase: display_phase,
+            }
           end
+
+          rows = [@rows.to_i, 1].max
+          step_size = (computed_revenues.size / rows.to_f).ceil
+
+          badge_diameter = DashboardRevenueBadge::FONT_SIZE * 1.44
+          horizontal_gap = DashboardRevenueBadge::FONT_SIZE * 0.18
+          vertical_gap = DashboardRevenueBadge::FONT_SIZE * 0.18
+
+          horizontal_step = badge_diameter + horizontal_gap
+          vertical_step = badge_diameter + vertical_gap
+
+          children = []
+
+          computed_revenues.each_slice(step_size).with_index do |row_revenues, row|
+            row_width = (row_revenues.size - 1) * horizontal_step
+            start_x = -(row_width * 0.5)
+            start_y = row * vertical_step
+
+            row_revenues.each_with_index do |revenue, column|
+              x = start_x + (column * horizontal_step)
+
+              children << revenue_badge(
+                revenue[:text],
+                x: x,
+                y: start_y,
+                fill: revenue[:fill],
+                phase: revenue[:phase]
+              )
+            end
+          end
+
+          rendered_rows = (computed_revenues.size / step_size.to_f).ceil
+          content_height = (rendered_rows - 1) * vertical_step
+          vertical_centering = -(content_height * 0.5)
 
           h(
             :g,
@@ -515,7 +567,17 @@ module View
                 class: 'dashboard-money dashboard-revenue dashboard-multi-revenue',
               },
             },
-            children
+            [
+              h(
+                :g,
+                {
+                  attrs: {
+                    transform: "translate(0 #{vertical_centering})",
+                  },
+                },
+                children
+              ),
+            ]
           )
         end
       end
