@@ -363,105 +363,160 @@ module View
         end
       end
 
-      # Dashboard-only revenue rendering at 2x size.
-      # The original components live outside the dashboard folder, so we reopen
-      # them here and preserve their logic while doubling their backgrounds.
+      # Dashboard Map 2.0: one financial visual language.
+      #
+      # This is the single size control for every map cost/revenue label.
+      # All backgrounds are sized in em units, so they grow and shrink
+      # with the money font.
+      MAP_MONEY_SCALE = 1.5
+
+      MAP_MONEY_FONT = "'Courier New', monospace"
+      MAP_MONEY_COLOR = '#4c1d95'
+      MAP_MONEY_NEGATIVE_COLOR = '#ffffff'
+
       class SingleRevenue < Snabberb::Component
         def render
           return h(:g) if @revenue.zero? && !@force
 
-          circle_props = {
-            attrs: {
-              r: radius_for_revenue(@revenue) * 2,
-              fill: 'white',
-            },
-            style: {
-              stroke: '#777777',
-            },
-          }
-          text_props = {
-            attrs: {
-              fill: 'black',
-              'dominant-baseline': 'central',
-              transform: 'translate(0 -1)',
-            },
-          }
+          text = @revenue.to_s
+
+          radius =
+            case text.length
+            when 1..2 then 0.72
+            when 3    then 0.84
+            else           0.96
+            end
 
           h(
             :g,
-            { attrs: { transform: @transform } },
+            {
+              attrs: {
+                transform: @transform,
+                class: 'dashboard-money dashboard-revenue',
+                'font-size': "#{18 * MAP_MONEY_SCALE}px",
+              },
+            },
             [
-              h(:circle, circle_props),
-              h('text.number', text_props, @revenue),
+              h(:circle, {
+                  attrs: {
+                    cx: '0',
+                    cy: '0',
+                    r: "#{radius}em",
+                    fill: '#ffffff',
+                    stroke: '#777777',
+                    'stroke-width': '0.08em',
+                  },
+                }),
+              h('text.number', {
+                  attrs: {
+                    x: '0',
+                    y: '0',
+                    fill: MAP_MONEY_COLOR,
+                    'text-anchor': 'middle',
+                    'dominant-baseline': 'central',
+                    'alignment-baseline': 'central',
+                    'font-family': MAP_MONEY_FONT,
+                    'font-weight': '700',
+                  },
+                }, text),
             ]
           )
         end
       end
 
       class MultiRevenue < Snabberb::Component
-        DASHBOARD_HEIGHT = 38
-
         def render
-          computed_revenues = @revenues.map do |rev|
-            phase, revenue = rev
+          box_height = 21 * MAP_MONEY_SCALE
+
+          computed_revenues = @revenues.map do |phase, revenue|
             text = "#{'D' if phase == :diesel}#{revenue}"
 
             {
               text: text,
-              width: text.size * 26,
+              width: [text.size * 11 * MAP_MONEY_SCALE, 22 * MAP_MONEY_SCALE].max,
               color: phase == :diesel ? :gray : phase,
             }
           end
 
           step_size = (computed_revenues.size / @rows.to_f).ceil
+
           total_width = Array.new(@rows) do |row|
-            computed_revenues[(row - 1) * step_size, step_size].sum do |revenue|
+            computed_revenues[row * step_size, step_size].to_a.sum do |revenue|
               revenue[:width]
             end
           end
 
           row = 0
-          t_x = -(total_width[row] * 0.5)
-          index = 0
+          index_in_row = 0
+          t_x = -(total_width[row].to_f * 0.5)
           t_y = 0
-          children = computed_revenues.flat_map do |rev|
-            fill = rev[:color].start_with?('#') ? rev[:color] : color_for(rev[:color])
-            font_color = contrast_on(fill)
-            width = rev[:width]
 
-            rect_attrs = {
-              fill: fill,
-              transform: "translate(#{t_x} #{t_y})",
-              height: DASHBOARD_HEIGHT,
-              width: width,
-              x: 0,
-              y: -20,
-            }
+          children = computed_revenues.flat_map do |revenue|
+            fill =
+              if revenue[:color].to_s.start_with?('#')
+                revenue[:color]
+              else
+                color_for(revenue[:color])
+              end
 
-            text_props = {
-              attrs: {
-                transform: "translate(#{t_x + (width * 0.5)} #{t_y})",
-                fill: font_color,
-                stroke: font_color,
-                'dominant-baseline': 'central',
-              },
-            }
+            width = revenue[:width]
+
+            text_fill =
+              revenue[:color].to_s == 'brown' ? '#ffffff' : MAP_MONEY_COLOR
+
+            result = [
+              h(:rect, {
+                  attrs: {
+                    x: t_x.to_s,
+                    y: (t_y - (box_height * 0.5)).to_s,
+                    width: width.to_s,
+                    height: box_height.to_s,
+                    fill: fill,
+                    stroke: '#ffffff',
+                    'stroke-width': (0.7 * MAP_MONEY_SCALE).to_s,
+                  },
+                }),
+              h('text.number', {
+                  attrs: {
+                    x: (t_x + (width * 0.5)).to_s,
+                    y: t_y.to_s,
+                    fill: text_fill,
+                    stroke: 'none',
+                    'text-anchor': 'middle',
+                    'dominant-baseline': 'central',
+                    'alignment-baseline': 'central',
+                    'font-family': MAP_MONEY_FONT,
+                    'font-weight': '700',
+                    'font-size': "#{15 * MAP_MONEY_SCALE}px",
+                    class: 'dashboard-money',
+                  },
+                }, revenue[:text]),
+            ]
 
             t_x += width
-            index += 1
-            if index == step_size && index < computed_revenues.size
+            index_in_row += 1
+
+            if index_in_row == step_size &&
+               ((row + 1) * step_size) < computed_revenues.size
               row += 1
-              t_x = -(total_width[row] * 0.5)
-              t_y += DASHBOARD_HEIGHT
+              index_in_row = 0
+              t_x = -(total_width[row].to_f * 0.5)
+              t_y += box_height
             end
 
-            [
-              h(:rect, attrs: rect_attrs),
-              h('text.number', text_props, rev[:text]),
-            ]
+            result
           end
 
-          h(:g, { attrs: { transform: @transform } }, children)
+          h(
+            :g,
+            {
+              attrs: {
+                transform: @transform,
+                class: 'dashboard-money dashboard-revenue dashboard-multi-revenue',
+              },
+            },
+            children
+          )
         end
       end
 
@@ -630,7 +685,7 @@ for (var i = 0; i < list.length; i++) {
 
         border_objs = (hex.tile&.borders || []).select { |b| b.cost && b.cost.positive? }
 
-        format_val = ->(val) { @game.respond_to?(:format_currency) ? @game.format_currency(val) : "$#{val}" }
+        format_val = ->(val) { val.to_i.to_s }
 
         if tile
           tile_exits = []
@@ -672,7 +727,7 @@ for (var i = 0; i < list.length; i++) {
         if border_objs.empty?
           return nil if base_cost.zero?
 
-          return @game.respond_to?(:format_currency) ? @game.format_currency(base_cost) : "$#{base_cost}"
+          return format_val.call(base_cost)
         end
 
         connected_edges = step.respond_to?(:hex_neighbors) ? (step.hex_neighbors(current_entity, hex) || []) : []
@@ -683,7 +738,7 @@ for (var i = 0; i < list.length; i++) {
           total = base_cost + border_total
           return nil if total.zero?
 
-          return @game.respond_to?(:format_currency) ? @game.format_currency(total) : "$#{total}"
+          return format_val.call(total)
         end
 
         min_cost = base_cost
@@ -885,12 +940,12 @@ for (var i = 0; i < list.length; i++) {
                 y: '1',
                 'text-anchor': 'middle',
                 'dominant-baseline': 'central',
-                fill: fill_color,
-                stroke: '#000000',
+                fill: '#4c1d95',
+                stroke: '#ffffff',
                 'stroke-width': '8',
                 'stroke-linejoin': 'round',
                 'paint-order': 'stroke fill',
-                'font-family': 'Impact, "Arial Black", sans-serif',
+                'font-family': "'Courier New', monospace",
                 'font-size': "#{font_size}px",
                 'font-weight': '900',
                 'pointer-events': 'none',
@@ -1159,10 +1214,10 @@ for (var i = 0; i < list.length; i++) {
                        end
             if cost_str
               scale_factor = case cost_str.length
-                             when 1..3 then 4.4
-                             when 4    then 3.4
-                             when 5    then 2.6
-                             else 2.0
+                             when 1..2 then 1.2
+                             when 3    then 1.0
+                             when 4    then 0.85
+                             else 0.75
                              end
 
               rot_angle = hex.layout == :pointy ? 60 : 90
@@ -1171,8 +1226,8 @@ for (var i = 0; i < list.length; i++) {
                 h(:polygon, {
                     attrs: {
                       points: '8.5,-80 48.5,-80 76.5,-32 36.5,-32',
-                      fill: '#0f172a',
-                      stroke: '#00ffff',
+                      fill: '#f8fafc',
+                      stroke: '#4c1d95',
                       'stroke-width': '2.5',
                       'stroke-linejoin': 'round',
                     },
@@ -1188,9 +1243,10 @@ for (var i = 0; i < list.length; i++) {
                         y: '0',
                         'text-anchor': 'middle',
                         'dominant-baseline': 'central',
-                        fill: '#00ffff',
-                        'font-weight': '900',
-                        'font-family': 'Arial, Helvetica, sans-serif',
+                        fill: '#4c1d95',
+                        class: 'dashboard-money dashboard-tile-cost',
+                        'font-weight': '700',
+                        'font-family': "'Courier New', monospace",
                         'letter-spacing': '-0.5px',
                       },
                     }, cost_str),
@@ -1409,33 +1465,50 @@ for (var i = 0; i < list.length; i++) {
       def render_map(width, height)
         h(:svg, { attrs: { id: 'map', width: width.to_s, height: height.to_s } }, [
           h(:defs, [
-            h(:style, {}, %(
-              #map text.number {
-                font-size: 150% !important;
-                font-weight: 900 !important;
-              }
-            )),
-            h(:pattern, {
-                attrs: {
-                  id: 'cyan-hatch',
-                  width: '16',
-                  height: '16',
-                  patternUnits: 'userSpaceOnUse',
-                  patternTransform: 'rotate(45)',
-                },
-              }, [
-              h(:line, {
-                  attrs: {
-                    x1: '0',
-                    y1: '0',
-                    x2: '0',
-                    y2: '16',
-                    stroke: '#00ffff',
-                    'stroke-width': '3.5',
-                    'stroke-opacity': '0.5',
-                  },
-                }),
-            ]),
+h(:style, {}, %(
+
+
+  #map {
+    --font-money: 'Courier New', monospace;
+    --color-money-text: #4c1d95;
+    --map-money-size: 150%;
+  }
+
+#map .dashboard-money,
+#map .dashboard-money text {
+  font-family: var(--font-money) !important;
+  font-weight: 700 !important;
+}
+
+
+
+
+  #map .dashboard-tile-cost {
+    font-size: 12px !important;
+    letter-spacing: 0 !important;
+  }
+)),
+h(:pattern, {
+    attrs: {
+      id: 'cyan-hatch',
+      width: '16',
+      height: '16',
+      patternUnits: 'userSpaceOnUse',
+      patternTransform: 'rotate(45)',
+    },
+  }, [
+  h(:line, {
+      attrs: {
+        x1: '0',
+        y1: '0',
+        x2: '0',
+        y2: '16',
+        stroke: '#00ffff',
+        'stroke-width': '3.5',
+        'stroke-opacity': '0.5',
+      },
+    }),
+]),
           ]),
 
           h(:g, { attrs: { transform: "scale(#{@scale})" } }, [
