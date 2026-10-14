@@ -14,6 +14,7 @@ require 'view/game/dashboard/bidding_overlay'
 require 'view/game/dashboard/dashboard_tile_manifest'
 require 'view/game/dashboard/other_games_overlay'
 require 'view/game/dashboard/dashboard_action_window'
+require 'view/game/dashboard/chat_overlay'
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
 module Engine
@@ -51,6 +52,7 @@ module View
       needs :par_menu_corp, store: true, default: nil
       needs :show_other_games_overlay, store: true, default: false
       needs :show_actions_window, store: true, default: false
+      needs :show_chat_overlay, store: true, default: false
 
       include Actionable
 
@@ -718,6 +720,83 @@ module View
         0
       end
 
+      def render_chat_button
+        is_open = @show_chat_overlay == true ||
+                  [true, 'true'].include?(Lib::Storage['dashboard_chat_overlay'])
+
+        click_action = lambda do
+          new_value = !is_open
+
+          Lib::Storage['dashboard_chat_overlay'] =
+            new_value ? true : nil
+
+          store(:show_chat_overlay, new_value)
+          update
+        end
+
+        h(:button, {
+            attrs: {
+              id: 'btn-dashboard-chat',
+              type: 'button',
+              title: is_open ? 'Close Player Chat' : 'Open Player Chat',
+              'aria-pressed': is_open ? 'true' : 'false',
+            },
+            style: {
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+              minWidth: '48px',
+              padding: '0',
+              flexShrink: '0',
+              borderRadius: '8px',
+              backgroundColor: is_open ? '#eff6ff' : '#ffffff',
+              color: is_open ? '#1d4ed8' : '#334155',
+              border: if is_open
+                        '2px solid #2563eb'
+                      else
+                        '1px solid #cbd5e1'
+                      end,
+              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
+              cursor: 'pointer',
+              lineHeight: '1',
+              zIndex: 10,
+              transition: 'all 0.2s ease',
+            },
+            on: {
+              click: click_action,
+            },
+          }, [
+            h(:span, {
+                style: {
+                  fontSize: '1.8rem',
+                  lineHeight: '1',
+                },
+              }, '💬'),
+          ])
+      end
+
+      def render_chat_overlay
+        is_open = @show_chat_overlay == true ||
+                  [true, 'true'].include?(Lib::Storage['dashboard_chat_overlay'])
+
+        return nil unless is_open
+
+        close_handler = lambda do
+          Lib::Storage['dashboard_chat_overlay'] = nil
+          store(:show_chat_overlay, false)
+          update
+        end
+
+        h(::View::Game::Dashboard::ChatOverlay,
+          game: @game,
+          game_data: @game_data,
+          user: @user,
+          on_close: close_handler)
+      end
+
       def render_top_nav_utility_cluster
         h(:div, {
             attrs: { id: 'top-nav-utility-cluster' },
@@ -737,6 +816,7 @@ module View
             render_move_history_button,
             render_other_games_button,
             render_sound_toggle_button,
+            render_chat_button,
             ].compact)
       end
 
@@ -2458,6 +2538,7 @@ createPanHandler('panel-ledger');
             render_move_history_overlay,
             render_other_games_overlay,
             render_top_nav_utility_cluster,
+            render_chat_overlay,
             render_phases_overlay,
             render_action_window,
 
