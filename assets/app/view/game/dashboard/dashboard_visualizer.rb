@@ -1563,7 +1563,7 @@ badge_el,
             style: {
               position: 'absolute',
               top: '6px',
-              left: '132px',
+              left: '154px',
               zIndex: 30,
               display: 'inline-flex',
               alignItems: 'center',
