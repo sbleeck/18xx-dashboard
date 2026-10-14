@@ -1248,20 +1248,50 @@ for (var i = 0; i < list.length; i++) {
                                     end
 
           if show_building_highlight
+            # Cyan breathing means: this is a spatial opportunity available now.
+            # After selection the chosen hex stays cyan but becomes static; the
+            # committed tile change is then communicated by the tile-lay animation.
+            breathing = !hex_selected
+            hatch_children = []
+            border_children = []
+
+            if breathing
+              hatch_children << h(:animate, attrs: {
+                                    attributeName: 'fill-opacity',
+                                    values: '0.18;0.52;0.18',
+                                    dur: '1.8s',
+                                    repeatCount: 'indefinite',
+                                  })
+              border_children << h(:animate, attrs: {
+                                     attributeName: 'stroke-opacity',
+                                     values: '0.45;1.0;0.45',
+                                     dur: '1.8s',
+                                     repeatCount: 'indefinite',
+                                   })
+              border_children << h(:animate, attrs: {
+                                     attributeName: 'stroke-width',
+                                     values: '8;14;8',
+                                     dur: '1.8s',
+                                     repeatCount: 'indefinite',
+                                   })
+            end
+
             overlays << h(:polygon, {
                             attrs: {
                               points: Hex::HIGHLIGHT_POINTS,
                               fill: 'url(#cyan-hatch)',
+                              'fill-opacity': breathing ? '0.18' : '0.34',
                               'pointer-events': 'none',
                             },
-                          })
+                          }, hatch_children)
 
             overlays << h(:polygon, {
                             attrs: {
                               points: Hex::HIGHLIGHT_POINTS,
                               fill: 'none',
                               stroke: '#00ffff',
-                              'stroke-width': '12',
+                              'stroke-width': breathing ? '8' : '12',
+                              'stroke-opacity': breathing ? '0.45' : '1',
                               'stroke-linejoin': 'round',
                               'stroke-linecap': 'square',
                               pathLength: '576',
@@ -1269,7 +1299,7 @@ for (var i = 0; i < list.length; i++) {
                               'stroke-dashoffset': '20',
                               'pointer-events': 'none',
                             },
-                          })
+                          }, border_children)
 
             cost_str = if current_entity
                          hex_cost_display(step, entity_or_entities, hex, tile: (hex == selected_hex ? active_tile : nil))

@@ -473,9 +473,9 @@ module View
             height: '1.85rem',
             fontSize: '0.85rem',
             fontWeight: 'bold',
-            backgroundColor: '#f8fafc',
-            color: '#0f172a',
-            border: '1px solid #cbd5e1',
+            backgroundColor: '#2563eb',
+            color: '#ffffff',
+            border: '1px solid #1d4ed8',
             borderRadius: '4px',
             cursor: 'pointer',
             boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
@@ -687,7 +687,7 @@ module View
 
           if actions.include?('merge')
             top_buttons << h(:button, {
-                               style: { padding: '0.3rem 0.6rem', fontSize: '0.9rem', fontWeight: 'bold', backgroundColor: show_merge ? '#16a34a' : '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' },
+                               style: { padding: '0.3rem 0.6rem', fontSize: '0.9rem', fontWeight: 'bold', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' },
                                on: {
                                  click: lambda {
                                    Lib::Storage['show_merge_candidates'] = true
@@ -873,9 +873,9 @@ module View
                   fontSize: '0.85rem',
                   fontWeight: 'bold',
                   fontFamily: FONT_MONEY,
-                  backgroundColor: can_afford ? '#f8f9fa' : '#e9ecef',
-                  color: can_afford ? COLOR_MONEY : '#9ca3af',
-                  border: can_afford ? "1px solid #{COLOR_MONEY}" : '1px solid #ced4da',
+                  backgroundColor: can_afford ? '#2563eb' : '#e9ecef',
+                  color: can_afford ? '#ffffff' : '#9ca3af',
+                  border: can_afford ? '1px solid #1d4ed8' : '1px solid #ced4da',
                   borderRadius: '4px',
                   cursor: can_afford ? 'pointer' : 'not-allowed',
                   opacity: can_afford ? '1' : '0.6',
@@ -2040,7 +2040,7 @@ module View
                       style: { minWidth: '4.4rem', textAlign: 'center', fontFamily: FONT_MONEY, color: COLOR_MONEY, fontSize: '1.1rem', fontWeight: 'bold' },
                     }, @game.format_currency(current_bid))
           submit = h(:button, {
-                       style: button_style.merge(backgroundColor: '#16a34a', color: '#ffffff', border: 'none'),
+                       style: button_style.merge(backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #1d4ed8'),
                        on: { click: place_bid },
                      }, auction_corp ? 'Raise Bid' : 'Place Bid')
 
@@ -2093,9 +2093,9 @@ module View
                                padding: '0 12px',
                                fontSize: '0.85rem',
                                fontWeight: 'bold',
-                               backgroundColor: '#16a34a',
+                               backgroundColor: '#dc2626',
                                color: '#ffffff',
-                               border: 'none',
+                               border: '1px solid #b91c1c',
                                borderRadius: '4px',
                                cursor: 'pointer',
                                boxShadow: '0 1px 2px rgba(0,0,0,0.12)',
@@ -2252,9 +2252,9 @@ module View
                            height: '1.85rem',
                            fontSize: '0.85rem',
                            fontWeight: 'bold',
-                           backgroundColor: '#16a34a',
+                           backgroundColor: '#2563eb',
                            color: '#ffffff',
-                           border: 'none',
+                           border: '1px solid #1d4ed8',
                            borderRadius: '4px',
                            cursor: 'pointer',
                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
@@ -2454,7 +2454,7 @@ module View
                             }, @game.format_currency(current_bid))
 
           submit_btn = h(:button, {
-                           style: button_style.merge(backgroundColor: '#16a34a', color: '#ffffff', border: 'none'),
+                           style: button_style.merge(backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #1d4ed8'),
                            on: { click: place_bid },
                          }, 'Place Bid')
 
@@ -3024,6 +3024,28 @@ module View
               background-color: transparent !important;
               backdrop-filter: none !important;
             }
+
+            /* Action Hub manifesto: objects retain identity; controls show meaning. */
+            #action_floating_window button {
+              transition: background-color 120ms ease, border-color 120ms ease,
+                          box-shadow 120ms ease, filter 120ms ease;
+            }
+            #action_floating_window button:hover:not(:disabled) {
+              filter: brightness(0.96);
+            }
+            #action_floating_window button:focus-visible,
+            #action_floating_window .clickable:focus-visible {
+              outline: 3px solid rgba(37, 99, 235, 0.28);
+              outline-offset: 2px;
+            }
+            #action_floating_window .action-buy {
+              border: 3px solid #15803d !important;
+              box-shadow: 0 0 0 1px rgba(21, 128, 61, 0.14) !important;
+            }
+            #action_floating_window .action-sell {
+              border: 3px solid #dc2626 !important;
+              box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.14) !important;
+            }
           ')
 
           if Lib::Storage['cmd_last_entity_id']&.to_s != entity_id&.to_s
@@ -3163,9 +3185,9 @@ module View
                     padding: '0 12px',
                     fontSize: '0.82rem',
                     fontWeight: 'bold',
-                    backgroundColor: '#16a34a',
-                    color: '#ffffff',
-                    border: 'none',
+                    backgroundColor: '#ffffff',
+                    color: '#334155',
+                    border: '1px solid #94a3b8',
                     borderRadius: '4px',
                     cursor: 'pointer',
                   },
@@ -3192,9 +3214,9 @@ module View
                       height: '1.8rem',
                       fontSize: '0.8rem',
                       fontWeight: 'bold',
-                      backgroundColor: '#64748b',
-                      color: '#fff',
-                      border: 'none',
+                      backgroundColor: '#ffffff',
+                      color: '#334155',
+                      border: '1px solid #94a3b8',
                       borderRadius: '4px',
                       cursor: 'pointer',
                       marginLeft: '0.4rem',
@@ -3244,9 +3266,9 @@ module View
                       height: '1.8rem',
                       fontSize: '0.8rem',
                       fontWeight: 'bold',
-                      backgroundColor: '#2563eb',
-                      color: '#fff',
-                      border: 'none',
+                      backgroundColor: '#ffffff',
+                      color: '#334155',
+                      border: '1px solid #94a3b8',
                       borderRadius: '4px',
                       cursor: 'pointer',
                       marginLeft: '0.4rem',
@@ -3279,9 +3301,9 @@ module View
             half_kind = options.include?('split') ? 'split' : 'half'
 
             zone_2_content << h(:div, { style: { display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: '0.5rem', width: '100%', maxWidth: '520px', margin: '0 auto' } }, [
-              (h(:button, { style: { flex: '1', padding: '0.45rem 0.6rem', fontSize: '1.1rem', fontWeight: 'bold', backgroundColor: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }, on: { click: -> { process_action(Engine::Action::Dividend.new(entity, kind: 'payout', extra_revenue: current_revenue - base_revenue)) } } }, 'Pay Out Full') if actions.include?('payout') || options.include?('payout') || actions.include?('dividend')),
-              (h(:button, { style: { flex: '1', padding: '0.45rem 0.6rem', fontSize: '1.1rem', fontWeight: 'bold', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }, on: { click: -> { process_action(Engine::Action::Dividend.new(entity, kind: 'withhold', extra_revenue: current_revenue - base_revenue)) } } }, 'Hold Revenue') if actions.include?('withhold') || options.include?('withhold') || actions.include?('dividend')),
-              (h(:button, { style: { flex: '1', padding: '0.45rem 0.6rem', fontSize: '1.1rem', fontWeight: 'bold', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }, on: { click: -> { process_action(Engine::Action::Dividend.new(entity, kind: half_kind, extra_revenue: current_revenue - base_revenue)) } } }, 'Split / Half') if actions.include?('half') || actions.include?('split') || options.include?('half') || options.include?('split')),
+              (h(:button, { style: { flex: '1', padding: '0.45rem 0.6rem', fontSize: '1.1rem', fontWeight: 'bold', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }, on: { click: -> { process_action(Engine::Action::Dividend.new(entity, kind: 'payout', extra_revenue: current_revenue - base_revenue)) } } }, 'Pay Out Full') if actions.include?('payout') || options.include?('payout') || actions.include?('dividend')),
+              (h(:button, { style: { flex: '1', padding: '0.45rem 0.6rem', fontSize: '1.1rem', fontWeight: 'bold', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }, on: { click: -> { process_action(Engine::Action::Dividend.new(entity, kind: 'withhold', extra_revenue: current_revenue - base_revenue)) } } }, 'Hold Revenue') if actions.include?('withhold') || options.include?('withhold') || actions.include?('dividend')),
+              (h(:button, { style: { flex: '1', padding: '0.45rem 0.6rem', fontSize: '1.1rem', fontWeight: 'bold', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }, on: { click: -> { process_action(Engine::Action::Dividend.new(entity, kind: half_kind, extra_revenue: current_revenue - base_revenue)) } } }, 'Split / Half') if actions.include?('half') || actions.include?('split') || options.include?('half') || options.include?('split')),
             ].compact)
           end
 
@@ -3398,7 +3420,7 @@ module View
           end
           unless advance_disabled
             if my_turn?
-              advance_color = '#16a34a'
+              advance_color = '#2563eb'
               advance_text_color = '#ffffff'
             else
               advance_color = '#808080'
@@ -3515,7 +3537,7 @@ module View
                     fontWeight: 'bold',
                     backgroundColor: advance_color,
                     color: advance_text_color,
-                    border: advance_disabled ? '1px solid #cbd5e1' : '1px solid #0f766e',
+                    border: advance_disabled ? '1px solid #cbd5e1' : '1px solid #1d4ed8',
                     borderRadius: '6px',
                     cursor: advance_disabled ? 'not-allowed' : 'pointer',
                     boxShadow: advance_disabled ? 'none' : '0 2px 5px rgba(15,23,42,0.18)',
