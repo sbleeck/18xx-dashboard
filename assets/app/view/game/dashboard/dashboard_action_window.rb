@@ -1296,109 +1296,96 @@ module View
 
         def render_buyable_trains(step, entity)
           return nil unless entity && step
+          return nil unless step.respond_to?(:buyable_trains)
 
           train_boxes = []
           depot = @game.depot
 
-          step_buyable = (step.buyable_trains(entity) || [] if step.respond_to?(:buyable_trains))
+          # // --- START FIX ---
+          # Strictly trust the engine's pre-filtered list of buyable trains
+          step_buyable = step.buyable_trains(entity) || []
+          return nil if step_buyable.empty?
 
-          must_buy = if step.respond_to?(:must_buy_train?)
-                       step.must_buy_train?(entity)
-                     else
-                       entity.respond_to?(:trains) && entity.trains.empty?
-                     end
+          buyable_depot, other_trains = step_buyable.partition do |t|
+            t.from_depot? || (depot && (t.owner == depot || (depot.respond_to?(:depot_trains) && depot.depot_trains.include?(t))))
+          end
 
-          if depot
-            buyable_depot = if step_buyable
-                              step_buyable.select do |t|
-                                t.owner == depot || t.owner.nil? || t.owner == @game.bank ||
-                                  (depot.respond_to?(:depot_trains) && depot.depot_trains.include?(t))
-                              end
-                            else
-                              [depot.upcoming.first].compact
-                            end
-            unique_depot_trains = buyable_depot.uniq { |t| [depot.discarded.include?(t) ? :pool : :bank, t.name] }
+          unique_depot_trains = buyable_depot.uniq { |t| [depot&.discarded&.include?(t) ? :pool : :bank, t.name] }
 
-            unique_depot_trains.each do |train|
-              variants = train.respond_to?(:names_to_prices) && train.names_to_prices && !train.names_to_prices.empty? ? train.names_to_prices : { train.name => train.price }
-              is_pool = depot.discarded.include?(train)
-              source_tag = is_pool ? 'Pool' : 'Bank'
+          unique_depot_trains.each do |train|
+            # Ask the step for the exact legal variants for this entity
+            variants = if step.respond_to?(:buyable_train_variants)
+                         step.buyable_train_variants(train, entity) || []
+                       elsif step.respond_to?(:train_variant_helper)
+                         step.train_variant_helper(train, entity) || []
+                       elsif train.respond_to?(:variants) && train.variants
+                         train.variants.values
+                       else
+                         [{ name: train.name, price: train.price }]
+                       end
 
-              variants.each do |variant_name, price|
-                can_afford = (entity.respond_to?(:cash) ? entity.cash : 0) >= price || must_buy
-                next unless can_afford
+            is_pool = depot&.discarded&.include?(train)
+            source_tag = is_pool ? 'Pool' : 'Bank'
 
-                can_buy_step = if step.respond_to?(:can_buy_train?)
-                                 begin
-                                   step.can_buy_train?(entity, train)
-                                 rescue ArgumentError
-                                   begin
-                                     step.can_buy_train?(entity)
-                                   rescue ArgumentError
-                                     step.can_buy_train?
-                                   end
-                                 rescue StandardError
-                                   true
-                                 end
-                               else
-                                 true
-                               end
-                next unless can_buy_step
+            variants.each do |v_info|
+              variant_name = v_info[:name] || v_info['name']
+              price = if step.respond_to?(:train_price)
+                        begin
+                          step.train_price(entity, train, variant: variant_name)
+                        rescue ArgumentError, StandardError
+                          v_info[:price] || v_info['price'] || train.price
+                        end
+                      else
+                        v_info[:price] || v_info['price'] || train.price
+                      end
 
-                variant_str = variant_name.to_s
-                variant_param = (variant_str == train.name.to_s ? nil : variant_str)
+              variant_str = variant_name.to_s
+              variant_param = (variant_str == train.name.to_s ? nil : variant_str)
 
-                wrapper_id = "cmd_train_#{train.id}_#{variant_str.tr('/', '_')}"
-                click_handler = lambda {
-                  remember_card_transfer(
-                    kind: :train,
-                    item_id: train.id,
-                    source_type: (is_pool ? :train_pool : :train_fresh),
-                    variant: variant_str
+              wrapper_id = "cmd_train_#{train.id}_#{variant_str.tr('/', '_')}"
+              click_handler = lambda {
+                remember_card_transfer(
+                  kind: :train,
+                  item_id: train.id,
+                  source_type: (is_pool ? :train_pool : :train_fresh),
+                  variant: variant_str
+                )
+
+                process_action(
+                  Engine::Action::BuyTrain.new(
+                    entity,
+                    train: train,
+                    price: price,
+                    variant: variant_param
                   )
-
-                  process_action(
-                    Engine::Action::BuyTrain.new(
-                      entity,
-                      train: train,
-                      price: price,
-                      variant: variant_param
-                    )
-                  )
-                }
-                train_classes = %w[game-card action-buy clickable card-train]
-                card = render_railcard(variant_str, train_classes, click_handler, nil, nil, wrapper_id)
-                price_str = @game.format_currency(price)
-                train_boxes << h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.4rem' } }, [
-                  card,
-                  h(:span, { style: { fontSize: '0.85rem', color: '#475569', fontWeight: 'bold', whiteSpace: 'nowrap' } }, source_tag),
-                  h(:span, { style: { fontFamily: FONT_MONEY, color: can_afford ? COLOR_MONEY : '#9ca3af', fontWeight: 'bold', fontSize: '0.85rem', whiteSpace: 'nowrap' } }, price_str),
-                ])
-              end
+                )
+              }
+              train_classes = %w[game-card action-buy clickable card-train]
+              card = render_railcard(variant_str, train_classes, click_handler, nil, nil, wrapper_id)
+              price_str = @game.format_currency(price)
+              train_boxes << h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.4rem' } }, [
+                card,
+                h(:span, { style: { fontSize: '0.85rem', color: '#475569', fontWeight: 'bold', whiteSpace: 'nowrap' } }, source_tag),
+                h(:span, { style: { fontFamily: FONT_MONEY, color: COLOR_MONEY, fontWeight: 'bold', fontSize: '0.85rem', whiteSpace: 'nowrap' } }, price_str),
+              ])
             end
           end
 
-          corp_owner = lambda do |corp|
-            step.respond_to?(:corp_owner) ? step.corp_owner(corp) : corp.owner
-          end
+          # Other corporations' trains already filtered by step.buyable_trains(entity)
+          other_trains.group_by(&:owner).each do |c, trains|
+            next unless c
 
-          available_other = if step_buyable
-                              step_buyable.reject { |t| buyable_depot&.include?(t) }.group_by(&:owner)
-                            else
-                              {}
-                            end
-          available_other = available_other.select do |owner, _|
-            owner && owner != depot && owner != @game.bank && corp_owner.call(owner) == corp_owner.call(entity)
-          end
-
-          available_other.each do |c, trains|
             trains.uniq(&:name).each do |t|
-              min_price = 1
-              max_price = if step.respond_to?(:max_price)
-                            step.max_price(entity, t)
-                          else
-                            (entity.respond_to?(:cash) ? entity.cash : 9999)
-                          end
+              min_price, max_price = if step.respond_to?(:spend_minmax)
+                                       step.spend_minmax(entity, t)
+                                     else
+                                       [1, if step.respond_to?(:max_price)
+                                             step.max_price(entity, t)
+                                           else
+                                             (entity.respond_to?(:cash) ? entity.cash : 1)
+                                           end]
+                                     end
+              # // --- END FIX ---
 
               wrapper_id = "cmd_other_train_#{c.id}_#{t.id}"
 
