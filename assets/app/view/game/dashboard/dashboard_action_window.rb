@@ -1467,23 +1467,21 @@ module View
                         end
                       elsif @game.respond_to?(:issuable_shares)
                         @game.issuable_shares(entity)
-                      elsif step.respond_to?(:bundles_for_corporation)
-                        begin
-                          step.bundles_for_corporation(entity, entity)
-                        rescue ArgumentError
-                          step.bundles_for_corporation(entity)
-                        end
-                      elsif step.respond_to?(:bundles)
-                        step.bundles(entity)
                       else
                         []
                       end || []
 
-            if bundles.empty? && step.respond_to?(:can_sell?)
-              t_shares = entity.respond_to?(:shares_of) ? entity.shares_of(entity) : []
-              bundles = t_shares.map(&:to_bundle).select { |b| step.can_sell?(entity, b) }
+            bundles.compact.map do |raw|
+              if defined?(Engine::ShareBundle) && raw.is_a?(Engine::ShareBundle)
+                raw
+              elsif raw.respond_to?(:to_bundle)
+                raw.to_bundle
+              else
+                Engine::ShareBundle.new(Array(raw))
+              end
+            end.uniq do |b|
+              [b.respond_to?(:percent) ? b.percent : b.shares.size, b.respond_to?(:price) ? b.price : 0]
             end
-            bundles
           rescue StandardError
             []
           end || []
@@ -1492,28 +1490,17 @@ module View
 
           can_issue = (
             available_actions &
-                    %w[
-                      issue_shares
-                      reissue_shares
-                      reissue
-                      corporate_sell_shares
-                      sell_shares
-                    ]
+            %w[
+              issue_shares
+              reissue_shares
+              reissue
+              corporate_sell_shares
+              sell_shares
+            ]
           ).any?
 
           if issuable_bundles.any? && can_issue
-            issue_buttons = issuable_bundles.map do |raw_bundle|
-              bundle =
-                if defined?(Engine::ShareBundle) &&
-                   raw_bundle.is_a?(Engine::ShareBundle)
-                  raw_bundle
-
-                elsif raw_bundle.respond_to?(:to_bundle)
-                  raw_bundle.to_bundle
-                else
-                  Engine::ShareBundle.new(Array(raw_bundle))
-                end
-
+            issue_buttons = issuable_bundles.map do |bundle|
               shares = bundle.shares.flatten.compact
               num =
                 if bundle.respond_to?(:num_shares)
@@ -1524,7 +1511,6 @@ module View
 
               price =
                 if bundle.respond_to?(:price)
-
                   bundle.price
                 elsif bundle.respond_to?(:share_price) && bundle.share_price
                   bundle.share_price.price * num
@@ -1541,13 +1527,9 @@ module View
                   entity.share_price
                 end
 
-              percent =
-                (bundle.percent if bundle.respond_to?(:percent))
-
+              percent = (bundle.percent if bundle.respond_to?(:percent))
               pct_str = percent ? "#{percent}%" : "#{num}S"
               price_str = @game.format_currency(price)
-
-              wrapper_id = "cmd_issue_#{entity.id}_#{num}_#{percent || 'shares'}"
 
               click_handler = lambda do
                 acting_entity =
@@ -1560,47 +1542,31 @@ module View
                 all_actions = (
                   actions_for(acting_entity) +
                   actions_for(entity) +
-                  (
-                    if step.respond_to?(:current_actions)
-                      step.current_actions || []
-                    else
-                      []
-                    end
-                  )
-                ).uniq
+                  (step.respond_to?(:current_actions) ? (step.current_actions || []) : [])
+                ).compact.map(&:to_s).uniq
 
-                if all_actions.include?('reissue_shares') &&
-    defined?(Engine::Action::ReissueShares)
-                  process_action(
-                  Engine::Action::ReissueShares.new(
-                  acting_entity,
-                  shares: shares
-                )
-                )
-                elsif all_actions.include?('issue_shares') &&
-    defined?(Engine::Action::IssueShares)
-                  process_action(
-                  Engine::Action::IssueShares.new(
-                  acting_entity,
-                  shares: shares
-                )
-                )
-                elsif all_actions.include?('corporate_sell_shares') &&
-    defined?(Engine::Action::CorporateSellShares)
-                  process_action(
-                  Engine::Action::CorporateSellShares.new(
-                  acting_entity,
-                  shares: shares
-                )
-                )
-                else
-                  process_action(
-                  Engine::Action::SellShares.new(
-                  acting_entity,
-                  shares: shares
-                )
-                )
-                end
+                action =
+                  if all_actions.include?('reissue_shares') && defined?(Engine::Action::ReissueShares)
+                    Engine::Action::ReissueShares.new(acting_entity, shares: shares, bundle: bundle)
+                  elsif all_actions.include?('reissue') && defined?(Engine::Action::Reissue)
+                    Engine::Action::Reissue.new(acting_entity, shares: shares, bundle: bundle)
+                  elsif all_actions.include?('issue_shares') && defined?(Engine::Action::IssueShares)
+                    Engine::Action::IssueShares.new(acting_entity, shares: shares, bundle: bundle)
+                  elsif all_actions.include?('issue') && defined?(Engine::Action::Issue)
+                    Engine::Action::Issue.new(acting_entity, shares: shares, bundle: bundle)
+                  elsif all_actions.include?('corporate_sell_shares') && defined?(Engine::Action::CorporateSellShares)
+                    Engine::Action::CorporateSellShares.new(acting_entity, shares: shares, bundle: bundle)
+                  else
+                    Engine::Action::SellShares.new(
+                      acting_entity,
+                      bundle: bundle,
+                      shares: shares,
+                      share_price: share_price,
+                      percent: percent
+                    )
+                  end
+
+                process_action(action)
               end
 
               card = render_railcard(
@@ -1691,25 +1657,25 @@ module View
                         []
                       end || []
 
-            if bundles.empty? && step.respond_to?(:can_buy?)
-              pool_shares = @game.share_pool.shares_by_corporation[entity] || []
-              bundles = pool_shares.map(&:to_bundle).select { |b| step.can_buy?(entity, b) }
+            bundles.compact.map do |raw|
+              if defined?(Engine::ShareBundle) && raw.is_a?(Engine::ShareBundle)
+                raw
+              elsif raw.respond_to?(:to_bundle)
+                raw.to_bundle
+              else
+                Engine::ShareBundle.new(Array(raw))
+              end
+            end.uniq do |b|
+              owner_id = b.respond_to?(:owner) && b.owner.respond_to?(:id) ? b.owner.id : nil
+              [owner_id, b.respond_to?(:percent) ? b.percent : b.shares.size, b.respond_to?(:price) ? b.price : 0]
             end
-            bundles
           rescue StandardError
             []
           end || []
 
           can_redeem = (available_actions & %w[redeem redeem_shares corporate_buy_shares buy_shares]).any?
           if redeemable_bundles.any? && can_redeem
-            redeem_buttons = redeemable_bundles.map do |raw_bundle|
-              bundle = if raw_bundle.is_a?(Engine::ShareBundle)
-                         raw_bundle
-                       elsif raw_bundle.respond_to?(:to_bundle)
-                         raw_bundle.to_bundle
-                       else
-                         Engine::ShareBundle.new(Array(raw_bundle))
-                       end
+            redeem_buttons = redeemable_bundles.map do |bundle|
               num = if bundle.respond_to?(:num_shares)
                       bundle.num_shares
                     else
@@ -1742,26 +1708,33 @@ module View
               price_str = "#{@game.format_currency(price)}#{owner_label}"
               can_afford = (entity.respond_to?(:cash) ? entity.cash : 0) >= price
 
-              click_handler = lambda {
+              # // --- START FIX ---
+              click_handler = lambda do
                 acting_entity = entity.respond_to?(:corporation?) && entity.corporation? ? entity : (@game.current_entity || current_entity)
-                all_actions = (actions_for(acting_entity) + actions_for(entity) + (step.respond_to?(:current_actions) ? (step.current_actions || []) : [])).uniq
+                all_actions = (actions_for(acting_entity) + actions_for(entity) + (step.respond_to?(:current_actions) ? (step.current_actions || []) : [])).compact.map(&:to_s).uniq
 
+                shares = bundle.shares.flatten.compact
                 action_kwargs = {
-                  shares: bundle.shares,
+                  bundle: bundle,
+                  shares: shares,
                   share_price: share_price,
                   percent: percent,
                 }.compact
 
-                if all_actions.include?('redeem_shares') && defined?(Engine::Action::RedeemShares)
-                  process_action(Engine::Action::RedeemShares.new(acting_entity, **action_kwargs))
-                elsif all_actions.include?('redeem') && defined?(Engine::Action::Redeem)
-                  process_action(Engine::Action::Redeem.new(acting_entity, **action_kwargs))
-                elsif all_actions.include?('corporate_buy_shares') && defined?(Engine::Action::CorporateBuyShares)
-                  process_action(Engine::Action::CorporateBuyShares.new(acting_entity, **action_kwargs))
-                else
-                  process_action(Engine::Action::BuyShares.new(acting_entity, **action_kwargs))
-                end
-              }
+                action =
+                  if all_actions.include?('redeem_shares') && defined?(Engine::Action::RedeemShares)
+                    Engine::Action::RedeemShares.new(acting_entity, **action_kwargs)
+                  elsif all_actions.include?('redeem') && defined?(Engine::Action::Redeem)
+                    Engine::Action::Redeem.new(acting_entity, **action_kwargs)
+                  elsif all_actions.include?('corporate_buy_shares') && defined?(Engine::Action::CorporateBuyShares)
+                    Engine::Action::CorporateBuyShares.new(acting_entity, **action_kwargs)
+                  else
+                    Engine::Action::BuyShares.new(acting_entity, **action_kwargs)
+                  end
+
+                process_action(action)
+              end
+              # // --- END FIX ---
 
               card_classes = %w[game-card action-buy]
               card_classes << 'clickable' if can_afford
@@ -2546,16 +2519,29 @@ module View
               end
               components << render_buy_tokens(step, step&.current_entity || current_entity) if actions.include?('buy_token')
 
+              # // --- START FIX ---
+              rendered_issue_entities = []
               corporate_action_entities.each do |action_entity, _entity_actions|
                 action_step = active_step_for(action_entity) || step
-                components << render_issue_shares(action_step, action_entity)
+                issue_node = render_issue_shares(action_step, action_entity)
+                if issue_node
+                  components << issue_node
+                  rendered_issue_entities << action_entity
+                end
               end
 
-              if actions.include?('buy_train') || actions.include?('sell_train')
-                components << render_issue_shares(step, step&.current_entity || current_entity) if actions.include?('sell_shares') || actions.include?('buy_shares')
-              elsif actions.include?('buy_power')
+              op_entity = step&.current_entity || current_entity
 
-                components << render_issue_shares(step, step&.current_entity || current_entity) if actions.include?('sell_shares')
+              if actions.include?('buy_train') || actions.include?('sell_train')
+                if (actions.include?('sell_shares') || actions.include?('buy_shares')) && !rendered_issue_entities.include?(op_entity)
+                  components << render_issue_shares(step, op_entity)
+                  rendered_issue_entities << op_entity
+                end
+              elsif actions.include?('buy_power')
+                if actions.include?('sell_shares') && !rendered_issue_entities.include?(op_entity)
+                  components << render_issue_shares(step, op_entity)
+                  rendered_issue_entities << op_entity
+                end
                 components << h(BuyPower)
               elsif actions.include?('borrow_train')
                 components << h(BorrowTrain)
@@ -2564,7 +2550,7 @@ module View
                 components << h(CashCrisis)
                 loans_rendered = true if (%w[take_loan payoff_loan] & actions).any?
               elsif (actions.include?('buy_shares') || actions.include?('sell_shares')) &&
-                corporation_or_minor?(step&.current_entity || current_entity)
+                corporation_or_minor?(op_entity)
 
                 price_protection = begin
                   step.price_protection if step&.respond_to?(:price_protection)
@@ -2592,8 +2578,9 @@ module View
 
                 elsif @game.corporations_can_ipo?
                   components << h(CorporateBuySellShares)
-                elsif (%w[issue_shares reissue_shares reissue redeem redeem_shares] & actions).none?
-                  components << render_issue_shares(step, step&.current_entity || current_entity)
+                elsif (%w[issue_shares reissue_shares reissue redeem redeem_shares] & actions).none? && !rendered_issue_entities.include?(op_entity)
+                  components << render_issue_shares(step, op_entity)
+                  rendered_issue_entities << op_entity
                 end
                 acting_entity = step&.current_entity || current_entity
 
@@ -2602,6 +2589,7 @@ module View
                 corporation_or_minor?(acting_entity)
                   components << h(CorporateBuyShares)
                 end
+              # // --- END FIX ---
               elsif actions.include?('corporate_sell_shares')
                 components << h(CorporateSellShares)
               elsif actions.include?('swap_train')

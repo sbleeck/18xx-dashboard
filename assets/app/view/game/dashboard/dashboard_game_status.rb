@@ -47,6 +47,7 @@ module View
 
       needs :game, store: true
       needs :game_data, store: true
+      needs :user, default: nil, store: true
 
       PLAYER_COL_MAX_WIDTH = '4.5rem'
 
@@ -636,9 +637,14 @@ module View
             []
           end
 
-        share_ids = shares.compact.map do |share|
-          share.respond_to?(:id) ? share.id.to_s : share.object_id.to_s
-        end.sort
+        # // --- START FIX ---
+        pct = if bundle.respond_to?(:percent) && bundle.percent
+                bundle.percent
+              else
+                shares.compact.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
+              end
+        price = bundle.respond_to?(:price) && bundle.price ? bundle.price : 0
+        # // --- END FIX ---
 
         owner = bundle_owner(bundle)
         owner_key =
@@ -648,7 +654,10 @@ module View
             owner&.object_id.to_s
           end
 
-        [owner_key, share_ids]
+        # // --- DELETE --- [owner_key, share_ids]
+        # // --- START FIX ---
+        [owner_key, pct, price]
+        # // --- END FIX ---
       end
 
       def previous_routes_for(corporation)
@@ -1670,6 +1679,30 @@ module View
             dropdowns << render_choice_menu('Buy from Pool:', options, cancel_handler)
           end
 
+          if Lib::Storage['redeem_menu_corp'] == corporation.id && corporation_can_redeem_pool
+            options = affordable_pool_redeems.map do |bundle|
+              pct = bundle.respond_to?(:percent) ? bundle.percent : bundle.shares.sum(&:percent)
+              {
+                label: "Redeem #{pct}%",
+                action: lambda { |_event|
+                  `event.stopPropagation()`
+                  Lib::Storage['redeem_menu_corp'] = nil
+                  exec_redeem_share_bundle(
+                    corporation,
+                    bundle,
+                    corp_actions,
+                    "#pool_shares_#{corporation.id} .game-card",
+                    corporation_share_destination
+                  )
+                },
+              }
+            end
+            dropdowns << render_choice_menu('Redeem from Pool:', options, lambda {
+              Lib::Storage['redeem_menu_corp'] = nil
+              update
+            })
+          end
+
           pool_card = render_railcard(pool_share_text, classes, pool_click_handler, nil, dropdowns)
           pool_hover = share_denomination_tooltip(pool_shares, corporation)
           pool_hover = append_market_zone_tooltip(pool_hover, corporation)
@@ -2456,10 +2489,33 @@ module View
       end
 
       def exec_issue_share_bundle(corporation, bundle, corp_actions = nil, source_selector = nil, target_selector = nil)
-        actions = corp_actions || status_corporation_actions(corporation)
-        shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
+        # // --- START FIX ---
+        step = @game.round.active_step
+        acting_entity =
+          if corporation.respond_to?(:corporation?) && corporation.corporation?
+            corporation
+          else
+            @game.current_entity || active_entity
+          end
+
+        bundle =
+          if defined?(Engine::ShareBundle) && bundle.is_a?(Engine::ShareBundle)
+            bundle
+          elsif bundle.respond_to?(:to_bundle)
+            bundle.to_bundle
+          else
+            Engine::ShareBundle.new(Array(bundle))
+          end
+
+        shares = bundle.shares.flatten.compact
         share_price = (bundle.respond_to?(:share_price) && bundle.share_price) || corporation.share_price
         percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
+
+        all_actions = (
+          status_actions_for(acting_entity) +
+          (corp_actions || status_corporation_actions(corporation)) +
+          (step&.respond_to?(:current_actions) ? (step.current_actions || []) : [])
+        ).compact.map(&:to_s).uniq
 
         %x{
           if (typeof window !== 'undefined') {
@@ -2468,24 +2524,26 @@ module View
           }
         }
 
-        action = if actions.include?('issue_shares') && defined?(Engine::Action::IssueShares)
-                   Engine::Action::IssueShares.new(corporation, shares: shares)
-                 elsif actions.include?('issue') && defined?(Engine::Action::Issue)
-                   Engine::Action::Issue.new(corporation, bundle: bundle)
-                 elsif actions.include?('reissue_shares') && defined?(Engine::Action::ReissueShares)
-                   Engine::Action::ReissueShares.new(corporation, bundle: bundle)
-                 elsif actions.include?('reissue') && defined?(Engine::Action::Reissue)
-                   Engine::Action::Reissue.new(corporation, bundle: bundle)
-                 elsif actions.include?('corporate_sell_shares') && defined?(Engine::Action::CorporateSellShares)
-                   Engine::Action::CorporateSellShares.new(corporation, bundle: bundle)
-                 else
-                   Engine::Action::SellShares.new(
-                   corporation,
-                   shares: shares,
-                   share_price: share_price,
-                   percent: percent
-                 )
-                 end
+        action =
+          if all_actions.include?('reissue_shares') && defined?(Engine::Action::ReissueShares)
+            Engine::Action::ReissueShares.new(acting_entity, shares: shares, bundle: bundle)
+          elsif all_actions.include?('reissue') && defined?(Engine::Action::Reissue)
+            Engine::Action::Reissue.new(acting_entity, shares: shares, bundle: bundle)
+          elsif all_actions.include?('issue_shares') && defined?(Engine::Action::IssueShares)
+            Engine::Action::IssueShares.new(acting_entity, shares: shares, bundle: bundle)
+          elsif all_actions.include?('issue') && defined?(Engine::Action::Issue)
+            Engine::Action::Issue.new(acting_entity, shares: shares, bundle: bundle)
+          elsif all_actions.include?('corporate_sell_shares') && defined?(Engine::Action::CorporateSellShares)
+            Engine::Action::CorporateSellShares.new(acting_entity, shares: shares, bundle: bundle)
+          else
+            Engine::Action::SellShares.new(
+              acting_entity,
+              bundle: bundle,
+              shares: shares,
+              share_price: share_price,
+              percent: percent
+            )
+          end
 
         process_action(action)
       end
@@ -2497,7 +2555,14 @@ module View
         source_selector = nil,
         target_selector = nil
       )
-        actions = corp_actions || status_corporation_actions(corporation)
+        # // --- START FIX ---
+        step = @game.round.active_step
+        acting_entity =
+          if corporation.respond_to?(:corporation?) && corporation.corporation?
+            corporation
+          else
+            @game.current_entity || active_entity
+          end
 
         bundle =
           if defined?(Engine::ShareBundle) &&
@@ -2523,7 +2588,14 @@ module View
             shares.sum(&:percent)
           end
 
+        all_actions = (
+          status_actions_for(acting_entity) +
+          (corp_actions || status_corporation_actions(corporation)) +
+          (step&.respond_to?(:current_actions) ? (step.current_actions || []) : [])
+        ).compact.map(&:to_s).uniq
+
         action_kwargs = {
+          bundle: bundle,
           shares: shares,
           share_price: share_price,
           percent: percent,
@@ -2537,35 +2609,33 @@ module View
         }
 
         action =
-          if actions.include?('redeem_shares') &&
+          if all_actions.include?('redeem_shares') &&
              defined?(Engine::Action::RedeemShares)
             Engine::Action::RedeemShares.new(
-              corporation,
+              acting_entity,
               **action_kwargs
             )
-          elsif actions.include?('redeem') &&
+          elsif all_actions.include?('redeem') &&
                 defined?(Engine::Action::Redeem)
             Engine::Action::Redeem.new(
-              corporation,
+              acting_entity,
               **action_kwargs
             )
-          elsif actions.include?('corporate_buy_shares') &&
+          elsif all_actions.include?('corporate_buy_shares') &&
                 defined?(Engine::Action::CorporateBuyShares)
             Engine::Action::CorporateBuyShares.new(
-              corporation,
-              bundle: bundle
+              acting_entity,
+              **action_kwargs
             )
           else
             Engine::Action::BuyShares.new(
-              corporation,
-              bundle: bundle,
-              shares: shares,
-              share_price: share_price,
-              percent: percent
+              acting_entity,
+              **action_kwargs
             )
           end
 
         process_action(action)
+        # // --- END FIX ---
       end
 
       def render_player_cash
