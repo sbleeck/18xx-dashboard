@@ -1757,6 +1757,187 @@ module View
           h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' } }, rows.compact)
         end
 
+        # // --- START FIX ---
+        def saved_window_geometry
+          geom = %x{
+            (function() {
+              var res = {
+                top: '80px',
+                right: '20px',
+                left: 'auto',
+                width: '400px',
+                height: '550px'
+              };
+              try {
+                var savedPos = JSON.parse(localStorage.getItem('action_window_pos') || '{}');
+                var savedSize = JSON.parse(localStorage.getItem('action_window_size') || '{}');
+
+                var w = parseFloat(savedSize.width);
+                var h = parseFloat(savedSize.height);
+                var l = parseFloat(savedPos.left);
+                var t = parseFloat(savedPos.top);
+
+                var maxW = Math.max(300, (window.innerWidth || 1200) - 20);
+                var maxH = Math.max(160, (window.innerHeight || 800) - 20);
+
+                if (isFinite(w) && w >= 300) {
+                  w = Math.min(w, maxW);
+                  res.width = Math.round(w) + 'px';
+                } else {
+                  w = 400;
+                }
+
+                if (isFinite(h) && h >= 160) {
+                  h = Math.min(h, maxH);
+                  res.height = Math.round(h) + 'px';
+                } else {
+                  h = 550;
+                }
+
+                if (isFinite(l)) {
+                  var maxLeft = Math.max(10, (window.innerWidth || 1200) - w - 10);
+                  l = Math.max(10, Math.min(l, maxLeft));
+                  res.left = Math.round(l) + 'px';
+                  res.right = 'auto';
+                }
+
+                if (isFinite(t)) {
+                  var maxTop = Math.max(0, (window.innerHeight || 800) - 40);
+                  t = Math.max(0, Math.min(t, maxTop));
+                  res.top = Math.round(t) + 'px';
+                }
+              } catch (e) {}
+              return res;
+            })()
+          }
+          Native(geom)
+        end
+
+        def apply_saved_geometry_to_dom
+          %x{
+            try {
+              var hud = document.getElementById('action_floating_window');
+              if (!hud) return;
+
+              var savedPos = JSON.parse(localStorage.getItem('action_window_pos') || '{}');
+              var savedSize = JSON.parse(localStorage.getItem('action_window_size') || '{}');
+
+              var width = parseFloat(savedSize.width);
+              var height = parseFloat(savedSize.height);
+              var left = parseFloat(savedPos.left);
+              var top = parseFloat(savedPos.top);
+
+              if (isFinite(width)) {
+                width = Math.max(300, Math.min(width, Math.max(300, window.innerWidth - 20)));
+                hud.style.width = Math.round(width) + 'px';
+                hud.style.maxWidth = 'none';
+              }
+
+              if (isFinite(height)) {
+                height = Math.max(160, Math.min(height, Math.max(160, window.innerHeight - 20)));
+                hud.style.height = Math.round(height) + 'px';
+                hud.style.maxHeight = 'none';
+              }
+
+              var currentWidth = hud.getBoundingClientRect().width || width || 400;
+
+              if (isFinite(left)) {
+                left = Math.max(10, Math.min(left, Math.max(10, window.innerWidth - currentWidth - 10)));
+                hud.style.left = Math.round(left) + 'px';
+                hud.style.right = 'auto';
+              }
+
+              if (isFinite(top)) {
+                top = Math.max(0, Math.min(top, Math.max(0, window.innerHeight - 40)));
+                hud.style.top = Math.round(top) + 'px';
+              }
+            } catch (err) {
+              console.warn('Could not restore action window position or size:', err);
+            }
+          }
+        end
+
+        def render
+          geom = saved_window_geometry
+
+          h(:div, {
+              attrs: { id: 'action_floating_window' },
+
+              hook: {
+                insert: ->(_vnode) { apply_saved_geometry_to_dom },
+                postpatch: ->(_old, _vnode) { apply_saved_geometry_to_dom },
+              },
+
+              style: {
+                position: 'fixed',
+                top: geom['top'],
+                left: geom['left'],
+                right: geom['right'],
+                width: geom['width'],
+                height: geom['height'],
+                maxWidth: 'none',
+                maxHeight: 'none',
+                zIndex: '10000005',
+                backgroundColor: '#ffffff',
+                border: '2px solid #2563eb',
+                borderRadius: '8px',
+                overflow: 'visible',
+                display: 'flex',
+                flexDirection: 'column',
+              },
+            }, [
+              h(:div, {
+                  attrs: { id: 'action_hud_handle' },
+                  style: {
+                    padding: '0.45rem 0.75rem',
+                    backgroundColor: '#0f172a',
+                    color: '#ffffff',
+                    fontWeight: 'bold',
+                    flexShrink: '0',
+                    cursor: 'grab',
+                  },
+                  on: {
+                    mousedown: ->(e) { start_drag(e) },
+                  },
+                }, '⚡ Actions Hub'),
+
+              h(:div, {
+                  style: {
+                    flex: '1',
+                    minHeight: '0',
+                    overflowY: 'auto',
+                  },
+                }, [
+                  render_command_content,
+                ]),
+
+              h(:div, {
+                  attrs: {
+                    id: 'action_window_resize_grip',
+                    title: 'Drag to resize',
+                  },
+                  style: {
+                    position: 'absolute',
+                    right: '0',
+                    bottom: '0',
+                    width: '28px',
+                    height: '28px',
+                    cursor: 'nwse-resize',
+                    background: 'linear-gradient(135deg, transparent 0%, transparent 48%, #94a3b8 49%, #94a3b8 55%, transparent 56%, transparent 65%, #475569 66%, #475569 72%, transparent 73%)',
+                    zIndex: '10000010',
+                    pointerEvents: 'auto',
+                    touchAction: 'none',
+                  },
+                  on: {
+                    mousedown: ->(e) { start_resize(e) },
+                    touchstart: ->(e) { start_resize(e) },
+                  },
+                }),
+            ])
+        end
+
+        # // --- END FIX ---
+        #
         def render_stock_bidding(step, entity, actions)
           return nil unless actions.include?('bid') && entity
 
@@ -3421,151 +3602,7 @@ module View
             ].compact)
         end
 
-        def render
-          h(:div, {
-              attrs: { id: 'action_floating_window' },
 
-              hook: {
-                insert: lambda do |_vnode|
-                  %x{
-            try {
-              var hud = document.getElementById('action_floating_window');
-              if (!hud) return;
-
-              var savedPos = JSON.parse(
-                localStorage.getItem('action_window_pos') || '{}'
-              );
-
-              var savedSize = JSON.parse(
-                localStorage.getItem('action_window_size') || '{}'
-              );
-
-              var width = parseFloat(savedSize.width);
-              var height = parseFloat(savedSize.height);
-              var left = parseFloat(savedPos.left);
-              var top = parseFloat(savedPos.top);
-
-              if (isFinite(width)) {
-                width = Math.max(
-                  300,
-                  Math.min(width, Math.max(300, window.innerWidth - 20))
-                );
-
-                hud.style.width = width + 'px';
-                hud.style.maxWidth = 'none';
-              }
-
-              if (isFinite(height)) {
-                height = Math.max(
-                  160,
-                  Math.min(height, Math.max(160, window.innerHeight - 20))
-                );
-
-                hud.style.height = height + 'px';
-                hud.style.maxHeight = 'none';
-              }
-
-              var currentWidth = hud.getBoundingClientRect().width;
-              var currentHeight = hud.getBoundingClientRect().height;
-
-              if (isFinite(left)) {
-                left = Math.max(
-                  10,
-                  Math.min(
-                    left,
-                    Math.max(10, window.innerWidth - currentWidth - 10)
-                  )
-                );
-
-                hud.style.left = left + 'px';
-                hud.style.right = 'auto';
-              }
-
-              if (isFinite(top)) {
-                top = Math.max(
-                  0,
-                  Math.min(
-                    top,
-                    Math.max(0, window.innerHeight - currentHeight - 10)
-                  )
-                );
-
-                hud.style.top = top + 'px';
-              }
-            } catch (err) {
-              console.warn(
-                'Could not restore action window position or size:',
-                err
-              );
-            }
-          }
-                end,
-              },
-
-              style: {
-                position: 'fixed',
-                top: '80px',
-                right: '20px',
-                width: '400px',
-                height: '550px',
-                zIndex: '10000005',
-                backgroundColor: '#ffffff',
-                border: '2px solid #2563eb',
-                borderRadius: '8px',
-                overflow: 'visible',
-                display: 'flex',
-                flexDirection: 'column',
-              },
-            }, [
-              h(:div, {
-                  attrs: { id: 'action_hud_handle' },
-                  style: {
-                    padding: '0.45rem 0.75rem',
-                    backgroundColor: '#0f172a',
-                    color: '#ffffff',
-                    fontWeight: 'bold',
-                    flexShrink: '0',
-                    cursor: 'grab',
-                  },
-                  on: {
-                    mousedown: ->(e) { start_drag(e) },
-                  },
-                }, '⚡ Actions Hub'),
-
-              h(:div, {
-                  style: {
-                    flex: '1',
-                    minHeight: '0',
-                    overflowY: 'auto',
-                  },
-                }, [
-                  render_command_content,
-                ]),
-
-              h(:div, {
-                  attrs: {
-                    id: 'action_window_resize_grip',
-                    title: 'Drag to resize',
-                  },
-                  style: {
-                    position: 'absolute',
-                    right: '0',
-                    bottom: '0',
-                    width: '28px',
-                    height: '28px',
-                    cursor: 'nwse-resize',
-                    background: 'linear-gradient(135deg, transparent 0%, transparent 48%, #94a3b8 49%, #94a3b8 55%, transparent 56%, transparent 65%, #475569 66%, #475569 72%, transparent 73%)',
-                    zIndex: '10000010',
-                    pointerEvents: 'auto',
-                    touchAction: 'none',
-                  },
-                  on: {
-                    mousedown: ->(e) { start_resize(e) },
-                    touchstart: ->(e) { start_resize(e) },
-                  },
-                }),
-            ])
-        end
       end
     end
   end

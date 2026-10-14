@@ -201,7 +201,9 @@ module View
           send_message
         end
 
+        # // --- START FIX ---
         def scroll_to_latest
+          mark_all_read!
           %x{
             var body = document.getElementById('dashboard_chat_scroll_body');
 
@@ -219,6 +221,7 @@ module View
             }
           }
         end
+        # // --- END FIX ---
 
         def start_drag(event)
           %x{
@@ -313,6 +316,32 @@ module View
             );
           }
         end
+
+        # // --- START FIX ---
+        def mark_all_read!
+          gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
+          count = chat_messages.size
+          read_key = "chat_read_count_#{gid}"
+          pop_key = "chat_pop_count_#{gid}"
+
+          Lib::Storage[read_key] = count
+          Lib::Storage[pop_key] = count
+          %x{
+            try {
+              localStorage.setItem(#{read_key}, String(#{count}));
+              localStorage.setItem(#{pop_key}, String(#{count}));
+            } catch (e) {}
+          }
+        rescue StandardError
+          nil
+        end
+
+        def close_overlay
+          mark_all_read!
+          Lib::Storage['dashboard_chat_overlay'] = nil
+          @on_close&.call
+        end
+        # // --- END FIX ---
 
         def saved_position
           result = %x{
