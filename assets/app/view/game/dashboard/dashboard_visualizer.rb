@@ -2233,8 +2233,7 @@ window.addEventListener('resize', window.positionDashboardButtons);
                     createResizer('resizer-h-ledger-market', 'panel-ledger', 'panel-market', true);
 
                     window.scalerScales = window.scalerScales || {};
-
-                    window.applyPanelTransform = function(panelId) {
+window.applyPanelTransform = function(panelId) {
                       var panel = document.getElementById(panelId);
                       if (!panel) return;
                       var wrapper = panel.querySelector('.scaler-content');
@@ -2244,11 +2243,12 @@ window.addEventListener('resize', window.positionDashboardButtons);
                       wrapper.style.left = offset.x + 'px';
                       wrapper.style.top = offset.y + 'px';
 
+                      var uZoom = (window.scalerUserZoom && window.scalerUserZoom[panelId]) || 1.0;
+                      var baseScale = (window.scalerScales && window.scalerScales[panelId]) || 1.0;
+                      var effScale = baseScale * uZoom;
+
                       if (panelId === 'map-panel-bot') {
                         var sizer = panel.querySelector('.map-sizer');
-                        var uZoom = (window.scalerUserZoom && window.scalerUserZoom[panelId]) || 1.0;
-                        var baseScale = (window.scalerScales && window.scalerScales[panelId]) || 1.0;
-                        var effScale = baseScale * uZoom;
                         if (sizer) {
                           var svgEl = wrapper.querySelector('svg');
                           var cw = parseFloat(wrapper.style.width) || (svgEl && (parseFloat(svgEl.getAttribute('width')) || (svgEl.viewBox && svgEl.viewBox.baseVal && svgEl.viewBox.baseVal.width))) || wrapper.scrollWidth || 0;
@@ -2257,10 +2257,10 @@ window.addEventListener('resize', window.positionDashboardButtons);
                             var scrollCanvas = panel.querySelector('#map-scroll-canvas');
                             var viewportW = scrollCanvas ? scrollCanvas.clientWidth : panel.clientWidth;
                             var viewportH = scrollCanvas ? scrollCanvas.clientHeight : panel.clientHeight;
-                            var scaledW = cw * effScale;
-                            var scaledH = ch * effScale;
-                            var targetW = scaledW > viewportW + 1 ? Math.ceil(scaledW) : viewportW;
-                            var targetH = scaledH > viewportH + 1 ? Math.ceil(scaledH) : viewportH;
+                            var scaledW = Math.ceil(cw * effScale + Math.max(0, offset.x));
+                            var scaledH = Math.ceil(ch * effScale + Math.max(0, offset.y));
+                            var targetW = scaledW > viewportW + 1 ? scaledW : viewportW;
+                            var targetH = scaledH > viewportH + 1 ? scaledH : viewportH;
                             sizer.style.width = targetW + 'px';
                             sizer.style.height = targetH + 'px';
                             sizer.style.minWidth = targetW + 'px';
@@ -2268,41 +2268,61 @@ window.addEventListener('resize', window.positionDashboardButtons);
                           }
                         }
                       }
-                        if (panelId === 'panel-ledger') {
-  var sizer = panel.querySelector('.ledger-sizer');
-  var cw = wrapper.scrollWidth || 0;
-  var ch = wrapper.scrollHeight || 0;
 
-  if (sizer && cw > 0 && ch > 0) {
-    var scrollCanvas =
-      panel.querySelector('#panel-ledger-scroll');
+                      if (panelId === 'panel-ledger') {
+                        var sizer = panel.querySelector('.ledger-sizer');
+                        var inner = wrapper.firstElementChild || wrapper;
+                        var cw = Math.max(wrapper.scrollWidth || 0, inner.scrollWidth || 0, inner.offsetWidth || 0);
+                        var ch = Math.max(wrapper.scrollHeight || 0, inner.scrollHeight || 0, inner.offsetHeight || 0);
 
-    var viewportW = scrollCanvas.clientWidth;
-    var viewportH = scrollCanvas.clientHeight;
+                        if (sizer && cw > 0 && ch > 0) {
+                          var scrollCanvas = panel.querySelector('#panel-ledger-scroll') || panel;
+                          var viewportW = scrollCanvas.clientWidth || panel.clientWidth;
+                          var viewportH = scrollCanvas.clientHeight || panel.clientHeight;
 
-    var scaledW = cw * effScale;
-    var scaledH = ch * effScale;
+                          var scaledW = Math.ceil(cw * effScale + Math.max(0, offset.x) + 12);
+                          var scaledH = Math.ceil(ch * effScale + Math.max(0, offset.y) + 16);
 
-    var targetW =
-      scaledW > viewportW ? Math.ceil(scaledW) : viewportW;
+                          var targetW = scaledW > viewportW + 1 ? scaledW : viewportW;
+                          var targetH = scaledH > viewportH + 1 ? scaledH : viewportH;
 
-    var targetH =
-      scaledH > viewportH ? Math.ceil(scaledH) : viewportH;
+                          sizer.style.width = targetW + 'px';
+                          sizer.style.height = targetH + 'px';
+                          sizer.style.minWidth = targetW + 'px';
+                          sizer.style.minHeight = targetH + 'px';
+                        }
+                      }
 
-    sizer.style.width = targetW + 'px';
-    sizer.style.height = targetH + 'px';
-    sizer.style.minWidth = targetW + 'px';
-    sizer.style.minHeight = targetH + 'px';
-  }
-}
+                      if (panelId === 'panel-market') {
+                        var sizer = panel.querySelector('.market-sizer');
+                        var cw = parseFloat(wrapper.style.width) || wrapper.scrollWidth || 0;
+                        var ch = parseFloat(wrapper.style.height) || wrapper.scrollHeight || 0;
+
+                        if (sizer && cw > 0 && ch > 0) {
+                          var scrollCanvas = panel.querySelector('#panel-market-scroll') || panel;
+                          var viewportW = scrollCanvas.clientWidth || panel.clientWidth;
+                          var viewportH = scrollCanvas.clientHeight || panel.clientHeight;
+
+                          var scaledW = Math.ceil(cw * effScale + Math.max(0, offset.x) + 12);
+                          var scaledH = Math.ceil(ch * effScale + Math.max(0, offset.y) + 12);
+
+                          var targetW = scaledW > viewportW + 1 ? scaledW : viewportW;
+                          var targetH = scaledH > viewportH + 1 ? scaledH : viewportH;
+
+                          sizer.style.width = targetW + 'px';
+                          sizer.style.height = targetH + 'px';
+                          sizer.style.minWidth = targetW + 'px';
+                          sizer.style.minHeight = targetH + 'px';
+                        }
+                      }
 
                       var dynStyle = document.getElementById('dynamic-scaler-styles');
                       if (!dynStyle) return;
                       var css = '';
                       for (var id in window.scalerScales) {
-                        var uZoom = (window.scalerUserZoom && window.scalerUserZoom[id]) || 1.0;
-                        var effScale = window.scalerScales[id] * uZoom;
-                        css += '#' + id + ' .scaler-content { transform: scale(' + effScale + ') !important; transform-origin: top left !important; }\n';
+                        var uz = (window.scalerUserZoom && window.scalerUserZoom[id]) || 1.0;
+                        var es = window.scalerScales[id] * uz;
+                        css += '#' + id + ' .scaler-content { transform: scale(' + es + ') !important; transform-origin: top left !important; }\n';
                       }
                       dynStyle.innerHTML = css;
                     };
@@ -2322,7 +2342,11 @@ window.addEventListener('resize', window.positionDashboardButtons);
                       window.scalerPanOffset[panelId] = { x: 0, y: 0 };
                       var panel = document.getElementById(panelId);
                       if (panel) {
-                        var scrollCanvas = panel.querySelector('#map-scroll-canvas') || panel;
+                        var scrollCanvas =
+                          panel.querySelector('#map-scroll-canvas') ||
+                          panel.querySelector('#panel-ledger-scroll') ||
+                          panel.querySelector('#panel-market-scroll') ||
+                          panel;
                         scrollCanvas.scrollLeft = 0;
                         scrollCanvas.scrollTop = 0;
                       }
@@ -2590,9 +2614,13 @@ createPanHandler('panel-ledger');
 
                         var pw = entries[i].contentRect.width - 16;
                         var ph = entries[i].contentRect.height - 16;
-
-                        if (cw > 0 && ch > 0) {
-                          window.scalerScales[panel.id] = Math.min(pw / cw, ph / ch);
+if (cw > 0 && ch > 0) {
+                          if (panel.id === 'panel-ledger') {
+                            // Fit width (up to 1.0x) so tall status tables remain readable and scroll vertically
+                            window.scalerScales[panel.id] = Math.min(1.0, pw / cw);
+                          } else {
+                            window.scalerScales[panel.id] = Math.min(pw / cw, ph / ch);
+                          }
                         }
                       }
 
@@ -2600,10 +2628,34 @@ createPanHandler('panel-ledger');
                         window.applyPanelTransform(pId);
                       }
                     });
+window.recalcAllPanels = function() {
+                      ['map-panel-bot', 'panel-market', 'panel-ledger'].forEach(function(id) {
+                        var panel = document.getElementById(id);
+                        if (!panel) return;
+                        var wrapper = panel.querySelector('.scaler-content');
+                        if (!wrapper) return;
+                        var cw = wrapper.scrollWidth;
+                        var ch = wrapper.scrollHeight;
+                        var pw = panel.clientWidth - 16;
+                        var ph = panel.clientHeight - 16;
+                        if (cw > 0 && ch > 0 && pw > 0 && ph > 0) {
+                          if (id === 'panel-ledger') {
+                            window.scalerScales[id] = Math.min(1.0, pw / cw);
+                          } else if (!window.scalerScales[id]) {
+                            window.scalerScales[id] = Math.min(pw / cw, ph / ch);
+                          }
+                        }
+                        window.applyPanelTransform(id);
+                      });
+                    };
 
-['map-panel-bot', 'panel-market', 'panel-ledger'].forEach(function(id) {
+                    ['map-panel-bot', 'panel-market', 'panel-ledger'].forEach(function(id) {
                       var el = document.getElementById(id);
-                      if (el) fitObserver.observe(el);
+                      if (el) {
+                        fitObserver.observe(el);
+                        var innerWrapper = el.querySelector('.scaler-content');
+                        if (innerWrapper) fitObserver.observe(innerWrapper);
+                      }
                     });
                   };
                   setTimeout(window.init18xxResizers, 200);)
@@ -2612,6 +2664,9 @@ createPanHandler('panel-ledger');
                            %x{
   if (window.positionDashboardButtons) {
     window.positionDashboardButtons();
+  }
+    if (window.recalcAllPanels) {
+    requestAnimationFrame(window.recalcAllPanels);
   }
 }
                            check_and_pop_new_chat!
@@ -2816,11 +2871,12 @@ createPanHandler('panel-ledger');
               ].compact),
 
               h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
-
               h(:div, {
                   attrs: { id: 'panel-ledger' },
                   style: {
                     flex: '1 1 auto',
+                    width: '100%',
+                    height: '100%',
                     minHeight: '0',
                     overflow: 'hidden',
                     border: '1px solid #ccc',
@@ -2830,73 +2886,124 @@ createPanHandler('panel-ledger');
                     position: 'relative',
                   },
                 }, [
-      render_zoom_controls('panel-ledger', { top: '6px', right: '6px' }),
-
-      h(:div, {
-          attrs: { id: 'panel-ledger-scroll' },
-          style: {
-            width: '100%',
-            height: '100%',
-            overflowX: 'auto',
-            overflowY: 'auto',
-            position: 'relative',
-          },
-        }, [
-
-          h(:div, {
-              attrs: { class: 'ledger-sizer' },
-              style: {
-                position: 'relative',
-                width: '100%',
-                height: '100%',
-                minWidth: '100%',
-                minHeight: '100%',
-              },
-            }, [
-
-              h(:div, {
-                  attrs: { class: 'scaler-content' },
-                  style: {
-                    position: 'absolute',
-                    top: '0',
-                    left: '0',
-                    width: 'max-content',
-                    height: 'max-content',
-                    transformOrigin: 'top left',
-                  },
-                }, [
-
-                  h(:div, {
-                      style: {
-                        display: 'flex',
-                        flexDirection: 'column',
-                        width: 'max-content',
-                        minWidth: '100%',
-                      },
-                    }, [
-
-                      h(View::Game::DashboardGameStatus,
-                        game: @game,
-                        user: @user),
-
-                    ]),
-
-                ]),
-
-            ]),
-
-        ]),
-
-    ]),
+render_zoom_controls('panel-ledger', { top: '6px', right: '18px' }),
+h(:div, {
+    attrs: { id: 'panel-ledger-scroll' },
+    style: {
+      width: '100%',
+      height: '100%',
+      maxHeight: '100%',
+      minHeight: '0',
+      overflow: 'auto',
+      overflowX: 'auto',
+      overflowY: 'auto',
+      position: 'relative',
+      boxSizing: 'border-box',
+    },
+  }, [
+    h(:div, {
+        attrs: { class: 'ledger-sizer' },
+        style: {
+          position: 'relative',
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          minWidth: '100%',
+          minHeight: '100%',
+        },
+      }, [
+        h(:div, {
+            attrs: { class: 'scaler-content' },
+            style: {
+              position: 'absolute',
+              top: '0',
+              left: '0',
+              width: 'max-content',
+              height: 'max-content',
+              transformOrigin: 'top left',
+              padding: '0.35rem',
+              boxSizing: 'border-box',
+            },
+          }, [
+            h(:div, {
+                style: {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  width: 'max-content',
+                  minWidth: '100%',
+                },
+              }, [
+                h(View::Game::DashboardGameStatus,
+                  game: @game,
+                  user: @user),
+              ]),
+          ]),
+      ]),
+  ]),
+                              ]),
 
               h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
-              h(:div, { attrs: { id: 'panel-market' }, style: { flex: '1 1 auto', minHeight: '12rem', overflow: 'hidden', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', backgroundColor: '#fff', boxSizing: 'border-box', position: 'relative' } }, [
-                render_zoom_controls('panel-market', { top: '6px', right: '6px' }),
-                h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', display: 'flex', flexDirection: 'column', width: 'max-content', height: 'max-content', transformOrigin: 'top left', margin: '0', padding: '0' } }, [
-                  h(View::Game::DashboardStockMarket, game: @game),
+              h(:div, {
+                  attrs: { id: 'panel-market' },
+                  style: {
+                    flex: '1 1 auto',
+                    width: '100%',
+                    minHeight: '12rem',
+                    overflow: 'hidden',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: '#fff',
+                    boxSizing: 'border-box',
+                    position: 'relative',
+                  },
+                }, [
+                  render_zoom_controls('panel-market', { top: '6px', left: '6px' }),
+                  h(:div, {
+                      attrs: { id: 'panel-market-scroll' },
+                      style: {
+                        width: '100%',
+                        height: '100%',
+                        maxHeight: '100%',
+                        minHeight: '0',
+                        overflow: 'auto',
+                        overflowX: 'auto',
+                        overflowY: 'auto',
+                        position: 'relative',
+                        boxSizing: 'border-box',
+                      },
+                    }, [
+                      h(:div, {
+                          attrs: { class: 'market-sizer' },
+                          style: {
+                            position: 'relative',
+                            display: 'block',
+                            width: '100%',
+                            height: '100%',
+                            minWidth: '100%',
+                            minHeight: '100%',
+                          },
+                        }, [
+                          h(:div, {
+                              attrs: { class: 'scaler-content' },
+                              style: {
+                                position: 'absolute',
+                                top: '0',
+                                left: '0',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                width: 'max-content',
+                                height: 'max-content',
+                                transformOrigin: 'top left',
+                                margin: '0',
+                                padding: '0.35rem',
+                              },
+                            }, [
+                              h(View::Game::DashboardStockMarket, game: @game),
+                            ]),
+                        ]),
+                    ]),
                 ]),
-              ]),
             ]),
             render_global_auction_overlay,
             render_par_overlay,
