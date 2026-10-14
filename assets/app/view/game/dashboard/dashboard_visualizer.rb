@@ -57,6 +57,8 @@ module View
       include Actionable
 
       def action_required_for_me?
+        return false if @game.respond_to?(:finished?) && @game.finished?
+
         is_hotseat =
           @game_data &&
           (
@@ -64,42 +66,86 @@ module View
             @game_data['mode'] == 'hotseat'
           )
 
-        entity = active_entity
-        return false unless entity
+        step = begin
+          @game.round&.active_step
+        rescue StandardError
+          nil
+        end
 
-        actions =
-          begin
-            @game.round.actions_for(entity) || []
+        candidates = []
+        candidates << active_entity if active_entity
+        candidates.concat(Array(step.active_entities)) if step&.respond_to?(:active_entities)
+        candidates << @game.round.current_entity if @game.round.respond_to?(:current_entity)
+        candidates << @game.current_entity if @game.respond_to?(:current_entity)
+        candidates = candidates.compact.uniq
+
+        return false if candidates.empty?
+
+        actionable = candidates.any? do |ent|
+          acts = begin
+            @game.round.actions_for(ent) || []
           rescue NotImplementedError, StandardError
             []
           end
+          acts.any? { |a| a.to_s != 'undo' && a.to_s != 'redo' }
+        end
 
-        actionable = actions.any? { |action| action.to_s != 'undo' && action.to_s != 'redo' }
+        if !actionable && @game.respond_to?(:players)
+          uid_check = current_user_id
+          my_player = @game.players.find { |p| p.id.to_s == uid_check.to_s } unless uid_check.empty?
+          if my_player
+            p_acts = begin
+              @game.round.actions_for(my_player) || []
+            rescue StandardError
+              []
+            end
+            actionable = p_acts.any? { |a| a.to_s != 'undo' && a.to_s != 'redo' }
+          end
+        end
+
         return false unless actionable
-
         return true if is_hotseat
 
-        user_id = @user&.dig('id') || @user&.dig(:id)
-        return false unless user_id
+        uid = current_user_id
+        return false if uid.empty?
 
-        active_ids =
-          if @game.respond_to?(:active_players_id)
-            Array(@game.active_players_id).map(&:to_s)
-          else
-            []
-          end
+        if @game.respond_to?(:active_players_id)
+          active_ids = Array(@game.active_players_id).map(&:to_s)
+          return true if active_ids.include?(uid)
+        end
 
-        active_ids.include?(user_id.to_s)
+        p = active_player
+        return true if p && p.respond_to?(:id) && p.id.to_s == uid
+
+        candidates.any? do |ent|
+          owner_id = if ent.respond_to?(:player?) && ent.player? && ent.respond_to?(:id)
+                       ent.id.to_s
+                     elsif ent.respond_to?(:player) && ent.player&.respond_to?(:id)
+                       ent.player.id.to_s
+                     elsif ent.respond_to?(:owner) && ent.owner&.respond_to?(:id)
+                       ent.owner.id.to_s
+                     end
+          owner_id == uid
+        end
+      rescue StandardError
+        false
       end
 
       def actions_window_open?
-        return true if action_required_for_me?
+        is_req = action_required_for_me?
 
-        stored = Lib::Storage['dashboard_show_actions']
+        if @last_action_required_state != is_req
+          # When transitioning from my turn -> opponent's turn, automatically close the hub
+          if @last_action_required_state == true && !is_req
+            @show_actions_window = false
+            store(:show_actions_window, false, skip: true)
+          end
+          @last_action_required_state = is_req
+        end
 
-        @show_actions_window == true ||
-          stored == true ||
-          stored == 'true'
+        return true if is_req
+
+        @show_actions_window == true
       end
 
       def render_action_hub_button
@@ -134,23 +180,11 @@ module View
           end
 
         click_action = lambda do
-          # The window is mandatory while this user has actions.
-          next if is_required
+          # The window is mandatory and stays up while this user has actions.
+          next if action_required_for_me?
 
-          new_value = !actions_window_open?
-
-          Lib::Storage['dashboard_show_actions'] =
-            new_value ? 'true' : 'false'
-
-          %x{
-      try {
-        localStorage.setItem(
-          'dashboard_show_actions',
-          #{new_value ? 'true' : 'false'}
-        );
-      } catch(e) {}
-    }
-
+          new_value = !(@show_actions_window == true)
+          @show_actions_window = new_value
           store(:show_actions_window, new_value)
           update
         end
@@ -205,8 +239,7 @@ module View
       end
 
       def render_history_button
-        val = Lib::Storage['cmd_history_overlay']
-        is_open = [true, 'true'].include?(val) || @show_history_overlay == true
+        is_open = @show_history_overlay == true
 
         h(:button, {
             attrs: {
@@ -236,8 +269,8 @@ module View
             },
             on: {
               click: lambda {
-                new_val = !is_open
-                Lib::Storage['cmd_history_overlay'] = new_val ? true : nil
+                new_val = !(@show_history_overlay == true)
+                Lib::Storage['cmd_history_overlay'] = nil
                 store(:show_history_overlay, new_val)
                 update
               },
@@ -248,8 +281,7 @@ module View
       end
 
       def render_move_history_button
-        val = Lib::Storage['cmd_move_history_overlay']
-        is_open = [true, 'true'].include?(val) || @show_move_history == true
+        is_open = @show_move_history == true
 
         h(:button, {
             attrs: {
@@ -279,8 +311,8 @@ module View
             },
             on: {
               click: lambda {
-                new_val = !is_open
-                Lib::Storage['cmd_move_history_overlay'] = new_val ? true : nil
+                new_val = !(@show_move_history == true)
+                Lib::Storage['cmd_move_history_overlay'] = nil
                 store(:show_move_history, new_val)
                 update
               },
@@ -297,16 +329,11 @@ module View
           # The Action Hub cannot be closed while I must act.
           next if action_required_for_me?
 
-          Lib::Storage['dashboard_show_actions'] = 'false'
-
-          %x{
-      try {
-        localStorage.setItem('dashboard_show_actions', 'false');
-      } catch (e) {}
-    }
-
+          # // --- START FIX ---
+          @show_actions_window = false
           store(:show_actions_window, false)
           update
+          # // --- END FIX ---
         end
 
         h(::View::Game::Dashboard::DashboardActionWindow,
@@ -375,40 +402,6 @@ module View
           entity: active_player || active_entity || @game.current_entity,
           corporation: corporation,
           on_cancel: cancel_handler)
-      end
-
-      def render_history_overlay
-        val = Lib::Storage['cmd_history_overlay']
-        is_open = [true, 'true'].include?(val) || @show_history_overlay == true
-        return nil unless is_open
-
-        close_handler = lambda {
-          Lib::Storage['cmd_history_overlay'] = nil
-          store(:show_history_overlay, false)
-          update
-        }
-
-        h(::View::Game::Dashboard::HistoryOverlay,
-          game: @game,
-          game_data: @game_data,
-          on_close: close_handler)
-      end
-
-      def render_move_history_overlay
-        val = Lib::Storage['cmd_move_history_overlay']
-        is_open = [true, 'true'].include?(val) || @show_move_history == true
-        return nil unless is_open
-
-        close_handler = lambda {
-          Lib::Storage['cmd_move_history_overlay'] = nil
-          store(:show_move_history, false)
-          update
-        }
-
-        h(::View::Game::Dashboard::MoveHistoryOverlay,
-          game: @game,
-          game_data: @game_data,
-          on_close: close_handler)
       end
 
       def render_tile_manifest_overlay
@@ -688,10 +681,25 @@ module View
           on_close: close_handler)
       end
 
+      def ensure_overlay_safety!
+        if defined?(::View::Game::Dashboard::MoveHistoryOverlay)
+          klass = ::View::Game::Dashboard::MoveHistoryOverlay
+          klass.define_method(:is_chat) { |*_args| false } unless klass.method_defined?(:is_chat)
+          klass.define_method(:is_chat?) { |*_args| false } unless klass.method_defined?(:is_chat?)
+        end
+        if defined?(::View::Game::Dashboard::HistoryOverlay)
+          klass = ::View::Game::Dashboard::HistoryOverlay
+          klass.define_method(:is_chat) { |*_args| false } unless klass.method_defined?(:is_chat)
+          klass.define_method(:is_chat?) { |*_args| false } unless klass.method_defined?(:is_chat?)
+        end
+      rescue StandardError
+        nil
+      end
+
       def render_history_overlay
-        val = Lib::Storage['cmd_history_overlay']
-        is_open = [true, 'true'].include?(val) || @show_history_overlay == true
-        return nil unless is_open
+        return nil unless @show_history_overlay == true
+
+        ensure_overlay_safety!
 
         close_handler = lambda {
           Lib::Storage['cmd_history_overlay'] = nil
@@ -703,6 +711,33 @@ module View
           game: @game,
           game_data: @game_data,
           on_close: close_handler)
+      rescue StandardError => e
+        `console.error("HistoryOverlay failed to render:", #{e.message})`
+        Lib::Storage['cmd_history_overlay'] = nil
+        store(:show_history_overlay, false, skip: true)
+        nil
+      end
+
+      def render_move_history_overlay
+        return nil unless @show_move_history == true
+
+        ensure_overlay_safety!
+
+        close_handler = lambda {
+          Lib::Storage['cmd_move_history_overlay'] = nil
+          store(:show_move_history, false)
+          update
+        }
+
+        h(::View::Game::Dashboard::MoveHistoryOverlay,
+          game: @game,
+          game_data: @game_data,
+          on_close: close_handler)
+      rescue StandardError => e
+        `console.error("MoveHistoryOverlay failed to render:", #{e.message})`
+        Lib::Storage['cmd_move_history_overlay'] = nil
+        store(:show_move_history, false, skip: true)
+        nil
       end
 
       def sound_enabled?
@@ -720,9 +755,172 @@ module View
         0
       end
 
+      def game_chat_messages
+        uid = current_user_id
+        Array(@game&.log).filter_map do |entry|
+          raw_msg = entry.respond_to?(:message) ? entry.message : entry
+          next unless raw_msg.is_a?(Engine::Action::Message)
+
+          txt = raw_msg.message.to_s.strip
+          next if txt.empty?
+
+          sender = raw_msg.entity
+          sender_id = sender.respond_to?(:id) ? sender.id.to_s : ''
+          sender_name = sender.respond_to?(:name) ? sender.name.to_s : 'Player'
+
+          {
+            sender_id: sender_id,
+            sender_name: sender_name,
+            text: txt,
+            mine: !uid.empty? && sender_id == uid,
+          }
+        end
+      rescue StandardError
+        []
+      end
+
+      def mark_chat_messages_read!(total_count = nil)
+        gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
+        count = total_count || game_chat_messages.size
+        read_key = "chat_read_count_#{gid}"
+        pop_key = "chat_pop_count_#{gid}"
+
+        Lib::Storage[read_key] = count
+        Lib::Storage[pop_key] = count
+        %x{
+          try {
+            localStorage.setItem(#{read_key}, String(#{count}));
+            localStorage.setItem(#{pop_key}, String(#{count}));
+          } catch (e) {}
+        }
+      end
+
+      def unread_chat_count
+        gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
+        msgs = game_chat_messages
+        total = msgs.size
+        read_key = "chat_read_count_#{gid}"
+
+        is_open = @show_chat_overlay == true ||
+                  [true, 'true'].include?(Lib::Storage['dashboard_chat_overlay'])
+
+        if is_open
+          mark_chat_messages_read!(total)
+          return 0
+        end
+
+        stored_raw = Lib::Storage[read_key]
+        if stored_raw.nil?
+          stored_raw = %x{
+            (function() {
+              try { return localStorage.getItem(#{read_key}); } catch(e) { return null; }
+            })()
+          }
+        end
+
+        # First time opening this game on this browser: baseline existing history as read
+        if stored_raw.nil? || `#{stored_raw} === null`
+          mark_chat_messages_read!(total)
+          return 0
+        end
+
+        read_idx = stored_raw.to_i
+        read_idx = 0 if read_idx.negative?
+        return 0 if total <= read_idx
+
+        unread_slice = msgs[read_idx...total] || []
+        unread_from_others = unread_slice.count { |m| !m[:mine] }
+
+        # If the only new messages were sent by me, advance the read pointer automatically
+        mark_chat_messages_read!(total) if unread_from_others.zero?
+
+        unread_from_others
+      rescue StandardError
+        0
+      end
+
+      def check_and_pop_new_chat!
+        gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
+        msgs = game_chat_messages
+        total = msgs.size
+        pop_key = "chat_pop_count_#{gid}"
+
+        stored_pop = Lib::Storage[pop_key]
+        if stored_pop.nil?
+          stored_pop = %x{
+            (function() {
+              try { return localStorage.getItem(#{pop_key}); } catch(e) { return null; }
+            })()
+          }
+        end
+
+        if stored_pop.nil? || `#{stored_pop} === null`
+          Lib::Storage[pop_key] = total
+          `try { localStorage.setItem(#{pop_key}, String(#{total})); } catch(e) {}`
+          return
+        end
+
+        last_pop = stored_pop.to_i
+        return if total <= last_pop
+
+        new_msgs = msgs[last_pop...total] || []
+        Lib::Storage[pop_key] = total
+        `try { localStorage.setItem(#{pop_key}, String(#{total})); } catch(e) {}`
+
+        latest_other = new_msgs.reverse.find { |m| !m[:mine] }
+        return unless latest_other
+
+        sender_name = latest_other[:sender_name]
+        msg_text = latest_other[:text]
+        %x{
+          if (window.showChatPopupBubble) {
+            window.showChatPopupBubble(#{sender_name}, #{msg_text});
+          }
+        }
+      rescue StandardError
+        nil
+      end
+
       def render_chat_button
         is_open = @show_chat_overlay == true ||
                   [true, 'true'].include?(Lib::Storage['dashboard_chat_overlay'])
+
+        unread = unread_chat_count
+        has_unread = unread.positive?
+
+        bg_color =
+          if has_unread
+            '#1d4ed8' # Deep blue when unread messages are waiting
+          elsif is_open
+            '#eff6ff'
+          else
+            '#ffffff'
+          end
+
+        text_color =
+          if has_unread
+            '#ffffff'
+          elsif is_open
+            '#1d4ed8'
+          else
+            '#334155'
+          end
+
+        border_style =
+          if has_unread
+            '2px solid #1e3a8a'
+          elsif is_open
+            '2px solid #2563eb'
+          else
+            '1px solid #cbd5e1'
+          end
+
+        box_shadow =
+          if has_unread
+            '0 0 12px rgba(29, 78, 216, 0.75), 0 2px 5px rgba(0, 0, 0, 0.22)'
+          else
+            '0 2px 5px rgba(0, 0, 0, 0.18)'
+          end
 
         click_action = lambda do
           new_value = !is_open
@@ -730,15 +928,55 @@ module View
           Lib::Storage['dashboard_chat_overlay'] =
             new_value ? true : nil
 
+          if new_value
+            mark_chat_messages_read!
+            %x{
+              var existingBubble = document.getElementById('dashboard-chat-popup-bubble');
+              if (existingBubble) existingBubble.remove();
+            }
+          end
+
           store(:show_chat_overlay, new_value)
           update
         end
+
+        badge_el = if has_unread
+                     h(:span, {
+                         style: {
+                           position: 'absolute',
+                           top: '-6px',
+                           right: '-6px',
+                           backgroundColor: '#dc2626',
+                           color: '#ffffff',
+                           fontSize: '0.82rem',
+                           fontWeight: 'bold',
+                           borderRadius: '12px',
+                           minWidth: '22px',
+                           height: '22px',
+                           lineHeight: '18px',
+                           textAlign: 'center',
+                           padding: '0 4px',
+                           border: '2px solid #ffffff',
+                           boxSizing: 'border-box',
+                           boxShadow: '0 2px 4px rgba(0,0,0,0.25)',
+                         },
+                       }, unread.to_s)
+                   end
+
+        btn_title =
+          if has_unread
+            "#{unread} unread chat message(s) — click to open"
+          elsif is_open
+            'Close Player Chat'
+          else
+            'Open Player Chat'
+          end
 
         h(:button, {
             attrs: {
               id: 'btn-dashboard-chat',
               type: 'button',
-              title: is_open ? 'Close Player Chat' : 'Open Player Chat',
+              title: btn_title,
               'aria-pressed': is_open ? 'true' : 'false',
             },
             style: {
@@ -752,14 +990,10 @@ module View
               padding: '0',
               flexShrink: '0',
               borderRadius: '8px',
-              backgroundColor: is_open ? '#eff6ff' : '#ffffff',
-              color: is_open ? '#1d4ed8' : '#334155',
-              border: if is_open
-                        '2px solid #2563eb'
-                      else
-                        '1px solid #cbd5e1'
-                      end,
-              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
+              backgroundColor: bg_color,
+              color: text_color,
+              border: border_style,
+              boxShadow: box_shadow,
               cursor: 'pointer',
               lineHeight: '1',
               zIndex: 10,
@@ -775,7 +1009,8 @@ module View
                   lineHeight: '1',
                 },
               }, '💬'),
-          ])
+            badge_el,
+          ].compact)
       end
 
       def render_chat_overlay
@@ -784,7 +1019,10 @@ module View
 
         return nil unless is_open
 
+        mark_chat_messages_read!
+
         close_handler = lambda do
+          mark_chat_messages_read!
           Lib::Storage['dashboard_chat_overlay'] = nil
           store(:show_chat_overlay, false)
           update
@@ -1074,9 +1312,6 @@ badge_el,
         end
       end
 
-      # File: view/game/dashboard_visualizer.rb
-      # Method: render_active_turn_card
-
       def render_active_turn_card
         player = active_player
         player_label = if player&.respond_to?(:name) && player.name
@@ -1334,7 +1569,15 @@ badge_el,
         if Lib::Storage['last_active_dashboard_gid'] != active_gid
           Lib::Storage['last_active_dashboard_gid'] = active_gid
           Lib::Storage['show_other_games_overlay'] = nil
+
+          Lib::Storage['cmd_move_history_overlay'] = nil
+          Lib::Storage['cmd_history_overlay'] = nil
+          Lib::Storage['dashboard_show_actions'] = nil
           store(:show_other_games_overlay, false, skip: true)
+          store(:show_move_history, false, skip: true)
+          store(:show_history_overlay, false, skip: true)
+          store(:show_actions_window, false, skip: true)
+
           `try { localStorage.removeItem('show_other_games_overlay'); } catch(e) {}`
         end
 
@@ -1765,6 +2008,108 @@ window.addEventListener('resize', window.positionDashboardButtons);
                           container.parentNode.removeChild(container);
                         }
                       }, 1850);
+                    };
+
+                    window.showChatPopupBubble = function(senderName, messageText) {
+                      var btn = document.getElementById('btn-dashboard-chat');
+                      if (!btn) return;
+
+                      var rect = btn.getBoundingClientRect();
+                      if (rect.width === 0 && rect.height === 0) return;
+
+                      var oldBubble = document.getElementById('dashboard-chat-popup-bubble');
+                      if (oldBubble) oldBubble.remove();
+
+                      var bubble = document.createElement('div');
+                      bubble.id = 'dashboard-chat-popup-bubble';
+                      var rightOffset = Math.max(12, Math.round(window.innerWidth - rect.right));
+                      var topOffset = Math.round(rect.bottom + 12);
+
+                      Object.assign(bubble.style, {
+                        position: 'fixed',
+                        top: topOffset + 'px',
+                        right: rightOffset + 'px',
+                        maxWidth: '320px',
+                        minWidth: '180px',
+                        backgroundColor: '#1e3a8a',
+                        color: '#ffffff',
+                        border: '2px solid #60a5fa',
+                        borderRadius: '14px 4px 14px 14px',
+                        padding: '10px 14px',
+                        boxShadow: '0 10px 25px rgba(15, 23, 42, 0.45)',
+                        zIndex: '10000020',
+                        fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                        cursor: 'pointer',
+                        pointerEvents: 'auto',
+                        transformOrigin: 'top right',
+                        transition: 'opacity 0.28s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+                        opacity: '0',
+                        transform: 'translateY(-8px) scale(0.92)'
+                      });
+
+                      var tail = document.createElement('div');
+                      Object.assign(tail.style, {
+                        position: 'absolute',
+                        top: '-9px',
+                        right: '14px',
+                        width: '0',
+                        height: '0',
+                        borderLeft: '8px solid transparent',
+                        borderRight: '8px solid transparent',
+                        borderBottom: '9px solid #60a5fa'
+                      });
+                      bubble.appendChild(tail);
+
+                      var header = document.createElement('div');
+                      Object.assign(header.style, {
+                        fontSize: '0.74rem',
+                        fontWeight: '800',
+                        color: '#93c5fd',
+                        marginBottom: '4px',
+                        letterSpacing: '0.3px',
+                        textTransform: 'uppercase'
+                      });
+                      header.textContent = '💬 ' + String(senderName || 'Player');
+                      bubble.appendChild(header);
+
+                      var body = document.createElement('div');
+                      Object.assign(body.style, {
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        lineHeight: '1.35',
+                        color: '#ffffff',
+                        wordBreak: 'break-word',
+                        display: '-webkit-box',
+                        webkitLineClamp: '4',
+                        webkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      });
+                      body.textContent = String(messageText || '');
+                      bubble.appendChild(body);
+
+                      bubble.addEventListener('click', function() {
+                        bubble.remove();
+                        var chatBtn = document.getElementById('btn-dashboard-chat');
+                        if (chatBtn) chatBtn.click();
+                      });
+
+                      document.body.appendChild(bubble);
+
+                      requestAnimationFrame(function() {
+                        bubble.style.opacity = '1';
+                        bubble.style.transform = 'translateY(0) scale(1)';
+                      });
+
+                      clearTimeout(window._chatPopupBubbleTimer);
+                      window._chatPopupBubbleTimer = setTimeout(function() {
+                        if (bubble && bubble.parentNode) {
+                          bubble.style.opacity = '0';
+                          bubble.style.transform = 'translateY(-6px) scale(0.95)';
+                          setTimeout(function() {
+                            if (bubble && bubble.parentNode) bubble.remove();
+                          }, 300);
+                        }
+                      }, 4500);
                     };
 
                     window.notifyTurnAlert(#{is_my_turn ? true : false}, #{player_ribbon_text}, #{corp_ribbon_text}, true);
@@ -2250,6 +2595,7 @@ createPanHandler('panel-ledger');
     window.positionDashboardButtons();
   }
 }
+                           check_and_pop_new_chat!
                            prev_id = Lib::Storage["viz_last_act_#{game_storage_id}"]&.to_i || 0
                            curr_id = last_action_id.to_i
 
@@ -2291,6 +2637,8 @@ createPanHandler('panel-ledger');
                      for (var bi = 0; bi < passBubbles.length; bi++) {
                        passBubbles[bi].remove();
                      }
+                       var chatBubble = document.getElementById('dashboard-chat-popup-bubble');
+                     if (chatBubble) chatBubble.remove();
                    )
                          `document.body.style.backgroundColor = ''`
                          `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '', backgroundColor: '', transition: '' })`
