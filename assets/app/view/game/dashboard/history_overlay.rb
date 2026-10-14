@@ -227,6 +227,145 @@ module View
           set_action(target) if target
         end
 
+        # --- START FIX ---
+        def company_cache_key
+          game_id = if @game_data && @game_data['id']
+                      @game_data['id']
+                    elsif @game.respond_to?(:id)
+                      @game.id
+                    else
+                      'current'
+                    end
+          "history_company_ids_#{game_id}"
+        end
+
+        def known_company_sym?(sym, entity_type)
+          return false if sym.nil? || sym.empty?
+          return true if %w[corporation minor].include?(entity_type.to_s.downcase)
+
+          if @game.respond_to?(:corporations) && @game.corporations && @game.corporations.any? do |c|
+            (c.respond_to?(:id) && c.id.to_s == sym) || (c.respond_to?(:name) && c.name.to_s == sym)
+          end
+            return true
+          end
+          if @game.respond_to?(:minors) && @game.minors && @game.minors.any? do |m|
+            (m.respond_to?(:id) && m.id.to_s == sym) || (m.respond_to?(:name) && m.name.to_s == sym)
+          end
+            return true
+          end
+
+          if @game_data && @game_data['players']
+            player_ids = Array(@game_data['players']).map do |p|
+              (p.is_a?(Hash) ? (p['id'] || p[:id] || p['name'] || p[:name]) : p).to_s
+            end
+            return false if player_ids.include?(sym)
+          end
+          !sym.match?(/\A\d+\z/)
+        rescue StandardError
+          false
+        end
+
+        def extract_company_action_ids(actions_list)
+          return [] unless actions_list.respond_to?(:each_with_index)
+
+          transitions = []
+          last_company = nil
+
+          actions_list.each_with_index do |act, idx|
+            aid = if act.is_a?(Hash)
+                    act['id'] || act[:id]
+                  elsif act.respond_to?(:id)
+                    act.id
+                  end
+            aid = (aid || (idx + 1)).to_i
+
+            entity = if act.is_a?(Hash)
+                       act['entity'] || act[:entity]
+                     elsif act.respond_to?(:entity)
+                       act.entity
+                     end
+
+            entity_type = if act.is_a?(Hash)
+                            act['entity_type'] || act[:entity_type]
+                          elsif act.respond_to?(:entity_type)
+                            act.entity_type
+                          elsif entity.is_a?(Hash)
+                            entity['type'] || entity[:type]
+                          elsif entity.respond_to?(:type)
+                            entity.type
+                          end
+
+            sym = if entity.is_a?(Hash)
+                    entity['id'] || entity[:id] || entity['sym'] || entity[:sym] || entity['name'] || entity[:name]
+                  elsif entity.respond_to?(:id)
+                    entity.id
+                  elsif entity.respond_to?(:sym)
+                    entity.sym
+                  else
+                    entity.to_s
+                  end
+            sym = sym.to_s.strip
+
+            if known_company_sym?(sym, entity_type)
+              if sym != last_company
+                transitions << aid if aid.positive?
+                last_company = sym
+              end
+            else
+              last_company = nil
+            end
+          end
+
+          transitions
+        rescue StandardError
+          []
+        end
+
+        def company_action_ids
+          raw_gd = @game_data && @game_data['actions'] ? @game_data['actions'] : []
+          raw_gm = @game.respond_to?(:raw_actions) && @game.raw_actions ? @game.raw_actions : []
+
+          gd_ids = extract_company_action_ids(raw_gd)
+          gm_ids = extract_company_action_ids(raw_gm)
+
+          window_raw = `window._company_history || []`
+          window_ids = normalize_round_action_ids(Native(window_raw))
+          stored_ids = normalize_round_action_ids(Lib::Storage[company_cache_key])
+
+          maximum = total_actions.to_i
+          ids = (stored_ids + gd_ids + gm_ids + window_ids).select { |id| id.positive? && id <= maximum }.uniq.sort
+
+          Lib::Storage[company_cache_key] = ids if ids.any?
+          `window._company_history = #{ids.to_n};`
+          ids
+        rescue StandardError
+          []
+        end
+
+        def prev_company_action
+          curr = current_cursor.to_i
+          # Clicking left jumps to the beginning of the current company's turn,
+          # or if already at the beginning of a company's turn, to the previous company's turn.
+          company_action_ids.select { |id| id < curr }.last
+        end
+
+        def next_company_action
+          curr = current_cursor.to_i
+          maximum = total_actions.to_i
+          company_action_ids.find { |id| id > curr && id <= maximum }
+        end
+
+        def jump_prev_company
+          target = prev_company_action
+          set_action(target) if target
+        end
+
+        def jump_next_company
+          target = next_company_action
+          set_action(target) if target
+        end
+        # --- END FIX ---
+
         def history_minimized?
           value = Lib::Storage['history_overlay_minimized']
           [true, 'true'].include?(value)
@@ -368,7 +507,8 @@ module View
           }
         end
 
-        def nav_btn(label, onclick, disabled: false, primary: false, danger: false)
+        # --- START FIX ---
+        def nav_btn(label, onclick, disabled: false, primary: false, danger: false, title: nil)
           bg = if disabled
                  '#f1f5f9'
                elsif danger
@@ -397,12 +537,15 @@ module View
                      '1px solid #cbd5e1'
                    end
 
+          btn_attrs = { disabled: disabled, type: 'button' }
+          btn_attrs[:title] = title if title
+
           h(:button, {
-              attrs: { disabled: disabled, type: 'button' },
+              attrs: btn_attrs,
               style: {
-                padding: '0 7px',
-                height: '1.6rem',
-                minWidth: '2.2rem',
+                padding: '0 8px',
+                height: '1.65rem',
+                minWidth: '2.35rem',
                 fontSize: '0.74rem',
                 fontWeight: 'bold',
                 backgroundColor: bg,
@@ -413,12 +556,15 @@ module View
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: '2px',
                 boxShadow: disabled ? 'none' : '0 1px 2px rgba(0, 0, 0, 0.05)',
                 whiteSpace: 'nowrap',
+                flexShrink: '0',
               },
               on: disabled ? {} : { click: onclick },
             }, label)
         end
+        # --- END FIX ---
 
         def render
           total = total_actions
@@ -659,14 +805,20 @@ h(:div, { style: { padding: '0.85rem 1rem', display: is_minimized ? 'none' : 'fl
     ]),
   ]),
 
+  # --- START FIX ---
   h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', flexWrap: 'nowrap' } }, [
-    nav_btn('|◀', -> { set_action(1) }, disabled: curr <= 1),
-    nav_btn('◀|', -> { jump_prev_round }, disabled: prev_round_action.nil?),
-    nav_btn('◀', -> { step_action(-1) }, disabled: curr <= 1),
-    nav_btn('▶', -> { step_action(1) }, disabled: curr >= total),
-    nav_btn('|▶', -> { jump_next_round }, disabled: next_round_action.nil?),
-    nav_btn('▶|', -> { set_action(total) }, disabled: !is_hist),
+    nav_btn('|◀', -> { set_action(1) }, disabled: curr <= 1, title: 'Beginning of Game (Action #1)'),
+    nav_btn('◀|', -> { jump_prev_round }, disabled: prev_round_action.nil?, title: 'Beginning of Round / Previous Round'),
+    nav_btn('◀ ●', lambda {
+      jump_prev_company
+    }, disabled: prev_company_action.nil?, title: 'Beginning of Company Turn / Previous Company'),
+    nav_btn('◀', -> { step_action(-1) }, disabled: curr <= 1, title: 'Step Back 1 Action'),
+    nav_btn('▶', -> { step_action(1) }, disabled: curr >= total, title: 'Step Forward 1 Action'),
+    nav_btn('● ▶', -> { jump_next_company }, disabled: next_company_action.nil?, title: 'Next Company Turn'),
+    nav_btn('|▶', -> { jump_next_round }, disabled: next_round_action.nil?, title: 'Next Round'),
+    nav_btn('▶|', -> { set_action(total) }, disabled: !is_hist, title: 'End of Game (Live)'),
   ]),
+  # --- END FIX ---
 
   h(:div, {
       style: {
