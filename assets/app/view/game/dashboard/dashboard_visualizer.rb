@@ -795,6 +795,7 @@ module View
         }
       end
 
+      # // --- START FIX ---
       def unread_chat_count
         gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
         msgs = game_chat_messages
@@ -809,23 +810,31 @@ module View
           return 0
         end
 
-        stored_raw = Lib::Storage[read_key]
-        if stored_raw.nil?
-          stored_raw = %x{
-            (function() {
-              try { return localStorage.getItem(#{read_key}); } catch(e) { return null; }
-            })()
-          }
-        end
+        stored_lib = Lib::Storage[read_key]
+        read_idx = %x{
+          (function() {
+            try {
+              var v = #{stored_lib};
+              if (v !== null && v !== undefined && v !== Opal.nil) {
+                var n = parseInt(v, 10);
+                if (!isNaN(n)) return n;
+              }
+              var raw = localStorage.getItem(#{read_key});
+              if (raw !== null && raw !== undefined) {
+                var n2 = parseInt(raw, 10);
+                if (!isNaN(n2)) return n2;
+              }
+            } catch (e) {}
+            return -1;
+          })()
+        }.to_i
 
         # First time opening this game on this browser: baseline existing history as read
-        if stored_raw.nil? || `#{stored_raw} === null`
+        if read_idx.negative?
           mark_chat_messages_read!(total)
           return 0
         end
 
-        read_idx = stored_raw.to_i
-        read_idx = 0 if read_idx.negative?
         return 0 if total <= read_idx
 
         unread_slice = msgs[read_idx...total] || []
@@ -835,7 +844,7 @@ module View
         mark_chat_messages_read!(total) if unread_from_others.zero?
 
         unread_from_others
-      rescue StandardError
+      rescue Exception
         0
       end
 
@@ -845,22 +854,31 @@ module View
         total = msgs.size
         pop_key = "chat_pop_count_#{gid}"
 
-        stored_pop = Lib::Storage[pop_key]
-        if stored_pop.nil?
-          stored_pop = %x{
-            (function() {
-              try { return localStorage.getItem(#{pop_key}); } catch(e) { return null; }
-            })()
-          }
-        end
+        stored_lib = Lib::Storage[pop_key]
+        last_pop = %x{
+          (function() {
+            try {
+              var v = #{stored_lib};
+              if (v !== null && v !== undefined && v !== Opal.nil) {
+                var n = parseInt(v, 10);
+                if (!isNaN(n)) return n;
+              }
+              var raw = localStorage.getItem(#{pop_key});
+              if (raw !== null && raw !== undefined) {
+                var n2 = parseInt(raw, 10);
+                if (!isNaN(n2)) return n2;
+              }
+            } catch (e) {}
+            return -1;
+          })()
+        }.to_i
 
-        if stored_pop.nil? || `#{stored_pop} === null`
+        if last_pop.negative?
           Lib::Storage[pop_key] = total
           `try { localStorage.setItem(#{pop_key}, String(#{total})); } catch(e) {}`
           return
         end
 
-        last_pop = stored_pop.to_i
         return if total <= last_pop
 
         new_msgs = msgs[last_pop...total] || []
@@ -877,9 +895,10 @@ module View
             window.showChatPopupBubble(#{sender_name}, #{msg_text});
           }
         }
-      rescue StandardError
+      rescue Exception
         nil
       end
+      # // --- END FIX ---
 
       def render_chat_button
         is_open = @show_chat_overlay == true ||

@@ -376,11 +376,19 @@ module View
             (defined?(Engine::Minor) && entity.is_a?(Engine::Minor))
         end
 
+        def step_description(step)
+          return nil unless step && step.respond_to?(:description)
+
+          step.description
+        rescue NotImplementedError, ScriptError, StandardError
+          nil
+        end
+
         def home_token_step?(step, actions)
           actions.include?('place_token') && (
             step&.class&.name =~ /HomeToken|Home/i ||
-            (step.respond_to?(:description) && step.description =~ /Home/i) ||
-            (step.respond_to?(:home_token?) && step.home_token?)
+            step_description(step) =~ /Home/i ||
+            (step.respond_to?(:home_token?) && (begin; step.home_token?; rescue NotImplementedError, ScriptError, StandardError; false; end))
           )
         end
 
@@ -3601,8 +3609,6 @@ module View
               *overlays,
             ].compact)
         end
-
-
       end
     end
   end
