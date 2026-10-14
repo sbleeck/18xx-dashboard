@@ -23,8 +23,10 @@ module View
         COLOR_MONEY = '#4c1d95'
 
         needs :game, store: true
+        needs :game_data, default: nil, store: true
         needs :actor, default: nil
-        needs :user, default: nil
+        needs :user, default: nil, store: true
+
 
         def resolve_pending_par(step, entity, actions)
           pending = nil

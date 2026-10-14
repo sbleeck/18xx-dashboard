@@ -17,6 +17,8 @@ module View
         include View::Game::Dashboard::RailcardHelper
 
         needs :game, store: true
+        needs :game_data, default: nil, store: true
+        needs :user, default: nil, store: true
         needs :bidder, default: nil
 
         FONT_MONEY = '"Courier New", Courier, monospace'

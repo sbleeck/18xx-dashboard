@@ -480,7 +480,7 @@ module View
           nil
         end
 
-        return nil unless actions.include?('bid') || auction_target
+        return nil unless (actions & %w[bid choose buy_company pass]).any? || auction_target
 
         available_items =
           begin
@@ -519,10 +519,14 @@ module View
         if use_bidding_overlay
           h(::View::Game::Dashboard::BiddingOverlay,
             game: @game,
+            game_data: @game_data,
+            user: @user,
             bidder: actor)
         else
           h(::View::Game::Dashboard::DraftOverlay,
             game: @game,
+            game_data: @game_data,
+            user: @user,
             actor: actor)
         end
       end
