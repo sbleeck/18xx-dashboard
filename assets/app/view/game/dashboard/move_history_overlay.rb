@@ -514,6 +514,12 @@ module View
 
           log = @game&.log || []
           log.each do |entry|
+            raw_message = entry.respond_to?(:message) ? entry.message : nil
+
+            # Personal player messages belong exclusively in the Chat overlay.
+            # Keep them completely out of the Move Feed.
+            next if raw_message.is_a?(Engine::Action::Message)
+
             info = extract_log_entry(entry)
             msg = info[:message]
             aid = entry.respond_to?(:action_id) ? entry.action_id : nil
@@ -522,11 +528,19 @@ module View
 
             is_divider = msg.start_with?('--') || msg.include?('-- Phase') || msg.include?('-- Event') || msg.include?('-- Stock') || msg.include?('-- Operating')
 
-            is_chat = false
-            if entry.is_a?(Engine::Action::Message)
-              is_chat = true
-            elsif msg.match?(/^[a-zA-Z0-9_\s]+: /) && !msg.match?(/pays out/i) && !msg.match?(/runs a/i)
-              is_chat = true
+            if is_chat
+              blocks << current_block if current_block && current_block[:lines]&.any?
+              current_block = nil
+
+              if entry.is_a?(Engine::Action::Message)
+                sender = entry.entity.name || 'Player'
+                chat_msg = entry.message
+              else
+                sender, chat_msg = msg.split(': ', 2)
+              end
+
+              blocks << { type: :chat, sender: sender, text: chat_msg, time: time_str }
+              next
             end
 
             if is_divider
