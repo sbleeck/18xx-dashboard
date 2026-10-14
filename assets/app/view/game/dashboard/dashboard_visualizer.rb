@@ -1435,11 +1435,26 @@ badge_el,
                           }, [marker_content])
         end
 
-        card_bg = is_my_turn ? '#16a34a' : '#e2e8f0'
-        card_text_color = is_my_turn ? '#ffffff' : '#334155'
-        border_right = is_my_turn ? '2px solid #15803d' : '1px solid #cbd5e1'
+        # Player identity is information. Turn ownership is shown by a small
+        # green status mark rather than recolouring the whole information block.
+        card_bg = '#ffffff'
+        card_text_color = is_my_turn ? '#0f172a' : '#64748b'
+        border_right = '1px solid #cbd5e1'
 
         card_children = []
+        if is_my_turn
+          card_children << h(:span, {
+                               attrs: { title: 'Your turn' },
+                               style: {
+                                 width: '6px',
+                                 height: '1.55rem',
+                                 borderRadius: '3px',
+                                 backgroundColor: '#16a34a',
+                                 flexShrink: '0',
+                                 marginRight: '0.5rem',
+                               },
+                             })
+        end
         card_children << corp_marker if corp_marker
         card_children << h(:span, {
                              style: {
@@ -1465,8 +1480,8 @@ badge_el,
               minWidth: '9.5rem',
               maxWidth: '13.5rem',
               padding: '0 0.85rem',
-              borderTopLeftRadius: '3px',
-              borderBottomLeftRadius: '3px',
+              borderTopLeftRadius: '0',
+              borderBottomLeftRadius: '0',
               borderTopRightRadius: '0',
               borderBottomRightRadius: '0',
               backgroundColor: card_bg,
@@ -1509,6 +1524,56 @@ badge_el,
           end
         end
         title.to_s
+      end
+
+      # Tile colours belong with the map: physical-looking hexes show the
+      # colours currently available in the phase without colouring the round label.
+      def render_map_phase_indicator
+        phase = @game.respond_to?(:phase) ? @game.phase : nil
+        return nil unless phase
+
+        raw_tiles = if phase.respond_to?(:tiles) && phase.tiles
+                      Array(phase.tiles)
+                    elsif phase.respond_to?(:color) && phase.color
+                      [phase.color]
+                    else
+                      []
+                    end
+        tile_colors = raw_tiles.map { |c| c.to_s.downcase }.uniq
+        tile_colors.select! { |c| %w[yellow green brown gray grey].include?(c) }
+        return nil if tile_colors.empty?
+
+        fills = { 'yellow' => '#f6e652', 'green' => '#7fbf55', 'brown' => '#a66a3f', 'gray' => '#9ca3af', 'grey' => '#9ca3af' }
+        hexes = tile_colors.map do |name|
+          h(:span, {
+              attrs: { title: "#{name.capitalize} tiles available", 'aria-label': "#{name.capitalize} tiles available" },
+              style: {
+                width: '25px',
+                height: '28px',
+                display: 'inline-flex',
+                flexShrink: '0',
+                backgroundColor: fills[name],
+                clipPath: 'polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%)',
+                boxShadow: 'inset 0 0 0 1px rgba(15,23,42,0.45)',
+              },
+            })
+        end
+        h(:div, {
+            attrs: { id: 'map-phase-indicator', title: 'Tile colours currently available' },
+            style: {
+              position: 'absolute',
+              top: '6px',
+              left: '132px',
+              zIndex: 30,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '2px 6px',
+              backgroundColor: 'rgba(255,255,255,0.90)',
+              border: '1px solid #cbd5e1',
+              borderRadius: '4px',
+            },
+          }, hexes)
       end
 
       def render
@@ -2744,6 +2809,7 @@ window.recalcAllPanels = function() {
 
               h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', width: '100%', height: '100%', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
                 render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
+                render_map_phase_indicator,
                 h(:div, {
                     attrs: { id: 'map-scroll-canvas' },
                     style: {

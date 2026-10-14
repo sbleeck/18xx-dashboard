@@ -34,10 +34,10 @@ module View
                         @game.round_description(round_class_name)
                       end
 
-        is_or = (current_round.respond_to?(:operating?) && current_round.operating?) ||
-                header_text.to_s.downcase.include?('operating')
-        bg_color = is_or ? (current_phase_color || '#e0e0e0') : '#e0e0e0'
-        text_color = auto_font_color(bg_color)
+        # The round is temporal information, not a phase-colour object.
+        # Keep it neutral; tile availability is represented on the map itself.
+        bg_color = '#f8fafc'
+        text_color = '#334155'
 
         header_el = h(:div, {
                         style: {
@@ -45,8 +45,9 @@ module View
                           padding: '0 0.75rem',
                           borderRadius: '4px',
                           backgroundColor: bg_color,
-                          fontWeight: 'bold',
+                          fontWeight: '700',
                           color: text_color,
+                          border: '1px solid #cbd5e1',
                           fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
                           letterSpacing: '0.3px',
                           marginRight: '0.55rem',
