@@ -3050,6 +3050,66 @@ module View
             ].compact)
         end
 
+        # // --- START FIX ---
+        # Deterministically checks whether clicking the Progress Control will finish
+        # the player's current turn (no subsequent steps for this entity, and control
+        # does not immediately stay with the same player).
+        def will_end_player_turn?(step, entity, phase, _actions)
+          return false unless entity && step && @game.round
+
+          # 1. Stock Round: Passing in a stock round always finishes the player's turn
+          return phase != :par if @game.round.respond_to?(:stock?) && @game.round.stock?
+
+          # 2. Operating Round: Check if any subsequent step in the round will still
+          #    activate/block for this same entity after the current step finishes.
+          if @game.round.respond_to?(:operating?) && @game.round.operating? && @game.round.respond_to?(:steps)
+            steps = @game.round.steps || []
+            cur_idx = steps.index(step)
+            return false unless cur_idx
+
+            remaining_steps = steps[(cur_idx + 1)..-1] || []
+
+            # Exclude passive company-ability steps that stay open all OR unless they are the only thing left
+            has_next_step_for_entity = remaining_steps.any? do |s|
+              next false if s.respond_to?(:passed?) && s.passed?
+              next false if /Special|Ability|TrackAndToken/i.match?(s.class.name)
+
+              s_actions = begin
+                s.actions(entity)
+              rescue StandardError
+                []
+              end
+              s_actions && !s_actions.empty?
+            end
+
+            return false if has_next_step_for_entity
+
+            # Also check if Dividend will unlock BuyTrain next (since BuyTrain.actions(entity)
+            # only activates once Dividend is completed)
+            if phase == :dividend
+              will_unlock_train_or_post = remaining_steps.any? do |s|
+                (s.is_a?(Engine::Step::BuyTrain) && (!s.respond_to?(:can_buy_train?) || s.can_buy_train?(entity))) ||
+                  (s.respond_to?(:buyable_companies) && s.buyable_companies(entity)&.any?)
+              end
+              return false if will_unlock_train_or_post
+            end
+
+            # If no steps remain for this corporation, check if the NEXT operating corporation
+            # belongs to the exact same player (if so, the player's turn continues!).
+            if @game.round.respond_to?(:entities) && @game.round.respond_to?(:entity_index)
+              next_ent = @game.round.entities[@game.round.entity_index + 1]
+              return false if next_ent && active_player && next_ent.respond_to?(:owner) && next_ent.owner == active_player
+            end
+
+            return true
+          end
+
+          false
+        rescue StandardError
+          false
+        end
+        # // --- END FIX ---
+
         def render_command_content
           step = @game.round.active_step
           entity = current_entity
@@ -3470,6 +3530,46 @@ module View
             end
           end
 
+          ends_turn = !advance_disabled && my_turn? && will_end_player_turn?(step, entity, phase, actions)
+          button_label = ends_turn ? "#{advance_text} · End Turn" : advance_text
+          advance_tooltip = if ends_turn
+                              'Clicking this ends your turn (Action Hub will close and you cannot undo once the next player acts).'
+                            else
+                              nil
+                            end
+
+          advance_children = if ends_turn
+                               [
+                                 h(:span, {
+                                     style: {
+                                       display: 'inline-flex',
+                                       alignItems: 'center',
+                                       justifyContent: 'center',
+                                       width: '1.25rem',
+                                       height: '1.25rem',
+                                       borderRadius: '50%',
+                                       backgroundColor: '#fbbf24',
+                                       color: '#0f172a',
+                                       fontWeight: '900',
+                                       fontSize: '0.88rem',
+                                       lineHeight: '1',
+                                       marginRight: '0.45rem',
+                                       flexShrink: '0',
+                                       boxShadow: '0 0 0 2px rgba(255,255,255,0.35)',
+                                     },
+                                   }, '!'),
+                                 h(:span, "#{advance_text} · End Turn"),
+                               ]
+                             else
+                               [advance_text]
+                             end
+
+          advance_tooltip = if ends_turn
+                              'Clicking this ends your turn (Action Hub will close and you cannot undo once the next player acts).'
+                            else
+                              nil
+                            end
+
           has_abilities = !game_finished && !actions.include?('choose') && entity && (@game.companies || []).any? do |c|
             next false if c.respond_to?(:closed?) && c.closed?
 
@@ -3581,10 +3681,14 @@ module View
                     borderRadius: '6px',
                     cursor: advance_disabled ? 'not-allowed' : 'pointer',
                     boxShadow: advance_disabled ? 'none' : '0 2px 5px rgba(15,23,42,0.18)',
+                    whiteSpace: 'nowrap',
                   },
-                  attrs: { disabled: advance_disabled },
+                  attrs: {
+                    disabled: advance_disabled,
+                    title: advance_tooltip,
+                  }.compact,
                   on: { click: advance_action },
-                }, advance_text),
+                }, button_label),
             ]),
           ].compact)
           current_action_id = @game.respond_to?(:raw_actions) && @game.raw_actions ? @game.raw_actions.size : last_action_id
