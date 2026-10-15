@@ -166,8 +166,25 @@ module Lib
           hiddenArrival.style.visibility = 'hidden';
         }
 
-        var fromRect = fromCard.getBoundingClientRect();
-        var toRect = (toCardInner || toEl).getBoundingClientRect();
+var fromRect = null;
+
+if (isTrain && window._railcard_pending_source_rect) {
+  fromRect = window._railcard_pending_source_rect;
+  window._railcard_pending_source_rect = null;
+} else {
+  fromRect = fromCard.getBoundingClientRect();
+}
+
+/*
+ * For trains, toEl is the wrapper of the newly rendered train.
+ * Use its actual game-card as the exact landing position.
+ */
+var destinationCard =
+  isTrain
+    ? (toEl.querySelector('.game-card') || toEl)
+    : (toCardInner || toEl);
+
+var toRect = destinationCard.getBoundingClientRect();
 
         if (fromRect.width === 0 || toRect.width === 0) {
           if (hiddenArrival) {
@@ -501,14 +518,20 @@ module Lib
           other = action.respond_to?(:other_entity) ? action.other_entity : nil
 
           card_text = train ? train.name.to_s : 'Train'
-          target_sel = "#train_drop_#{entity.id}"
+
+          # Target the ACTUAL newly rendered train, not an empty slot.
+          target_sel =
+            if train
+              "#train_wrapper_#{entity.id}_#{train.id}"
+            else
+              "#trains_#{entity.id}"
+            end
 
           if pending_transfer
             source_type = transfer_val(pending_transfer, :source_type)&.to_s
             source_id = transfer_val(pending_transfer, :source_id)&.to_s
             item_id = transfer_val(pending_transfer, :item_id)&.to_s
             variant = transfer_val(pending_transfer, :variant)&.to_s
-
             safe_variant = variant ? variant.tr('/', '_') : ''
 
             source_sel =
@@ -521,6 +544,8 @@ module Lib
               else
                 '#extra_cards'
               end
+          elsif pending_source
+            source_sel = pending_source.to_s.sub(/ \.game-card\z/, '')
           elsif other && train
             source_sel = "#train_wrapper_#{other.id}_#{train.id}"
           elsif train

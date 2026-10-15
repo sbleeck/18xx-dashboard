@@ -374,6 +374,7 @@ module View
         children = []
         train_handler = lambda do |train, price = nil, variant = nil, source_type = 'fresh'|
           owner_entity = train.owner
+
           if owner_entity.respond_to?(:owner)
             owner_key = owner_entity.respond_to?(:id) ? owner_entity.id : 'depot'
             Lib::Storage["cmd_buy_train_menu_#{owner_key}_#{train.id}"] = true
@@ -384,26 +385,48 @@ module View
             variant_name = variant ? variant.to_s : train.name.to_s
             variant_param = (variant_name == train.name.to_s ? nil : variant_name)
 
+            source_type_name =
+              source_type == 'pool' ? 'train_pool' : 'train_fresh'
+
+            safe_variant = variant_name.tr('/', '_')
+
+            source_selector =
+              "#bank_train_#{source_type}_#{train.id}_#{safe_variant}"
+
             transfer = {
               kind: 'train',
               item_id: train.id.to_s,
-              source_type: source_type == 'pool' ? 'train_pool' : 'train_fresh',
+              source_type: source_type_name,
               source_id: nil,
-              variant: variant&.to_s,
+              variant: variant_name,
             }
 
             %x{
-  if (typeof window !== 'undefined') {
-    window._railcard_pending_transfer = #{transfer};
-  }
-}
+      if (typeof window !== 'undefined') {
+        window._railcard_pending_transfer = #{transfer};
+        window._railcard_pending_source = #{source_selector};
+
+        var el = document.querySelector(#{source_selector});
+        if (el) {
+          var card = el.querySelector('.game-card') || el;
+          var r = card.getBoundingClientRect();
+
+          window._railcard_pending_source_rect = {
+            left: r.left,
+            top: r.top,
+            width: r.width,
+            height: r.height
+          };
+        }
+      }
+    }
 
             process_action(
               Engine::Action::BuyTrain.new(
                 active_entity,
                 train: train,
-                price: price,
-                variant: variant
+                price: price_to_pay,
+                variant: variant_param
               )
             )
           end
@@ -2775,11 +2798,32 @@ module View
       end
 
       def exec_buy_corporate_train(source_selector, active_entity, train, price_value)
-        process_action(Engine::Action::BuyTrain.new(
-           active_entity,
-           train: train,
-           price: price_value
-         ))
+        %x{
+    if (typeof window !== 'undefined') {
+      window._railcard_pending_source = #{source_selector};
+
+      var el = document.querySelector(#{source_selector});
+      if (el) {
+        var card = el.querySelector('.game-card') || el;
+        var r = card.getBoundingClientRect();
+
+        window._railcard_pending_source_rect = {
+          left: r.left,
+          top: r.top,
+          width: r.width,
+          height: r.height
+        };
+      }
+    }
+  }
+
+        process_action(
+          Engine::Action::BuyTrain.new(
+            active_entity,
+            train: train,
+            price: price_value
+          )
+        )
       end
 
       def pd_props

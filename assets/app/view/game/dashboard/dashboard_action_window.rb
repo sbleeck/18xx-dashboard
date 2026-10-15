@@ -1306,80 +1306,217 @@ module View
           return nil unless entity && step
           return nil unless step.respond_to?(:buyable_trains)
 
-          # // --- START FIX ---
-          operating_player = if entity.respond_to?(:player?) && entity.player?
-                               entity
-                             elsif entity.respond_to?(:owner) && entity.owner
-                               entity.owner
-                             end
+          step_buyable = begin
+            step.buyable_trains(entity) || []
+          rescue StandardError
+            []
+          end
 
-          step_buyable = step.buyable_trains(entity) || []
           return nil if step_buyable.empty?
 
           depot = @game.depot
           train_boxes = []
 
-          buying_power = if step.respond_to?(:buying_power)
-                           step.buying_power(entity)
-                         elsif @game.respond_to?(:buying_power)
-                           @game.buying_power(entity)
-                         else
-                           (entity.respond_to?(:cash) ? entity.cash : 0)
-                         end
+          buying_power =
+            if step.respond_to?(:buying_power)
+              begin
+                step.buying_power(entity)
+              rescue StandardError
+                entity.respond_to?(:cash) ? entity.cash : 0
+              end
+            elsif @game.respond_to?(:buying_power)
+              begin
+                @game.buying_power(entity)
+              rescue StandardError
+                entity.respond_to?(:cash) ? entity.cash : 0
+              end
+            else
+              entity.respond_to?(:cash) ? entity.cash : 0
+            end
 
-          must_buy = step.respond_to?(:must_buy_train?) && step.must_buy_train?(entity)
-          ebuy_Active = must_buy ||
-                        (step.respond_to?(:ebuy_president_can_contribute?) && step.ebuy_president_can_contribute?(entity&.owner)) ||
-                        (step.respond_to?(:president_may_contribute?) && step.president_may_contribute?(entity))
+          must_buy =
+            begin
+              step.respond_to?(:must_buy_train?) &&
+                step.must_buy_train?(entity)
+            rescue StandardError
+              false
+            end
 
-          buyable_depot, other_trains = step_buyable.partition do |t|
-            t.from_depot? || (depot && (t.owner == depot || (depot.respond_to?(:depot_trains) && depot.depot_trains.include?(t))))
+          ebuy_active = must_buy
+
+          if step.respond_to?(:ebuy_president_can_contribute?)
+            begin
+              ebuy_active ||= step.ebuy_president_can_contribute?(entity.owner)
+            rescue StandardError
+            end
           end
 
-          unique_depot_trains = buyable_depot.uniq { |t| [depot&.discarded&.include?(t) ? :pool : :bank, t.name] }
+          if step.respond_to?(:president_may_contribute?)
+            begin
+              ebuy_active ||= step.president_may_contribute?(entity)
+            rescue StandardError
+            end
+          end
+
+          depot_trains = []
+          other_trains = []
+
+          step_buyable.each do |train|
+            from_depot =
+              begin
+                train.respond_to?(:from_depot?) && train.from_depot?
+              rescue StandardError
+                false
+              end
+
+            from_depot ||= train.owner == depot if depot
+
+            if from_depot
+              depot_trains << train
+            else
+              other_trains << train
+            end
+          end
+
+          unique_depot_trains = depot_trains.uniq do |train|
+            is_pool =
+              depot &&
+              depot.respond_to?(:discarded) &&
+              depot.discarded.include?(train)
+
+            [is_pool ? :pool : :fresh, train.name]
+          end
 
           unique_depot_trains.each do |train|
-            next if step.respond_to?(:can_buy_train?) && !step.can_buy_train?(entity, train)
+            can_buy =
+              begin
+                !step.respond_to?(:can_buy_train?) ||
+                  step.can_buy_train?(entity, train)
+              rescue StandardError
+                true
+              end
 
-            variants = if step.respond_to?(:buyable_train_variants)
-                         step.buyable_train_variants(train, entity) || []
-                       elsif step.respond_to?(:train_variant_helper)
-                         step.train_variant_helper(train, entity) || []
-                       elsif train.respond_to?(:variants) && train.variants
-                         train.variants.values
-                       else
-                         [{ name: train.name, price: train.price }]
-                       end
+            next unless can_buy
 
-            next if variants.empty?
+            variants = []
 
-            is_pool = depot&.discarded&.include?(train)
+            if step.respond_to?(:buyable_train_variants)
+              begin
+                variants = step.buyable_train_variants(train, entity) || []
+              rescue StandardError
+                variants = []
+              end
+            end
+
+            if variants.empty? && train.respond_to?(:names_to_prices)
+              begin
+                names_to_prices = train.names_to_prices
+
+                if names_to_prices && !names_to_prices.empty?
+                  variants = names_to_prices.map do |name, price|
+                    {
+                      name: name,
+                      price: price,
+                    }
+                  end
+                end
+              rescue StandardError
+                variants = []
+              end
+            end
+
+            if variants.empty? && train.respond_to?(:variants)
+              begin
+                raw_variants = train.variants
+
+                if raw_variants.respond_to?(:each)
+                  raw_variants.each do |name, data|
+                    if data.respond_to?(:[])
+                      variant_name =
+                        data[:name] ||
+                        data['name'] ||
+                        name
+
+                      variant_price =
+                        data[:price] ||
+                        data['price'] ||
+                        train.price
+
+                      variants << {
+                        name: variant_name,
+                        price: variant_price,
+                      }
+                    else
+                      variants << {
+                        name: name,
+                        price: train.price,
+                      }
+                    end
+                  end
+                end
+              rescue StandardError
+                variants = []
+              end
+            end
+
+            if variants.empty?
+              variants = [
+                {
+                  name: train.name,
+                  price: train.price,
+                },
+              ]
+            end
+
+            is_pool =
+              depot &&
+              depot.respond_to?(:discarded) &&
+              depot.discarded.include?(train)
+
             source_tag = is_pool ? 'Pool' : 'Bank'
 
-            variants.each do |v_info|
-              variant_name = v_info[:name] || v_info['name']
-              price = if step.respond_to?(:train_price)
-                        begin
-                          step.train_price(entity, train, variant: variant_name)
-                        rescue ArgumentError, StandardError
-                          v_info[:price] || v_info['price'] || train.price
-                        end
-                      else
-                        v_info[:price] || v_info['price'] || train.price
-                      end
+            variants.each do |variant_info|
+              if variant_info.respond_to?(:[])
+                variant_name =
+                  variant_info[:name] ||
+                  variant_info['name'] ||
+                  train.name
 
-              # Filter out depot variants that the entity cannot afford unless in emergency buy
-              can_afford = price <= buying_power || ebuy_Active
-              if !can_afford && step.respond_to?(:can_ebuy?)
-                can_afford = begin; step.can_ebuy?(entity, train); rescue StandardError; false; end
+                price =
+                  variant_info[:price] ||
+                  variant_info['price'] ||
+                  train.price
+              else
+                variant_name = train.name
+                price = train.price
               end
+
+              price = price.to_i
+
+              can_afford =
+                price <= buying_power ||
+                ebuy_active
+
+              if !can_afford && step.respond_to?(:can_ebuy?)
+                can_afford =
+                  begin
+                    step.can_ebuy?(entity, train)
+                  rescue StandardError
+                    false
+                  end
+              end
+
               next unless can_afford
 
               variant_str = variant_name.to_s
-              variant_param = (variant_str == train.name.to_s ? nil : variant_str)
 
-              wrapper_id = "cmd_train_#{train.id}_#{variant_str.tr('/', '_')}"
-              click_handler = lambda {
+              variant_param =
+                variant_str == train.name.to_s ? nil : variant_str
+
+              wrapper_id =
+                "cmd_train_#{train.id}_#{variant_str.tr('/', '_')}"
+
+              click_handler = lambda do
                 remember_card_transfer(
                   kind: :train,
                   item_id: train.id,
@@ -1395,84 +1532,183 @@ module View
                     variant: variant_param
                   )
                 )
-              }
-              train_classes = %w[game-card action-buy clickable card-train]
-              card = render_railcard(variant_str, train_classes, click_handler, nil, nil, wrapper_id)
-              price_str = @game.format_currency(price)
-              train_boxes << h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.4rem' } }, [
-                card,
-                h(:span, { style: { fontSize: '0.85rem', color: '#475569', fontWeight: 'bold', whiteSpace: 'nowrap' } }, source_tag),
-                h(:span, { style: { fontFamily: FONT_MONEY, color: COLOR_MONEY, fontWeight: 'bold', fontSize: '0.85rem', whiteSpace: 'nowrap' } }, price_str),
-              ])
+              end
+
+              card = render_railcard(
+                variant_str,
+                %w[game-card action-buy clickable card-train],
+                click_handler,
+                nil,
+                nil,
+                wrapper_id,
+                nil,
+                entity: train
+              )
+
+              train_boxes << h(
+                :div,
+                {
+                  style: {
+                    display: 'inline-flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  },
+                },
+                [
+                  card,
+                  h(
+                    :span,
+                    {
+                      style: {
+                        fontSize: '0.85rem',
+                        color: '#475569',
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap',
+                      },
+                    },
+                    source_tag
+                  ),
+                  h(
+                    :span,
+                    {
+                      style: {
+                        fontFamily: FONT_MONEY,
+                        color: COLOR_MONEY,
+                        fontWeight: 'bold',
+                        fontSize: '0.85rem',
+                        whiteSpace: 'nowrap',
+                      },
+                    },
+                    @game.format_currency(price)
+                  ),
+                ]
+              )
             end
           end
 
-          # Strictly filter other corporations' trains to those owned by the SAME player
-          same_player_other_trains = other_trains.select do |t|
-            c = t.owner
-            next false unless c && c != entity
-            next false if operating_player && c.respond_to?(:owner) && c.owner != operating_player
-            next false if step.respond_to?(:can_buy_train?) && !step.can_buy_train?(entity, t)
-
-            true
-          end
-
-          same_player_other_trains.group_by(&:owner).each do |c, trains|
-            next unless c
-
-            trains.uniq(&:name).each do |t|
-              min_price, max_price = if step.respond_to?(:spend_minmax)
-                                       step.spend_minmax(entity, t)
-                                     else
-                                       [1, if step.respond_to?(:max_price)
-                                             step.max_price(entity, t)
-                                           else
-                                             buying_power
-                                           end]
-                                     end
-
-              next if min_price.nil? || max_price.nil? || max_price < min_price
-
-              # // --- END FIX ---
-
-              wrapper_id = "cmd_other_train_#{c.id}_#{t.id}"
-
-              train_click_handler = lambda {
-                `var p = document.getElementById('railcard-portal'); if (p) { p.style.display = 'none'; p.innerHTML = ''; }`
-
-                menu_title = "Buy #{t.name} from #{c.name} (#{min_price}-#{max_price}):"
-
-                show_price_dialog(
-                  menu_title,
-                  min_price,
-                  max_price,
-                  min_price,
-                  lambda { |price_val|
-                    remember_card_transfer(
-                      kind: :train,
-                      item_id: t.id,
-                      source_type: :corporation,
-                      source_id: c.id,
-                      variant: t.name
-                    )
-
-                    process_action(
-                      Engine::Action::BuyTrain.new(
-                        entity,
-                        train: t,
-                        price: price_val
-                      )
-                    )
-                  }
-                )
-              }
-
-              card = render_railcard(t.name, %w[game-card action-buy clickable card-train], train_click_handler, nil, nil, wrapper_id)
-              train_boxes << h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.4rem' } }, [
-                card,
-                h(:span, { style: { fontSize: '0.85rem', color: '#475569', fontWeight: 'bold', whiteSpace: 'nowrap' } }, (c.id || c.name).to_s),
-              ])
+          #
+          # Trains available from another corporation
+          #
+          operating_player =
+            if entity.respond_to?(:player?) && entity.player?
+              entity
+            elsif entity.respond_to?(:owner)
+              entity.owner
             end
+
+          other_trains.each do |train|
+            seller = train.owner
+
+            next unless seller
+            next if seller == entity
+
+            if operating_player &&
+               seller.respond_to?(:owner) &&
+               seller.owner != operating_player
+              next
+            end
+
+            can_buy =
+              begin
+                !step.respond_to?(:can_buy_train?) ||
+                  step.can_buy_train?(entity, train)
+              rescue StandardError
+                false
+              end
+
+            next unless can_buy
+
+            min_price = 1
+            max_price = buying_power
+
+            if step.respond_to?(:spend_minmax)
+              begin
+                min_price, max_price =
+                  step.spend_minmax(entity, train)
+              rescue StandardError
+              end
+            elsif step.respond_to?(:max_price)
+              begin
+                max_price =
+                  step.max_price(entity, train)
+              rescue StandardError
+              end
+            end
+
+            next if min_price.nil? || max_price.nil?
+            next if max_price < min_price
+
+            wrapper_id =
+              "cmd_other_train_#{seller.id}_#{train.id}"
+
+            click_handler = lambda do
+              menu_title =
+                "Buy #{train.name} from #{seller.name} " \
+                "(#{min_price}-#{max_price}):"
+
+              show_price_dialog(
+                menu_title,
+                min_price,
+                max_price,
+                min_price,
+                lambda do |price_value|
+                  remember_card_transfer(
+                    kind: :train,
+                    item_id: train.id,
+                    source_type: :corporation,
+                    source_id: seller.id,
+                    variant: train.name
+                  )
+
+                  process_action(
+                    Engine::Action::BuyTrain.new(
+                      entity,
+                      train: train,
+                      price: price_value
+                    )
+                  )
+                end
+              )
+            end
+
+            card = render_railcard(
+              train.name,
+              %w[game-card action-buy clickable card-train],
+              click_handler,
+              nil,
+              nil,
+              wrapper_id,
+              nil,
+              entity: train
+            )
+
+            train_boxes << h(
+              :div,
+              {
+                style: {
+                  display: 'inline-flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                },
+              },
+              [
+                card,
+                h(
+                  :span,
+                  {
+                    style: {
+                      fontSize: '0.85rem',
+                      color: '#475569',
+                      fontWeight: 'bold',
+                      whiteSpace: 'nowrap',
+                    },
+                  },
+                  seller.respond_to?(:id) ? seller.id.to_s : seller.name.to_s
+                ),
+              ]
+            )
           end
 
           return nil if train_boxes.empty?
@@ -2160,7 +2396,7 @@ module View
             ])
         end
 
-        def remember_card_transfer(kind:, item_id:, source_type:, source_id: nil, variant: nil)
+        def remember_card_transfer(kind:, item_id:, source_type:, source_id: nil, variant: nil, source_selector: nil)
           transfer = {
             kind: kind.to_s,
             item_id: item_id.to_s,
@@ -2170,10 +2406,34 @@ module View
           }
 
           %x{
-            if (typeof window !== 'undefined') {
-              window._railcard_pending_transfer = #{transfer};
-            }
-          }
+    if (typeof window !== 'undefined') {
+      window._railcard_pending_transfer = #{transfer};
+
+      var selector = #{source_selector};
+
+      if (selector) {
+        window._railcard_pending_source = selector;
+
+        var el = document.querySelector(selector);
+
+        if (el) {
+          var card =
+            el.matches && el.matches('.game-card')
+              ? el
+              : (el.querySelector('.game-card') || el);
+
+          var r = card.getBoundingClientRect();
+
+          window._railcard_pending_source_rect = {
+            left: r.left,
+            top: r.top,
+            width: r.width,
+            height: r.height
+          };
+        }
+      }
+    }
+  }
         end
 
         def remaining_subsidiary_cost(step, entity)
