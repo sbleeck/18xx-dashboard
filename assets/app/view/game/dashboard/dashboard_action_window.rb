@@ -78,13 +78,10 @@ module View
         # HUD WINDOW LOGIC
         # ==========================================
 
-        def close_window
-          Lib::Storage['dashboard_show_actions'] = 'false'
-          %x{
-            try {
-              localStorage.setItem('dashboard_show_actions', 'false');
-            } catch (e) {}
-          }
+def close_window
+  @on_close&.call
+end
+
           @on_close&.call
         end
 

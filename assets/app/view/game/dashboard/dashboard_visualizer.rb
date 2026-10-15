@@ -131,17 +131,22 @@ module View
         false
       end
 
-      def actions_window_open?
-        if action_required_for_me?
-          unless @show_actions_window == true
-            @show_actions_window = true
-            store(:show_actions_window, true, skip: true)
-          end
+      def actions_window_storage_key
+        game_id = @game.respond_to?(:id) ? @game.id : 'default'
+        "dashboard_actions_open_#{game_id}"
+      end
 
+      def actions_window_open?
+        storage_key = actions_window_storage_key
+        stored_open = [true, 'true'].include?(Lib::Storage[storage_key])
+
+        if action_required_for_me?
+          @show_actions_window = true
+          Lib::Storage[storage_key] = true
           return true
         end
 
-        @show_actions_window == true
+        @show_actions_window == true || stored_open
       end
 
       def render_action_hub_button
@@ -176,11 +181,13 @@ module View
           end
 
         click_action = lambda do
-          # The window is mandatory and stays up while this user has actions.
-          next if action_required_for_me?
+          storage_key = actions_window_storage_key
+          currently_open = actions_window_open?
+          new_value = !currently_open
 
-          new_value = !(@show_actions_window == true)
           @show_actions_window = new_value
+          Lib::Storage[storage_key] = new_value
+
           store(:show_actions_window, new_value)
           update
         end
@@ -322,21 +329,22 @@ module View
         return nil unless actions_window_open?
 
         close_handler = lambda do
-          # The Action Hub cannot be closed while I must act.
-          next if action_required_for_me?
+          storage_key = actions_window_storage_key
 
-          # // --- START FIX ---
           @show_actions_window = false
+          Lib::Storage[storage_key] = false
+
           store(:show_actions_window, false)
           update
-          # // --- END FIX ---
         end
 
-        h(::View::Game::Dashboard::DashboardActionWindow,
+        h(
+          ::View::Game::Dashboard::DashboardActionWindow,
           game: @game,
           game_data: @game_data,
           user: @user,
-          on_close: close_handler)
+          on_close: close_handler
+        )
       end
 
       def active_entity
