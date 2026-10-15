@@ -20,7 +20,7 @@ module View
         PLAYER_PALETTE = ['#0284c7', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#db2777', '#0d9488', '#ea580c'].freeze
 
         def close_overlay
-          Lib::Storage['cmd_move_history_overlay'] = nil
+          Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
           begin
             store(:show_move_history, false)
           rescue StandardError
@@ -907,7 +907,7 @@ module View
                   }, "#{moves_count} Events"),
               ]),
               h(:button, {
-                  attrs: { id: 'btn_close_move_history_overlay', type: 'button', title: 'Close Feed' },
+                  attrs: { id: 'btn_close_dashboard_move_feed_overlay', type: 'button', title: 'Close Feed' },
                   style: {
                     background: 'none',
                     border: 'none',

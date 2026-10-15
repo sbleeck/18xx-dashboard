@@ -20,7 +20,7 @@ require 'view/game/round/operating'
 require 'view/game/dashboard/actions_monitor_overlay'
 require 'view/game/dashboard/manual_route_overlay'
 require 'view/game/dashboard/history_overlay'
-require 'view/game/dashboard/move_history_overlay'
+require 'view/game/dashboard/dashboard_move_feed_overlay'
 
 class String
   def player?

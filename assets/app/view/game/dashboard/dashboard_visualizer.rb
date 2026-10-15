@@ -312,7 +312,7 @@ module View
             on: {
               click: lambda {
                 new_val = !(@show_move_history == true)
-                Lib::Storage['cmd_move_history_overlay'] = nil
+                Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
                 store(:show_move_history, new_val)
                 update
               },
@@ -718,13 +718,13 @@ module View
         nil
       end
 
-      def render_move_history_overlay
+      def render_dashboard_move_feed_overlay
         return nil unless @show_move_history == true
 
         ensure_overlay_safety!
 
         close_handler = lambda {
-          Lib::Storage['cmd_move_history_overlay'] = nil
+          Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
           store(:show_move_history, false)
           update
         }
@@ -735,7 +735,7 @@ module View
           on_close: close_handler)
       rescue StandardError => e
         `console.error("MoveHistoryOverlay failed to render:", #{e.message})`
-        Lib::Storage['cmd_move_history_overlay'] = nil
+        Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
         store(:show_move_history, false, skip: true)
         nil
       end
@@ -1654,7 +1654,7 @@ badge_el,
           Lib::Storage['last_active_dashboard_gid'] = active_gid
           Lib::Storage['show_other_games_overlay'] = nil
 
-          Lib::Storage['cmd_move_history_overlay'] = nil
+          Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
           Lib::Storage['cmd_history_overlay'] = nil
           Lib::Storage['dashboard_show_actions'] = nil
           store(:show_other_games_overlay, false, skip: true)
@@ -3075,7 +3075,7 @@ h(:div, {
             render_par_overlay,
             render_tile_manifest_overlay,
             render_history_overlay,
-            render_move_history_overlay,
+            render_dashboard_move_feed_overlay,
             render_other_games_overlay,
             render_top_nav_utility_cluster,
             render_chat_overlay,
