@@ -17,7 +17,7 @@ module View
         needs :show_move_history, store: true, default: true
         needs :on_close, default: nil
 
-        PLAYER_PALETTE = ['#0284c7', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#db2777', '#0d9488', '#ea580c'].freeze
+        PLAYER_NEUTRAL_BG = '#475569'
 
         def close_overlay
           Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
@@ -158,15 +158,8 @@ module View
           }
         end
 
-        def player_color(name)
-          if @game.respond_to?(:players) && @game.players
-            idx = @game.players.index { |p| p.name.to_s == name.to_s || p.id.to_s == name.to_s }
-            return PLAYER_PALETTE[idx % PLAYER_PALETTE.size] if idx
-          end
-
-          hash = 0
-          name.to_s.each_char { |c| hash = c.ord + ((hash << 5) - hash) }
-          PLAYER_PALETTE[hash.abs % PLAYER_PALETTE.size]
+        def player_color(_name)
+          PLAYER_NEUTRAL_BG
         end
 
         def entity_badge(entity, fallback_text)
@@ -261,89 +254,26 @@ module View
           end
         end
 
-        def company_tooltip_html(c)
-          name = c.name.to_s
-          desc = c.desc.to_s
-          desc = c.abilities.map(&:description).compact.join(' ') if desc.empty? && c.respond_to?(:abilities) && c.abilities
-          val = @game.format_currency(c.value || 0)
-          rev = @game.format_currency(c.revenue || 0)
-          owner = c.owner&.name || 'Bank'
-          hexes = resolve_target_hexes(c).join(',')
-
-          "<div class=\"status-company-tooltip cmd-company-tooltip\" data-hexes=\"#{hexes}\" style=\"display:none;\">" \
-            '<div style="background-color:#ffff00;border:1px solid #000;font-weight:bold;font-size:0.8rem;text-align:center;padding:2px 4px;margin-bottom:4px;text-transform:uppercase;border-radius:3px;color:#000;">Private Company</div>' \
-            "<div style=\"font-weight:bold;font-size:0.95rem;text-align:center;margin-bottom:4px;color:#111;\">#{name}</div>" \
-            "<div style=\"font-size:0.8rem;line-height:1.3;margin-bottom:8px;color:#333;\">#{desc}</div>" \
-            '<div style="display:flex;justify-content:space-between;font-size:0.8rem;font-weight:bold;border-top:1px solid #ddd;padding-top:4px;margin-bottom:2px;color:#111;">' \
-            "<span>Value: <strong style=\"color:#4c1d95;font-family:'Courier New',Courier,monospace;\">#{val}</strong></span>" \
-            "<span>Revenue: <strong style=\"color:#4c1d95;font-family:'Courier New',Courier,monospace;\">#{rev}</strong></span>" \
-            '</div>' \
-            "<div style=\"font-size:0.78rem;font-weight:bold;text-align:center;color:#666;\">Owner: #{owner}</div>" \
-            '</div>'
-        end
-
-        def corp_tooltip_html(corp)
-          return '' unless corp
-
-          name = corp.respond_to?(:name) ? corp.name.to_s : ''
-          sym = if corp.respond_to?(:sym) && corp.sym
-                  corp.sym.to_s
-                else
-                  (corp.respond_to?(:id) ? corp.id.to_s : name)
-                end
-          bg = corp.respond_to?(:color) && corp.color ? corp.color : '#333333'
-          fg = corp.respond_to?(:text_color) && corp.text_color ? corp.text_color : '#ffffff'
-          price = corp.respond_to?(:share_price) && corp.share_price ? @game.format_currency(corp.share_price.price) : 'Unparred'
-          par = corp.respond_to?(:par_price) && corp.par_price ? @game.format_currency(corp.par_price.price) : 'N/A'
-          cash = corp.respond_to?(:cash) && corp.cash ? @game.format_currency(corp.cash) : @game.format_currency(0)
-          owner = corp.respond_to?(:owner) && corp.owner ? corp.owner.name : 'None'
-          trains = corp.respond_to?(:trains) && corp.trains && corp.trains.any? ? corp.trains.map(&:name).join(', ') : 'None'
-          tokens = if corp.respond_to?(:tokens) && corp.tokens
-                     "#{corp.tokens.count(&:used)} / #{corp.tokens.size}"
-                   else
-                     'N/A'
-                   end
-          hexes = resolve_target_hexes(corp).join(',')
-
-          "<div class=\"status-corp-tooltip cmd-corp-tooltip\" data-hexes=\"#{hexes}\" style=\"display:none;\">" \
-            "<div style=\"background-color:#{bg};color:#{fg};font-weight:bold;font-size:0.85rem;text-align:center;padding:4px;margin-bottom:6px;border-radius:4px;letter-spacing:0.5px;\">#{sym} - #{name}</div>" \
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.8rem;margin-bottom:4px;color:#111;">' \
-            "<div>Price: <strong style=\"color:#4c1d95;font-family:'Courier New',Courier,monospace;\">#{price}</strong></div>" \
-            "<div>Par: <strong style=\"color:#4c1d95;font-family:'Courier New',Courier,monospace;\">#{par}</strong></div>" \
-            "<div>Treasury: <strong style=\"color:#4c1d95;font-family:'Courier New',Courier,monospace;\">#{cash}</strong></div>" \
-            "<div>Owner: <strong>#{owner}</strong></div>" \
-            "<div>Trains: <strong>#{trains}</strong></div>" \
-            "<div>Tokens: <strong>#{tokens}</strong></div>" \
-            '</div>' \
-            '</div>'
-        end
-
-        def entity_railcard_html(item)
+        def render_entity_railcard_node(item)
+          ent = item[:entity]
           if item[:type] == :corp
-            corp = item[:entity]
-            bg = corp.respond_to?(:color) && corp.color ? corp.color : '#4169e1'
-            fg = corp.respond_to?(:text_color) && corp.text_color ? corp.text_color : '#ffffff'
-            label = corp.respond_to?(:sym) && corp.sym ? corp.sym : item[:name]
-            corp_id = corp.respond_to?(:id) && corp.id ? corp.id.to_s : label.to_s
-            hexes = resolve_target_hexes(corp).join(',')
-
-            "<span class=\"major-railcard-wrapper status-corp-wrapper cmd-corp-wrapper\" data-corp=\"#{corp_id}\" data-hexes=\"#{hexes}\" style=\"display:inline-flex;position:relative;vertical-align:baseline;cursor:help;margin:0 2px;\">" \
-              "<span class=\"major-railcard\" data-corp=\"#{corp_id}\" style=\"display:inline-flex;align-items:center;justify-content:center;height:1.35rem;padding:0 6px;border-radius:0;font-weight:800;font-size:0.78rem;background-color:#{bg};color:#{fg};border:2px solid #333333;line-height:1;letter-spacing:0.3px;\">#{label}</span>" \
-              "#{corp_tooltip_html(corp)}" \
-              '</span>'
+            render_major_railcard(ent)
           else
-            c = item[:entity]
-            name = c.respond_to?(:sym) && c.sym ? c.sym.to_s : item[:name].to_s
-            hexes = resolve_target_hexes(c).join(',')
-
-            "<span class=\"status-company-wrapper cmd-company-wrapper\" data-hexes=\"#{hexes}\" style=\"display:inline-flex;position:relative;vertical-align:baseline;cursor:help;margin:0 2px;\">" \
-              "<span class=\"game-card card-private\" style=\"display:inline-flex;align-items:center;justify-content:center;height:1.35rem;padding:0 7px 0 5px;border-radius:2px 11px 11px 2px;font-weight:700;font-size:0.76rem;background-color:#fdfbf7;color:#000000;border:2px solid #888888;line-height:1;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;\">#{name}</span>" \
-              "#{company_tooltip_html(c)}" \
-              '</span>'
+            label = ent.respond_to?(:sym) && ent.sym ? ent.sym.to_s : item[:name].to_s
+            render_railcard(
+              label,
+              %w[game-card card-private],
+              nil,
+              build_entity_tooltip(ent),
+              nil,
+              nil,
+              nil,
+              entity: ent
+            )
           end
         end
 
-        def format_log_line(text, actor_names = [])
+        def format_log_line_nodes(text, actor_names = [])
           clean_text = text.to_s
 
           Array(actor_names).each do |act|
@@ -365,49 +295,73 @@ module View
 
           tokens = {}
           tok_idx = 0
+          next_tok = lambda do |vnode|
+            key = "\u0001\u0002#{tok_idx}\u0002\u0001"
+            tok_idx += 1
+            tokens[key] = vnode
+            key
+          end
 
+          # 1. Tile numbers (#57, #8, etc.)
           clean_text = clean_text.gsub(/(#[A-Za-z0-9]+)/) do |m|
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            tokens[token] = "<span style=\"color: #64748b; font-weight: 600;\">#{m}</span>"
-            token
+            next_tok.call(h(:span, { style: { color: '#64748b', fontWeight: '700' } }, m))
           end
 
+          # 2. Currency values ($20, £180, etc.) -> Canonical FONT_MONEY & COLOR_MONEY from RailcardHelper
           clean_text = clean_text.gsub(/([$£€¥]\d+(?:[.,]\d+)?)/) do |m|
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            tokens[token] =
-              "<strong style=\"color: #{COLOR_MONEY}; font-family: #{FONT_MONEY}; font-size: 0.95em;\">#{m}</strong>"
-            token
+            next_tok.call(h(:strong,
+                            { style: { color: COLOR_MONEY, fontFamily: FONT_MONEY, fontSize: '0.95em' } }, m))
           end
 
+          # 3. Share percentages (10%, 20%, etc.) -> Canonical RailcardHelper share card
           clean_text = clean_text.gsub(/(\b\d+%\b)/) do |m|
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            tokens[token] =
-              "<span class=\"game-card cert-share-card\" style=\"display:inline-flex;align-items:center;justify-content:center;height:1.3rem;padding:0 5px;border-radius:3px;font-weight:700;font-size:0.78rem;background-color:#fdfbf7;color:#0f172a;border:1.5px solid #888888;vertical-align:baseline;margin:0 2px;line-height:1;\">#{m}</span>"
-            token
+            next_tok.call(render_railcard(m, %w[game-card cert-share-card]))
           end
 
-          clean_text = clean_text.gsub(/\b(\d+[A-Z+]*(?:\+\d+)?)\s+train\b/i) do
+          # 4. Trains ("2 train", "4 train", "3/5 train", etc.) -> Canonical RailcardHelper train card
+          clean_text = clean_text.gsub(%r{\b(\d+(?:[/+]\d+|[A-Z]+)?)\s+(trains?)\b}i) do
             m = Regexp.last_match(1)
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            hover_info = train_hover_text(m).to_s.gsub('"', '&quot;')
-            title_attr = hover_info.empty? ? '' : "title=\"#{hover_info}\""
-            tokens[token] =
-              "<span class=\"game-card card-train\" #{title_attr} style=\"display:inline-flex;align-items:center;justify-content:center;height:1.35rem;min-width:2.2rem;padding:0 6px;border-radius:12px;font-weight:800;font-size:0.8rem;background-color:#fdfbf7;color:#000000;border:2px solid #888888;vertical-align:baseline;margin:0 3px;line-height:1;cursor:help;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;\">#{m}</span> train"
-            token
+            word = Regexp.last_match(2)
+            train_node = render_railcard(m, %w[game-card card-train])
+            next_tok.call(h(:span,
+                            { style: { display: 'inline-flex', alignItems: 'center', gap: '3px', verticalAlign: 'middle' } }, [train_node, " #{word}"]))
           end
 
+          # 5. Map hex coordinates (C13, G9, etc.) -> Cyan spatial link
+          hex_id_str = nil
           clean_text = clean_text.gsub(/\b([A-Z]\d{1,2})\b/) do |m|
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            tokens[token] =
-              "<span class=\"history-hex-link\" style=\"color: #0284c7; cursor: pointer; font-weight: 700; text-decoration: underline; text-underline-offset: 2px;\" onmouseenter=\"if(window.highlightMapHexes) window.highlightMapHexes(['#{m}'])\" onmouseleave=\"if(window.clearMapHexHighlights) window.clearMapHexHighlights()\">#{m}</span>"
-            token
+            h_id = m
+            next_tok.call(
+              h(:span, {
+                  attrs: { class: 'history-hex-link' },
+                  style: {
+                    color: '#0891b2',
+                    cursor: 'pointer',
+                    fontWeight: '700',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: '2px',
+                  },
+                  on: {
+                    mouseenter: lambda {
+                      %x{
+                        if (typeof window !== 'undefined' && window.highlightMapHexes) {
+                          window.highlightMapHexes([#{h_id}]);
+                        }
+                      }
+                    },
+                    mouseleave: lambda {
+                      %x{
+                        if (typeof window !== 'undefined' && window.clearMapHexHighlights) {
+                          window.clearMapHexHighlights();
+                        }
+                      }
+                    },
+                  },
+                }, h_id)
+            )
           end
 
+          # 6. Corporations, Minors, and Private Companies -> Canonical RailcardHelper cards
           entity_lookup.each do |item|
             name = item[:name]
             next if name.nil? || name.empty?
@@ -419,117 +373,22 @@ module View
             next unless clean_text.match?(pattern)
 
             clean_text = clean_text.gsub(pattern) do
-              token = "@@TOK_#{tok_idx}@@"
-              tok_idx += 1
-              tokens[token] = entity_railcard_html(item)
-              token
+              next_tok.call(render_entity_railcard_node(item))
             end
           end
 
-          html = clean_text.gsub('&', '&amp;').gsub('<', '&lt;').gsub('>', '&gt;')
-          tokens.each do |tok, replacement|
-            html = html.gsub(tok, replacement)
+          parts = clean_text.split(/(\u0001\u0002\d+\u0002\u0001)/)
+          children = parts.reject(&:empty?).map do |part|
+            tokens.key?(part) ? tokens[part] : part
           end
 
           is_boring = text.match?(/skips|passes|lays tile|does not run|places a token|places its destination/i)
-          if is_boring
-            "<span style=\"color: #64748b; font-size: 0.92em;\">#{html}</span>"
-          else
-            "<span style=\"color: #0f172a;\">#{html}</span>"
-          end
-        end
-
-        def format_log_line(text, actor_names = [])
-          clean_text = text.to_s
-
-          Array(actor_names).each do |act|
-            next if act.to_s.strip.empty?
-
-            escaped = Regexp.escape(act.to_s)
-            if clean_text.match?(/^#{escaped}'s\s+share\s+price\s+/i)
-              clean_text = clean_text.sub(/^#{escaped}'s\s+share\s+price\s+/i, 'Share price ')
-              break
-            elsif clean_text.match?(/^#{escaped}'s\s+/i)
-              clean_text = clean_text.sub(/^#{escaped}'s\s+/i, '')
-              break
-            elsif clean_text.match?(/^#{escaped}\s+/i)
-              clean_text = clean_text.sub(/^#{escaped}\s+/i, '')
-              break
-            end
-          end
-          clean_text = clean_text[0].upcase + clean_text[1..-1] if clean_text.length.positive?
-
-          tokens = {}
-          tok_idx = 0
-
-          clean_text = clean_text.gsub(/(#[A-Za-z0-9]+)/) do |m|
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            tokens[token] = "<span style=\"color: #64748b; font-weight: 600;\">#{m}</span>"
-            token
-          end
-
-          clean_text = clean_text.gsub(/([$£€¥]\d+(?:[.,]\d+)?)/) do |m|
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            tokens[token] =
-              "<strong style=\"color: #4c1d95; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.95em;\">#{m}</strong>"
-            token
-          end
-
-          clean_text = clean_text.gsub(/(\b\d+%\b)/) do |m|
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            tokens[token] = "<span style=\"color: #0f172a; font-weight: 700;\">#{m}</span>"
-            token
-          end
-
-          clean_text = clean_text.gsub(/\b(\d+[A-Z]?)\s+train\b/i) do
-            m = Regexp.last_match(1)
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            tokens[token] =
-              "<span class=\"game-card card-train\" style=\"display:inline-flex;align-items:center;justify-content:center;height:1.35rem;min-width:2.2rem;padding:0 6px;border-radius:12px;font-weight:800;font-size:0.8rem;background-color:#fdfbf7;color:#000000;border:2px solid #78716c;vertical-align:baseline;margin:0 3px;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,0.06);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;\">#{m}</span> train"
-            token
-          end
-
-          clean_text = clean_text.gsub(/\b([A-Z]\d{1,2})\b/) do |m|
-            token = "@@TOK_#{tok_idx}@@"
-            tok_idx += 1
-            tokens[token] =
-              "<span class=\"history-hex-link\" style=\"color: #0284c7; cursor: pointer; font-weight: 700; text-decoration: underline; text-underline-offset: 2px;\" onmouseenter=\"if(window.highlightMapHexes) window.highlightMapHexes(['#{m}'])\" onmouseleave=\"if(window.clearMapHexHighlights) window.clearMapHexHighlights()\">#{m}</span>"
-            token
-          end
-
-          entity_lookup.each do |item|
-            name = item[:name]
-            next if name.nil? || name.empty?
-            next if %w[IN ON OR AT TO A AN BY OF FOR WITH].include?(name.upcase) && name.length <= 2
-
-            flags = name.length <= 3 ? nil : 'i'
-            pattern = Regexp.new('(?:\b)' + Regexp.escape(name) + '(?:\b)', flags)
-
-            next unless clean_text.match?(pattern)
-
-            clean_text = clean_text.gsub(pattern) do
-              token = "@@TOK_#{tok_idx}@@"
-              tok_idx += 1
-              tokens[token] = entity_railcard_html(item)
-              token
-            end
-          end
-
-          html = clean_text.gsub('&', '&amp;').gsub('<', '&lt;').gsub('>', '&gt;')
-          tokens.each do |tok, replacement|
-            html = html.gsub(tok, replacement)
-          end
-
-          is_boring = text.match?(/skips|passes|lays tile|does not run|places a token|places its destination/i)
-          if is_boring
-            "<span style=\"color: #64748b; font-size: 0.92em;\">#{html}</span>"
-          else
-            "<span style=\"color: #0f172a;\">#{html}</span>"
-          end
+          h(:span, {
+              style: {
+                color: is_boring ? '#64748b' : '#0f172a',
+                fontSize: is_boring ? '0.92em' : '1em',
+              },
+            }, children)
         end
 
         def action_time_map
@@ -652,21 +511,6 @@ module View
               next
             end
 
-            if is_chat
-              blocks << current_block if current_block && current_block[:lines]&.any?
-              current_block = nil
-
-              if entry.is_a?(Engine::Action::Message)
-                sender = entry.entity.name || 'Player'
-                chat_msg = entry.message
-              else
-                sender, chat_msg = msg.split(': ', 2)
-              end
-
-              blocks << { type: :chat, sender: sender, text: chat_msg, time: time_str }
-              next
-            end
-
             if (op_match = msg.match(/^(.+?)\s+operates\s+(.+)$/i))
               blocks << current_block if current_block && current_block[:lines]&.any?
               player_name = op_match[1].strip
@@ -761,34 +605,7 @@ module View
                     letterSpacing: '0.5px',
                   },
                 }, clean_text)
-            elsif block[:type] == :chat
-              time_str = block[:time] ? "[#{block[:time]}] " : ''
-              h(:div, {
-                  style: {
-                    display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'flex-end',
-                    marginBottom: '10px',
-                    padding: '0 8px',
-                  },
-                }, [
-                h(:div, {
-                    style: {
-                      backgroundColor: '#2563eb',
-                      color: '#ffffff',
-                      borderRadius: '14px 14px 0 14px',
-                      padding: '8px 14px',
-                      fontSize: '0.88rem',
-                      maxWidth: '85%',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      lineHeight: '1.4',
-                    },
-                  }, [
-                  h(:div,
-                    { style: { fontSize: '0.65rem', color: '#bfdbfe', marginBottom: '3px', textAlign: 'right', fontWeight: 'bold' } }, "#{time_str}#{block[:sender]}"),
-                  h(:div, {}, block[:text]),
-                ]),
-              ])
+
             else
               badge = entity_badge(block[:entity], block[:group_key])
               actor_label = (if block[:entity].respond_to?(:sym)
@@ -811,11 +628,22 @@ module View
               actor_names = actor_names.compact.map(&:to_s).reject(&:empty?).uniq.sort_by { |s| -s.length }
 
               lines = block[:lines] || []
-              lines_html = lines.map do |line|
-                time_str = line[:time] ? "<span style=\"color: #94a3b8; font-size: 0.75rem; margin-right: 6px; user-select: none; font-weight: 500;\">[#{line[:time]}]</span>" : ''
-                formatted_body = format_log_line(line[:text], actor_names)
-                "<div style=\"margin-bottom: 3px;\">#{time_str}#{formatted_body}</div>"
-              end.join('')
+              line_nodes = lines.map do |line|
+                time_node = if line[:time]
+                              h(:span, {
+                                  style: {
+                                    color: '#94a3b8',
+                                    fontSize: '0.75rem',
+                                    marginRight: '6px',
+                                    userSelect: 'none',
+                                    fontWeight: '500',
+                                  },
+                                }, "[#{line[:time]}]")
+                            end
+                body_node = format_log_line_nodes(line[:text], actor_names)
+                h(:div, { style: { marginBottom: '3px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px' } },
+                  [time_node, body_node].compact)
+              end
 
               last_line = lines.last
               last_id = last_line ? last_line[:id] : nil
@@ -887,9 +715,8 @@ module View
                     h(:span, { style: { fontSize: '0.72rem', color: '#94a3b8', fontWeight: 'bold' } }, id_str),
                   ]),
                   h(:div, {
-                      props: { innerHTML: lines_html.empty? ? '<span style="color: #94a3b8; font-style: italic;">Operating...</span>' : lines_html },
                       style: { fontSize: '0.85rem', lineHeight: '1.45', wordBreak: 'break-word' },
-                    }),
+                    }, line_nodes.empty? ? [h(:span, { style: { color: '#94a3b8', fontStyle: 'italic' } }, 'Operating...')] : line_nodes),
                 ]),
               ])
             end
