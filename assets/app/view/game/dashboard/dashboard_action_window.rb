@@ -1306,13 +1306,31 @@ module View
           return nil unless entity && step
           return nil unless step.respond_to?(:buyable_trains)
 
-          train_boxes = []
-          depot = @game.depot
-
           # // --- START FIX ---
-          # Strictly trust the engine's pre-filtered list of buyable trains
+          operating_player = if entity.respond_to?(:player?) && entity.player?
+                               entity
+                             elsif entity.respond_to?(:owner) && entity.owner
+                               entity.owner
+                             end
+
           step_buyable = step.buyable_trains(entity) || []
           return nil if step_buyable.empty?
+
+          depot = @game.depot
+          train_boxes = []
+
+          buying_power = if step.respond_to?(:buying_power)
+                           step.buying_power(entity)
+                         elsif @game.respond_to?(:buying_power)
+                           @game.buying_power(entity)
+                         else
+                           (entity.respond_to?(:cash) ? entity.cash : 0)
+                         end
+
+          must_buy = step.respond_to?(:must_buy_train?) && step.must_buy_train?(entity)
+          ebuy_Active = must_buy ||
+                        (step.respond_to?(:ebuy_president_can_contribute?) && step.ebuy_president_can_contribute?(entity&.owner)) ||
+                        (step.respond_to?(:president_may_contribute?) && step.president_may_contribute?(entity))
 
           buyable_depot, other_trains = step_buyable.partition do |t|
             t.from_depot? || (depot && (t.owner == depot || (depot.respond_to?(:depot_trains) && depot.depot_trains.include?(t))))
@@ -1321,7 +1339,8 @@ module View
           unique_depot_trains = buyable_depot.uniq { |t| [depot&.discarded&.include?(t) ? :pool : :bank, t.name] }
 
           unique_depot_trains.each do |train|
-            # Ask the step for the exact legal variants for this entity
+            next if step.respond_to?(:can_buy_train?) && !step.can_buy_train?(entity, train)
+
             variants = if step.respond_to?(:buyable_train_variants)
                          step.buyable_train_variants(train, entity) || []
                        elsif step.respond_to?(:train_variant_helper)
@@ -1331,6 +1350,8 @@ module View
                        else
                          [{ name: train.name, price: train.price }]
                        end
+
+            next if variants.empty?
 
             is_pool = depot&.discarded&.include?(train)
             source_tag = is_pool ? 'Pool' : 'Bank'
@@ -1346,6 +1367,13 @@ module View
                       else
                         v_info[:price] || v_info['price'] || train.price
                       end
+
+              # Filter out depot variants that the entity cannot afford unless in emergency buy
+              can_afford = price <= buying_power || ebuy_Active
+              if !can_afford && step.respond_to?(:can_ebuy?)
+                can_afford = begin; step.can_ebuy?(entity, train); rescue StandardError; false; end
+              end
+              next unless can_afford
 
               variant_str = variant_name.to_s
               variant_param = (variant_str == train.name.to_s ? nil : variant_str)
@@ -1379,8 +1407,17 @@ module View
             end
           end
 
-          # Other corporations' trains already filtered by step.buyable_trains(entity)
-          other_trains.group_by(&:owner).each do |c, trains|
+          # Strictly filter other corporations' trains to those owned by the SAME player
+          same_player_other_trains = other_trains.select do |t|
+            c = t.owner
+            next false unless c && c != entity
+            next false if operating_player && c.respond_to?(:owner) && c.owner != operating_player
+            next false if step.respond_to?(:can_buy_train?) && !step.can_buy_train?(entity, t)
+
+            true
+          end
+
+          same_player_other_trains.group_by(&:owner).each do |c, trains|
             next unless c
 
             trains.uniq(&:name).each do |t|
@@ -1390,9 +1427,12 @@ module View
                                        [1, if step.respond_to?(:max_price)
                                              step.max_price(entity, t)
                                            else
-                                             (entity.respond_to?(:cash) ? entity.cash : 1)
+                                             buying_power
                                            end]
                                      end
+
+              next if min_price.nil? || max_price.nil? || max_price < min_price
+
               # // --- END FIX ---
 
               wrapper_id = "cmd_other_train_#{c.id}_#{t.id}"
