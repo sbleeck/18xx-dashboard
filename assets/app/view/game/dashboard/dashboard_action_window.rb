@@ -1521,7 +1521,8 @@ module View
                   kind: :train,
                   item_id: train.id,
                   source_type: (is_pool ? :train_pool : :train_fresh),
-                  variant: variant_str
+                  variant: variant_str,
+                  source_selector: "##{wrapper_id}"
                 )
 
                 process_action(
@@ -1658,7 +1659,8 @@ module View
                     item_id: train.id,
                     source_type: :corporation,
                     source_id: seller.id,
-                    variant: train.name
+                    variant: train.name,
+                    source_selector: "##{wrapper_id}"
                   )
 
                   process_action(

@@ -5,19 +5,21 @@ module Lib
     def self.check_and_animate(game, has_treasury = false)
       return unless game
 
-      action = if game.respond_to?(:last_action) && game.last_action
-                 game.last_action
-               elsif game.respond_to?(:actions) && game.actions&.last
-                 game.actions.last
-               end
+      action =
+        if game.respond_to?(:last_action) && game.last_action
+          game.last_action
+        elsif game.respond_to?(:actions) && game.actions&.last
+          game.actions.last
+        end
 
-      current_id = if action&.respond_to?(:id)
-                     action.id
-                   elsif action
-                     action.object_id
-                   else
-                     0
-                   end
+      current_id =
+        if action&.respond_to?(:id)
+          action.id
+        elsif action
+          action.object_id
+        else
+          0
+        end
 
       info = action ? resolve_action(game, action, has_treasury) : nil
 
@@ -33,6 +35,7 @@ module Lib
 
     var actId = #{current_id};
     var gameId = #{(game.respond_to?(:id) && game.id ? game.id : 'default')};
+
     var trackerKey = '_card_anim_last_act_' + gameId;
     var cacheKey = '_card_anim_cache_' + gameId;
 
@@ -42,7 +45,6 @@ module Lib
 
     var cache = window[cacheKey];
     var prevActId = window[trackerKey];
-
     var newData = null;
 
     if (#{!info.nil?}) {
@@ -55,10 +57,6 @@ module Lib
         delta: #{info_delta}
       };
 
-      /*
-       * Do not overwrite the original route during redo.
-       * The original route contains the pre-action owner/source.
-       */
       if (!cache[actId]) {
         cache[actId] = newData;
       }
@@ -69,16 +67,10 @@ module Lib
       return;
     }
 
-    if (prevActId === actId) {
-      return;
-    }
+    if (prevActId === actId) return;
 
     var isForward = actId > prevActId;
 
-    /*
-     * Forward/redo uses the route belonging to the current action.
-     * Undo reverses the route belonging to the action being removed.
-     */
     var activeData = isForward
       ? (cache[actId] || newData)
       : cache[prevActId];
@@ -102,21 +94,22 @@ module Lib
 
     window.requestAnimationFrame(function() {
       setTimeout(function() {
+
         var sanitize = function(sel) {
           if (!sel || sel.indexOf('#') !== 0) return sel;
 
           var tokens = sel.split(' ');
           var rawId = tokens[0].substring(1);
-          var safeId = '#' +
+
+          tokens[0] = '#' +
             (window.CSS && window.CSS.escape
               ? window.CSS.escape(rawId)
               : rawId);
 
-          tokens[0] = safeId;
           return tokens.join(' ');
         };
 
-        var getElm = function(selector, isDrop) {
+        var findElement = function(selector) {
           if (!selector) return null;
 
           var el = document.querySelector(selector);
@@ -125,39 +118,90 @@ module Lib
             el = document.querySelector(selector.split(' ')[0]);
           }
 
-          if (!el && isDrop && selector.indexOf('train_drop_') !== -1) {
-            var entityId = selector.substring(
-              selector.indexOf('train_drop_') + 'train_drop_'.length
-            );
-
-            el = document.querySelector(
-              sanitize('#trains_' + entityId)
-            );
-          }
-
           return el;
         };
 
         var src = sanitize(fromSel);
         var tgt = sanitize(toSel);
 
-        var fromEl = getElm(src, false);
-        var toEl = getElm(tgt, true);
-
-        if (!fromEl || !toEl) return;
-
-        var fromCard =
-          fromEl.querySelector('.game-card') ||
-          fromEl.querySelector('.major-railcard') ||
-          fromEl;
-
-        var toCardInner =
-          toEl.querySelector('.game-card') ||
-          toEl.querySelector('.major-railcard');
+        var fromEl = findElement(src);
+        var toEl = findElement(tgt);
 
         /*
-         * The engine has already rendered the arriving train/private.
-         * Hide that newly rendered target card until the flight lands.
+         * TRAIN SOURCE
+         *
+         * During a purchase the source train may already have disappeared
+         * during rerendering. In that case use the rectangle captured
+         * immediately before process_action.
+         *
+         * During Undo the corporation train has disappeared, so use the
+         * landing rectangle saved during the original forward animation.
+         */
+        var savedSourceRect = null;
+
+        if (isTrain) {
+          if (isForward && window._railcard_pending_source_rect) {
+            savedSourceRect =
+              window._railcard_pending_source_rect;
+
+            window._railcard_pending_source_rect = null;
+          } else if (!isForward && activeData.train_target_rect) {
+            savedSourceRect =
+              activeData.train_target_rect;
+          }
+        }
+
+        /*
+         * Destination must exist after the rerender.
+         */
+        if (!toEl) return;
+
+        /*
+         * Source DOM element is optional when we have its saved rectangle.
+         */
+        if (!fromEl && !savedSourceRect) return;
+
+        var fromCard = null;
+
+        if (fromEl) {
+          if (
+            fromEl.matches &&
+            (
+              fromEl.matches('.game-card') ||
+              fromEl.matches('.major-railcard')
+            )
+          ) {
+            fromCard = fromEl;
+          } else {
+            fromCard =
+              fromEl.querySelector('.game-card') ||
+              fromEl.querySelector('.major-railcard') ||
+              fromEl;
+          }
+        }
+
+        /*
+         * The train ID may be directly on the game-card rather than on
+         * an outer wrapper.
+         */
+        var toCardInner = null;
+
+        if (
+          toEl.matches &&
+          (
+            toEl.matches('.game-card') ||
+            toEl.matches('.major-railcard')
+          )
+        ) {
+          toCardInner = toEl;
+        } else {
+          toCardInner =
+            toEl.querySelector('.game-card') ||
+            toEl.querySelector('.major-railcard');
+        }
+
+        /*
+         * Hide the real arriving train/card until the flying copy lands.
          */
         var hiddenArrival = null;
 
@@ -166,31 +210,40 @@ module Lib
           hiddenArrival.style.visibility = 'hidden';
         }
 
-var fromRect = null;
+        var fromRect =
+          savedSourceRect ||
+          (fromCard ? fromCard.getBoundingClientRect() : null);
 
-if (isTrain && window._railcard_pending_source_rect) {
-  fromRect = window._railcard_pending_source_rect;
-  window._railcard_pending_source_rect = null;
-} else {
-  fromRect = fromCard.getBoundingClientRect();
-}
+        var destinationCard =
+          toCardInner || toEl;
 
-/*
- * For trains, toEl is the wrapper of the newly rendered train.
- * Use its actual game-card as the exact landing position.
- */
-var destinationCard =
-  isTrain
-    ? (toEl.querySelector('.game-card') || toEl)
-    : (toCardInner || toEl);
+        var toRect =
+          destinationCard.getBoundingClientRect();
 
-var toRect = destinationCard.getBoundingClientRect();
-
-        if (fromRect.width === 0 || toRect.width === 0) {
+        if (
+          !fromRect ||
+          fromRect.width === 0 ||
+          fromRect.height === 0 ||
+          toRect.width === 0 ||
+          toRect.height === 0
+        ) {
           if (hiddenArrival) {
             hiddenArrival.style.visibility = 'visible';
           }
           return;
+        }
+
+        /*
+         * Remember the exact corporation position.
+         * Undo can use this after the train has disappeared there.
+         */
+        if (isTrain && isForward) {
+          activeData.train_target_rect = {
+            left: toRect.left,
+            top: toRect.top,
+            width: toRect.width,
+            height: toRect.height
+          };
         }
 
         var originalTargetText = null;
@@ -215,20 +268,28 @@ var toRect = destinationCard.getBoundingClientRect();
           }
         }
 
-        var cardWidth = 56;
-        var cardHeight = 23;
+        var cardWidth = isTrain ? toRect.width : 56;
+        var cardHeight = isTrain ? toRect.height : 23;
 
         var startX =
-          fromRect.left + (fromRect.width / 2) - (cardWidth / 2);
+          fromRect.left +
+          (fromRect.width / 2) -
+          (cardWidth / 2);
 
         var startY =
-          fromRect.top + (fromRect.height / 2) - (cardHeight / 2);
+          fromRect.top +
+          (fromRect.height / 2) -
+          (cardHeight / 2);
 
         var endX =
-          toRect.left + (toRect.width / 2) - (cardWidth / 2);
+          toRect.left +
+          (toRect.width / 2) -
+          (cardWidth / 2);
 
         var endY =
-          toRect.top + (toRect.height / 2) - (cardHeight / 2);
+          toRect.top +
+          (toRect.height / 2) -
+          (cardHeight / 2);
 
         var flying = document.createElement('div');
 
@@ -236,71 +297,108 @@ var toRect = destinationCard.getBoundingClientRect();
           'game-card flying-railcard-token';
 
         flying.innerText = text;
+
         flying.style.position = 'fixed';
         flying.style.left = startX + 'px';
         flying.style.top = startY + 'px';
-        flying.style.minWidth = '3.5rem';
-        flying.style.height = '1.45rem';
+
+        flying.style.width = cardWidth + 'px';
+        flying.style.minWidth = cardWidth + 'px';
+        flying.style.height = cardHeight + 'px';
+
         flying.style.margin = '0';
         flying.style.boxSizing = 'border-box';
+
         flying.style.display = 'inline-flex';
         flying.style.alignItems = 'center';
         flying.style.justifyContent = 'center';
+
         flying.style.backgroundColor = '#fdfbf7';
         flying.style.color = '#000000';
+
         flying.style.border = '2px solid #2563eb';
         flying.style.borderRadius = isTrain ? '12px' : '4px';
+
         flying.style.fontSize = '0.85rem';
         flying.style.fontWeight = 'bold';
+
         flying.style.fontFamily =
           '"Helvetica Neue", Helvetica, Arial, sans-serif';
-        flying.style.zIndex = '999999';
+
+        flying.style.zIndex = '2147483647';
         flying.style.pointerEvents = 'none';
+
         flying.style.boxShadow =
           '0 14px 28px rgba(0,0,0,0.35), ' +
           '0 4px 10px rgba(0,0,0,0.2)';
-        flying.style.transform = 'scale(1.15)';
+
+        flying.style.opacity = '1';
+        flying.style.visibility = 'visible';
+
+        flying.style.transform = 'scale(1.12)';
+
         flying.style.transition =
-          'transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1), ' +
+          'transform 0.55s cubic-bezier(0.2,0.9,0.3,1), ' +
           'opacity 0.15s ease-out';
 
         document.body.appendChild(flying);
 
+        /*
+         * Force the initial position to be painted.
+         */
+        flying.getBoundingClientRect();
+
         window.requestAnimationFrame(function() {
-          var deltaX = endX - startX;
-          var deltaY = endY - startY;
+          window.requestAnimationFrame(function() {
 
-          flying.style.transform =
-            'translate(' + deltaX + 'px, ' + deltaY +
-            'px) scale(1.02)';
+            var deltaX = endX - startX;
+            var deltaY = endY - startY;
 
-          setTimeout(function() {
-            if (toCardInner) {
-              if (originalTargetText !== null) {
-                toCardInner.innerText = originalTargetText;
-              }
-
-              toCardInner.style.visibility = 'visible';
-              toCardInner.style.transition =
-                'transform 0.18s ease-out, filter 0.18s ease-out';
-              toCardInner.style.transform = 'scale(1.22)';
-              toCardInner.style.filter = 'brightness(1.3)';
-
-              setTimeout(function() {
-                toCardInner.style.transform = 'scale(1)';
-                toCardInner.style.filter = 'none';
-              }, 180);
-            }
-
-            flying.style.opacity = '0';
+            flying.style.transform =
+              'translate(' +
+              deltaX +
+              'px,' +
+              deltaY +
+              'px) scale(1)';
 
             setTimeout(function() {
-              if (flying.parentNode) {
-                flying.parentNode.removeChild(flying);
+
+              if (toCardInner) {
+                if (originalTargetText !== null) {
+                  toCardInner.innerText =
+                    originalTargetText;
+                }
+
+                toCardInner.style.visibility = 'visible';
+
+                toCardInner.style.transition =
+                  'transform 0.18s ease-out, ' +
+                  'filter 0.18s ease-out';
+
+                toCardInner.style.transform =
+                  'scale(1.18)';
+
+                toCardInner.style.filter =
+                  'brightness(1.3)';
+
+                setTimeout(function() {
+                  toCardInner.style.transform = 'scale(1)';
+                  toCardInner.style.filter = 'none';
+                }, 180);
               }
-            }, 160);
-          }, 460);
+
+              flying.style.opacity = '0';
+
+              setTimeout(function() {
+                if (flying.parentNode) {
+                  flying.parentNode.removeChild(flying);
+                }
+              }, 160);
+
+            }, 560);
+          });
         });
+
       }, 35);
     });
   }
