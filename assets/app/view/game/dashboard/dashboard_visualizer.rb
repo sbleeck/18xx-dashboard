@@ -132,18 +132,7 @@ module View
       end
 
       def actions_window_open?
-        is_req = action_required_for_me?
-
-        if @last_action_required_state != is_req
-          # When transitioning from my turn -> opponent's turn, automatically close the hub
-          if @last_action_required_state == true && !is_req
-            @show_actions_window = false
-            store(:show_actions_window, false, skip: true)
-          end
-          @last_action_required_state = is_req
-        end
-
-        return true if is_req
+        return true if action_required_for_me?
 
         @show_actions_window == true
       end
