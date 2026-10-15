@@ -905,58 +905,86 @@ module View
         def render_buyable_companies(step, entity)
           return nil unless entity
 
-          operating_player = if entity.respond_to?(:player?) && entity.player?
-                               entity
-                             elsif entity.respond_to?(:owner) && entity.owner
-                               entity.owner
-                             end
+          operating_player =
+            if entity.respond_to?(:player?) && entity.player?
+              entity
+            elsif entity.respond_to?(:owner)
+              entity.owner
+            end
 
           return nil unless operating_player
 
-          buy_company_step = nil
-          if @game.round.respond_to?(:steps)
-            buy_company_step = @game.round.steps.find do |s|
-              s.respond_to?(:buyable_companies) || s.respond_to?(:can_buy_company?)
+          buy_company_step =
+            if @game.round.respond_to?(:steps)
+              @game.round.steps.find do |candidate_step|
+                candidate_step.respond_to?(:buyable_companies) ||
+                  candidate_step.respond_to?(:can_buy_company?)
+              end
             end
-          end
+
           buy_company_step ||= step
 
-          all_companies = if buy_company_step.respond_to?(:buyable_companies)
-                            buy_company_step.buyable_companies(entity) || []
-                          elsif buy_company_step.respond_to?(:can_buy_company?) && @game.respond_to?(:companies)
-                            @game.companies.select { |c| buy_company_step.can_buy_company?(entity, c) }
-                          else
-                            []
-                          end
+          all_companies =
+            if buy_company_step.respond_to?(:buyable_companies)
+              begin
+                buy_company_step.buyable_companies(entity) || []
+              rescue StandardError
+                []
+              end
+            elsif buy_company_step.respond_to?(:can_buy_company?) &&
+                  @game.respond_to?(:companies)
+              @game.companies.select do |company|
+                buy_company_step.can_buy_company?(entity, company)
+              rescue StandardError
+                false
+              end
+            else
+              []
+            end
 
-          companies = all_companies.reject { |c| c.respond_to?(:closed?) && c.closed? }.select do |c|
-            c.owner && c.owner == operating_player && c.owner != entity
-          end
+          companies = all_companies
+            .compact
+            .reject { |company| company.respond_to?(:closed?) && company.closed? }
+            .reject { |company| company.owner == entity }
 
           return nil if companies.empty?
 
-          company_boxes = companies.map do |c|
-            owner_name = c.owner&.name || 'Bank'
-            next nil if c.owner == entity
+          company_boxes = companies.map do |company|
+            owner_name = company.owner&.name || 'Bank'
 
-            min_price = if buy_company_step.respond_to?(:min_price)
-                          buy_company_step.min_price(c)
-                        else
-                          (c.respond_to?(:min_price) ? c.min_price : 1)
-                        end
-            max_price = if buy_company_step.respond_to?(:max_price)
-                          buy_company_step.max_price(entity, c)
-                        elsif c.respond_to?(:max_price)
-                          c.max_price
-                        else
-                          (entity.respond_to?(:cash) ? entity.cash : 0)
-                        end
+            min_price =
+              if buy_company_step.respond_to?(:min_price)
+                buy_company_step.min_price(company)
+              elsif company.respond_to?(:min_price)
+                company.min_price
+              else
+                1
+              end
 
-            wrapper_id = "cmd_buy_company_#{c.id}"
-            company_click_handler = lambda {
-              `var p = document.getElementById('railcard-portal'); if (p) { p.style.display = 'none'; p.innerHTML = ''; }`
-              menu_title = "Buy #{c.name} from #{owner_name} (#{min_price}-#{max_price}):"
-              default_price = [entity.respond_to?(:cash) ? entity.cash : min_price, max_price].min
+            max_price =
+              if buy_company_step.respond_to?(:max_price)
+                buy_company_step.max_price(entity, company)
+              elsif company.respond_to?(:max_price)
+                company.max_price
+              else
+                entity.respond_to?(:cash) ? entity.cash : 0
+              end
+
+            next if min_price.nil? || max_price.nil?
+            next if max_price < min_price
+
+            wrapper_id = "cmd_buy_company_#{company.id}"
+
+            company_click_handler = lambda do
+              menu_title =
+                "Buy #{company.name} from #{owner_name} " \
+                "(#{min_price}-#{max_price}):"
+
+              default_price = [
+                entity.respond_to?(:cash) ? entity.cash : min_price,
+                max_price,
+              ].min
+
               default_price = [default_price, min_price].max
 
               show_price_dialog(
@@ -964,15 +992,17 @@ module View
                 min_price,
                 max_price,
                 default_price,
-                lambda { |price_val|
-                  source_owner = c.owner
+                lambda do |price_value|
+                  source_owner = company.owner
 
                   source_type =
                     if source_owner&.respond_to?(:player?) && source_owner.player?
                       :player
-                    elsif source_owner&.respond_to?(:corporation?) && source_owner.corporation?
+                    elsif source_owner&.respond_to?(:corporation?) &&
+                          source_owner.corporation?
                       :corporation
-                    elsif source_owner&.respond_to?(:minor?) && source_owner.minor?
+                    elsif source_owner&.respond_to?(:minor?) &&
+                          source_owner.minor?
                       :corporation
                     else
                       :bank
@@ -980,27 +1010,68 @@ module View
 
                   remember_card_transfer(
                     kind: :company,
-                    item_id: c.id,
+                    item_id: company.id,
                     source_type: source_type,
-                    source_id: (source_owner.id if source_owner&.respond_to?(:id))
+                    source_id: (
+                      source_owner.id if source_owner&.respond_to?(:id)
+                    ),
+                    source_selector: "##{wrapper_id}"
                   )
 
                   process_action(
                     Engine::Action::BuyCompany.new(
                       entity,
-                      company: c,
-                      price: price_val
+                      company: company,
+                      price: price_value
                     )
                   )
-                }
+                end
               )
-            }
+            end
 
-            card_text = (c.sym || c.name).to_s
-            tooltip = build_company_tooltip(c)
-            wrapper_classes = tooltip ? %w[cmd-company-wrapper status-company-wrapper] : nil
+            card_text = (company.sym || company.name).to_s
+            tooltip = build_company_tooltip(company)
 
-            render_railcard(card_text, %w[game-card action-buy clickable], company_click_handler, tooltip, nil, wrapper_id, wrapper_classes, entity: c)
+            card = render_railcard(
+              card_text,
+              %w[game-card action-buy clickable card-private],
+              nil,
+              tooltip,
+              nil,
+              nil,
+              %w[cmd-company-wrapper status-company-wrapper],
+              entity: company
+            )
+
+            h(
+              :div,
+              {
+                attrs: {
+                  id: wrapper_id,
+                  class: 'buy-private-click-target',
+                  role: 'button',
+                  tabindex: '0',
+                  title: "Buy #{company.name}",
+                },
+                style: {
+                  display: 'inline-block',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  pointerEvents: 'auto',
+                },
+                on: {
+                  click: company_click_handler,
+                  keydown: lambda do |event|
+                    key = `#{event}.key`
+                    if ['Enter', ' '].include?(key)
+                      `#{event}.preventDefault()`
+                      company_click_handler.call
+                    end
+                  end,
+                },
+              },
+              [card]
+            )
           end.compact
 
           return nil if company_boxes.empty?
