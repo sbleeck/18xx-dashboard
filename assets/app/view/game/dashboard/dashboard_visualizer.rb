@@ -1645,8 +1645,7 @@ badge_el,
 
           Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
           Lib::Storage['cmd_history_overlay'] = nil
-          Lib::Storage['dashboard_show_actions'] = nil
-          store(:show_other_games_overlay, false, skip: true)
+
           store(:show_move_history, false, skip: true)
           store(:show_history_overlay, false, skip: true)
           store(:show_actions_window, false, skip: true)
