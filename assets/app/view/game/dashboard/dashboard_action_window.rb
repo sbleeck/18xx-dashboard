@@ -307,37 +307,87 @@ module View
           step = @game.round.active_step
           return [] unless step
 
-          p = active_player
-          candidates = if @game.round.stock?
-                         (@game.respond_to?(:corporations) ? @game.corporations : []).select do |c|
-                           c.respond_to?(:owner) && c.owner && p && c.owner == p
-                         end
-                       else
-                         [
-                           current_entity,
-                           step&.current_entity,
-                           *(@game.respond_to?(:corporations) ? @game.corporations : []),
-                         ].compact.uniq
-                       end
+          player = active_player
 
-          candidates.select { |candidate| corporation_or_minor?(candidate) }.map do |candidate|
-            candidate_actions = actions_for(candidate)
-            player_actions = p ? actions_for(p) : []
-
-            has_shares = false
-            if candidate.respond_to?(:corporation?) && candidate.corporation?
-              has_shares = (step.respond_to?(:redeemable_shares) && begin; step.redeemable_shares(candidate)&.any?; rescue StandardError; false; end) ||
-                           (step.respond_to?(:issuable_shares) && begin; step.issuable_shares(candidate)&.any?; rescue StandardError; false; end)
+          candidates =
+            if @game.round.stock?
+              (@game.respond_to?(:corporations) ? @game.corporations : []).select do |corporation|
+                corporation.respond_to?(:owner) &&
+                  corporation.owner &&
+                  player &&
+                  corporation.owner == player
+              end
+            else
+              [
+                current_entity,
+                step.current_entity,
+                *(@game.respond_to?(:corporations) ? @game.corporations : []),
+              ].compact.uniq
             end
 
-            relevant_actions =
-              (candidate_actions + player_actions) &
-              %w[
-                issue_shares reissue_shares reissue
-                redeem redeem_shares
-              ]
-            [candidate, candidate_actions] if relevant_actions.any? || has_shares
-          end.compact
+          candidates.filter_map do |candidate|
+            next unless corporation_or_minor?(candidate)
+
+            candidate_step = active_step_for(candidate) || step
+
+            candidate_actions =
+              actions_for(candidate)
+                .compact
+                .map(&:to_s)
+                .uniq
+
+            issuable = begin
+              if candidate_step.respond_to?(:issuable_shares)
+                begin
+                  candidate_step.issuable_shares(candidate) || []
+                rescue ArgumentError
+                  candidate_step.issuable_shares || []
+                end
+              elsif candidate_step.respond_to?(:issuable_bundles)
+                begin
+                  candidate_step.issuable_bundles(candidate) || []
+                rescue ArgumentError
+                  candidate_step.issuable_bundles || []
+                end
+              else
+                []
+              end
+            rescue StandardError
+              []
+            end
+
+            redeemable = begin
+              if candidate_step.respond_to?(:redeemable_shares)
+                begin
+                  candidate_step.redeemable_shares(candidate) || []
+                rescue ArgumentError
+                  candidate_step.redeemable_shares || []
+                end
+              elsif candidate_step.respond_to?(:redeemable_bundles)
+                begin
+                  candidate_step.redeemable_bundles(candidate) || []
+                rescue ArgumentError
+                  candidate_step.redeemable_bundles || []
+                end
+              else
+                []
+              end
+            rescue StandardError
+              []
+            end
+
+            can_issue =
+              (candidate_actions &
+               %w[issue_shares reissue_shares reissue corporate_sell_shares]).any? &&
+              issuable.compact.any?
+
+            can_redeem =
+              (candidate_actions &
+               %w[redeem redeem_shares corporate_buy_shares]).any? &&
+              redeemable.compact.any?
+
+            [candidate, candidate_actions] if can_issue || can_redeem
+          end
         end
 
         def active_player
@@ -939,7 +989,10 @@ module View
           companies = all_companies
             .compact
             .reject { |company| company.respond_to?(:closed?) && company.closed? }
-            .reject { |company| company.owner == entity }
+            .select do |company|
+              company.owner == operating_player &&
+                company.owner != entity
+            end
 
           return nil if companies.empty?
 
@@ -1009,7 +1062,7 @@ module View
                     source_id: (
                       source_owner.id if source_owner&.respond_to?(:id)
                     ),
-                    source_selector: "##{wrapper_id}"
+                    source_selector: "[id='#{wrapper_id}']"
                   )
 
                   process_action(
@@ -1788,17 +1841,9 @@ module View
           return nil unless entity && step
 
           entity_actions = actions_for(entity)
-          player_actions = active_player ? actions_for(active_player) : []
-
-          step_actions =
-            if step.respond_to?(:current_actions)
-              step.current_actions || []
-            else
-              []
-            end
 
           available_actions =
-            (entity_actions + player_actions + step_actions)
+            entity_actions
               .compact
               .map(&:to_s)
               .uniq
@@ -1957,30 +2002,7 @@ module View
 
             corp_tag = @game.round.stock? ? " (#{entity.name})" : ''
             rows << render_action_row("Issue#{corp_tag}:", issue_buttons)
-          elsif (
-            available_actions &
-            %w[
-              issue_shares
-              reissue_shares
-              reissue
-            ]
-          ).any?
-            rows << render_action_row(
-              'Issue:',
-              [
-                h(
-                  :span,
-                  {
-                    style: {
-                      color: '#888',
-                      fontStyle: 'italic',
-                      fontSize: '0.85rem',
-                    },
-                  },
-                  'No issuable shares available'
-                ),
-              ]
-            )
+
           end
 
           redeemable_bundles = begin
@@ -2481,7 +2503,13 @@ module View
       if (selector) {
         window._railcard_pending_source = selector;
 
-        var el = document.querySelector(selector);
+var el = null;
+
+try {
+  el = document.querySelector(selector);
+} catch (err) {
+  el = null;
+}
 
         if (el) {
           var card =
