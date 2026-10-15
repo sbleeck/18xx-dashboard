@@ -132,7 +132,14 @@ module View
       end
 
       def actions_window_open?
-        return true if action_required_for_me?
+        if action_required_for_me?
+          unless @show_actions_window == true
+            @show_actions_window = true
+            store(:show_actions_window, true, skip: true)
+          end
+
+          return true
+        end
 
         @show_actions_window == true
       end
