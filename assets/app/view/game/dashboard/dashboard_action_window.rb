@@ -78,10 +78,7 @@ module View
         # HUD WINDOW LOGIC
         # ==========================================
 
-def close_window
-  @on_close&.call
-end
-
+        def close_window
           @on_close&.call
         end
 

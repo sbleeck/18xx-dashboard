@@ -1657,14 +1657,10 @@ badge_el,
         if Lib::Storage['last_active_dashboard_gid'] != active_gid
           Lib::Storage['last_active_dashboard_gid'] = active_gid
           Lib::Storage['show_other_games_overlay'] = nil
-
           Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
           Lib::Storage['cmd_history_overlay'] = nil
-
           store(:show_move_history, false, skip: true)
           store(:show_history_overlay, false, skip: true)
-          store(:show_actions_window, false, skip: true)
-
           `try { localStorage.removeItem('show_other_games_overlay'); } catch(e) {}`
         end
 
