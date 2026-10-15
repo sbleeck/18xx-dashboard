@@ -202,41 +202,18 @@ module View
           end
         end
 
-        def render_private_info(item)
-          return nil unless private?(item)
-
-          desc_text = if item.respond_to?(:desc) && item.desc && !item.desc.empty?
-                        item.desc
-                      elsif item.respond_to?(:abilities) && item.abilities&.any?
-                        item.abilities.map { |a| a.respond_to?(:description) ? a.description : nil }.compact.join(' ')
-                      else
-                        'No special abilities.'
-                      end
-
-          card = render_railcard(item.name, ['game-card'], nil, nil, nil, nil, nil, entity: item)
-
-          h(:div, {
-              style: {
-                display: 'flex',
-                gap: '1rem',
-                padding: '0.75rem',
-                backgroundColor: '#f8fafc',
-                borderBottom: '1px solid #e2e8f0',
-                alignItems: 'center',
-              },
-            }, [
-              h(:div, { style: { flexShrink: '0' } }, [card]),
-              h(:div, {
-                  style: {
-                    fontSize: '0.85rem',
-                    lineHeight: '1.4',
-                    color: '#334155',
-                    fontStyle: 'italic',
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word',
-                  },
-                }, desc_text),
-            ])
+        def render_auction_item_card(item, click_handler: nil, action_class: nil, price: nil, wrapper_id: nil)
+          classes = ['game-card']
+          classes << action_class if action_class
+          classes << 'clickable' if click_handler
+          if private?(item)
+            label = item.respond_to?(:sym) && item.sym && !item.sym.to_s.empty? ? item.sym.to_s : item.id.to_s
+            tooltip = build_entity_tooltip(item, price: price)
+            render_railcard(label, classes + ['card-private'], click_handler, tooltip, nil, wrapper_id,
+                            %w[cmd-company-wrapper status-company-wrapper], entity: item)
+          else
+            render_major_railcard(item, click_handler, classes + ['major-railcard'], wrapper_id)
+          end
         end
 
         def render_player_table(item, current_entity)
@@ -274,15 +251,16 @@ module View
                                   attrs: { title: 'Current Highest Bid' },
                                   style: {
                                     display: 'inline-block',
-                                    backgroundColor: '#fef08a',
-                                    color: '#854d0e',
+                                    backgroundColor: '#ffffff',
+                                    color: '#4c1d95',
+                                    fontFamily: FONT_MONEY,
                                     padding: '2px 8px',
                                     borderRadius: '4px',
                                     fontWeight: 'bold',
-                                    border: '1px solid #eab308',
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                    border: '2px solid #64748b',
+                                    boxShadow: 'none',
                                   },
-                                }, "⭐ #{val_str}")
+                                }, "Highest: #{val_str}")
                             else
                               h(:div, { style: { fontWeight: 'bold', color: '#4c1d95', fontFamily: FONT_MONEY } }, val_str)
                             end
@@ -324,7 +302,7 @@ module View
         def begin_drag(event)
           %x(
             var e = #{event};
-            var panel = e.currentTarget.closest('#dashboard-bidding-panel');
+            var panel = e.currentTarget.closest('#dashboard-bidding-panel, #dashboard-bidding-selection-panel');
             if (!panel || e.target.closest('button,input')) return;
             e.preventDefault();
             var rect = panel.getBoundingClientRect();
@@ -349,8 +327,10 @@ module View
         end
 
         def selectable_targets
-          return [] if step.respond_to?(:auctioning) && step.auctioning
-
+          # Keep returning the complete auction inventory while one item is
+          # actively being auctioned. Previously this returned [] as soon as
+          # step.auctioning became non-nil, which unmounted the selection panel
+          # immediately after the first real bid.
           items =
             if step.respond_to?(:visible_corporations)
               step.visible_corporations
@@ -385,98 +365,37 @@ module View
 
           cards = items.map do |item|
             click_handler = -> { select_target(item) }
-
-            if private?(item)
-              item_price = minimum_bid(item)
-              label = item.respond_to?(:sym) && item.sym ? item.sym.to_s : item.id.to_s
-              tooltip = build_entity_tooltip(item, price: item_price)
-
-              railcard = render_railcard(
-                label,
-                %w[game-card action-buy clickable],
-                click_handler,
-                tooltip,
-                nil,
-                "auction_selection_#{item.id}",
-                %w[cmd-company-wrapper status-company-wrapper],
-                entity: item
-              )
-
-              h(:div, {
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.65rem',
-                    width: '100%',
-                    minHeight: '3.25rem',
-                    padding: '0.55rem 0.7rem',
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #94a3b8',
-                    borderRadius: '6px',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  },
-                  on: {
-                    click: click_handler,
-                  },
-                }, [
-                  railcard,
-                  h(:div, {
-                      style: {
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.15rem',
-                        minWidth: '0',
-                      },
-                    }, [
-                      h(:span, {
-                          style: {
-                            fontWeight: 'bold',
-                            color: '#0f172a',
-                          },
-                        }, item.name.to_s),
-                      h(:span, {
-                          style: {
-                            fontFamily: FONT_MONEY,
-                            fontSize: '0.82rem',
-                            fontWeight: 'bold',
-                            color: '#4c1d95',
-                          },
-                        }, "Minimum bid: #{@game.format_currency(item_price)}"),
-                    ]),
-                ])
-            else
-              h(:button, {
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.65rem',
-                    width: '100%',
-                    padding: '0.65rem 0.75rem',
-                    backgroundColor: company_color(item),
-                    color: company_text_color(item),
-                    border: '1px solid #94a3b8',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontWeight: 'bold',
-                  },
-                  on: {
-                    click: click_handler,
-                  },
-                }, [
-                  item_logo(item),
-                  h(:span, {}, "#{item.respond_to?(:sym) ? item.sym : item.id} — #{item.name}"),
-                ])
-            end
+            item_price = minimum_bid(item)
+            card = render_auction_item_card(item, click_handler: click_handler, action_class: 'action-buy',
+                                                  price: item_price, wrapper_id: "auction_selection_#{item.id}")
+            h(:div, {
+                attrs: { title: "Select #{item.name} for auction" },
+                style: {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.7rem',
+                  width: '100%',
+                  minHeight: '3.25rem',
+                  padding: '0.55rem 0.7rem',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer',
+                },
+                on: { click: click_handler },
+              }, [
+                card,
+                h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: '0' } }, [
+                  h(:span, { style: { fontWeight: 'bold', color: '#0f172a' } }, item.name.to_s),
+                  h(:span, { style: { fontFamily: FONT_MONEY, fontSize: '0.82rem', fontWeight: 'bold', color: '#4c1d95' } },
+                    "Minimum bid: #{@game.format_currency(item_price)}"),
+                ]),
+              ])
           end
-
-          pass_action = lambda do
-            process_action(Engine::Action::Pass.new(bidder))
-          end
-
+          pass_action = -> { process_action(Engine::Action::Pass.new(bidder)) }
           h(:div, {
-              attrs: { id: 'dashboard-bidding-panel' },
+              attrs: { id: 'dashboard-bidding-selection-panel' },
               style: {
                 position: 'fixed',
                 top: '1rem',
@@ -485,73 +404,43 @@ module View
                 width: 'min(760px, 94vw)',
                 maxHeight: '90vh',
                 overflowY: 'auto',
-                zIndex: '100100',
+                zIndex: '100090',
                 backgroundColor: '#ffffff',
                 border: '1px solid #64748b',
                 borderRadius: '9px',
                 boxShadow: '0 10px 28px rgba(15, 23, 42, 0.28)',
               },
             }, [
-h(:div, {
-    attrs: {
-      title: 'Drag to move',
-    },
-    style: {
-      padding: '0.75rem 1rem',
-      backgroundColor: '#f8fafc',
-      borderBottom: '1px solid #cbd5e1',
-      cursor: 'move',
-      userSelect: 'none',
-    },
-    on: {
-      mousedown: ->(event) { begin_drag(event) },
-    },
-  }, [
-                  h(:div, {
-                      style: {
-                        fontSize: '1.15rem',
-                        fontWeight: 'bold',
-                        color: '#0f172a',
-                      },
-                    }, 'Select an Item for Auction'),
-                  h(:div, {
-                      style: {
-                        marginTop: '0.2rem',
-                        fontSize: '0.85rem',
-                        color: '#64748b',
-                      },
-                    }, "Active Player: #{bidder.name}"),
+              h(:div, {
+                  attrs: { title: 'Drag to move' },
+                  style: {
+                    padding: '0.75rem 1rem',
+                    backgroundColor: '#f8fafc',
+                    borderBottom: '1px solid #cbd5e1',
+                    cursor: 'move',
+                    userSelect: 'none',
+                  },
+                  on: { mousedown: ->(event) { begin_drag(event) } },
+                }, [
+                  h(:div, { style: { fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a' } }, 'Select an Item for Auction'),
+                  h(:div, { style: { marginTop: '0.2rem', fontSize: '0.85rem', color: '#64748b' } }, "Active Player: #{bidder.name}"),
                 ]),
-h(:div, {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-      gap: '0.6rem',
-      padding: '0.85rem',
-    },
-  }, cards),
-h(:div, {
-    style: {
-      padding: '0.65rem 0.85rem',
-      borderTop: '1px solid #e2e8f0',
-      display: 'flex',
-      justifyContent: 'flex-end',
-    },
-  }, [
-    h(:button, {
-        style: {
-          height: '1.85rem',
-          padding: '0 12px',
-          border: 'none',
-          borderRadius: '5px',
-          backgroundColor: '#ea7c22',
-          color: '#ffffff',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-        },
-        on: { click: pass_action },
-      }, 'Pass'),
-  ]),
+              h(:div, { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.6rem', padding: '0.85rem' } }, cards),
+              h(:div, { style: { padding: '0.65rem 0.85rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' } }, [
+                h(:button, {
+                    style: {
+                      height: '1.85rem',
+                      padding: '0 12px',
+                      border: '1px solid #1d4ed8',
+                      borderRadius: '5px',
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                    },
+                    on: { click: pass_action },
+                  }, 'Pass'),
+              ]),
             ])
         end
 
@@ -559,9 +448,15 @@ h(:div, {
           bidder = entity
           return h(:div, {}) unless bidder
 
-          item = target || selected_target
+          picker_item = selected_target
+          item = target || picker_item
 
           return render_target_picker(bidder) unless item
+
+          # Keep the selection overlay mounted underneath when this auction was
+          # entered through the dashboard picker. The bidding panel itself is
+          # rendered later at the higher z-index.
+          selection_panel = picker_item ? render_target_picker(bidder) : nil
 
           legal_actions = actions
           return h(:div, {}) unless legal_actions.include?('bid') || legal_actions.include?('pass')
@@ -605,7 +500,10 @@ h(:div, {
             end
             Lib::Storage[price_key] = nil
             Lib::Storage[signature_key] = nil
-            Lib::Storage["dashboard_bidding_selected_target_#{@game.id}"] = nil
+            # Keep the selected target while the auction for this item is active.
+            # The selection panel therefore stays mounted through every bid/pass.
+            # Once the item is sold, selected_target naturally stops resolving it
+            # because it is no longer in selectable_targets.
             process_action(Engine::Action::Bid.new(bidder, **args))
           end
 
@@ -629,45 +527,46 @@ h(:div, {
           plus_disabled = current_price + PRICE_STEP > max_bid
           bid_disabled = !legal_actions.include?('bid') || current_price < min_bid || current_price > max_bid || (current_price % PRICE_STEP != 0)
 
-          header_bg = company_color(item)
-          header_fg = company_text_color(item)
-
+          item_card = render_auction_item_card(item, action_class: 'action-buy', price: min_bid,
+                                                     wrapper_id: "auction_target_#{item.id}")
           header = h(:div, {
+                       attrs: { title: 'Drag to move' },
                        style: {
                          padding: '0.6rem 1rem',
-                         backgroundColor: header_bg,
-                         color: header_fg,
+                         backgroundColor: '#f8fafc',
+                         color: '#0f172a',
                          cursor: 'move',
                          userSelect: 'none',
-                         borderBottom: '1px solid rgba(15,23,42,0.25)',
+                         borderBottom: '1px solid #cbd5e1',
                          display: 'flex',
                          alignItems: 'center',
                          gap: '0.75rem',
                        },
                        on: { mousedown: ->(event) { begin_drag(event) } },
                      }, [
-              item_logo(item),
-              h(:div, { style: { fontSize: '32px', lineHeight: '38px', fontWeight: 'bold' } }, bidder.name),
+              item_card,
+              h(:div, { style: { minWidth: '0' } }, [
+                h(:div, { style: { fontSize: '1.05rem', lineHeight: '1.2', fontWeight: 'bold' } }, item.name.to_s),
+                h(:div, { style: { marginTop: '0.15rem', fontSize: '0.82rem', color: '#64748b' } }, "Bidder: #{bidder.name}"),
+              ]),
             ])
-
-          h(:div, {
-              attrs: { id: 'dashboard-bidding-panel' },
-              style: {
-                position: 'fixed',
-                top: '1rem',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: 'min(640px, 94vw)',
-                zIndex: '100100',
-                backgroundColor: '#ffffff',
-                border: '1px solid #64748b',
-                borderRadius: '9px',
-                overflow: 'hidden',
-                boxShadow: '0 10px 28px rgba(15, 23, 42, 0.28)',
-              },
-            }, [
+          bidding_panel = h(:div, {
+                              attrs: { id: 'dashboard-bidding-panel' },
+                              style: {
+                                position: 'fixed',
+                                top: '1rem',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                width: 'min(640px, 94vw)',
+                                zIndex: '100100',
+                                backgroundColor: '#ffffff',
+                                border: '1px solid #64748b',
+                                borderRadius: '9px',
+                                overflow: 'hidden',
+                                boxShadow: '0 10px 28px rgba(15, 23, 42, 0.28)',
+                              },
+                            }, [
               header,
-              render_private_info(item),
               render_player_table(item, bidder),
               h(:div, { style: { padding: '0.65rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap', borderTop: '1px solid #e2e8f0' } }, [
                 h(:input, {
@@ -699,12 +598,16 @@ h(:div, {
                   }, '+5'),
                 h(:button, {
                     attrs: { disabled: bid_disabled },
-                    style: button.merge(backgroundColor: bid_disabled ? '#e2e8f0' : '#16a34a', color: bid_disabled ? '#94a3b8' : '#ffffff', border: 'none', cursor: bid_disabled ? 'not-allowed' : 'pointer'),
+                    style: button.merge(backgroundColor: bid_disabled ? '#e2e8f0' : '#2563eb', color: bid_disabled ? '#94a3b8' : '#ffffff', border: 'none', cursor: bid_disabled ? 'not-allowed' : 'pointer'),
                     on: bid_disabled ? {} : { click: submit_bid },
                   }, "Bid #{@game.format_currency(current_price)}"),
-                (h(:button, { style: button.merge(backgroundColor: '#ea7c22', color: '#ffffff', border: 'none'), on: { click: pass_bid } }, 'Pass') if legal_actions.include?('pass')),
+                (h(:button, { style: button.merge(backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #1d4ed8'), on: { click: pass_bid } }, 'Pass') if legal_actions.include?('pass')),
               ].compact),
             ].compact)
+
+          return bidding_panel unless selection_panel
+
+          h(:div, {}, [selection_panel, bidding_panel])
         end
       end
     end
