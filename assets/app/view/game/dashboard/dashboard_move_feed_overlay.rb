@@ -177,6 +177,8 @@ module View
             bg = entity.respond_to?(:color) && entity.color ? entity.color : '#333333'
             fg = entity.respond_to?(:text_color) && entity.text_color ? entity.text_color : '#ffffff'
             text = entity.respond_to?(:sym) ? entity.sym : entity.id
+            corp_id = entity.respond_to?(:id) && entity.id ? entity.id.to_s : text.to_s
+            hexes = resolve_target_hexes(entity).join(',')
 
             h(:div, {
                 style: {
@@ -193,9 +195,19 @@ module View
                   flexShrink: '0',
                   border: '2px solid rgba(0,0,0,0.25)',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                  cursor: 'help',
+                  position: 'relative',
                 },
-                attrs: { title: entity.respond_to?(:name) ? entity.name.to_s : text.to_s },
-              }, text.to_s)
+                attrs: {
+                  class: 'status-corp-wrapper cmd-corp-wrapper',
+                  'data-corp': corp_id,
+                  'data-hexes': hexes,
+                  title: entity.respond_to?(:name) ? entity.name.to_s : text.to_s,
+                },
+              }, [
+                text.to_s,
+                render_corp_tooltip(entity),
+              ].compact)
           else
             text = entity.respond_to?(:name) ? entity.name : fallback_text.to_s
             initials = text[0..1].to_s.upcase
@@ -312,19 +324,118 @@ module View
             bg = corp.respond_to?(:color) && corp.color ? corp.color : '#4169e1'
             fg = corp.respond_to?(:text_color) && corp.text_color ? corp.text_color : '#ffffff'
             label = corp.respond_to?(:sym) && corp.sym ? corp.sym : item[:name]
+            corp_id = corp.respond_to?(:id) && corp.id ? corp.id.to_s : label.to_s
+            hexes = resolve_target_hexes(corp).join(',')
 
-            '<span class="status-corp-wrapper cmd-corp-wrapper" style="display:inline-flex;position:relative;vertical-align:baseline;cursor:pointer;margin:0 2px;">' \
-              "<span style=\"display:inline-flex;align-items:center;justify-content:center;height:1.35rem;padding:0 6px;border-radius:3px;font-weight:800;font-size:0.78rem;background-color:#{bg};color:#{fg};border:1px solid rgba(0,0,0,0.35);line-height:1;letter-spacing:0.3px;box-shadow:0 1px 2px rgba(0,0,0,0.1);\">#{label}</span>" \
+            "<span class=\"major-railcard-wrapper status-corp-wrapper cmd-corp-wrapper\" data-corp=\"#{corp_id}\" data-hexes=\"#{hexes}\" style=\"display:inline-flex;position:relative;vertical-align:baseline;cursor:help;margin:0 2px;\">" \
+              "<span class=\"major-railcard\" data-corp=\"#{corp_id}\" style=\"display:inline-flex;align-items:center;justify-content:center;height:1.35rem;padding:0 6px;border-radius:0;font-weight:800;font-size:0.78rem;background-color:#{bg};color:#{fg};border:2px solid #333333;line-height:1;letter-spacing:0.3px;\">#{label}</span>" \
               "#{corp_tooltip_html(corp)}" \
               '</span>'
           else
             c = item[:entity]
-            name = item[:name]
+            name = c.respond_to?(:sym) && c.sym ? c.sym.to_s : item[:name].to_s
+            hexes = resolve_target_hexes(c).join(',')
 
-            '<span class="status-company-wrapper cmd-company-wrapper" style="display:inline-flex;position:relative;vertical-align:baseline;cursor:pointer;margin:0 2px;">' \
-              "<span style=\"display:inline-flex;align-items:center;justify-content:center;height:1.35rem;padding:0 6px;border-radius:3px;font-weight:700;font-size:0.76rem;background-color:#fdfbf7;color:#1e293b;border:1px solid #78716c;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,0.06);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;\">#{name}</span>" \
+            "<span class=\"status-company-wrapper cmd-company-wrapper\" data-hexes=\"#{hexes}\" style=\"display:inline-flex;position:relative;vertical-align:baseline;cursor:help;margin:0 2px;\">" \
+              "<span class=\"game-card card-private\" style=\"display:inline-flex;align-items:center;justify-content:center;height:1.35rem;padding:0 7px 0 5px;border-radius:2px 11px 11px 2px;font-weight:700;font-size:0.76rem;background-color:#fdfbf7;color:#000000;border:2px solid #888888;line-height:1;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;\">#{name}</span>" \
               "#{company_tooltip_html(c)}" \
               '</span>'
+          end
+        end
+
+        def format_log_line(text, actor_names = [])
+          clean_text = text.to_s
+
+          Array(actor_names).each do |act|
+            next if act.to_s.strip.empty?
+
+            escaped = Regexp.escape(act.to_s)
+            if clean_text.match?(/^#{escaped}'s\s+share\s+price\s+/i)
+              clean_text = clean_text.sub(/^#{escaped}'s\s+share\s+price\s+/i, 'Share price ')
+              break
+            elsif clean_text.match?(/^#{escaped}'s\s+/i)
+              clean_text = clean_text.sub(/^#{escaped}'s\s+/i, '')
+              break
+            elsif clean_text.match?(/^#{escaped}\s+/i)
+              clean_text = clean_text.sub(/^#{escaped}\s+/i, '')
+              break
+            end
+          end
+          clean_text = clean_text[0].upcase + clean_text[1..-1] if clean_text.length.positive?
+
+          tokens = {}
+          tok_idx = 0
+
+          clean_text = clean_text.gsub(/(#[A-Za-z0-9]+)/) do |m|
+            token = "@@TOK_#{tok_idx}@@"
+            tok_idx += 1
+            tokens[token] = "<span style=\"color: #64748b; font-weight: 600;\">#{m}</span>"
+            token
+          end
+
+          clean_text = clean_text.gsub(/([$£€¥]\d+(?:[.,]\d+)?)/) do |m|
+            token = "@@TOK_#{tok_idx}@@"
+            tok_idx += 1
+            tokens[token] =
+              "<strong style=\"color: #{COLOR_MONEY}; font-family: #{FONT_MONEY}; font-size: 0.95em;\">#{m}</strong>"
+            token
+          end
+
+          clean_text = clean_text.gsub(/(\b\d+%\b)/) do |m|
+            token = "@@TOK_#{tok_idx}@@"
+            tok_idx += 1
+            tokens[token] =
+              "<span class=\"game-card cert-share-card\" style=\"display:inline-flex;align-items:center;justify-content:center;height:1.3rem;padding:0 5px;border-radius:3px;font-weight:700;font-size:0.78rem;background-color:#fdfbf7;color:#0f172a;border:1.5px solid #888888;vertical-align:baseline;margin:0 2px;line-height:1;\">#{m}</span>"
+            token
+          end
+
+          clean_text = clean_text.gsub(/\b(\d+[A-Z+]*(?:\+\d+)?)\s+train\b/i) do
+            m = Regexp.last_match(1)
+            token = "@@TOK_#{tok_idx}@@"
+            tok_idx += 1
+            hover_info = train_hover_text(m).to_s.gsub('"', '&quot;')
+            title_attr = hover_info.empty? ? '' : "title=\"#{hover_info}\""
+            tokens[token] =
+              "<span class=\"game-card card-train\" #{title_attr} style=\"display:inline-flex;align-items:center;justify-content:center;height:1.35rem;min-width:2.2rem;padding:0 6px;border-radius:12px;font-weight:800;font-size:0.8rem;background-color:#fdfbf7;color:#000000;border:2px solid #888888;vertical-align:baseline;margin:0 3px;line-height:1;cursor:help;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;\">#{m}</span> train"
+            token
+          end
+
+          clean_text = clean_text.gsub(/\b([A-Z]\d{1,2})\b/) do |m|
+            token = "@@TOK_#{tok_idx}@@"
+            tok_idx += 1
+            tokens[token] =
+              "<span class=\"history-hex-link\" style=\"color: #0284c7; cursor: pointer; font-weight: 700; text-decoration: underline; text-underline-offset: 2px;\" onmouseenter=\"if(window.highlightMapHexes) window.highlightMapHexes(['#{m}'])\" onmouseleave=\"if(window.clearMapHexHighlights) window.clearMapHexHighlights()\">#{m}</span>"
+            token
+          end
+
+          entity_lookup.each do |item|
+            name = item[:name]
+            next if name.nil? || name.empty?
+            next if %w[IN ON OR AT TO A AN BY OF FOR WITH].include?(name.upcase) && name.length <= 2
+
+            flags = name.length <= 3 ? nil : 'i'
+            pattern = Regexp.new('(?:\b)' + Regexp.escape(name) + '(?:\b)', flags)
+
+            next unless clean_text.match?(pattern)
+
+            clean_text = clean_text.gsub(pattern) do
+              token = "@@TOK_#{tok_idx}@@"
+              tok_idx += 1
+              tokens[token] = entity_railcard_html(item)
+              token
+            end
+          end
+
+          html = clean_text.gsub('&', '&amp;').gsub('<', '&lt;').gsub('>', '&gt;')
+          tokens.each do |tok, replacement|
+            html = html.gsub(tok, replacement)
+          end
+
+          is_boring = text.match?(/skips|passes|lays tile|does not run|places a token|places its destination/i)
+          if is_boring
+            "<span style=\"color: #64748b; font-size: 0.92em;\">#{html}</span>"
+          else
+            "<span style=\"color: #0f172a;\">#{html}</span>"
           end
         end
 
@@ -518,7 +629,7 @@ module View
 
             # Personal player messages belong exclusively in the Chat overlay.
             # Keep them completely out of the Move Feed.
-            next if raw_message.is_a?(Engine::Action::Message)
+            next if entry.is_a?(Engine::Action::Message) || raw_message.is_a?(Engine::Action::Message)
 
             info = extract_log_entry(entry)
             msg = info[:message]
@@ -528,20 +639,11 @@ module View
 
             is_divider = msg.start_with?('--') || msg.include?('-- Phase') || msg.include?('-- Event') || msg.include?('-- Stock') || msg.include?('-- Operating')
 
-            if is_chat
-              blocks << current_block if current_block && current_block[:lines]&.any?
-              current_block = nil
-
-              if entry.is_a?(Engine::Action::Message)
-                sender = entry.entity.name || 'Player'
-                chat_msg = entry.message
-              else
-                sender, chat_msg = msg.split(': ', 2)
-              end
-
-              blocks << { type: :chat, sender: sender, text: chat_msg, time: time_str }
-              next
-            end
+            # Also filter out string-formatted chat lines (e.g. "PlayerName: hello")
+            is_chat_line = !is_divider &&
+                           msg.match?(/^[a-zA-Z0-9_\s]+:\s/) &&
+                           !msg.match?(/pays out|runs a|withholds|operates|buys|sells|lays|places|pars|redeems|issues|takes|declares|receives|chooses|passes|skips|bids/i)
+            next if is_chat_line
 
             if is_divider
               blocks << current_block if current_block && current_block[:lines]&.any?
@@ -833,7 +935,8 @@ module View
           size_native = Native(saved_size) if saved_size
           has_size = size_native && size_native['width'] && size_native['height']
 
-          moves_count = @game&.log&.size || 0
+          feed_blocks = group_log_entries
+          moves_count = feed_blocks.count { |b| b[:type] == :action }
 
           hud_style = {
             position: 'fixed',

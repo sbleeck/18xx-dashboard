@@ -1096,10 +1096,14 @@ module View
                   hexContainer.parentNode.appendChild(hexContainer);
                 }
               }
-
-              // 3. Highlight status panel major railcard
+// 3 & 4. Highlight status panel major railcards, Operating Order tokens, and Move Feed badges
               var statusCards = document.querySelectorAll(
-                '.major-railcard[data-corp="' + safeCorpAttr + '"], .status-corp-wrapper[data-corp="' + safeCorpAttr + '"], [data-corp="' + safeCorpAttr + '"] .major-railcard'
+                '.major-railcard[data-corp="' + safeCorpAttr + '"], ' +
+                '.status-corp-wrapper[data-corp="' + safeCorpAttr + '"], ' +
+                '.cmd-corp-wrapper[data-corp="' + safeCorpAttr + '"], ' +
+                '.entity-order-token[data-corp="' + safeCorpAttr + '"], ' +
+                '.active-turn-corp-marker[data-corp="' + safeCorpAttr + '"], ' +
+                '[data-corp="' + safeCorpAttr + '"] .major-railcard'
               );
               for (var k = 0; k < statusCards.length; k++) {
                 statusCards[k].classList.add('status-corp-highlight');
@@ -1252,6 +1256,12 @@ module View
                   var mtCorp = mapToken.getAttribute('data-corp');
                   if (mtCorp) return mtCorp;
                 }
+                  // 2b. Operating Order / Turn bar token or Move Feed corp badge
+                var orderToken = el.closest('.entity-order-token, .active-turn-corp-marker, .cmd-corp-wrapper, .status-corp-wrapper');
+                if (orderToken) {
+                  var otCorp = orderToken.getAttribute('data-corp');
+                  if (otCorp) return otCorp;
+                }
 
                 // 3. Operational columns: ignore cash/trains/empty slots
                 if (el.closest('.corporation-trains, .corporation-cash, .empty-train-slot, [id^="trains_"], [id^="tokens_"]')) {
@@ -1396,6 +1406,25 @@ module View
             classes_str = classes.join(' ')
           end
 
+          is_private = !is_train && (
+            classes.include?('card-private') ||
+            classes.include?('company-card') ||
+            wrapper_classes.to_s.include?('company') ||
+            (resolved_entity && ((resolved_entity.respond_to?(:company?) && resolved_entity.company?) || (defined?(Engine::Company) && resolved_entity.is_a?(Engine::Company))))
+          )
+          if is_private && !classes.include?('card-private')
+            classes << 'card-private'
+            classes_str = classes.join(' ')
+          end
+
+          card_radius = if is_train
+                          '12px'
+                        elsif is_private
+                          '2px 11px 11px 2px'
+                        else
+                          '3px'
+                        end
+
           train_title = nil
           if is_train
             train_target = entity
@@ -1420,7 +1449,7 @@ module View
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: is_train ? '12px' : '4px',
+            borderRadius: card_radius,
             fontSize: '0.85rem',
             fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
             color: '#000000',
