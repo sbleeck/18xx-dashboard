@@ -1037,6 +1037,12 @@ module View
                   '50% { transform: scale(1.15); } ' +
                   '100% { transform: scale(1); } ' +
                   '} ' +
+                  '.stock-market-token, .map-token, .major-railcard, .status-corp-wrapper, .cmd-corp-wrapper, .entity-order-token, .active-turn-corp-marker { ' +
+                  'transform: scale(1); ' +
+                  'transform-origin: center center !important; ' +
+                  'transform-box: fill-box !important; ' +
+                  'transition: transform 0.22s ease-out, filter 0.22s ease-out !important; ' +
+                  '} ' +
                   '.stock-market-token-highlight { ' +
                   'animation: corp-breathing-sync 0.85s ease-in-out infinite !important; ' +
                   'transform-origin: center center !important; ' +

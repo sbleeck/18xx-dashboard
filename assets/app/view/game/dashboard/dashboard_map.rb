@@ -239,15 +239,63 @@ module View
           return rendered unless corp
 
           corp_id = corp.id.to_s
+          # // --- START FIX ---
           %x{
             var v = #{rendered};
             if (v) {
               var list = Array.isArray(v) ? v : [v];
               for (var i = 0; i < list.length; i++) {
                 var item = list[i];
-                if (item) {
-                  if (!item.data) item.data = {};
-                  if (!item.data.attrs) item.data.attrs = {};
+                if (!item) continue;
+
+                if (!item.data) item.data = {};
+                if (!item.data.attrs) item.data.attrs = {};
+
+                // Wrap children inside an inner <g> so CSS scale animations never overwrite
+                // the outer SVG transform="translate(...) rotate(...)" of the city slot.
+                if (item.children && Array.isArray(item.children) && !item.data.attrs['data-token-wrapped']) {
+                  item.data.attrs['data-token-wrapped'] = 'true';
+                  var innerG = {
+                    sel: 'g',
+                    data: {
+                      attrs: {
+                        'data-corp': #{corp_id},
+                        'class': 'map-token map-token-' + #{corp_id}
+                      },
+                      hook: {
+                        insert: function(vnode) {
+                          var el = vnode.elm;
+                          if (!el || typeof performance === 'undefined') return;
+                          // Only animate newly placed tokens after initial board render
+                          if (!window._mapTokensInitialized) return;
+                          var start = performance.now();
+                          var dur = 380;
+                          function stepAnim(now) {
+                            var p = Math.min(1, (now - start) / dur);
+                            // Smooth cubic-out drop-in from scale 2.4 -> 0.92 -> 1.0
+                            var s = p < 0.7
+                              ? 2.4 - (1.48 * (p / 0.7) * (p / 0.7))
+                              : 0.92 + (0.08 * ((p - 0.7) / 0.3));
+                            el.style.transform = 'scale(' + s.toFixed(3) + ')';
+                            el.style.transformOrigin = 'center center';
+                            el.style.transformBox = 'fill-box';
+                            if (p < 1) {
+                              window.requestAnimationFrame(stepAnim);
+                            } else {
+                              el.style.transform = '';
+                            }
+                          }
+                          window.requestAnimationFrame(stepAnim);
+                        }
+                      }
+                    },
+                    children: item.children,
+                    elm: undefined,
+                    text: undefined,
+                    key: undefined
+                  };
+                  item.children = [innerG];
+                } else {
                   item.data.attrs['data-corp'] = #{corp_id};
                   var c = item.data.attrs['class'] || '';
                   if (c.indexOf('map-token') === -1) {
@@ -256,7 +304,13 @@ module View
                 }
               }
             }
+            if (typeof window !== 'undefined' && !window._mapTokensInitTimer) {
+              window._mapTokensInitTimer = setTimeout(function() {
+                window._mapTokensInitialized = true;
+              }, 600);
+            }
           }
+          # // --- END FIX ---
           rendered
         end
       end
