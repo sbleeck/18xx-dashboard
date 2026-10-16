@@ -257,6 +257,21 @@ module View
                                         .status-corp-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .cmd-company-tooltip { display: none !important; }
 
                                         .share-card-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+                                        #spreadsheet tbody tr:has(.choice-menu-popup) {
+                                          position: relative !important;
+                                          z-index: 99990 !important;
+                                        }
+                                        #spreadsheet tbody td:has(.choice-menu-popup),
+                                        #spreadsheet tbody th:has(.choice-menu-popup) {
+                                          position: relative !important;
+                                          z-index: 99995 !important;
+                                          filter: none !important;
+                                        }
+                                        .share-card-wrapper:has(.choice-menu-popup),
+                                        .game-card:has(.choice-menu-popup) {
+                                          z-index: 99999 !important;
+                                          transform: none !important;
+                                        }
                               .game-card.president-card {
                                 font-weight: bold !important;
                               }
@@ -2858,7 +2873,8 @@ module View
                            }, 'Cancel')
 
         h(:div, {
-            style: { position: 'absolute', top: '105%', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#ffffff', border: '2px solid #333333', borderRadius: '4px', padding: '0.5rem', zIndex: '9999', boxShadow: '0px 4px 10px rgba(0,0,0,0.3)' },
+            attrs: { class: 'choice-menu-popup' },
+            style: { position: 'absolute', top: '105%', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#ffffff', border: '2px solid #333333', borderRadius: '4px', padding: '0.5rem', zIndex: '999999', boxShadow: '0px 4px 10px rgba(0,0,0,0.3)' },
           }, menu_elements)
       end
 

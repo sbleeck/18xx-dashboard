@@ -71,37 +71,33 @@ module View
 
         # --- START FIX ---
         def render_count_badge(label, num, shift: 0)
-          bg_color = num.positive? ? '#0f172a' : '#991b1b'
           h(:div, {
               style: {
                 position: 'absolute',
-                top: '1px',
-                left: "#{(WIDTH * shift) + 2}px",
-                width: "#{WIDTH - 4}px",
+                top: '0px',
+                left: "#{(WIDTH * shift) + 1}px",
+                width: "#{WIDTH - 2}px",
                 boxSizing: 'border-box',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '1px 5px',
-                backgroundColor: bg_color,
-                color: '#ffffff',
+                padding: '1px 4px',
+                backgroundColor: '#ffffff',
+                color: '#000000',
+                border: '1px solid #000000',
                 fontSize: '11px',
                 fontWeight: 'bold',
                 lineHeight: '1.2',
-                borderRadius: '3px',
+                borderRadius: '2px',
                 zIndex: '5',
                 pointerEvents: 'none',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
               },
             }, [
-              h(:span, "##{label}"),
+              h(:span, label.to_s),
               h(:span, {
                   style: {
-                    backgroundColor: num.positive? ? '#22c55e' : '#ef4444',
-                    color: '#ffffff',
-                    padding: '0 4px',
-                    borderRadius: '2px',
-                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    color: '#000000',
                   },
                 }, "×#{num}"),
             ])
@@ -118,7 +114,6 @@ module View
               tile = tiles.first
               next if tile.hidden
 
-              # --- START FIX ---
               extra = render_tile_selector(remaining, tile) + [render_count_badge(name, num)]
               render_tile_blocks(name,
                                  tile: tile,
@@ -127,7 +122,6 @@ module View
                                  layout: @game.layout,
                                  clickable: true,
                                  extra_children: extra)
-              # --- END FIX ---
             end.compact
           else
             all_tiles = @game.all_tiles.sort.group_by(&:name)
@@ -139,7 +133,6 @@ module View
                 tile = all_tiles[name].first
                 next if tile.hidden
 
-                # --- START FIX ---
                 extra = render_tile_selector(remaining, tile) + [render_count_badge(name, num)]
                 render_tile_blocks(name,
                                    tile: tile,
@@ -148,7 +141,6 @@ module View
                                    layout: @game.layout,
                                    clickable: true,
                                    extra_children: extra)
-                # --- END FIX ---
               else
                 name_a, name_b = group
                 num = remaining[name_a]&.size || 0
@@ -160,7 +152,6 @@ module View
 
                 next if tile_a.hidden && tile_b.hidden
 
-                # --- START FIX ---
                 extra_a = render_tile_selector(remaining, tile_a) + [render_count_badge(name_a, num, shift: 0)]
                 extra_b = render_tile_selector(remaining, tile_b, shift: 1) + [render_count_badge(name_b, num, shift: 1)]
                 render_tile_sides(name_a,
@@ -173,7 +164,6 @@ module View
                                   clickable: true,
                                   extra_children_a: extra_a,
                                   extra_children_b: extra_b)
-                # --- END FIX ---
               end
             end.compact
           end
@@ -187,10 +177,7 @@ module View
             },
           }
 
-          # --- START FIX ---
-          # Wrap in div#tiles so native 18xx.games CSS rules (#tiles .tile__header, borders, etc.) apply
           h('div#tiles', [h('div#tile_manifest', props, children)])
-          # --- END FIX ---
         end
 
         def render
@@ -208,6 +195,20 @@ module View
               return (t && t !== 'undefined' && t !== 'null' && !isNaN(parseFloat(t))) ? parseFloat(t) : null;
             } catch(e) { return null; }
           })())
+          # --- START FIX ---
+          saved_width = %x((function() {
+            try {
+              var w = sessionStorage.getItem('dashboard_tile_manifest_width');
+              return (w && w !== 'undefined' && w !== 'null' && !isNaN(parseFloat(w))) ? parseFloat(w) : null;
+            } catch(e) { return null; }
+          })())
+          saved_height = %x((function() {
+            try {
+              var h = sessionStorage.getItem('dashboard_tile_manifest_height');
+              return (h && h !== 'undefined' && h !== 'null' && !isNaN(parseFloat(h))) ? parseFloat(h) : null;
+            } catch(e) { return null; }
+          })())
+          # --- END FIX ---
 
           on_header_mousedown = lambda do |event|
             %x(
@@ -289,16 +290,87 @@ module View
             )
           end
 
+          # --- START FIX ---
+          on_resize_mousedown = lambda do |event|
+            %x(
+            var ev = #{event} || (typeof arguments !== 'undefined' ? arguments[0] : null) || window.event;
+            if (!ev) return;
+            if (ev.preventDefault) ev.preventDefault();
+            if (ev.stopPropagation) ev.stopPropagation();
+
+            var modal = document.getElementById('dashboard-tile-manifest-dialog');
+            if (!modal) return;
+
+            var rect = modal.getBoundingClientRect();
+            modal.style.position = 'fixed';
+            modal.style.left = rect.left + 'px';
+            modal.style.top = rect.top + 'px';
+            modal.style.width = rect.width + 'px';
+            modal.style.height = rect.height + 'px';
+            modal.style.maxWidth = 'none';
+            modal.style.maxHeight = 'none';
+            modal.style.margin = '0';
+            modal.style.transform = 'none';
+
+            var startX = ev.clientX;
+            var startY = ev.clientY;
+            var startW = rect.width;
+            var startH = rect.height;
+
+            function onResizeMove(moveEv) {
+              var mEv = moveEv || window.event;
+              if (mEv.preventDefault) mEv.preventDefault();
+
+              var newW = Math.max(320, Math.min(window.innerWidth - rect.left - 10, startW + (mEv.clientX - startX)));
+              var newH = Math.max(180, Math.min(window.innerHeight - rect.top - 10, startH + (mEv.clientY - startY)));
+
+              modal.style.width = newW + 'px';
+              modal.style.height = newH + 'px';
+            }
+
+            function onResizeUp(upEv) {
+              document.removeEventListener('mousemove', onResizeMove, true);
+              document.removeEventListener('mouseup', onResizeUp, true);
+              window.removeEventListener('mousemove', onResizeMove, true);
+              window.removeEventListener('mouseup', onResizeUp, true);
+
+              var finalRect = modal.getBoundingClientRect();
+              if (finalRect && !isNaN(finalRect.width) && !isNaN(finalRect.height)) {
+                try {
+                  sessionStorage.setItem('dashboard_tile_manifest_left', finalRect.left);
+                  sessionStorage.setItem('dashboard_tile_manifest_top', finalRect.top);
+                  sessionStorage.setItem('dashboard_tile_manifest_width', finalRect.width);
+                  sessionStorage.setItem('dashboard_tile_manifest_height', finalRect.height);
+                } catch(err) {}
+              }
+            }
+
+            document.addEventListener('mousemove', onResizeMove, true);
+            document.addEventListener('mouseup', onResizeUp, true);
+            window.addEventListener('mousemove', onResizeMove, true);
+            window.addEventListener('mouseup', onResizeUp, true);
+            )
+          end
+          # --- END FIX ---
+
           reset_pos = lambda do
             %x(
             try {
               sessionStorage.removeItem('dashboard_tile_manifest_left');
               sessionStorage.removeItem('dashboard_tile_manifest_top');
+              // --- START FIX ---
+              sessionStorage.removeItem('dashboard_tile_manifest_width');
+              sessionStorage.removeItem('dashboard_tile_manifest_height');
+              // --- END FIX ---
             } catch(e) {}
             var modal = document.getElementById('dashboard-tile-manifest-dialog');
             if (modal) {
               modal.style.left = '50%';
               modal.style.top = '50%';
+              modal.style.width = '92%';
+              modal.style.height = 'auto';
+              modal.style.maxWidth = '1120px';
+              modal.style.maxHeight = '82vh';
               modal.style.transform = 'translate(-50%, -50%)';
               modal.style.margin = '0';
             }
@@ -317,9 +389,10 @@ module View
             update
           end
 
+          # --- START FIX ---
           dialog_style = {
-            width: '92%',
-            maxWidth: '1120px',
+            width: saved_width ? "#{saved_width}px" : '92%',
+            maxWidth: saved_width ? 'none' : '1120px',
             backgroundColor: '#ffffff',
             borderRadius: '8px',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
@@ -343,7 +416,16 @@ module View
             dialog_style[:transform] = 'translate(-50%, -50%)'
           end
 
-          dialog_style[:maxHeight] = is_minimized ? 'auto' : '82vh'
+          if is_minimized
+            dialog_style[:height] = 'auto'
+            dialog_style[:maxHeight] = 'auto'
+          elsif saved_height
+            dialog_style[:height] = "#{saved_height}px"
+            dialog_style[:maxHeight] = 'none'
+          else
+            dialog_style[:maxHeight] = '82vh'
+          end
+          # --- END FIX ---
 
           header_controls = [
             h(:button, {
@@ -379,17 +461,39 @@ module View
               }, '✕'),
           ]
 
+          # --- START FIX ---
           body_content = if is_minimized
                            nil
                          else
                            h(:div, {
                                style: {
                                  overflowY: 'auto',
-                                 maxHeight: 'calc(82vh - 52px)',
-                                 padding: '0.5rem 1rem 1rem 1rem',
+                                 flex: '1 1 auto',
+                                 minHeight: '0',
+                                 padding: '0.5rem 1rem 1.25rem 1rem',
                                },
                              }, [render_tile_manifest])
                          end
+
+          resize_handle = if is_minimized
+                            nil
+                          else
+                            h(:div, {
+                                attrs: { title: 'Drag to resize' },
+                                style: {
+                                  position: 'absolute',
+                                  right: '0',
+                                  bottom: '0',
+                                  width: '18px',
+                                  height: '18px',
+                                  cursor: 'nwse-resize',
+                                  zIndex: '10',
+                                  background: 'linear-gradient(135deg, transparent 50%, #94a3b8 50%, #94a3b8 65%, transparent 65%, transparent 80%, #94a3b8 80%)',
+                                },
+                                on: { mousedown: on_resize_mousedown },
+                              })
+                          end
+          # --- END FIX ---
 
           remaining_count = @game.tiles.size
 
@@ -405,6 +509,7 @@ module View
                   alignItems: 'center',
                   cursor: 'grab',
                   userSelect: 'none',
+                  flexShrink: '0',
                 },
                 on: {
                   mousedown: on_header_mousedown,
@@ -414,12 +519,15 @@ module View
               h(:div, { style: { display: 'flex', alignItems: 'baseline', gap: '0.6rem' } }, [
                 h(:h2, { style: { margin: '0', fontSize: '1.15rem', color: '#0f172a', fontWeight: 'bold' } }, 'Tile Manifest'),
                 h(:span, { style: { fontSize: '0.8rem', color: '#64748b' } },
-                  "(#{remaining_count} remaining tiles • drag header to move, dblclick to center)"),
+                  "(#{remaining_count} remaining tiles • drag header to move, dblclick to reset)"),
               ]),
               h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.4rem' } }, header_controls),
             ]),
           ]
           dialog_children << body_content if body_content
+          # --- START FIX ---
+          dialog_children << resize_handle if resize_handle
+          # --- END FIX ---
 
           h(:div, {
               attrs: { id: 'dashboard-tile-manifest-container' },
