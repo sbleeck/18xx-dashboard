@@ -27,7 +27,6 @@ module View
         needs :actor, default: nil
         needs :user, default: nil, store: true
 
-
         def resolve_pending_par(step, entity, actions)
           pending = nil
           %i[corporation_pending_par corporation par_corporation parring target_corporation].each do |m|
@@ -183,22 +182,52 @@ module View
               (@game.respond_to?(:minors) ? @game.minors.find { |m| m.id.to_s == token.to_s || m.name.to_s == token.to_s } : nil)
             end
           end
+          is_step_hidden = step.respond_to?(:visible?) && !step.visible?
+          is_owner_hidden = @game.respond_to?(:show_company_owners?) && !@game.show_company_owners?
+          hidden_draft = is_step_hidden || is_owner_hidden
+          show_owners = !hidden_draft
 
-          available_choices = if step.respond_to?(:choices_for)
-                                begin
-                                  step.choices_for(entity)
-                                rescue ArgumentError
-                                  step.choices_for
-                                rescue StandardError
-                                  nil
-                                end
-                              elsif step.respond_to?(:choices)
-                                begin
-                                  step.choices(entity)
-                                rescue ArgumentError
-                                  step.choices
-                                rescue StandardError
-                                  nil
+          is_hotseat = (@game_data && (@game_data['mode'] == :hotseat || @game_data[:mode] == :hotseat)) ||
+                        (@game.respond_to?(:id) && @game.id.to_s =~ /hotseat|hs_/i) ||
+                        (@user.nil? && (@game_data.nil? || (@game_data['mode'].nil? && @game_data[:mode].nil?)))
+
+          viewer = if !is_hotseat && @user && @game.respond_to?(:player_by_id)
+                     @game.player_by_id(@user['id'] || @user[:id])
+                   elsif !is_hotseat && @user && @game.respond_to?(:players)
+                     u_id = @user['id'] || @user[:id]
+                     u_name = @user['name'] || @user[:name]
+                     @game.players.find { |p| (u_id && p.id == u_id) || (u_name && p.name == u_name) }
+                   end
+
+          hotseat_revealed = Lib::Storage["draft_hand_revealed_#{@game.id}_#{entity.id}"] || false
+
+          can_view_hand = if !is_step_hidden
+                            true
+                          elsif is_hotseat
+                            hotseat_revealed
+                          elsif viewer
+                            viewer == entity
+                          else
+                            false
+                          end
+
+          available_choices = if can_view_hand
+                                if step.respond_to?(:choices_for)
+                                  begin
+                                    step.choices_for(entity)
+                                  rescue ArgumentError
+                                    step.choices_for
+                                  rescue StandardError
+                                    nil
+                                  end
+                                elsif step.respond_to?(:choices)
+                                  begin
+                                    step.choices(entity)
+                                  rescue ArgumentError
+                                    step.choices
+                                  rescue StandardError
+                                    nil
+                                  end
                                 end
                               end
 
@@ -219,76 +248,60 @@ module View
           end
 
           draft_items = []
+          if can_view_hand
+            if valid_choice_tokens.any?
+              valid_choice_tokens.each do |token|
+                ent = find_entity.call(token)
+                draft_items << ent if ent
+              end
+            else
+              candidates = []
 
-          if valid_choice_tokens.any?
-            valid_choice_tokens.each do |token|
-              ent = find_entity.call(token)
-              draft_items << ent if ent
-            end
-          else
-            candidates = []
+              candidates << step.auctioning if step.respond_to?(:auctioning) && step.auctioning
 
-            candidates << step.auctioning if step.respond_to?(:auctioning) && step.auctioning
+              %i[available_companies biddable_companies buyable_companies available items cards companies minors].each do |m|
+                next unless step.respond_to?(m)
 
-            %i[available_companies biddable_companies buyable_companies available items cards companies minors].each do |m|
-              next unless step.respond_to?(m)
-
-              begin
-                res = step.send(m, entity)
-              rescue ArgumentError
                 begin
-                  res = step.send(m)
+                  res = step.send(m, entity)
+                rescue ArgumentError
+                  begin
+                    res = step.send(m)
+                  rescue StandardError
+                    res = nil
+                  end
                 rescue StandardError
                   res = nil
                 end
-              rescue StandardError
-                res = nil
+
+                if res.is_a?(Array) || res.is_a?(Hash)
+                  items_res = res.is_a?(Hash) ? res.keys : res
+                  candidates.concat(items_res) if items_res&.any?
+                end
+                break if candidates.any? && m != :minors
               end
 
-              if res.is_a?(Array) || res.is_a?(Hash)
-                items_res = res.is_a?(Hash) ? res.keys : res
-                candidates.concat(items_res) if items_res&.any?
+              if candidates.empty? && !is_step_hidden
+                candidates.concat(@game.companies || []) if @game.respond_to?(:companies) && @game.companies
+                candidates.concat(@game.minors || []) if @game.respond_to?(:minors) && @game.minors
               end
-              break if candidates.any? && m != :minors
-            end
 
-            if candidates.empty?
-              candidates.concat(@game.companies || []) if @game.respond_to?(:companies) && @game.companies
-              candidates.concat(@game.minors || []) if @game.respond_to?(:minors) && @game.minors
-            end
-
-            candidates.each do |c|
-              ent = find_entity.call(c)
-              draft_items << ent if ent
+              candidates.each do |c|
+                ent = find_entity.call(c)
+                draft_items << ent if ent
+              end
             end
           end
-
-          show_owners =
-            if @game.respond_to?(:show_company_owners?)
-              @game.show_company_owners?
-            else
-              true
-            end
 
           all_game_items =
             (@game.respond_to?(:companies) && @game.companies ? @game.companies : []) +
             (@game.respond_to?(:minors) && @game.minors ? @game.minors : [])
 
-          hidden_draft =
-            @game.respond_to?(:show_company_owners?) &&
-            !@game.show_company_owners?
-
-          viewer =
-            if @game.respond_to?(:current_user)
-              @game.current_user
-            else
-              entity
-            end
-
           my_drafted_items =
-            if hidden_draft
+            if hidden_draft && (viewer || (is_hotseat && can_view_hand))
+              target_owner = viewer || entity
               all_game_items.select do |item|
-                item.respond_to?(:owner) && item.owner == viewer
+                item.respond_to?(:owner) && item.owner == target_owner
               end
             else
               []
@@ -296,8 +309,10 @@ module View
 
           if hidden_draft
             available_items =
-              draft_items.reject do |item|
-                item.respond_to?(:owner) && item.owner
+              if is_step_hidden
+                draft_items.reject { |item| item.respond_to?(:owner) && item.owner }
+              else
+                draft_items
               end
 
             items = (available_items + my_drafted_items)
@@ -333,9 +348,10 @@ module View
 
           players = @game.players || []
 
-          can_pass = !pending_corp && (actions.include?('pass') || has_blank_card)
+          can_pass = can_view_hand && !pending_corp && (actions.include?('pass') || has_blank_card)
 
           exec_pass = lambda {
+            Lib::Storage["draft_hand_revealed_#{@game.id}_#{entity.id}"] = false if is_hotseat && is_step_hidden
             if actions.include?('pass')
               process_action(Engine::Action::Pass.new(entity))
             elsif actions.include?('choose') && has_blank_card
@@ -355,11 +371,12 @@ module View
 
           rows = items.map do |item|
             is_owned =
-              show_owners &&
-              item.respond_to?(:owner) &&
-              item.owner &&
-              item.owner.respond_to?(:player?) &&
-              item.owner.player?
+              (show_owners &&
+               item.respond_to?(:owner) &&
+               item.owner &&
+               item.owner.respond_to?(:player?) &&
+               item.owner.player?) ||
+              (hidden_draft && my_drafted_items.include?(item))
 
             item_price = if step.respond_to?(:min_bid)
                            begin
@@ -401,8 +418,9 @@ module View
 
             # Determine eligibility and appropriate verb (Bid, Buy, Choose)
 
-            is_available = draft_items.include?(item) &&
-                           (!item.respond_to?(:owner) || item.owner.nil?)
+            is_available = can_view_hand &&
+                               draft_items.include?(item) &&
+                               (!item.respond_to?(:owner) || item.owner.nil?)
 
             is_actionable = !pending_corp && is_available && can_afford
             action_mode = nil
@@ -449,6 +467,7 @@ module View
             can_choose_item = !action_mode.nil?
 
             exec_action = lambda {
+              Lib::Storage["draft_hand_revealed_#{@game.id}_#{entity.id}"] = false if is_hotseat && is_step_hidden
               case action_mode
               when :bid
                 bid_args = { price: item_price }
@@ -736,31 +755,54 @@ module View
           end
 
           dialog_style[:maxHeight] = is_minimized ? 'auto' : '88vh'
-
+          toggle_reveal_hand = lambda do
+            Lib::Storage["draft_hand_revealed_#{@game.id}_#{entity.id}"] = !hotseat_revealed
+            update
+          end
           header_controls = [
-            (if can_pass
-               h(:button, {
-                   attrs: { id: 'draft-overlay-pass-btn', title: 'Pass your turn' },
-                   style: {
-                     padding: '0 12px',
-                     height: '1.5rem',
-                     fontSize: '0.78rem',
-                     fontWeight: 'bold',
-                     backgroundColor: '#fd7e14',
-                     color: '#ffffff',
-                     border: 'none',
-                     borderRadius: '4px',
-                     cursor: 'pointer',
-                     display: 'inline-flex',
-                     alignItems: 'center',
-                     justifyContent: 'center',
-                     boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                   },
-                   on: { click: exec_pass },
-                 }, 'Pass')
-             end),
-            h(:div, { attrs: { class: 'draft-undo-redo-wrapper' } }, [
-              h(:style, {}, '
+           (if is_step_hidden && is_hotseat
+              h(:button, {
+                  attrs: { title: hotseat_revealed ? 'Hide drawn cards' : "Reveal #{entity.name}'s drawn cards" },
+                  style: {
+                    padding: '0 10px',
+                    height: '1.5rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 'bold',
+                    backgroundColor: hotseat_revealed ? '#475569' : '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  },
+                  on: { click: toggle_reveal_hand },
+                }, hotseat_revealed ? 'Hide Hand' : "Reveal #{entity.name}'s Hand")
+            end),
+           (if can_pass
+              h(:button, {
+                  attrs: { id: 'draft-overlay-pass-btn', title: has_blank_card ? 'Select a blank pass card' : 'Pass your turn' },
+                  style: {
+                    padding: '0 12px',
+                    height: '1.5rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 'bold',
+                    backgroundColor: '#fd7e14',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                  },
+                  on: { click: exec_pass },
+                }, has_blank_card ? 'Pass (Blank Card)' : 'Pass')
+            end),
+           h(:div, { attrs: { class: 'draft-undo-redo-wrapper' } }, [
+             h(:style, {}, '
                 .draft-undo-redo-wrapper #history,
                 .draft-undo-redo-wrapper .history,
                 .draft-undo-redo-wrapper input,
@@ -821,27 +863,54 @@ module View
                   box-shadow: none !important;
                 }
               '),
-              h(HistoryAndUndo, last_action_id: last_action_id),
-            ]),
-            h(:button, {
-                attrs: { title: is_minimized ? 'Expand overlay' : 'Minimize overlay' },
-                style: {
-                  padding: '0 8px',
-                  height: '1.5rem',
-                  fontSize: '0.78rem',
-                  fontWeight: '600',
-                  backgroundColor: '#f1f5f9',
-                  color: '#475569',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                },
-                on: { click: toggle_minimize },
-              }, is_minimized ? 'Expand' : 'Minimize'),
+             h(HistoryAndUndo, last_action_id: last_action_id),
+           ]),
+           h(:button, {
+               attrs: { title: is_minimized ? 'Expand overlay' : 'Minimize overlay' },
+               style: {
+                 padding: '0 8px',
+                 height: '1.5rem',
+                 fontSize: '0.78rem',
+                 fontWeight: '600',
+                 backgroundColor: '#f1f5f9',
+                 color: '#475569',
+                 border: '1px solid #cbd5e1',
+                 borderRadius: '4px',
+                 cursor: 'pointer',
+                 display: 'inline-flex',
+                 alignItems: 'center',
+                 justifyContent: 'center',
+               },
+               on: { click: toggle_minimize },
+             }, is_minimized ? 'Expand' : 'Minimize'),
           ].compact
+
+          empty_state_row = if rows.empty?
+                              msg = if is_step_hidden && !can_view_hand
+                                      if is_hotseat
+                                        "Pass the device to #{entity.name} and click 'Reveal #{entity.name}'s Hand' above to view secret draft options."
+                                      else
+                                        "#{entity.name} is secretly reviewing the drawn Private Company cards..."
+                                      end
+                                    else
+                                      'No cards currently visible.'
+                                    end
+                              [
+                                h(:tr, [
+                                  h(:td, {
+                                      attrs: { colspan: (2 + players.length).to_s },
+                                      style: {
+                                        padding: '1.5rem',
+                                        textAlign: 'center',
+                                        color: '#64748b',
+                                        fontStyle: 'italic',
+                                      },
+                                    }, msg),
+                                ]),
+                              ]
+                            else
+                              rows
+                            end
 
           body_content = if is_minimized
                            nil
@@ -854,6 +923,7 @@ module View
                                    *players.map.with_index do |p, idx|
                                      is_current = (p == entity)
                                      player_border = idx == players.length - 1 ? 'none' : '1px solid #cbd5e1'
+
                                      h(:th, {
                                          style: {
                                            padding: '6px 8px',
@@ -868,12 +938,15 @@ module View
                                    end,
                                  ]),
                                ]),
-                               h(:tbody, rows),
+                               h(:tbody, empty_state_row),
                                h(:tfoot, [
                                  h(:tr, [
                                    h(:td, { attrs: { colspan: '2' }, style: { padding: '8px', fontWeight: 'bold', borderTop: '2px solid #cbd5e1', borderRight: '2px solid #cbd5e1', color: '#334155' } }, 'Cash on Hand:'),
                                    *players.map.with_index do |p, idx|
                                      player_border = idx == players.length - 1 ? 'none' : '1px solid #cbd5e1'
+                                     can_see_cash = !hidden_draft || (viewer && p == viewer) || (is_hotseat && can_view_hand && p == entity)
+                                     cash_str = can_see_cash ? @game.format_currency(p.cash) : 'Hidden'
+
                                      h(:td, {
                                          style: {
                                            padding: '8px',
@@ -884,7 +957,7 @@ module View
                                            fontFamily: FONT_MONEY,
                                            color: COLOR_MONEY,
                                          },
-                                       }, @game.format_currency(p.cash))
+                                       }, cash_str)
                                    end,
                                  ]),
                                ]),
