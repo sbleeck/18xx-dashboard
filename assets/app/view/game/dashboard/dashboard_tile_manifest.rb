@@ -69,6 +69,45 @@ module View
           [h(:div, parent_props, [h(:div, props, [selector])])]
         end
 
+        # --- START FIX ---
+        def render_count_badge(label, num, shift: 0)
+          bg_color = num.positive? ? '#0f172a' : '#991b1b'
+          h(:div, {
+              style: {
+                position: 'absolute',
+                top: '1px',
+                left: "#{(WIDTH * shift) + 2}px",
+                width: "#{WIDTH - 4}px",
+                boxSizing: 'border-box',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1px 5px',
+                backgroundColor: bg_color,
+                color: '#ffffff',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                lineHeight: '1.2',
+                borderRadius: '3px',
+                zIndex: '5',
+                pointerEvents: 'none',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+              },
+            }, [
+              h(:span, "##{label}"),
+              h(:span, {
+                  style: {
+                    backgroundColor: num.positive? ? '#22c55e' : '#ef4444',
+                    color: '#ffffff',
+                    padding: '0 4px',
+                    borderRadius: '2px',
+                    fontSize: '10px',
+                  },
+                }, "×#{num}"),
+            ])
+        end
+        # --- END FIX ---
+
         def render_tile_manifest
           remaining = @game.tiles.group_by(&:name)
 
@@ -79,13 +118,16 @@ module View
               tile = tiles.first
               next if tile.hidden
 
+              # --- START FIX ---
+              extra = render_tile_selector(remaining, tile) + [render_count_badge(name, num)]
               render_tile_blocks(name,
                                  tile: tile,
                                  num: num,
                                  unavailable: unavailable,
                                  layout: @game.layout,
                                  clickable: true,
-                                 extra_children: render_tile_selector(remaining, tile))
+                                 extra_children: extra)
+              # --- END FIX ---
             end.compact
           else
             all_tiles = @game.all_tiles.sort.group_by(&:name)
@@ -97,13 +139,16 @@ module View
                 tile = all_tiles[name].first
                 next if tile.hidden
 
+                # --- START FIX ---
+                extra = render_tile_selector(remaining, tile) + [render_count_badge(name, num)]
                 render_tile_blocks(name,
                                    tile: tile,
                                    num: num,
                                    unavailable: unavailable,
                                    layout: @game.layout,
                                    clickable: true,
-                                   extra_children: render_tile_selector(remaining, tile))
+                                   extra_children: extra)
+                # --- END FIX ---
               else
                 name_a, name_b = group
                 num = remaining[name_a]&.size || 0
@@ -115,6 +160,9 @@ module View
 
                 next if tile_a.hidden && tile_b.hidden
 
+                # --- START FIX ---
+                extra_a = render_tile_selector(remaining, tile_a) + [render_count_badge(name_a, num, shift: 0)]
+                extra_b = render_tile_selector(remaining, tile_b, shift: 1) + [render_count_badge(name_b, num, shift: 1)]
                 render_tile_sides(name_a,
                                   name_b,
                                   tile_a: tile_a,
@@ -123,8 +171,9 @@ module View
                                   unavailable: unavailable,
                                   layout: @game.layout,
                                   clickable: true,
-                                  extra_children_a: render_tile_selector(remaining, tile_a),
-                                  extra_children_b: render_tile_selector(remaining, tile_b, shift: 1))
+                                  extra_children_a: extra_a,
+                                  extra_children_b: extra_b)
+                # --- END FIX ---
               end
             end.compact
           end
@@ -138,7 +187,10 @@ module View
             },
           }
 
-          h('div#tile_manifest', props, children)
+          # --- START FIX ---
+          # Wrap in div#tiles so native 18xx.games CSS rules (#tiles .tile__header, borders, etc.) apply
+          h('div#tiles', [h('div#tile_manifest', props, children)])
+          # --- END FIX ---
         end
 
         def render
