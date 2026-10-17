@@ -2584,6 +2584,7 @@ module View
           end
 
         process_action(action)
+        # // --- END FIX ---
       end
 
       def exec_redeem_share_bundle(
