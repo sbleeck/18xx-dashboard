@@ -55125,7 +55125,7 @@ try {
             }
           });
           return $def(self, '$render_command_content', function $$render_command_content() {
-            var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $n, $o, $p, $q, $r, $s, $t, $u, $v, $w, $x, $y, $z, $aa, $ab, $ac, $ad, $ae, $af, $ag, $ah, $ai, $aj, self = this, step = nil, entity = nil, entity_id = nil, price_dialog_style = nil, last_action = nil, last_action_id = nil, $ret_or_1 = nil, $ret_or_2 = nil, actions = nil, is_draft = nil, $ret_or_3 = nil, is_home_token = nil, phase = nil, is_acq = nil, player_name = nil, bg_color = nil, text_color = nil, base_revenue = nil, operating = nil, storage_key = nil, last_base_key = nil, current_revenue = nil, formatted_revenue = nil, game_finished = nil, player_display_name = nil, zone_1 = nil, show_manual_routes = nil, zone_2_content = nil, is_operating_round = nil, map_possibilities = nil, spinner_items = nil, raw_options = nil, options = nil, half_kind = nil, ground_truth_actions = nil, e = nil, operating_entity = nil, operating_entity_actions = nil, share_actions = nil, share_controls = nil, train_controls = nil, can_buy_companies_here = nil, private_controls = nil, zone_2 = nil, advance_text = nil, advance_color = nil, advance_text_color = nil, advance_disabled = nil, advance_action = nil, offer_for_sale = nil, rem_val = nil, dividend_options = nil, ends_turn = nil, button_label = nil, advance_tooltip = nil, advance_children = nil, has_abilities = nil, zone_3 = nil, current_action_id = nil, routed_token = nil, overlays = nil;
+            var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $n, $o, $p, $q, $r, $s, $t, $u, $v, $w, $x, $y, $z, $aa, $ab, $ac, $ad, $ae, $af, $ag, $ah, $ai, $aj, self = this, step = nil, entity = nil, entity_id = nil, price_dialog_style = nil, last_action = nil, last_action_id = nil, $ret_or_1 = nil, $ret_or_2 = nil, actions = nil, is_draft = nil, $ret_or_3 = nil, is_home_token = nil, phase = nil, is_acq = nil, player_name = nil, bg_color = nil, text_color = nil, base_revenue = nil, operating = nil, storage_key = nil, last_base_key = nil, current_revenue = nil, formatted_revenue = nil, game_finished = nil, player_display_name = nil, zone_1 = nil, show_manual_routes = nil, zone_2_content = nil, is_operating_round = nil, map_possibilities = nil, spinner_items = nil, raw_options = nil, options = nil, half_kind = nil, ground_truth_actions = nil, e = nil, operating_entity = nil, operating_entity_actions = nil, share_actions = nil, share_controls = nil, train_controls = nil, loan_controls = nil, token_controls = nil, discard_controls = nil, surrender_controls = nil, can_buy_companies_here = nil, private_controls = nil, zone_2 = nil, advance_text = nil, advance_color = nil, advance_text_color = nil, advance_disabled = nil, advance_action = nil, offer_for_sale = nil, rem_val = nil, dividend_options = nil, ends_turn = nil, button_label = nil, advance_tooltip = nil, advance_children = nil, has_abilities = nil, zone_3 = nil, current_action_id = nil, routed_token = nil, overlays = nil;
 
             
             step = self.game.$round().$active_step();
@@ -55339,6 +55339,55 @@ try {
                   if ($truthy(train_controls)) {
                     zone_2_content['$<<'](train_controls)
                   };
+                };
+                if ($truthy(share_actions['$&'](["take_loan", "payoff_loan"])['$any?']())) {
+                  
+                  loan_controls = self.$render_loan_actions(step, operating_entity, share_actions);
+                  if ($truthy(loan_controls)) {
+                    zone_2_content['$<<'](loan_controls)
+                  };
+                };
+                if ($truthy(share_actions['$include?']("buy_token"))) {
+                  
+                  token_controls = self.$render_buy_tokens(step, operating_entity);
+                  if ($truthy(token_controls)) {
+                    zone_2_content['$<<'](token_controls)
+                  };
+                };
+                if ($truthy(share_actions['$include?']("discard_train"))) {
+                  
+                  discard_controls = self.$render_discard_trains(step, operating_entity);
+                  if ($truthy(discard_controls)) {
+                    zone_2_content['$<<'](discard_controls)
+                  };
+                };
+                if ($truthy(share_actions['$include?']("buy_power"))) {
+                  zone_2_content['$<<'](self.$h($$('BuyPower')))
+                };
+                if ($truthy(share_actions['$include?']("borrow_train"))) {
+                  zone_2_content['$<<'](self.$h($$('BorrowTrain')))
+                };
+                if ($truthy(share_actions['$include?']("swap_train"))) {
+                  zone_2_content['$<<'](self.$h($$('SwapTrain')))
+                };
+                if ($truthy(share_actions['$include?']("acquire_company"))) {
+                  zone_2_content['$<<'](self.$h($$('AcquireCompanies')))
+                };
+                if ($truthy(share_actions['$include?']("corporate_sell_company"))) {
+                  zone_2_content['$<<'](self.$h($$('CorporateSellCompanies')))
+                };
+                if ($truthy(share_actions['$include?']("corporate_buy_company"))) {
+                  zone_2_content['$<<'](self.$h($$('CorporateBuyCompanies')))
+                };
+                if ($truthy(share_actions['$&'](["scrap_train", "surrender_train", "surrender"])['$any?']())) {
+                  
+                  surrender_controls = self.$render_surrender_trains(share_actions, step, operating_entity);
+                  if ($truthy(surrender_controls)) {
+                    zone_2_content['$<<'](surrender_controls)
+                  };
+                };
+                if ($truthy(share_actions['$include?']("view_merge_options"))) {
+                  zone_2_content['$<<'](self.$h($$('ViewMergeOptions'), (new Map([["corporation", operating_entity]]))))
                 };
                 can_buy_companies_here = actions['$include?']("buy_company");
                 can_buy_companies_here = ($truthy(($ret_or_1 = can_buy_companies_here)) ? ($ret_or_1) : ((function() { try {
