@@ -326,11 +326,15 @@ module View
           )
         end
 
+# // --- START FIX ---
         def selectable_targets
-          # Keep returning the complete auction inventory while one item is
-          # actively being auctioned. Previously this returned [] as soon as
-          # step.auctioning became non-nil, which unmounted the selection panel
-          # immediately after the first real bid.
+          # In a Stock Round (e.g. 1817 IPO auction), an auction is already
+          # bound to a single corporation via step.auctioning; do not mount
+          # the multi-item target picker behind the bidding panel.
+          is_stock_round = (@game.round.respond_to?(:stock?) && @game.round.stock?) ||
+                           @game.round.class.name.to_s.include?('Stock')
+          return [] if is_stock_round
+
           items =
             if step.respond_to?(:visible_corporations)
               step.visible_corporations
@@ -344,6 +348,7 @@ module View
         rescue StandardError
           []
         end
+        # // --- END FIX ---
 
         def select_target(item)
           Lib::Storage["dashboard_bidding_selected_target_#{@game.id}"] = item.id.to_s
