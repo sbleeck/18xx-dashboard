@@ -3498,9 +3498,13 @@ try {
           when Engine::Round::Choices
             if actions.include?('choose')
               choice_item = render_generic_choice(step, step&.current_entity || current_entity)
-              choice_item ? h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [choice_item]) : h(Round::Choices, game: @game)
+              if choice_item
+                h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [choice_item])
+              else
+                (defined?(View::Game::Round::Choices) ? h(View::Game::Round::Choices, game: @game) : h(:div))
+              end
             else
-              h(Round::Choices, game: @game)
+              defined?(View::Game::Round::Choices) ? h(View::Game::Round::Choices, game: @game) : h(:div)
             end
 
           when Engine::Round::Merger
@@ -3508,15 +3512,19 @@ try {
                @game.train_actions_always_use_operating_round_view? &&
                !(step&.current_entity || current_entity).is_a?(Engine::Bank)
 
-              h(Round::Operating, game: @game)
+              defined?(View::Game::Round::Operating) ? h(View::Game::Round::Operating, game: @game) : h(:div)
 
             elsif (%w[merge convert buy_shares corporate_buy_shares take_loan payoff_loan] & actions).any?
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [render_merger_step(step, step&.current_entity || current_entity, actions)].compact)
             elsif actions.include?('choose')
               choice_item = render_generic_choice(step, step&.current_entity || current_entity)
-              choice_item ? h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [choice_item]) : h(Round::Merger, game: @game)
+              if choice_item
+                h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [choice_item])
+              else
+                (defined?(View::Game::Round::Merger) ? h(View::Game::Round::Merger, game: @game) : h(:div))
+              end
             else
-              h(Round::Merger, game: @game)
+              defined?(View::Game::Round::Merger) ? h(View::Game::Round::Merger, game: @game) : h(:div)
             end
           else
             if actions.include?('assign')
@@ -3538,7 +3546,7 @@ try {
                 [choice_item].compact
               )
             elsif @game.round.unordered?
-              h(Round::Unordered, game: @game, user: nil)
+              defined?(View::Game::Round::Unordered) ? h(View::Game::Round::Unordered, game: @game, user: nil) : h(:div)
             else
               render_generic_fallback(
                 step,

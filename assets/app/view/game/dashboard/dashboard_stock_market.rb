@@ -409,8 +409,11 @@ module View
 
         # Ensure under_shape elements have pointer-events: none
         under_shape.each do |node|
-          node.data[:attrs] ||= {}
-          node.data[:attrs]['pointer-events'] = 'none'
+          %x{
+            if (!#{node}.data) #{node}.data = {};
+            if (!#{node}.data.attrs) #{node}.data.attrs = {};
+            #{node}.data.attrs['pointer-events'] = 'none';
+          }
         end
 
         h(:g, g_props, [h(:image, props), *under_shape])
