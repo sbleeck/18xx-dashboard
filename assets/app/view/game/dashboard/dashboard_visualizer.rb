@@ -451,16 +451,33 @@ module View
         end || candidates.find { |candidate| candidate.respond_to?(:player?) && candidate.player? }
       end
 
+      # // --- START FIX ---
       def render_global_auction_overlay
         step = @game.round&.active_step
         return nil unless step
 
         round_name = @game.round.class.name.to_s
         step_name = step.class.name.to_s
+
+        auction_target = begin
+          step.auctioning if step.respond_to?(:auctioning)
+        rescue StandardError
+          nil
+        end
+
+        has_winning_bid = begin
+          step.respond_to?(:winning_bid) && !step.winning_bid.nil?
+        rescue StandardError
+          false
+        end
+
+        is_stock_round = (@game.round.respond_to?(:stock?) && @game.round.stock?) || round_name.include?('Stock')
+
         is_draft_or_auction =
           round_name.match?(/Draft|Auction/i) ||
           step_name.match?(/Draft|Auction|Waterfall|Initial/i) ||
-          (step.respond_to?(:draft?) && step.draft?)
+          (step.respond_to?(:draft?) && step.draft?) ||
+          (is_stock_round && auction_target && !has_winning_bid)
 
         return nil unless is_draft_or_auction
 
@@ -473,12 +490,7 @@ module View
           []
         end
 
-        auction_target = begin
-          step.auctioning if step.respond_to?(:auctioning)
-        rescue StandardError
-          nil
-        end
-
+        return nil if is_stock_round && !(actions & %w[bid pass]).any?
         return nil unless (actions & %w[bid choose buy_company pass]).any? || auction_target
 
         available_items =
@@ -511,7 +523,7 @@ module View
           (actions.include?('bid') || actions.include?('pass')) &&
           (
             auction_target ||
-            step.respond_to?(:visible_corporations) ||
+            (!is_stock_round && step.respond_to?(:visible_corporations)) ||
             free_choice_selection
           )
 
@@ -529,6 +541,7 @@ module View
             actor: actor)
         end
       end
+      # // --- END FIX ---
 
       def render_zoom_controls(panel_id, position_styles = {})
         pid = panel_id.to_s
@@ -1337,9 +1350,9 @@ badge_el,
 
       def render_active_turn_card
         player = active_player
-        player_label = if player&.respond_to?(:name) && player.name
+        player_label = if player&.respond_to?(:name) && player&.name
                          player.name.to_s
-                       elsif player&.respond_to?(:id) && player.id
+                       elsif player&.respond_to?(:id) && player&.id
                          player.id.to_s
                        else
                          ''
@@ -1351,7 +1364,7 @@ badge_el,
             player_label = entity.player.name.to_s
           elsif entity&.respond_to?(:owner) && entity.owner&.name
             player_label = entity.owner.name.to_s
-          elsif entity&.respond_to?(:name) && entity.name
+          elsif entity&.respond_to?(:name) && entity&.name
             player_label = entity.name.to_s
           end
         end

@@ -554,28 +554,206 @@ module View
           render_action_row(label, buttons)
         end
 
+        # Actions exposed by the engine that are not player-facing turn controls.
+        # These must never trigger the native-view fallback warning.
+        def background_action?(action)
+          name = action.to_s
+          %w[end_game log message].include?(name) || name.start_with?('program_')
+        end
+
+        def unhandled_actions(actions, handled = [])
+          Array(actions)
+            .compact
+            .map(&:to_s)
+            .uniq
+            .reject { |action| background_action?(action) }
+            .reject { |action| handled.include?(action) }
+        end
+
+        # A normal Stock Round turn is status-first. This row deliberately
+        # contains neutral text rather than controls.
+        def render_possibility_reminder(title, labels, hint: nil)
+          labels = Array(labels).compact.uniq
+          return nil if labels.empty?
+
+          items = labels.map do |label|
+            h(:div, {
+                style: {
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: '0.45rem',
+                  minHeight: '1.25rem',
+                  color: '#475569',
+                  fontSize: '0.84rem',
+                  fontWeight: '600',
+                  lineHeight: '1.25',
+                },
+              }, [
+                h(:span, { style: { color: '#94a3b8', fontWeight: '700', flexShrink: '0' } }, '•'),
+                h(:span, label),
+              ])
+          end
+
+          h(:div, {
+              attrs: { title: hint },
+              style: {
+                width: '100%',
+                padding: '0.5rem 0.7rem 0.55rem',
+                boxSizing: 'border-box',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '5px',
+              },
+            }, [
+              h(:div, {
+                  style: {
+                    marginBottom: '0.3rem',
+                    color: '#64748b',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    letterSpacing: '0.02em',
+                  },
+                }, title),
+              h(:div, {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: '0.08rem',
+                    paddingLeft: '0.1rem',
+                  },
+                }, items),
+            ])
+        end
+
+        def render_stock_possibility_reminder(actions)
+          all_actions = Array(actions).compact.map(&:to_s)
+          player = active_player
+          owned_corporations = (@game.respond_to?(:corporations) ? @game.corporations : []).select do |corporation|
+            corporation.respond_to?(:owner) && player && corporation.owner == player
+          end
+          owned_corporations.each do |corporation|
+            all_actions.concat(actions_for(corporation).compact.map(&:to_s))
+          end
+          all_actions.uniq!
+
+          labels = []
+          labels << 'Sell shares' if all_actions.include?('sell_shares')
+          labels << 'Buy shares' if all_actions.include?('buy_shares')
+          labels << 'Par a corporation' if all_actions.include?('par')
+          labels << 'Sell short' if (all_actions & %w[short short_shares]).any?
+          labels << 'Open / raise a bid' if all_actions.include?('bid')
+          labels << 'Issue shares' if (all_actions & %w[issue issue_shares reissue reissue_shares corporate_sell_shares]).any?
+          labels << 'Redeem shares' if (all_actions & %w[redeem redeem_shares corporate_buy_shares]).any?
+          labels << 'Take a loan' if all_actions.include?('take_loan')
+          labels << 'Repay a loan' if all_actions.include?('payoff_loan')
+
+          render_possibility_reminder(
+            'Stock Actions',
+            labels,
+            hint: 'Use the highlighted objects in the Status Table.'
+          )
+        end
+
+        def render_operating_possibility_reminder(actions, step, entity)
+          all_actions = Array(actions).compact.map(&:to_s).uniq
+          labels = []
+
+          labels << 'Lay a tile' if all_actions.include?('lay_tile')
+          if all_actions.include?('place_token')
+            labels << (home_token_step?(step, all_actions) ? 'Place home token' : 'Place a token')
+          end
+          labels << 'Buy tokens' if all_actions.include?('buy_token')
+          labels << 'Run routes' if all_actions.include?('run_routes')
+          labels << 'Choose dividend' if (all_actions & %w[dividend payout withhold half split]).any?
+          labels << 'Issue shares' if (all_actions & %w[issue issue_shares reissue reissue_shares corporate_sell_shares]).any?
+          labels << 'Redeem shares' if (all_actions & %w[redeem redeem_shares corporate_buy_shares]).any?
+          labels << 'Buy a train' if all_actions.include?('buy_train')
+          labels << 'Discard a train' if all_actions.include?('discard_train')
+          labels << 'Buy a private' if all_actions.include?('buy_company')
+          labels << 'Take a loan' if all_actions.include?('take_loan')
+          labels << 'Repay a loan' if all_actions.include?('payoff_loan')
+          labels << 'Use an ability' if entity && (@game.companies || []).any? do |company|
+            next false if company.respond_to?(:closed?) && company.closed?
+
+            owned = company.owner == entity || (entity.respond_to?(:owner) && company.owner == entity.owner)
+            next false unless owned
+
+            company_actions = actions_for(company)
+            !company_actions.empty?
+          end
+
+          render_possibility_reminder(
+            'Operating Actions',
+            labels,
+            hint: 'A reminder of the legal action types; use the map and highlighted game objects wherever possible.'
+          )
+        end
+
+        # // --- START FIX ---
         def render_generic_fallback(step, entity, actions)
           return nil unless step && entity
 
-          if step.respond_to?(:choices) || step.respond_to?(:choices_for)
+          if actions.include?('choose') && (step.respond_to?(:choices) || step.respond_to?(:choices_for))
             choice_node = render_generic_choice(step, entity)
             return choice_node if choice_node
           end
 
-          unhandled = actions - %w[pass undo redo]
+          unhandled = unhandled_actions(actions, %w[pass undo redo])
           return nil if unhandled.empty?
 
-          desc = if step.respond_to?(:description) && step.description
-                   step.description
-                 else
-                   "Pending: #{unhandled.join(', ')}"
-                 end
+          step_desc = step.respond_to?(:description) && step.description ? step.description : step.class.name.to_s.split('::').last
+          missing_str = unhandled.join(', ')
 
-          render_action_row('Action Required:', [
-            h(:span, { style: { fontSize: '0.88rem', color: '#475569', fontStyle: 'italic', paddingTop: '0.2rem' } }, desc),
-          ])
+          warning_banner = h(:div, {
+                               style: {
+                                 width: '100%',
+                                 padding: '0.5rem 0.75rem',
+                                 marginBottom: '0.5rem',
+                                 backgroundColor: '#fef3c7',
+                                 border: '2px solid #f59e0b',
+                                 borderRadius: '6px',
+                                 color: '#92400e',
+                                 fontSize: '0.85rem',
+                                 fontWeight: 'bold',
+                                 boxSizing: 'border-box',
+                               },
+                             }, "⚠️ Action not yet implemented in Dashboard UI: [#{missing_str}] (Step: #{step_desc}). Showing standard game controls below:")
+
+          standard_view = begin
+            case @game.round
+            when Engine::Round::Stock
+              defined?(View::Game::Round::Stock) ? h(View::Game::Round::Stock, game: @game) : nil
+            when Engine::Round::Operating
+              defined?(View::Game::Round::Operating) ? h(View::Game::Round::Operating, game: @game) : nil
+            when Engine::Round::Merger
+              defined?(View::Game::Round::Merger) ? h(View::Game::Round::Merger, game: @game) : nil
+            when Engine::Round::Auction
+              defined?(View::Game::Round::Auction) ? h(View::Game::Round::Auction, game: @game, user: @user) : nil
+            when Engine::Round::Choices
+              defined?(View::Game::Round::Choices) ? h(View::Game::Round::Choices, game: @game) : nil
+            else
+              if @game.round.respond_to?(:unordered?) && @game.round.unordered? && defined?(View::Game::Round::Unordered)
+                h(View::Game::Round::Unordered, game: @game, user: @user)
+              elsif defined?(View::Game::Round::Operating)
+                h(View::Game::Round::Operating, game: @game)
+              end
+            end
+          rescue StandardError => e
+            h(:div, { style: { color: '#dc2626', fontSize: '0.82rem' } }, "Standard fallback error: #{e.message}")
+          end
+
+          h(:div, {
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+                width: '100%',
+                boxSizing: 'border-box',
+              },
+            }, [warning_banner, standard_view].compact)
         end
 
+        # // --- END FIX ---
         def render_zone3_abilities(entity)
           return nil unless entity
 
@@ -1043,13 +1221,13 @@ module View
                   source_owner = company.owner
 
                   source_type =
-                    if source_owner&.respond_to?(:player?) && source_owner.player?
+                    if source_owner&.respond_to?(:player?) && source_owner&.player?
                       :player
                     elsif source_owner&.respond_to?(:corporation?) &&
-                          source_owner.corporation?
+                          source_owner&.corporation?
                       :corporation
                     elsif source_owner&.respond_to?(:minor?) &&
-                          source_owner.minor?
+                          source_owner&.minor?
                       :corporation
                     else
                       :bank
@@ -2309,12 +2487,15 @@ module View
             ])
         end
 
-        # // --- END FIX ---
-        #
+        # // --- START FIX ---
         def render_stock_bidding(step, entity, actions)
-          return nil unless actions.include?('bid') && entity
+          return nil unless (actions.include?('bid') || actions.include?('pass')) && entity
 
-          auction_corp = step.respond_to?(:auctioning) ? step.auctioning : nil
+          auction_corp = if step.respond_to?(:auctioning_corporation) && step.auctioning_corporation
+                           step.auctioning_corporation
+                         elsif step.respond_to?(:auctioning)
+                           step.auctioning
+                         end
           selected_id = Lib::Storage['selected_bid_corp']
           selected_corp = @game.corporations.find { |c| c.id.to_s == selected_id.to_s } if selected_id
           corporation = auction_corp || selected_corp
@@ -2333,12 +2514,17 @@ module View
                     end
           min_bid = min_bid.to_i
           min_bid = 100 if min_bid < 100 && !auction_corp
-          min_bid = min_bid.to_i
 
           max_bid = if step.respond_to?(:max_bid)
                       begin
-                        step.max_bid(entity)
-                      rescue ArgumentError, StandardError
+                        step.max_bid(entity, corporation)
+                      rescue ArgumentError
+                        begin
+                          step.max_bid(entity)
+                        rescue StandardError
+                          entity.respond_to?(:cash) ? entity.cash.to_i : 400
+                        end
+                      rescue StandardError
                         entity.respond_to?(:cash) ? entity.cash.to_i : 400
                       end
                     else
@@ -2351,8 +2537,6 @@ module View
           stored_price = Lib::Storage[price_key]
           current_bid = stored_price.nil? ? min_bid : stored_price.to_i
           current_bid = [[current_bid, min_bid].max, max_bid].min
-          current_bid = current_bid.to_i
-          current_bid = max_bid if current_bid > max_bid
 
           set_price = lambda do |value|
             value = value.to_i
@@ -2364,12 +2548,17 @@ module View
 
           place_bid = lambda do
             price = current_bid.to_i
-            next unless price >= min_bid && price <= max_bid && (price % 5).zero?
+            next unless actions.include?('bid') && price >= min_bid && price <= max_bid && (price % 5).zero?
 
             action = Engine::Action::Bid.new(entity, corporation: corporation, price: price)
             Lib::Storage['selected_bid_corp'] = nil unless auction_corp
             Lib::Storage[price_key] = nil
             process_action(action)
+          end
+
+          pass_auction = lambda do
+            Lib::Storage[price_key] = nil
+            process_action(Engine::Action::Pass.new(entity))
           end
 
           cancel = lambda do
@@ -2389,25 +2578,6 @@ module View
             color: '#0f172a',
             cursor: 'pointer',
           }
-          minus_disabled = current_bid <= min_bid
-          plus_disabled = current_bid + 5 > max_bid
-          minus = h(:button, {
-                      attrs: { disabled: minus_disabled },
-                      style: button_style.merge(cursor: minus_disabled ? 'not-allowed' : 'pointer', color: minus_disabled ? '#94a3b8' : '#0f172a'),
-                      on: minus_disabled ? {} : { click: -> { set_price.call(current_bid - 5) } },
-                    }, '-5')
-          plus = h(:button, {
-                     attrs: { disabled: plus_disabled },
-                     style: button_style.merge(cursor: plus_disabled ? 'not-allowed' : 'pointer', color: plus_disabled ? '#94a3b8' : '#0f172a'),
-                     on: plus_disabled ? {} : { click: -> { set_price.call(current_bid + 5) } },
-                   }, '+5')
-          price = h(:span, {
-                      style: { minWidth: '4.4rem', textAlign: 'center', fontFamily: FONT_MONEY, color: COLOR_MONEY, fontSize: '1.1rem', fontWeight: 'bold' },
-                    }, @game.format_currency(current_bid))
-          submit = h(:button, {
-                       style: button_style.merge(backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #1d4ed8'),
-                       on: { click: place_bid },
-                     }, auction_corp ? 'Raise Bid' : 'Place Bid')
 
           card = render_major_railcard(
             corporation,
@@ -2416,15 +2586,46 @@ module View
             "cmd_stock_bid_#{corporation.id}"
           )
 
-          children = [card, minus, price, plus, submit]
-          unless auction_corp
+          children = [card]
+
+          if actions.include?('bid')
+            minus_disabled = current_bid <= min_bid
+            plus_disabled = current_bid + 5 > max_bid
+            children << h(:button, {
+                            attrs: { disabled: minus_disabled },
+                            style: button_style.merge(cursor: minus_disabled ? 'not-allowed' : 'pointer', color: minus_disabled ? '#94a3b8' : '#0f172a'),
+                            on: minus_disabled ? {} : { click: -> { set_price.call(current_bid - 5) } },
+                          }, '-5')
+            children << h(:span, {
+                            style: { minWidth: '4.4rem', textAlign: 'center', fontFamily: FONT_MONEY, color: COLOR_MONEY, fontSize: '1.1rem', fontWeight: 'bold' },
+                          }, @game.format_currency(current_bid))
+            children << h(:button, {
+                            attrs: { disabled: plus_disabled },
+                            style: button_style.merge(cursor: plus_disabled ? 'not-allowed' : 'pointer', color: plus_disabled ? '#94a3b8' : '#0f172a'),
+                            on: plus_disabled ? {} : { click: -> { set_price.call(current_bid + 5) } },
+                          }, '+5')
+            children << h(:button, {
+                            style: button_style.merge(backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #1d4ed8'),
+                            on: { click: place_bid },
+                          }, "Bid on #{corporation.name} (#{@game.format_currency(current_bid)})")
+          end
+
+          if auction_corp && actions.include?('pass')
+            children << h(:button, {
+                            style: button_style.merge(backgroundColor: '#dc2626', color: '#ffffff', border: '1px solid #b91c1c'),
+                            on: { click: pass_auction },
+                          }, 'Pass')
+          elsif !auction_corp
             children << h(:button, {
                             style: button_style.merge(backgroundColor: '#f1f5f9', color: '#64748b'),
                             on: { click: cancel },
                           }, 'Cancel')
           end
-          render_action_row(auction_corp ? 'Auction:' : 'Opening Bid:', children)
+
+          row_label = auction_corp ? "Bid on #{corporation.name}:" : 'Opening Bid:'
+          render_action_row(row_label, children)
         end
+        # // --- END FIX ---
 
         def render_offer_for_sale_step(step, entity, actions)
           return nil unless step && entity && actions.include?('assign')
@@ -2558,6 +2759,7 @@ try {
           nil
         end
 
+        # // --- START FIX ---
         def render_assign_step(step, entity, actions)
           player = if entity.respond_to?(:player?) && entity.player?
                      entity
@@ -2568,7 +2770,9 @@ try {
                    end
           return nil unless player
 
-          assignable = if step.respond_to?(:companies)
+          assignable = if step.respond_to?(:available_subsidiaries)
+                         begin; step.available_subsidiaries(player); rescue ArgumentError; step.available_subsidiaries; rescue StandardError; nil; end
+                       elsif step.respond_to?(:companies)
                          begin; step.companies(player); rescue ArgumentError; step.companies; rescue StandardError; nil; end
                        elsif step.respond_to?(:assignable_companies)
                          begin; step.assignable_companies(player); rescue ArgumentError; step.assignable_companies; rescue StandardError; nil; end
@@ -2669,6 +2873,7 @@ try {
 
           render_action_row(label, items)
         end
+        # // --- END FIX ---
 
         def render_acquisition_step(step, entity, actions)
           return nil unless step && entity && actions.include?('bid')
@@ -2939,7 +3144,7 @@ try {
           if actions.include?('par')
             pending_corp =
               if step&.respond_to?(:auctioning_corporation) &&
-                 step.auctioning_corporation
+                 step&.auctioning_corporation
                 step.auctioning_corporation
 
               elsif step&.current_entity&.respond_to?(:companies)
@@ -2956,19 +3161,19 @@ try {
                 end
 
               elsif step&.respond_to?(:corporation_pending_par) &&
-                    step.corporation_pending_par
+                    step&.corporation_pending_par
                 step.corporation_pending_par
 
               elsif step&.respond_to?(:corporation) &&
-                    step.corporation
+                    step&.corporation
                 step.corporation
 
               elsif step&.respond_to?(:par_corporation) &&
-                    step.par_corporation
+                    step&.par_corporation
                 step.par_corporation
 
               elsif step&.respond_to?(:parring) &&
-                    step.parring
+                    step&.parring
                 step.parring
 
               elsif step&.respond_to?(:corporations) &&
@@ -3036,12 +3241,18 @@ try {
             return render_par_step(step, step&.current_entity || current_entity, pending_corp) if pending_corp
           end
 
-          is_draft_or_auction = (step&.respond_to?(:auctioning) && step&.auctioning) ||
-                                (!actions.include?('par') && (
-                                  (step&.class&.name =~ /Waterfall|Draft|Auction|Initial/i) ||
-                                  (step&.respond_to?(:description) && step.description =~ /Draft|Auction/i) ||
-                                  (@game.respond_to?(:round) && @game.round.class.name =~ /Draft|Auction/i)
-                                ))
+          # // --- START FIX ---
+          is_stock_round = (@game.round.respond_to?(:stock?) && @game.round.stock?) ||
+                           @game.round.is_a?(Engine::Round::Stock)
+
+          is_draft_or_auction = !is_stock_round && (
+                                  (step&.respond_to?(:auctioning) && step&.auctioning) ||
+                                  (!actions.include?('par') && (
+                                    (step&.class&.name =~ /Waterfall|Draft|Auction|Initial/i) ||
+                                    (step&.respond_to?(:description) && step.description =~ /Draft|Auction/i) ||
+                                    (@game.respond_to?(:round) && @game.round.class.name =~ /Draft|Auction/i)
+                                  ))
+                                )
           return nil if is_draft_or_auction
 
           case @game.round
@@ -3053,16 +3264,43 @@ try {
               render_generic_choice(step, step&.current_entity || current_entity)
             else
               stock_components = []
-              if actions.include?('bid')
+              if actions.include?('bid') || (step&.respond_to?(:auctioning) && step&.auctioning)
                 bidding_row = render_stock_bidding(step, step&.current_entity || current_entity, actions)
                 stock_components << bidding_row if bidding_row
               end
-              corporate_action_entities.each do |action_entity, _entity_actions|
-                action_step = active_step_for(action_entity) || step
-                stock_components << render_issue_shares(action_step, action_entity)
+              # Normal stock actions live on their persistent objects in Status.
+              # The Action Hub only names the available action types; it does not
+              # duplicate Issue/Redeem/Loan controls here. Stateful sub-steps above
+              # (Bid, Par, Choose, Assign) still receive contextual Hub controls.
+              if stock_components.empty?
+                reminder = render_stock_possibility_reminder(actions)
+                stock_components << reminder if reminder
               end
+
+              handled_stock_actions = %w[
+                buy_shares sell_shares par bid pass undo redo
+                short short_shares
+                issue issue_shares reissue reissue_shares corporate_sell_shares
+                redeem redeem_shares corporate_buy_shares
+                take_loan payoff_loan
+              ]
+              unhandled_stock = unhandled_actions(actions, handled_stock_actions)
+              if unhandled_stock.any?
+                stock_components << render_generic_fallback(
+                  step,
+                  step&.current_entity || current_entity,
+                  unhandled_stock
+                )
+              end
+
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%' } }, stock_components.compact)
             end
+          # // --- END FIX ---
+          when Engine::Round::Operating
+            is_pure_merger_step = step.class.name =~ /Merge/i ||
+                                   (actions.include?('merge') && (actions & %w[lay_tile place_token run_routes dividend buy_train]).empty?)
+          # ... (rest of the method) ...
+
           when Engine::Round::Operating
             is_pure_merger_step = step.class.name =~ /Merge/i ||
                                    (actions.include?('merge') && (actions & %w[lay_tile place_token run_routes dividend buy_train]).empty?)
@@ -3092,15 +3330,8 @@ try {
               components << h(ReassignTrains) if actions.include?('reassign_trains')
               components << h(DoubleHeadTrains) if actions.include?('double_head_trains')
               components << h(CombinedTrains) if actions.include?('combined_trains')
-              if actions.include?('lay_tile')
-                components << render_action_row('Lay Tile:', h(:span, { style: { fontSize: '0.88rem', color: '#475569', fontWeight: '600' } }, 'Select a legal hex on the map.'))
-              end
-              if home_token_step?(step, actions)
-                components << render_home_token_step(step, step&.current_entity || current_entity)
-              elsif actions.include?('place_token')
-                components << render_action_row('Place Token:', h(:span, { style: { fontSize: '0.88rem', color: '#475569', fontWeight: '600' } }, 'Select a legal city on the map.'))
-
-              end
+              # Operating Round possibility reminder: the Action Hub says WHAT is
+              # currently possible while the map shows WHERE the action can happen.
               components << render_buy_tokens(step, step&.current_entity || current_entity) if actions.include?('buy_token')
 
               # // --- START FIX ---
@@ -3237,7 +3468,27 @@ try {
               components << h(CorporateSellCompanies) if actions.include?('corporate_sell_company')
               components << h(CorporateBuyCompanies) if actions.include?('corporate_buy_company')
 
-              if components.compact.empty?
+              handled_operating_actions = %w[
+                pass undo redo
+                choose assign special_buy convert switch_trains reassign_trains double_head_trains combined_trains
+                lay_tile place_token buy_token run_routes dividend payout withhold half split
+                issue issue_shares reissue reissue_shares redeem redeem_shares
+                buy_shares sell_shares corporate_buy_shares corporate_sell_shares
+                buy_train sell_train discard_train swap_train borrow_train buy_power
+                scrap_train surrender_train surrender
+                take_loan payoff_loan
+                merge view_merge_options buy_corporation bankrupt
+                buy_company acquire_company corporate_sell_company corporate_buy_company
+              ]
+              unhandled_operating = unhandled_actions(actions, handled_operating_actions)
+              if unhandled_operating.any?
+                fallback_item = render_generic_fallback(
+                  step,
+                  step&.current_entity || current_entity,
+                  unhandled_operating
+                )
+                components << fallback_item if fallback_item
+              elsif components.compact.empty?
                 fallback_item = render_generic_fallback(step, step&.current_entity || current_entity, actions)
                 components << fallback_item if fallback_item
               end
@@ -3322,13 +3573,13 @@ try {
 
         def render_operating_identity_panel(entity, player_name, _bg_color, _text_color)
           player_label = active_player&.name || player_name
-          player_label ||= entity.name if entity&.respond_to?(:player?) && entity.player? && entity.respond_to?(:name)
+          player_label ||= entity.name if entity&.respond_to?(:player?) && entity&.player? && entity.respond_to?(:name)
           player_label = player_label.to_s
 
           acting_company = corporation_or_minor?(entity) ? entity : nil
-          entity_label = if acting_company&.respond_to?(:id) && acting_company.id
+          entity_label = if acting_company&.respond_to?(:id) && acting_company&.id
                            acting_company.id.to_s
-                         elsif acting_company&.respond_to?(:name) && acting_company.name
+                         elsif acting_company&.respond_to?(:name) && acting_company&.name
                            acting_company.name.to_s
                          end
 
@@ -3511,11 +3762,7 @@ try {
           end
 
           last_action =
-            if @game.respond_to?(:raw_actions) && @game.raw_actions
-              @game.raw_actions.last
-            else
-              nil
-            end
+            (@game.raw_actions.last if @game.respond_to?(:raw_actions) && @game.raw_actions)
 
           last_action_id = if last_action.is_a?(Hash)
                              last_action['id'] || last_action[:id] || 0
@@ -3621,6 +3868,25 @@ try {
           zone_1 = render_operating_identity_panel(entity, player_display_name, bg_color, text_color)
           show_manual_routes = @show_manual_routes || Lib::Storage['cmd_manual_routes'] == true || Lib::Storage['cmd_manual_routes'] == 'true'
           zone_2_content = []
+
+          # Always expose map-based OR possibilities in the Action Hub. Some games
+          # use specialised Operating round subclasses, so this belongs at the
+          # command-content level rather than inside Engine::Round::Operating dispatch.
+          is_operating_round = (@game.round.respond_to?(:operating?) && @game.round.operating?) ||
+                               clean_round_name == 'Operating Round'
+          if !game_finished && is_operating_round
+            map_possibilities = []
+            map_possibilities << 'Lay tile' if actions.include?('lay_tile')
+            map_possibilities << 'Lay token' if actions.include?('place_token')
+            if map_possibilities.any?
+              zone_2_content << render_possibility_reminder(
+                'Operating Round Possible Actions',
+                map_possibilities,
+                hint: 'Use the highlighted locations on the map.'
+              )
+            end
+          end
+
           if game_finished
             zone_2_content << h(:div, {
                                   style: {
@@ -3785,6 +4051,50 @@ try {
             end
 
             zone_2_content << ground_truth_actions if ground_truth_actions
+
+            # A reminder must never replace the real OR object controls. Specialised
+            # Operating round subclasses can miss the exact Engine::Round::Operating
+            # case above, so restore train/private controls from the effective step.
+            if is_operating_round
+              operating_entity = step&.current_entity || entity
+
+              # Preserve all corporation share actions in the OR. These are real
+              # clickable controls, not possibility reminders. Use the effective
+              # entity action list as well as the round-level action list because
+              # 1817-style corporate share actions may be exposed on the corporation.
+              operating_entity_actions = actions_for(operating_entity).compact.map(&:to_s).uniq
+              share_actions = (actions + operating_entity_actions).compact.map(&:to_s).uniq
+              if (share_actions & %w[
+                    issue issue_shares reissue reissue_shares
+                    redeem redeem_shares
+                    corporate_buy_shares corporate_sell_shares
+                    buy_shares sell_shares
+                  ]).any?
+                share_controls = render_issue_shares(step, operating_entity)
+                zone_2_content << share_controls if share_controls
+              end
+
+              if actions.include?('buy_train')
+                train_controls = render_buyable_trains(step, operating_entity)
+                zone_2_content << train_controls if train_controls
+              end
+
+              can_buy_companies_here = actions.include?('buy_company')
+              can_buy_companies_here ||= begin
+                step&.respond_to?(:buyable_companies) && step.buyable_companies(operating_entity)&.any?
+              rescue StandardError
+                false
+              end
+              can_buy_companies_here ||= step&.respond_to?(:can_buy_company?) && (@game.companies || []).any? do |company|
+                step.can_buy_company?(operating_entity, company)
+              rescue StandardError
+                false
+              end
+              if can_buy_companies_here
+                private_controls = render_buyable_companies(step, operating_entity)
+                zone_2_content << private_controls if private_controls
+              end
+            end
           end
 
           zone_2 = h(:div, {
@@ -3889,8 +4199,6 @@ try {
           button_label = ends_turn ? "#{advance_text} · End Turn" : advance_text
           advance_tooltip = if ends_turn
                               'Clicking this ends your turn (Action Hub will close and you cannot undo once the next player acts).'
-                            else
-                              nil
                             end
 
           advance_children = if ends_turn
@@ -3921,8 +4229,6 @@ try {
 
           advance_tooltip = if ends_turn
                               'Clicking this ends your turn (Action Hub will close and you cannot undo once the next player acts).'
-                            else
-                              nil
                             end
 
           has_abilities = !game_finished && !actions.include?('choose') && entity && (@game.companies || []).any? do |c|
