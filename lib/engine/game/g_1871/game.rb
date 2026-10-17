@@ -37,7 +37,7 @@ module Engine
 
         # Standard config
         ALLOW_TRAIN_BUY_FROM_OTHER_PLAYERS = true
-        BANK_CASH = 99_999
+        BANK_CASH = :unlimited
         CAPITALIZATION = :full
         CERT_LIMIT = { 3 => 20, 4 => 16 }.freeze
         CURRENCY_FORMAT_STR = '$%s'
@@ -118,8 +118,8 @@ module Engine
           mainline.full_name = mainline.full_name[0..-2] + 'ML'
           mainline.float_percent = 50
           shortline.full_name = shortline.full_name[0..-2] + 'SL'
-          stock_market.set_par(mainline, stock_market.share_price([1, 1]))
-          stock_market.set_par(shortline, stock_market.share_price([2, 1]))
+          par_corporation(mainline, stock_market.share_price([1, 1]))
+          par_corporation(shortline, stock_market.share_price([2, 1]))
 
           # Mainline and Shortline tokens start on the board
           @hexes.each do |hex|
@@ -372,31 +372,29 @@ module Engine
           max_owners.map { |p| lowest_peir_share(p) }.min_by(&:index).owner
         end
 
-        # After default caches are made, override the share_by_id and
-        # corporation_by_id method to recognize mainline and shortline
-        def cache_objects
-          super
-
-          self.class.define_method(:share_by_id) do |id|
-            if id&.start_with?('mainline')
-              id = id.sub('mainline', mainline.id)
-            elsif id&.start_with?('shortline')
-              id = id.sub('shortline', shortline.id)
-            end
-
-            instance_variable_get(:@_shares)[id]
+        # Override the base lookups to recognize mainline and shortline. Defined
+        # on the class, not per instance from cache_objects: a block defined per
+        # game closes over that game, and YJIT pins it, so the game never dies.
+        # mainline/shortline still resolve against the receiving game.
+        def share_by_id(id)
+          if id&.start_with?('mainline')
+            id = id.sub('mainline', mainline.id)
+          elsif id&.start_with?('shortline')
+            id = id.sub('shortline', shortline.id)
           end
 
-          self.class.define_method(:corporation_by_id) do |id|
-            case id
-            when 'mainline'
-              id = mainline.id
-            when 'shortline'
-              id = shortline.id
-            end
+          @_shares[id]
+        end
 
-            instance_variable_get(:@_corporations)[id]
+        def corporation_by_id(id)
+          case id
+          when 'mainline'
+            id = mainline.id
+          when 'shortline'
+            id = shortline.id
           end
+
+          @_corporations[id]
         end
 
         # Override default rust behavior for 4+ trains so that we only rust them

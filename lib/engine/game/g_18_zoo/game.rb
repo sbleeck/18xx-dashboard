@@ -11,7 +11,7 @@ module Engine
       class Game < Game::Base
         CURRENCY_FORMAT_STR = '%s$N'
 
-        BANK_CASH = 99_999
+        BANK_CASH = :unlimited
 
         CERT_LIMIT = {
           2 => { '5' => 10, '7' => 12 },
@@ -987,9 +987,8 @@ module Engine
                                                                       .reject(&:ipoed)
                                                                       .map(&:full_name)
                                                                       .join(', ')
-                                 return if following_corporations.empty?
 
-                                 "open company in strict order: #{following_corporations}"
+                                 "open company in strict order: #{following_corporations}" unless following_corporations.empty?
                                when 2
                                  next_family = corporation_by_id(@near_families_purchasable[0][:id])
                                  prev_family = corporation_by_id(@near_families_purchasable[1][:id])

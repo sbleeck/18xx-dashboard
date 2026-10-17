@@ -20,7 +20,7 @@ module Engine
 
         CURRENCY_FORMAT_STR = '$%s'
 
-        BANK_CASH = 99_999
+        BANK_CASH = :unlimited
 
         CERT_LIMIT = { 3 => 99, 4 => 99, 5 => 99 }.freeze
 
@@ -549,7 +549,7 @@ module Engine
             @log << "#{system.name} cannot have two coal markers, returning one to Virginia Coalfields"
           end
 
-          @stock_market.set_par(system, system_market_price(corporations))
+          par_corporation(system, system_market_price(corporations))
           system.ipoed = true
 
           system

@@ -7,7 +7,6 @@ require 'lib/connection'
 require 'lib/params'
 require 'lib/settings'
 require 'lib/storage'
-require 'view/game/my_viz/my_visualizer'
 require_tree './game'
 
 module View
@@ -78,11 +77,11 @@ module View
       return @game.process_to_action(cursor) if game_id == @game&.id && cursor && cursor > @game.last_game_action_id
 
       load_game_with_class = lambda do
-        # LOGGER.debug do
-        #   @_logger ||= {}
-        #   @_logger[:process] = Time.now
-        #   "Processing game actions, strict: #{strict}, use_engine_v2: #{use_engine_v2}..."
-        # end
+        LOGGER.debug do
+          @_logger ||= {}
+          @_logger[:process] = Time.now
+          "Processing game actions, strict: #{strict}, use_engine_v2: #{use_engine_v2}..."
+        end
         @game = Engine::Game.load(
           @game_data,
           at_action: cursor,
@@ -90,9 +89,9 @@ module View
           strict: strict,
           use_engine_v2: use_engine_v2
         )
-        # LOGGER.debug do
-        #   "Done processing game actions: #{Time.now - @_logger[:process]} seconds"
-        # end
+        LOGGER.debug do
+          "Done processing game actions: #{Time.now - @_logger[:process]} seconds"
+        end
         store(:game, @game, skip: true)
       end
 
@@ -114,11 +113,11 @@ module View
 
       return h('div.padded', 'Loading game...') unless @game
 
-      # LOGGER.debug do
-      #   @_logger ||= {}
-      #   @_logger[:render] = Time.now
-      #   'Rendering game view...'
-      # end
+      LOGGER.debug do
+        @_logger ||= {}
+        @_logger[:render] = Time.now
+        'Rendering game view...'
+      end
       page =
         case route_anchor
         when nil
@@ -139,12 +138,12 @@ module View
           h(Game::Tools, game: @game, game_data: @game_data, user: @user)
         when 'auto'
           h(Game::Auto, game: @game, game_data: @game_data, user: @user)
-        when 'my_viz'
-          h(Game::MyVisualizer, game: @game, tile_selector: @tile_selector)
+        when 'dashboard'
+          h(Game::DashboardVisualizer, game: @game, game_data: @game_data, user: @user)
         end
-      # LOGGER.debug do
-      #   "Done rendering game view: #{Time.now - @_logger[:render]} seconds"
-      # end
+      LOGGER.debug do
+        # "Done rendering game view: #{Time.now - @_logger[:render]} seconds"
+      end
 
       @connection = nil if @game_data[:mode] == :hotseat || cursor
 
@@ -224,14 +223,10 @@ module View
 
     def change_anchor(anchor)
       unless route_anchor
-        raw_elm = `document.getElementById('chatlog')`
-        if raw_elm && !`#{raw_elm} === null`
-          elm = Native(raw_elm)
-          store(:scroll_pos, elm.scrollTop < elm.scrollHeight - elm.offsetHeight - 20 ? elm.scrollTop : nil, skip: true)
-        end
-        raw_chatbar = `document.getElementById('chatbar')`
-        if raw_chatbar && !`#{raw_chatbar} === null`
-          chatbar = Native(raw_chatbar)
+        elm = Native(`document.getElementById('chatlog')`)
+        # only store when scrolled up at least one line (20px)
+        store(:scroll_pos, elm.scrollTop < elm.scrollHeight - elm.offsetHeight - 20 ? elm.scrollTop : nil, skip: true)
+        if (chatbar = Native(`document.getElementById('chatbar')`))
           store(:chat_input, chatbar.value, skip: true)
         end
       end
@@ -285,6 +280,8 @@ module View
           change_anchor('#tools')
         when 'a'
           change_anchor('#auto')
+        when 'd'
+          change_anchor('#dashboard')
         when '1'
           button_click('pass')
         when '2'
@@ -374,7 +371,7 @@ module View
       menu_items << item('T|iles', '#tiles') unless @game.layout == :none
       menu_items << item('S|preadsheet', '#spreadsheet')
       menu_items << item("To|ols#{' 📝' if note}", '#tools')
-      menu_items << item('Dashboard', '#my_viz')
+      menu_items << item('D|ashboard', '#dashboard')
 
       enabled = !@game.programmed_actions[@game.player_by_id(@user['id'])].empty? if @user
       menu_items << item("A|uto#{' ✅' if enabled}", '#auto') if @game_data[:mode] != :hotseat && !cursor
@@ -421,24 +418,14 @@ module View
     def render_round
       description = @game_data['mode'] == :hotseat ? '[HOTSEAT] ' : ''
       description += "#{@game.class.display_title}: "
+      description += "#{@game.round_phase_string} - "
+      name = @round.class.name.split(':').last
+      description += @game.round_description(name)
+      description += @game.finished ? ' - Game Over' : " - #{@round.description}"
 
-      if @game.respond_to?(:finished) && @game.finished
-        description += 'Game Over'
-      else
-        name = @round ? @round.class.name.split(':').last : 'Setup'
-        name = @round.class.name.split(':').last
-        description += @game.round_description(name)
-        round_desc = begin
-          @round&.description
-        rescue Exception
-          name
-        end
-        description += " - #{round_desc}"
-      end
-
-      if @game.respond_to?(:manually_ended) && @game.manually_ended
+      if @game.manually_ended
         description += ' - manually ended'
-      elsif @game.respond_to?(:game_ending_description) && (game_end = @game.game_ending_description)
+      elsif (game_end = @game.game_ending_description)
         description += " - #{game_end}"
       end
 
@@ -448,7 +435,6 @@ module View
 
     def render_action
       return h(Game::GameEnd) if @game.finished
-      return h(:div, 'Loading step actions...') unless step
 
       if current_entity_actions.include?('discard_train') &&
         current_entity_actions.include?('swap_train')

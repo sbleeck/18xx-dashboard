@@ -1,0 +1,938 @@
+# frozen_string_literal: true
+
+# backtick_javascript: true
+
+require 'native'
+require 'lib/storage'
+require 'view/game/dashboard/railcard_helper'
+
+module View
+  module Game
+    module Dashboard
+      class MoveHistoryOverlay < Snabberb::Component
+        include RailcardHelper
+
+        needs :game, store: true
+        needs :game_data, store: true, default: nil
+        needs :show_move_history, store: true, default: true
+        needs :on_close, default: nil
+
+        PLAYER_NEUTRAL_BG = '#475569'
+
+        def close_overlay
+          Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
+          begin
+            store(:show_move_history, false)
+          rescue StandardError
+            nil
+          end
+          @on_close&.call
+          # Do not alter style.display on the DOM node directly; allow VDOM unmount
+        end
+
+        def start_drag(e)
+          %x{
+            var ev = #{e} || window.event;
+            if (!ev) return;
+
+            var target = ev.target || ev.srcElement;
+            if (target) {
+              var tag = (target.tagName || '').toUpperCase();
+              if (tag === 'BUTTON' || tag === 'INPUT' ||
+                  (target.closest && target.closest('button'))) {
+                return;
+              }
+            }
+
+            var header = ev.currentTarget;
+            var hud = header && header.parentElement;
+            if (!hud) return;
+
+            if (ev.preventDefault) ev.preventDefault();
+
+            header.style.cursor = 'grabbing';
+
+            var rect = hud.getBoundingClientRect();
+            var shiftX = ev.clientX - rect.left;
+            var shiftY = ev.clientY - rect.top;
+
+            hud.style.position = 'fixed';
+            hud.style.left = rect.left + 'px';
+            hud.style.top = rect.top + 'px';
+            hud.style.margin = '0';
+            hud.style.transform = 'none';
+
+            function onMouseMove(moveEv) {
+              var mEv = moveEv || window.event;
+              if (mEv.preventDefault) mEv.preventDefault();
+
+              var newLeft = mEv.clientX - shiftX;
+              var newTop = mEv.clientY - shiftY;
+              var maxLeft = window.innerWidth - 60;
+              var maxTop = window.innerHeight - 40;
+
+              if (newLeft < 10) newLeft = 10;
+              if (newLeft > maxLeft) newLeft = maxLeft;
+              if (newTop < 0) newTop = 0;
+              if (newTop > maxTop) newTop = maxTop;
+
+              hud.style.left = newLeft + 'px';
+              hud.style.top = newTop + 'px';
+            }
+
+            function onMouseUp() {
+              document.removeEventListener('mousemove', onMouseMove, true);
+              document.removeEventListener('mouseup', onMouseUp, true);
+              window.removeEventListener('mousemove', onMouseMove, true);
+              window.removeEventListener('mouseup', onMouseUp, true);
+
+              header.style.cursor = 'grab';
+
+              try {
+                localStorage.setItem(
+                  'move_hist_overlay_pos',
+                  JSON.stringify({
+                    left: hud.style.left,
+                    top: hud.style.top
+                  })
+                );
+              } catch (err) {}
+            }
+
+            document.addEventListener('mousemove', onMouseMove, true);
+            document.addEventListener('mouseup', onMouseUp, true);
+            window.addEventListener('mousemove', onMouseMove, true);
+            window.addEventListener('mouseup', onMouseUp, true);
+          }
+        end
+
+        def start_resize(e)
+          %x{
+            var ev = #{e};
+            if (ev && ev.native) ev = ev.native;
+            if (!ev || ev.button !== 0) return;
+            if (ev.preventDefault) ev.preventDefault();
+            if (ev.stopPropagation) ev.stopPropagation();
+
+            var hud = document.getElementById('move_history_floating_hud');
+            if (!hud) return;
+
+            var startX = ev.clientX;
+            var startY = ev.clientY;
+            var startW = hud.offsetWidth;
+            var startH = hud.offsetHeight;
+            document.body.style.userSelect = 'none';
+
+            var onMove = function(me) {
+              var maxW = window.innerWidth - 20;
+              var maxH = window.innerHeight - 20;
+              var newW = Math.max(300, Math.min(maxW, startW + (me.clientX - startX)));
+              var newH = Math.max(250, Math.min(maxH, startH + (me.clientY - startY)));
+              hud.style.width = newW + 'px';
+              hud.style.height = newH + 'px';
+            };
+
+            var onUp = function() {
+              window.removeEventListener('mousemove', onMove);
+              window.removeEventListener('mouseup', onUp);
+              document.body.style.userSelect = '';
+              try {
+                localStorage.setItem('move_hist_overlay_size', JSON.stringify({ width: hud.style.width, height: hud.style.height }));
+              } catch(err) {}
+            };
+
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onUp);
+          }
+        end
+
+        def scroll_to_latest
+          %x{
+            var container = document.getElementById('move_history_scroll_body');
+            if (container) {
+              var isUserScrolledUp = container.scrollTop < (container.scrollHeight - container.offsetHeight - 35);
+              if (!window.__user_scrolled_move_hist || !isUserScrolledUp) {
+                container.scrollTop = container.scrollHeight;
+              }
+            }
+          }
+        end
+
+        def player_color(_name)
+          PLAYER_NEUTRAL_BG
+        end
+
+        def entity_badge(entity, fallback_text)
+          is_corp = entity.respond_to?(:corporation?) && entity.corporation?
+          is_minor = entity.respond_to?(:minor?) && entity.minor?
+
+          if entity && (is_corp || is_minor)
+            bg = entity.respond_to?(:color) && entity.color ? entity.color : '#333333'
+            fg = entity.respond_to?(:text_color) && entity.text_color ? entity.text_color : '#ffffff'
+            text = entity.respond_to?(:sym) ? entity.sym : entity.id
+            corp_id = entity.respond_to?(:id) && entity.id ? entity.id.to_s : text.to_s
+            hexes = resolve_target_hexes(entity).join(',')
+
+            h(:div, {
+                style: {
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: bg,
+                  color: fg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '800',
+                  fontSize: '0.85rem',
+                  flexShrink: '0',
+                  border: '2px solid rgba(0,0,0,0.25)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                  cursor: 'help',
+                  position: 'relative',
+                },
+                attrs: {
+                  class: 'status-corp-wrapper cmd-corp-wrapper',
+                  'data-corp': corp_id,
+                  'data-hexes': hexes,
+                  title: entity.respond_to?(:name) ? entity.name.to_s : text.to_s,
+                },
+              }, [
+                text.to_s,
+                render_corp_tooltip(entity),
+              ].compact)
+          else
+            text = entity.respond_to?(:name) ? entity.name : fallback_text.to_s
+            initials = text[0..1].to_s.upcase
+            bg = player_color(text)
+
+            h(:div, {
+                style: {
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '6px',
+                  backgroundColor: bg,
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '800',
+                  fontSize: '0.9rem',
+                  flexShrink: '0',
+                  border: '1px solid rgba(0,0,0,0.2)',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                  letterSpacing: '0.5px',
+                },
+                attrs: { title: text.to_s },
+              }, initials)
+          end
+        end
+
+        def entity_lookup
+          @entity_lookup ||= begin
+            list = []
+            if @game.respond_to?(:companies) && @game.companies
+              @game.companies.each do |c|
+                list << { name: c.name.to_s, type: :company, entity: c } if c.name
+                list << { name: c.sym.to_s, type: :company, entity: c } if c.respond_to?(:sym) && c.sym && c.sym != c.name
+              end
+            end
+            if @game.respond_to?(:corporations) && @game.corporations
+              @game.corporations.each do |c|
+                list << { name: c.name.to_s, type: :corp, entity: c } if c.name
+                list << { name: c.id.to_s, type: :corp, entity: c } if c.id
+                list << { name: c.sym.to_s, type: :corp, entity: c } if c.respond_to?(:sym) && c.sym && c.sym != c.name
+              end
+            end
+            if @game.respond_to?(:minors) && @game.minors
+              @game.minors.each do |m|
+                list << { name: m.name.to_s, type: :corp, entity: m } if m.name
+                list << { name: m.id.to_s, type: :corp, entity: m } if m.id
+              end
+            end
+            list.uniq { |item| item[:name] }.sort_by { |item| -item[:name].length }
+          end
+        end
+
+        def render_entity_railcard_node(item)
+          ent = item[:entity]
+          if item[:type] == :corp
+            render_major_railcard(ent)
+          else
+            label = ent.respond_to?(:sym) && ent.sym ? ent.sym.to_s : item[:name].to_s
+            render_railcard(
+              label,
+              %w[game-card card-private],
+              nil,
+              build_entity_tooltip(ent),
+              nil,
+              nil,
+              nil,
+              entity: ent
+            )
+          end
+        end
+
+        def format_log_line_nodes(text, actor_names = [])
+          clean_text = text.to_s
+
+          Array(actor_names).each do |act|
+            next if act.to_s.strip.empty?
+
+            escaped = Regexp.escape(act.to_s)
+            if clean_text.match?(/^#{escaped}'s\s+share\s+price\s+/i)
+              clean_text = clean_text.sub(/^#{escaped}'s\s+share\s+price\s+/i, 'Share price ')
+              break
+            elsif clean_text.match?(/^#{escaped}'s\s+/i)
+              clean_text = clean_text.sub(/^#{escaped}'s\s+/i, '')
+              break
+            elsif clean_text.match?(/^#{escaped}\s+/i)
+              clean_text = clean_text.sub(/^#{escaped}\s+/i, '')
+              break
+            end
+          end
+          clean_text = clean_text[0].upcase + clean_text[1..-1] if clean_text.length.positive?
+
+          tokens = {}
+          tok_idx = 0
+          next_tok = lambda do |vnode|
+            key = "\u0001\u0002#{tok_idx}\u0002\u0001"
+            tok_idx += 1
+            tokens[key] = vnode
+            key
+          end
+
+          # 1. Tile numbers (#57, #8, etc.)
+          clean_text = clean_text.gsub(/(#[A-Za-z0-9]+)/) do |m|
+            next_tok.call(h(:span, { style: { color: '#64748b', fontWeight: '700' } }, m))
+          end
+
+          # 2. Currency values ($20, £180, etc.) -> Canonical FONT_MONEY & COLOR_MONEY from RailcardHelper
+          clean_text = clean_text.gsub(/([$£€¥]\d+(?:[.,]\d+)?)/) do |m|
+            next_tok.call(h(:strong,
+                            { style: { color: COLOR_MONEY, fontFamily: FONT_MONEY, fontSize: '0.95em' } }, m))
+          end
+
+          # 3. Share percentages (10%, 20%, etc.) -> Canonical RailcardHelper share card
+          clean_text = clean_text.gsub(/(\b\d+%\b)/) do |m|
+            next_tok.call(render_railcard(m, %w[game-card cert-share-card]))
+          end
+
+          # 4. Trains ("2 train", "4 train", "3/5 train", etc.) -> Canonical RailcardHelper train card
+          clean_text = clean_text.gsub(%r{\b(\d+(?:[/+]\d+|[A-Z]+)?)\s+(trains?)\b}i) do
+            m = Regexp.last_match(1)
+            word = Regexp.last_match(2)
+            train_node = render_railcard(m, %w[game-card card-train])
+            next_tok.call(h(:span,
+                            { style: { display: 'inline-flex', alignItems: 'center', gap: '3px', verticalAlign: 'middle' } }, [train_node, " #{word}"]))
+          end
+
+          # 5. Map hex coordinates (C13, G9, etc.) -> Cyan spatial link
+          hex_id_str = nil
+          clean_text = clean_text.gsub(/\b([A-Z]\d{1,2})\b/) do |m|
+            h_id = m
+            next_tok.call(
+              h(:span, {
+                  attrs: { class: 'history-hex-link' },
+                  style: {
+                    color: '#0891b2',
+                    cursor: 'pointer',
+                    fontWeight: '700',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: '2px',
+                  },
+                  on: {
+                    mouseenter: lambda {
+                      %x{
+                        if (typeof window !== 'undefined' && window.highlightMapHexes) {
+                          window.highlightMapHexes([#{h_id}]);
+                        }
+                      }
+                    },
+                    mouseleave: lambda {
+                      %x{
+                        if (typeof window !== 'undefined' && window.clearMapHexHighlights) {
+                          window.clearMapHexHighlights();
+                        }
+                      }
+                    },
+                  },
+                }, h_id)
+            )
+          end
+
+          # 6. Corporations, Minors, and Private Companies -> Canonical RailcardHelper cards
+          entity_lookup.each do |item|
+            name = item[:name]
+            next if name.nil? || name.empty?
+            next if %w[IN ON OR AT TO A AN BY OF FOR WITH].include?(name.upcase) && name.length <= 2
+
+            flags = name.length <= 3 ? nil : 'i'
+            pattern = Regexp.new('(?:\b)' + Regexp.escape(name) + '(?:\b)', flags)
+
+            next unless clean_text.match?(pattern)
+
+            clean_text = clean_text.gsub(pattern) do
+              next_tok.call(render_entity_railcard_node(item))
+            end
+          end
+
+          parts = clean_text.split(/(\u0001\u0002\d+\u0002\u0001)/)
+          children = parts.reject(&:empty?).map do |part|
+            tokens.key?(part) ? tokens[part] : part
+          end
+
+          is_boring = text.match?(/skips|passes|lays tile|does not run|places a token|places its destination/i)
+          h(:span, {
+              style: {
+                color: is_boring ? '#64748b' : '#0f172a',
+                fontSize: is_boring ? '0.92em' : '1em',
+              },
+            }, children)
+        end
+
+        def action_time_map
+          @action_time_map ||= begin
+            actions = (@game_data && @game_data['actions']) ||
+                      (@game.respond_to?(:raw_actions) ? @game.raw_actions : nil) ||
+                      []
+            map = {}
+            actions.each do |a|
+              aid = if a.is_a?(Hash)
+                      a['id'] || a[:id]
+                    else
+                      (a.respond_to?(:id) ? a.id : nil)
+                    end
+              ts = if a.is_a?(Hash)
+                     a['created_at'] || a[:created_at]
+                   else
+                     (a.respond_to?(:created_at) ? a.created_at : nil)
+                   end
+              map[aid.to_i] = ts if aid && ts
+            end
+            map
+          end
+        end
+
+        def action_entity_map
+          @action_entity_map ||= begin
+            map = {}
+            if @game.respond_to?(:actions)
+              @game.actions.each do |a|
+                map[a.id] = a.entity if a.respond_to?(:id) && a.respond_to?(:entity)
+              end
+            end
+            map
+          end
+        end
+
+        def format_timestamp(ts)
+          return nil unless ts
+
+          %x{
+            var t = #{ts};
+            var d = null;
+            if (typeof t === 'number') {
+              d = new Date(t > 1e11 ? t : t * 1000);
+            } else if (typeof t === 'string' && !isNaN(Date.parse(t))) {
+              d = new Date(t);
+            }
+            if (d && !isNaN(d.getTime())) {
+              var hh = String(d.getHours()).padStart(2, '0');
+              var mm = String(d.getMinutes()).padStart(2, '0');
+              return hh + ':' + mm;
+            }
+            return null;
+          }
+        end
+
+        def extract_log_entry(entry)
+          return { message: entry.to_s } if entry.is_a?(String)
+
+          msg = nil
+          if entry.respond_to?(:message)
+            msg = entry.message
+          elsif entry.respond_to?(:text)
+            msg = entry.text
+          elsif entry.respond_to?(:[])
+            msg = entry[:message] || entry['message'] || entry[:text] || entry['text']
+          end
+
+          if msg.nil?
+            msg = %x{
+              (function(e) {
+                if (!e) return '';
+                if (typeof e === 'string') return e;
+                if (typeof e.message === 'string') return e.message;
+                if (typeof e.$message === 'function') return e.$message();
+                if (e.message) return String(e.message);
+                if (typeof e.text === 'string') return e.text;
+                if (typeof e.$text === 'function') return e.$text();
+                return '';
+              })(#{entry})
+            }
+          end
+
+          { message: msg.to_s }
+        end
+
+        def group_log_entries
+          blocks = []
+          current_block = nil
+          time_map = action_time_map
+          entity_map = action_entity_map
+
+          log = @game&.log || []
+          log.each do |entry|
+            raw_message = entry.respond_to?(:message) ? entry.message : nil
+
+            # Personal player messages belong exclusively in the Chat overlay.
+            # Keep them completely out of the Move Feed.
+            next if entry.is_a?(Engine::Action::Message) || raw_message.is_a?(Engine::Action::Message)
+
+            info = extract_log_entry(entry)
+            msg = info[:message]
+            aid = entry.respond_to?(:action_id) ? entry.action_id : nil
+            ts = time_map[aid.to_i] if aid
+            time_str = format_timestamp(ts)
+
+            is_divider = msg.start_with?('--') || msg.include?('-- Phase') || msg.include?('-- Event') || msg.include?('-- Stock') || msg.include?('-- Operating')
+
+            # Also filter out string-formatted chat lines (e.g. "PlayerName: hello")
+            is_chat_line = !is_divider &&
+                           msg.match?(/^[a-zA-Z0-9_\s]+:\s/) &&
+                           !msg.match?(/pays out|runs a|withholds|operates|buys|sells|lays|places|pars|redeems|issues|takes|declares|receives|chooses|passes|skips|bids/i)
+            next if is_chat_line
+
+            if is_divider
+              blocks << current_block if current_block && current_block[:lines]&.any?
+              current_block = nil
+              blocks << { type: :divider, text: msg }
+              next
+            end
+
+            if (op_match = msg.match(/^(.+?)\s+operates\s+(.+)$/i))
+              blocks << current_block if current_block && current_block[:lines]&.any?
+              player_name = op_match[1].strip
+              corp_name = op_match[2].strip
+
+              corp_obj = begin
+                @game.corporation_by_id(corp_name) || @game.minor_by_id(corp_name)
+              rescue StandardError
+                nil
+              end
+              player_obj = begin
+                @game.player_by_id(player_name)
+              rescue StandardError
+                nil
+              end
+
+              current_block = {
+                type: :action,
+                entity: corp_obj,
+                operator: (player_obj ? player_obj.name : player_name),
+                group_key: corp_name,
+                lines: [],
+              }
+              next
+            end
+
+            entity = entity_map[aid] if aid
+            if !entity && msg
+              first_word = msg.split(' ').first
+              entity = begin
+                @game.corporation_by_id(first_word) || @game.minor_by_id(first_word) || @game.player_by_id(first_word) || @game.company_by_id(first_word)
+              rescue StandardError
+                nil
+              end
+            end
+
+            group_key = entity || msg.split(' ').first
+
+            if current_block && current_block[:group_key] == group_key
+              current_block[:lines] << { text: msg, time: time_str, id: aid }
+            else
+              blocks << current_block if current_block && current_block[:lines]&.any?
+              current_block = {
+                type: :action,
+                entity: entity,
+                operator: nil,
+                group_key: group_key,
+                lines: [{ text: msg, time: time_str, id: aid }],
+              }
+            end
+          end
+
+          blocks << current_block if current_block && current_block[:lines]&.any?
+          blocks
+        end
+
+        def render_blocks
+          blocks = group_log_entries
+
+          if blocks.empty?
+            return [
+              h(:div, {
+                  style: {
+                    padding: '2rem 1rem',
+                    color: '#64748b',
+                    textAlign: 'center',
+                    fontStyle: 'italic',
+                    fontSize: '0.85rem',
+                  },
+                }, 'No moves recorded yet.'),
+            ]
+          end
+
+          nodes = blocks.map.with_index do |block, _idx|
+            if block[:type] == :divider
+              clean_text = block[:text].gsub('--', '').strip
+              h(:div, {
+                  style: {
+                    position: 'sticky',
+                    top: '-1px',
+                    zIndex: '10',
+                    backgroundColor: '#0f172a',
+                    borderTop: '2px solid #1e293b',
+                    borderBottom: '2px solid #1e293b',
+                    padding: '6px 8px',
+                    margin: '12px 0 8px 0',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '0.9rem',
+                    color: '#f8fafc',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                    letterSpacing: '0.5px',
+                  },
+                }, clean_text)
+
+            else
+              badge = entity_badge(block[:entity], block[:group_key])
+              actor_label = (if block[:entity].respond_to?(:sym)
+                               block[:entity].sym
+                             else
+                               (block[:entity].respond_to?(:name) ? block[:entity].name : block[:group_key])
+                             end).to_s
+
+              operator = block[:operator]
+              operator = block[:entity].owner.name if !operator && block[:entity].respond_to?(:owner) && block[:entity].owner
+
+              actor_names = []
+              actor_names << operator if operator
+              if block[:entity]
+                actor_names << block[:entity].sym if block[:entity].respond_to?(:sym)
+                actor_names << block[:entity].id if block[:entity].respond_to?(:id)
+                actor_names << block[:entity].name if block[:entity].respond_to?(:name)
+              end
+              actor_names << block[:group_key] if block[:group_key]
+              actor_names = actor_names.compact.map(&:to_s).reject(&:empty?).uniq.sort_by { |s| -s.length }
+
+              lines = block[:lines] || []
+              line_nodes = lines.map do |line|
+                time_node = if line[:time]
+                              h(:span, {
+                                  style: {
+                                    color: '#94a3b8',
+                                    fontSize: '0.75rem',
+                                    marginRight: '6px',
+                                    userSelect: 'none',
+                                    fontWeight: '500',
+                                  },
+                                }, "[#{line[:time]}]")
+                            end
+                body_node = format_log_line_nodes(line[:text], actor_names)
+                h(:div, { style: { marginBottom: '3px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px' } },
+                  [time_node, body_node].compact)
+              end
+
+              last_line = lines.last
+              last_id = last_line ? last_line[:id] : nil
+              id_str = last_id ? "##{last_id}" : ''
+
+              header_title_nodes = [
+                h(:strong, { style: { fontSize: '0.95rem', color: '#0f172a', marginRight: '6px' } }, actor_label),
+              ]
+              if operator
+                p_color = player_color(operator)
+                p_initials = operator[0..1].to_s.upcase
+                header_title_nodes << h(:div, {
+                                          style: {
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            backgroundColor: '#f1f5f9',
+                                            padding: '2px 6px',
+                                            borderRadius: '4px',
+                                            border: '1px solid #e2e8f0',
+                                            marginLeft: '4px',
+                                          },
+                                        }, [
+                  h(:div, {
+                      style: {
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '3px',
+                        backgroundColor: p_color,
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.65rem',
+                        fontWeight: '800',
+                        lineHeight: '1',
+                      },
+                    }, p_initials),
+                  h(:span, { style: { fontSize: '0.8rem', fontWeight: '600', color: '#334155' } }, operator),
+                ])
+              end
+
+              h(:div, {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: '10px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    marginBottom: '10px',
+                    border: '1px solid #cbd5e1',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
+                  },
+                }, [
+                h(:div, { style: { flexShrink: '0' } }, [badge]),
+                h(:div, { style: { flex: '1', minWidth: '0' } }, [
+                  h(:div, {
+                      style: {
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '5px',
+                        borderBottom: '1px solid #f1f5f9',
+                        paddingBottom: '4px',
+                      },
+                    }, [
+                    h(:div, { style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap' } }, header_title_nodes),
+                    h(:span, { style: { fontSize: '0.72rem', color: '#94a3b8', fontWeight: 'bold' } }, id_str),
+                  ]),
+                  h(:div, {
+                      style: { fontSize: '0.85rem', lineHeight: '1.45', wordBreak: 'break-word' },
+                    }, line_nodes.empty? ? [h(:span, { style: { color: '#94a3b8', fontStyle: 'italic' } }, 'Operating...')] : line_nodes),
+                ]),
+              ])
+            end
+          end
+
+          nodes << h(:div, { style: { height: '10px' } }, '')
+          nodes
+        end
+
+        def render
+          saved_pos = %x{
+            (function() {
+              try {
+                var p = JSON.parse(localStorage.getItem('move_hist_overlay_pos'));
+                if (p && typeof p.left === 'string' && typeof p.top === 'string') {
+                  var leftNum = parseFloat(p.left);
+                  var topNum = parseFloat(p.top);
+                  if (!isNaN(leftNum) && !isNaN(topNum) &&
+                      leftNum >= 10 && leftNum <= (window.innerWidth - 120) &&
+                      topNum >= 10 && topNum <= (window.innerHeight - 80)) {
+                    return p;
+                  }
+                  localStorage.removeItem('move_hist_overlay_pos');
+                }
+              } catch(e) {}
+              return null;
+            })()
+          }
+          pos_native = Native(saved_pos) if saved_pos
+          has_pos = pos_native && pos_native['left'] && pos_native['top']
+
+          saved_size = %x{
+            (function() {
+              try {
+                var s = JSON.parse(localStorage.getItem('move_hist_overlay_size'));
+                if (s && typeof s.width === 'string' && typeof s.height === 'string' && s.width.indexOf('px') !== -1 && s.height.indexOf('px') !== -1) {
+                  return s;
+                }
+              } catch(e) {}
+              return null;
+            })()
+          }
+          size_native = Native(saved_size) if saved_size
+          has_size = size_native && size_native['width'] && size_native['height']
+
+          feed_blocks = group_log_entries
+          moves_count = feed_blocks.count { |b| b[:type] == :action }
+
+          hud_style = {
+            position: 'fixed',
+            top: has_pos ? pos_native['top'] : '70px',
+            left: has_pos ? pos_native['left'] : 'calc(100vw - 460px)',
+            width: has_size ? size_native['width'] : '440px',
+            height: has_size ? size_native['height'] : '560px',
+            maxWidth: '96vw',
+            maxHeight: '92vh',
+            minWidth: '300px',
+            minHeight: '250px',
+            backgroundColor: '#f8fafc',
+            borderRadius: '10px',
+            boxShadow: '0 16px 32px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.15)',
+            border: '1px solid #94a3b8',
+            zIndex: '999999',
+            pointerEvents: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            resize: 'both',
+            userSelect: 'none',
+          }
+
+          h('div#move_history_floating_hud', {
+              style: hud_style,
+              hook: {
+                insert: -> { scroll_to_latest },
+                postpatch: -> { scroll_to_latest },
+              },
+              on: {
+                mouseup: lambda {
+                  %x{
+                    var hud = document.getElementById('move_history_floating_hud');
+                    if (hud && hud.style.width && hud.style.height) {
+                      try {
+                        localStorage.setItem('move_hist_overlay_size', JSON.stringify({ width: hud.style.width, height: hud.style.height }));
+                      } catch(e) {}
+                    }
+                  }
+                },
+              },
+            }, [
+            h('div#move_history_hud_handle', {
+                style: {
+                  padding: '0.6rem 0.9rem',
+                  backgroundColor: '#e2e8f0',
+                  borderBottom: '1px solid #cbd5e1',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'grab',
+                  flexShrink: '0',
+                },
+                on: {
+                  mousedown: ->(e) { start_drag(e) },
+                },
+              }, [
+              h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' } }, [
+                h(:span, { style: { fontSize: '1rem', color: '#64748b' } }, '⠿'),
+                h(:h3, { style: { margin: '0', fontSize: '0.95rem', color: '#0f172a', fontWeight: '800' } }, 'Move Feed'),
+                h(:span, {
+                    style: {
+                      fontSize: '0.72rem',
+                      padding: '2px 6px',
+                      borderRadius: '12px',
+                      backgroundColor: '#cbd5e1',
+                      color: '#1e293b',
+                      fontWeight: 'bold',
+                    },
+                  }, "#{moves_count} Events"),
+              ]),
+              h(:button, {
+                  attrs: { id: 'btn_close_dashboard_move_feed_overlay', type: 'button', title: 'Close Feed' },
+                  style: {
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '1.3rem',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    lineHeight: '1',
+                  },
+                  on: {
+                    click: lambda { |e|
+                      %x{
+                        if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
+                      }
+                      close_overlay
+                    },
+                  },
+                }, '✕'),
+            ]),
+
+            h('div#move_history_scroll_body', {
+                style: {
+                  flex: '1',
+                  overflowY: 'auto',
+                  backgroundColor: '#f8fafc',
+                  userSelect: 'text',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '0 12px',
+                },
+                on: {
+                  scroll: lambda { |e|
+                    %x{
+                      var target = #{e}.target;
+                      if (target) {
+                        window.__user_scrolled_move_hist = target.scrollTop < (target.scrollHeight - target.offsetHeight - 45);
+                      }
+                    }
+                  },
+                },
+              }, render_blocks),
+
+            h('div#move_history_resize_grip', {
+                style: {
+                  position: 'absolute',
+                  right: '2px',
+                  bottom: '2px',
+                  width: '14px',
+                  height: '14px',
+                  cursor: 'nwse-resize',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'flex-end',
+                  opacity: '0.5',
+                  pointerEvents: 'auto',
+                  zIndex: '20',
+                },
+                on: {
+                  mousedown: ->(e) { start_resize(e) },
+                },
+              }, [
+              h(:svg, {
+                  attrs: {
+                    width: '10',
+                    height: '10',
+                    viewBox: '0 0 10 10',
+                  },
+                  style: { display: 'block', pointerEvents: 'none' },
+                }, [
+                h(:line,
+                  attrs: {
+                    x1: '9',
+                    y1: '1',
+                    x2: '1',
+                    y2: '9',
+                    stroke: '#475569',
+                    'stroke-width': '1.5',
+                    'stroke-linecap': 'round',
+                  }),
+                h(:line,
+                  attrs: {
+                    x1: '9',
+                    y1: '5',
+                    x2: '5',
+                    y2: '9',
+                    stroke: '#475569',
+                    'stroke-width': '1.5',
+                    'stroke-linecap': 'round',
+                  }),
+              ]),
+            ]),
+          ])
+        end
+      end
+    end
+  end
+end
