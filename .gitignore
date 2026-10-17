@@ -11,8 +11,6 @@
 /public/assets/*
 /public/pinned/*
 
-desktop-shell/node_modules/
-
 .tags
 .DS_STORE
 *.swp
@@ -41,5 +39,7 @@ validate/
 
 .rerun
 
-desktop-shell/*
-desktop-shell/node_modules/*
+# 1864 source material - copyrighted TraXX PDFs, not redistributable
+MAINLINE 1864 Forty-Niner Rules.pdf
+/map/
+/cards/
