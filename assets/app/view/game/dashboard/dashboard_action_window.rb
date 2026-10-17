@@ -4079,6 +4079,35 @@ try {
                 zone_2_content << train_controls if train_controls
               end
 
+              if (share_actions & %w[take_loan payoff_loan]).any?
+                loan_controls = render_loan_actions(step, operating_entity, share_actions)
+                zone_2_content << loan_controls if loan_controls
+              end
+
+              if share_actions.include?('buy_token')
+                token_controls = render_buy_tokens(step, operating_entity)
+                zone_2_content << token_controls if token_controls
+              end
+
+              if share_actions.include?('discard_train')
+                discard_controls = render_discard_trains(step, operating_entity)
+                zone_2_content << discard_controls if discard_controls
+              end
+
+              # Less-common OR controls that were previously reachable only through
+              # the exact Operating-round dispatch must remain reachable too.
+              zone_2_content << h(BuyPower) if share_actions.include?('buy_power')
+              zone_2_content << h(BorrowTrain) if share_actions.include?('borrow_train')
+              zone_2_content << h(SwapTrain) if share_actions.include?('swap_train')
+              zone_2_content << h(AcquireCompanies) if share_actions.include?('acquire_company')
+              zone_2_content << h(CorporateSellCompanies) if share_actions.include?('corporate_sell_company')
+              zone_2_content << h(CorporateBuyCompanies) if share_actions.include?('corporate_buy_company')
+              if (share_actions & %w[scrap_train surrender_train surrender]).any?
+                surrender_controls = render_surrender_trains(share_actions, step, operating_entity)
+                zone_2_content << surrender_controls if surrender_controls
+              end
+              zone_2_content << h(ViewMergeOptions, corporation: operating_entity) if share_actions.include?('view_merge_options')
+
               can_buy_companies_here = actions.include?('buy_company')
               can_buy_companies_here ||= begin
                 step&.respond_to?(:buyable_companies) && step.buyable_companies(operating_entity)&.any?

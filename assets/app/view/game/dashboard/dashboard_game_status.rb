@@ -851,7 +851,7 @@ module View
         corporation.operating_history.keys.include?(current_round)
       end
 
-      def render_corporation(corporation, _operating_order, current_round, is_last_minor = false)
+      def render_corporation(corporation, _operating_order, _current_round, is_last_minor = false)
         return '' if @hide_not_floated && !@game.operating_order.include?(corporation)
 
         step = @game.round.active_step
@@ -2279,7 +2279,7 @@ module View
         shares_list.each do |share|
           raw_pct = if share.respond_to?(:percent) && share.percent
                       share.percent
-                    elsif corporation&.respond_to?(:share_percent) && corporation.share_percent
+                    elsif corporation&.respond_to?(:share_percent) && corporation&.share_percent
                       corporation.share_percent
                     else
                       10
@@ -2304,7 +2304,7 @@ module View
         end
       end
 
-      def exec_short_shares(source_selector, player, corporation)
+      def exec_short_shares(_source_selector, player, corporation)
         action = if defined?(Engine::Action::Short)
                    Engine::Action::Short.new(player, corporation: corporation)
                  else
@@ -2347,61 +2347,140 @@ module View
 
         taken = entity.loans.size
         maximum = @game.maximum_loans(entity)
-        # Cap excessive or indefinite loan slots (e.g. PSR or games with unlimited loans) to max 10
         maximum = [maximum, 10].min if maximum > 10
+
         actions = status_actions_for(entity)
         if entity == active_entity && @game.round.active_step&.respond_to?(:current_actions)
-          actions = (actions + (@game.round.active_step.current_actions || [])).uniq
+          actions = (actions + (@game.round.active_step.current_actions || [])).compact.map(&:to_s).uniq
         end
-        can_take = actions.include?('take_loan') && @game.respond_to?(:loans) && @game.loans&.any?
+
+        can_take = actions.include?('take_loan') &&
+                   @game.respond_to?(:loans) &&
+                   @game.loans&.any? &&
+                   taken < maximum
         can_repay = actions.include?('payoff_loan') && entity.loans.any?
         dots = []
 
         taken.times do |index|
-          dot_props = { attrs: { id: "loan_dot_#{entity.id}_#{index}" }, style: { display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#dc3545', borderRadius: '50%', margin: '0 2px', pointerEvents: 'none' } }
+          dot_props = {
+            attrs: {
+              id: "loan_dot_#{entity.id}_#{index}",
+              title: (can_repay && index == taken - 1 ? "Repay a loan for #{entity.name}" : nil),
+              role: (can_repay && index == taken - 1 ? 'button' : nil),
+              tabindex: (can_repay && index == taken - 1 ? '0' : nil),
+            }.compact,
+            style: {
+              display: 'inline-block',
+              width: '8px',
+              height: '8px',
+              backgroundColor: '#dc3545',
+              border: '1px solid #dc3545',
+              borderRadius: '50%',
+              margin: '0 2px',
+              boxSizing: 'border-box',
+              cursor: (can_repay && index == taken - 1 ? 'pointer' : 'default'),
+              boxShadow: (can_repay && index == taken - 1 ? '0 0 0 2px rgba(220,38,38,0.18)' : 'none'),
+            },
+          }
+          if can_repay && index == taken - 1
+            repay = lambda do |event|
+              `#{event}.stopPropagation()`
+              `#{event}.preventDefault()`
+              source_id = "#loan_dot_#{entity.id}_#{index}"
+              Lib::LoanAnimation.fly(source_id, '#bank_loan_active') do
+                process_action(Engine::Action::PayoffLoan.new(entity, loan: entity.loans.last))
+              end
+            end
+            dot_props[:on] = {
+              click: repay,
+              keydown: lambda do |event|
+                key = `#{event}.key`
+                repay.call(event) if ['Enter', ' '].include?(key)
+              end,
+            }
+          end
           dots << h(:span, dot_props)
         end
 
         [maximum - taken, 0].max.times do |index|
-          dot_props = { attrs: { id: "loan_empty_#{entity.id}_#{index}" }, style: { display: 'inline-block', width: '8px', height: '8px', border: '1px solid #dc3545', borderRadius: '50%', margin: '0 2px', boxSizing: 'border-box', pointerEvents: 'none' } }
+          dot_props = {
+            attrs: {
+              id: "loan_empty_#{entity.id}_#{index}",
+              title: (can_take && index.zero? ? "Take a loan for #{entity.name}" : nil),
+              role: (can_take && index.zero? ? 'button' : nil),
+              tabindex: (can_take && index.zero? ? '0' : nil),
+            }.compact,
+            style: {
+              display: 'inline-block',
+              width: '8px',
+              height: '8px',
+              border: can_take && index.zero? ? '2px solid #16a34a' : '1px solid #dc3545',
+              backgroundColor: can_take && index.zero? ? '#dcfce7' : 'transparent',
+              borderRadius: '50%',
+              margin: '0 2px',
+              boxSizing: 'border-box',
+              cursor: can_take && index.zero? ? 'pointer' : 'default',
+              boxShadow: can_take && index.zero? ? '0 0 0 2px rgba(22,163,74,0.18)' : 'none',
+            },
+          }
+          if can_take && index.zero?
+            take = lambda do |event|
+              `#{event}.stopPropagation()`
+              `#{event}.preventDefault()`
+              target_id = "#loan_empty_#{entity.id}_#{index}"
+              Lib::LoanAnimation.fly('#bank_loan_active', target_id) do
+                process_action(Engine::Action::TakeLoan.new(entity, loan: @game.loans.first))
+              end
+            end
+            dot_props[:on] = {
+              click: take,
+              keydown: lambda do |event|
+                key = `#{event}.key`
+                take.call(event) if ['Enter', ' '].include?(key)
+              end,
+            }
+          end
           dots << h(:span, dot_props)
         end
 
         interest = @game.respond_to?(:interest_owed) ? @game.interest_owed(entity) : 0
         dots << h(:span, { style: { marginLeft: '4px', fontSize: '0.75rem', fontWeight: 'bold', pointerEvents: 'none' } }, @game.format_currency(interest))
 
-        wrapper_props = {
-          attrs: {
-            id: "loan_wrapper_#{entity.id}",
-            title: can_repay ? "Payoff Loan for #{entity.name}" : '',
-          },
-          style: {
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: can_repay ? 'pointer' : 'default',
-            padding: '2px 6px',
-            backgroundColor: can_repay ? '#fef2f2' : 'transparent',
-            border: can_repay ? '2px solid #dc2626' : '1px solid transparent',
-            borderRadius: '4px',
-            boxShadow: can_repay ? '0 1px 3px rgba(220,38,38,0.25)' : 'none',
-            boxSizing: 'border-box',
-          },
-        }
-
-        if can_repay
-          wrapper_props[:on] = {
-            click: lambda { |_event|
-              `if (event) { event.stopPropagation(); event.preventDefault(); }`
-              source_id = "#loan_dot_#{entity.id}_#{taken - 1}"
-              Lib::LoanAnimation.fly(source_id, '#bank_loan_active') do
-                process_action(Engine::Action::PayoffLoan.new(entity, loan: entity.loans.last))
-              end
+        title = if can_take && can_repay
+                  "Take or repay a loan for #{entity.name}"
+                elsif can_take
+                  "Take a loan for #{entity.name}"
+                elsif can_repay
+                  "Repay a loan for #{entity.name}"
+                else
+                  ''
+                end
+        h(:div, {
+            attrs: { id: "loan_wrapper_#{entity.id}", title: title },
+            style: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '3px 6px',
+              backgroundColor: if can_take
+                                 '#f0fdf4'
+                               else
+                                 (can_repay ? '#fef2f2' : 'transparent')
+                               end,
+              border: if can_take
+                        '2px solid #16a34a'
+                      else
+                        (can_repay ? '2px solid #dc2626' : '1px solid transparent')
+                      end,
+              borderRadius: '4px',
+              boxShadow: if can_take
+                           '0 1px 3px rgba(22,163,74,0.25)'
+                         else
+                           (can_repay ? '0 1px 3px rgba(220,38,38,0.25)' : 'none')
+                         end,
+              boxSizing: 'border-box',
             },
-          }
-        end
-
-        h(:div, wrapper_props, dots)
+          }, dots)
       end
 
       def render_companies(entity, bg_color = nil, custom_class = nil, is_last: false)
@@ -2745,7 +2824,7 @@ module View
         }
       end
 
-      def exec_sell_shares(source_selector, player, target_bundle, corporation_id)
+      def exec_sell_shares(source_selector, player, target_bundle, _corporation_id)
         bundle = target_bundle[:bundle]
         shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
         percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
@@ -2767,7 +2846,7 @@ module View
         )
       end
 
-      def exec_buy_shares(source_selector, player, bnd, corporation_id)
+      def exec_buy_shares(source_selector, player, bnd, _corporation_id)
         bundle = bnd.respond_to?(:to_bundle) && !bnd.respond_to?(:num_shares) ? bnd.to_bundle : bnd
         shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
         percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
@@ -2790,7 +2869,7 @@ module View
         )
       end
 
-      def exec_buy_shares_simple(source_selector, player, bnd, corporation_id)
+      def exec_buy_shares_simple(source_selector, player, bnd, _corporation_id)
         bundle = bnd.respond_to?(:to_bundle) && !bnd.respond_to?(:num_shares) ? bnd.to_bundle : bnd
         shares = bundle.respond_to?(:shares) ? bundle.shares : [bundle]
         percent = bundle.respond_to?(:percent) ? bundle.percent : shares.sum(&:percent)
