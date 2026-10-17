@@ -79,6 +79,39 @@ module View
         end
       end
 
+      # --- START FIX ---
+      def train_entity_for_variant(train, variant_name, price)
+        return train unless train
+        return train if variant_name.nil? || variant_name.to_s == train.name.to_s
+
+        variant_train = train.dup
+        if variant_train.respond_to?(:variant=) &&
+           variant_train.respond_to?(:variants) &&
+           variant_train.variants&.key?(variant_name.to_s)
+          begin
+            variant_train.variant = variant_name.to_s
+            return variant_train
+          rescue StandardError
+          end
+        end
+
+        if train.respond_to?(:variants) && train.variants
+          v_spec = train.variants[variant_name.to_s] || train.variants[variant_name]
+        end
+        variant_train.instance_variable_set(:@name, variant_name.to_s)
+        variant_train.instance_variable_set(:@price, price) if price
+        if v_spec.is_a?(Hash)
+          variant_train.instance_variable_set(:@distance, v_spec[:distance]) if v_spec.key?(:distance)
+          variant_train.instance_variable_set(:@rusts_on, v_spec[:rusts_on]) if v_spec.key?(:rusts_on)
+          variant_train.instance_variable_set(:@obsolete_on, v_spec[:obsolete_on]) if v_spec.key?(:obsolete_on)
+          variant_train.instance_variable_set(:@discount, v_spec[:discount]) if v_spec.key?(:discount)
+        end
+        variant_train
+      rescue StandardError
+        train
+      end
+      # --- END FIX ---
+
       def depot_pool_trains
         return [] unless @game.respond_to?(:depot) && @game.depot
 
@@ -156,7 +189,10 @@ module View
         available_count = train_available_count(train, variant_name, from_pool: (type == 'pool'))
         rem_text = train.respond_to?(:unlimited) && train.unlimited ? '(∞)' : "(#{available_count})"
         dom_id = "bank_train_#{type}_#{train.id}_#{variant_name.to_s.tr('/', '_')}"
-        card_el = render_railcard(variant_name.to_s, card_classes, click_handler, entity: train)
+        # --- START FIX ---
+        display_train = train_entity_for_variant(train, variant_name, price)
+        card_el = render_railcard(variant_name.to_s, card_classes, click_handler, entity: display_train)
+        # --- END FIX ---
 
         card_td = h('td.left', { key: "#{dom_id}_card", style: { padding: '2px 4px', verticalAlign: 'middle' } }, [
           h(:div, { attrs: { id: dom_id }, style: { display: 'inline-flex', alignItems: 'center' } }, [card_el]),
@@ -540,7 +576,10 @@ module View
 
             available_count = train_available_count(train, variant_name)
             dom_id = "bank_train_#{train.id}_#{variant_name.to_s.tr('/', '_')}"
-            card_el = render_railcard(variant_name.to_s, card_classes, click_handler, entity: train)
+            # --- START FIX ---
+            display_train = train_entity_for_variant(train, variant_name, price)
+            card_el = render_railcard(variant_name.to_s, card_classes, click_handler, entity: display_train)
+            # --- END FIX ---
 
             rows << h(:tr, [
               h('td.left', { style: { padding: '4px 6px', verticalAlign: 'middle' } }, [
