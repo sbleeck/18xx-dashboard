@@ -54508,7 +54508,7 @@ try {
           });
           
           $def(self, '$render_ground_truth_actions', function $$render_ground_truth_actions(actions, step) {
-            var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $n, $o, $p, $q, $r, $s, $t, $u, $v, $w, $x, $y, $z, $aa, $ab, $ac, $ad, $ae, $af, $ag, $ah, $ai, $aj, $ak, $al, $am, $an, $ao, $ap, $aq, $ar, $as, $at, $au, $av, $aw, $ax, $ay, $az, $ba, $bb, $bc, $bd, $be, $bf, $bg, $bh, $bi, $bj, $bk, $bl, $bm, $bn, $bo, $bp, $bq, $br, $bs, $bt, $bu, $bv, $bw, $bx, self = this, is_acquisition = nil, $ret_or_1 = nil, $ret_or_2 = nil, $ret_or_3 = nil, offer_node = nil, acq_node = nil, pending_corp = nil, charter = nil, transacted_company = nil, shares_ability = nil, share = nil, actor = nil, player_actor = nil, is_stock_round = nil, is_draft_or_auction = nil, $ret_or_4 = nil, $ret_or_5 = nil, $ret_or_6 = nil, stock_components = nil, bidding_row = nil, reminder = nil, handled_stock_actions = nil, unhandled_stock = nil, is_pure_merger_step = nil, components = nil, convert_track = nil, loans_rendered = nil, choice_item = nil, assign_item = nil, rendered_issue_entities = nil, op_entity = nil, price_protection = nil, price_protection_corporation = nil, acting_entity = nil, fallback_item = nil, entity = nil, player = nil, show_bankrupt = nil, b_options = nil, can_buy_companies = nil, handled_operating_actions = nil, unhandled_operating = nil;
+            var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $n, $o, $p, $q, $r, $s, $t, $u, $v, $w, $x, $y, $z, $aa, $ab, $ac, $ad, $ae, $af, $ag, $ah, $ai, $aj, $ak, $al, $am, $an, $ao, $ap, $aq, $ar, $as, $at, $au, $av, $aw, $ax, $ay, $az, $ba, $bb, $bc, $bd, $be, $bf, $bg, $bh, $bi, $bj, $bk, $bl, $bm, $bn, $bo, $bp, $bq, $br, $bs, $bt, $bu, $bv, $bw, $bx, $by, $bz, $ca, $cb, $cc, $cd, $ce, $cf, $cg, $ch, $ci, $cj, $ck, $cl, $cm, $cn, $co, $cp, $cq, $cr, $cs, $ct, $cu, $cv, self = this, is_acquisition = nil, $ret_or_1 = nil, $ret_or_2 = nil, $ret_or_3 = nil, offer_node = nil, acq_node = nil, pending_corp = nil, charter = nil, transacted_company = nil, shares_ability = nil, share = nil, actor = nil, player_actor = nil, is_stock_round = nil, is_draft_or_auction = nil, $ret_or_4 = nil, $ret_or_5 = nil, $ret_or_6 = nil, stock_components = nil, bidding_row = nil, reminder = nil, handled_stock_actions = nil, unhandled_stock = nil, is_pure_merger_step = nil, components = nil, convert_track = nil, loans_rendered = nil, choice_item = nil, assign_item = nil, rendered_issue_entities = nil, op_entity = nil, price_protection = nil, price_protection_corporation = nil, acting_entity = nil, fallback_item = nil, entity = nil, player = nil, show_bankrupt = nil, b_options = nil, can_buy_companies = nil, handled_operating_actions = nil, unhandled_operating = nil;
 
             
             if ($truthy(self.game.$finished())) {
@@ -54910,40 +54910,62 @@ try {
                 if ($truthy(choice_item)) {
                   return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [choice_item])
                 } else {
-                  return self.$h($$$($$('Round'), 'Choices'), (new Map([["game", self.game]])))
+                  
+                  if ($truthy((($bv = $$('View', 'skip_raise')) && ($bu = $$$($bv, 'Game', 'skip_raise')) && ($bt = $$$($bu, 'Round', 'skip_raise')) && ($bs = $$$($bt, 'Choices', 'skip_raise')) ? 'constant' : nil))) {
+                    return self.$h($$$($$$($$$($$('View'), 'Game'), 'Round'), 'Choices'), (new Map([["game", self.game]])))
+                  } else {
+                    return self.$h("div")
+                  };
                 };
+              } else if ($truthy((($bz = $$('View', 'skip_raise')) && ($by = $$$($bz, 'Game', 'skip_raise')) && ($bx = $$$($by, 'Round', 'skip_raise')) && ($bw = $$$($bx, 'Choices', 'skip_raise')) ? 'constant' : nil))) {
+                return self.$h($$$($$$($$$($$('View'), 'Game'), 'Round'), 'Choices'), (new Map([["game", self.game]])))
               } else {
-                return self.$h($$$($$('Round'), 'Choices'), (new Map([["game", self.game]])))
+                return self.$h("div")
               }
             } else if ($eqeqeq($$$($$$($$('Engine'), 'Round'), 'Merger'), $ret_or_1)) {
-              if ((($not(["buy_train", "scrap_train", "reassign_trains"]['$&'](actions)['$empty?']()) && ($truthy(self.game['$train_actions_always_use_operating_round_view?']()))) && ($not(($truthy(($ret_or_2 = ($bs = step, ($bs === nil || $bs == null) ? nil : $bs.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()))['$is_a?']($$$($$('Engine'), 'Bank')))))) {
-                return self.$h($$$($$('Round'), 'Operating'), (new Map([["game", self.game]])))
+              if ((($not(["buy_train", "scrap_train", "reassign_trains"]['$&'](actions)['$empty?']()) && ($truthy(self.game['$train_actions_always_use_operating_round_view?']()))) && ($not(($truthy(($ret_or_2 = ($ca = step, ($ca === nil || $ca == null) ? nil : $ca.$current_entity()))) ? ($ret_or_2) : (self.$current_entity()))['$is_a?']($$$($$('Engine'), 'Bank')))))) {
+                if ($truthy((($ce = $$('View', 'skip_raise')) && ($cd = $$$($ce, 'Game', 'skip_raise')) && ($cc = $$$($cd, 'Round', 'skip_raise')) && ($cb = $$$($cc, 'Operating', 'skip_raise')) ? 'constant' : nil))) {
+                  return self.$h($$$($$$($$$($$('View'), 'Game'), 'Round'), 'Operating'), (new Map([["game", self.game]])))
+                } else {
+                  return self.$h("div")
+                }
               } else if ($truthy(["merge", "convert", "buy_shares", "corporate_buy_shares", "take_loan", "payoff_loan"]['$&'](actions)['$any?']())) {
-                return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [self.$render_merger_step(step, ($truthy(($ret_or_2 = ($bt = step, ($bt === nil || $bt == null) ? nil : $bt.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions)].$compact())
+                return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [self.$render_merger_step(step, ($truthy(($ret_or_2 = ($cf = step, ($cf === nil || $cf == null) ? nil : $cf.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())), actions)].$compact())
               } else if ($truthy(actions['$include?']("choose"))) {
                 
-                choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($bu = step, ($bu === nil || $bu == null) ? nil : $bu.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
+                choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($cg = step, ($cg === nil || $cg == null) ? nil : $cg.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
                 if ($truthy(choice_item)) {
                   return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [choice_item])
                 } else {
-                  return self.$h($$$($$('Round'), 'Merger'), (new Map([["game", self.game]])))
+                  
+                  if ($truthy((($ck = $$('View', 'skip_raise')) && ($cj = $$$($ck, 'Game', 'skip_raise')) && ($ci = $$$($cj, 'Round', 'skip_raise')) && ($ch = $$$($ci, 'Merger', 'skip_raise')) ? 'constant' : nil))) {
+                    return self.$h($$$($$$($$$($$('View'), 'Game'), 'Round'), 'Merger'), (new Map([["game", self.game]])))
+                  } else {
+                    return self.$h("div")
+                  };
                 };
+              } else if ($truthy((($co = $$('View', 'skip_raise')) && ($cn = $$$($co, 'Game', 'skip_raise')) && ($cm = $$$($cn, 'Round', 'skip_raise')) && ($cl = $$$($cm, 'Merger', 'skip_raise')) ? 'constant' : nil))) {
+                return self.$h($$$($$$($$$($$('View'), 'Game'), 'Round'), 'Merger'), (new Map([["game", self.game]])))
               } else {
-                return self.$h($$$($$('Round'), 'Merger'), (new Map([["game", self.game]])))
+                return self.$h("div")
               }
             } else if ($truthy(actions['$include?']("assign"))) {
-              if ($truthy(($ret_or_2 = self.$render_assign_step(step, ($truthy(($ret_or_3 = ($bv = step, ($bv === nil || $bv == null) ? nil : $bv.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
+              if ($truthy(($ret_or_2 = self.$render_assign_step(step, ($truthy(($ret_or_3 = ($cp = step, ($cp === nil || $cp == null) ? nil : $cp.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
                 return $ret_or_2
               } else {
                 return self.$h("div")
               }
             } else if ($truthy(actions['$include?']("choose"))) {
               
-              choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($bw = step, ($bw === nil || $bw == null) ? nil : $bw.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
+              choice_item = self.$render_generic_choice(step, ($truthy(($ret_or_2 = ($cq = step, ($cq === nil || $cq == null) ? nil : $cq.$current_entity()))) ? ($ret_or_2) : (self.$current_entity())));
               return self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "column"], ["gap", "0.15rem"], ["width", "100%"], ["alignItems", "flex-start"]]))]])), [choice_item].$compact());
             } else if ($truthy(self.game.$round()['$unordered?']())) {
-              return self.$h($$$($$('Round'), 'Unordered'), (new Map([["game", self.game], ["user", nil]])))
-            } else if ($truthy(($ret_or_2 = self.$render_generic_fallback(step, ($truthy(($ret_or_3 = ($bx = step, ($bx === nil || $bx == null) ? nil : $bx.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
+              if ($truthy((($cu = $$('View', 'skip_raise')) && ($ct = $$$($cu, 'Game', 'skip_raise')) && ($cs = $$$($ct, 'Round', 'skip_raise')) && ($cr = $$$($cs, 'Unordered', 'skip_raise')) ? 'constant' : nil))) {
+                return self.$h($$$($$$($$$($$('View'), 'Game'), 'Round'), 'Unordered'), (new Map([["game", self.game], ["user", nil]])))
+              } else {
+                return self.$h("div")
+              }
+            } else if ($truthy(($ret_or_2 = self.$render_generic_fallback(step, ($truthy(($ret_or_3 = ($cv = step, ($cv === nil || $cv == null) ? nil : $cv.$current_entity()))) ? ($ret_or_3) : (self.$current_entity())), actions)))) {
               return $ret_or_2
             } else {
               return self.$h("div")
@@ -57168,9 +57190,9 @@ Opal.modules["view/game/dashboard/dashboard_entity_order"] = function(Opal) {/* 
 };
 
 Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* Generated by Opal 1.8.3 */
-  var $module = Opal.module, $klass = Opal.klass, $return_val = Opal.return_val, $def = Opal.def, $const_set = Opal.const_set, $truthy = Opal.truthy, $eqeq = Opal.eqeq, $send = Opal.send, $thrower = Opal.thrower, $rb_plus = Opal.rb_plus, $rb_minus = Opal.rb_minus, $rb_gt = Opal.rb_gt, $not = Opal.not, $to_a = Opal.to_a, $rb_times = Opal.rb_times, $to_ary = Opal.to_ary, $neqeq = Opal.neqeq, $rb_ge = Opal.rb_ge, $lambda = Opal.lambda, $rb_le = Opal.rb_le, $rb_divide = Opal.rb_divide, $range = Opal.range, $slice = Opal.slice, $extract_kwargs = Opal.extract_kwargs, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
+  var $module = Opal.module, $klass = Opal.klass, $return_val = Opal.return_val, $def = Opal.def, $const_set = Opal.const_set, $truthy = Opal.truthy, $eqeq = Opal.eqeq, $send = Opal.send, $thrower = Opal.thrower, $rb_plus = Opal.rb_plus, $rb_minus = Opal.rb_minus, $rb_gt = Opal.rb_gt, $not = Opal.not, $to_a = Opal.to_a, $rb_times = Opal.rb_times, $to_ary = Opal.to_ary, $neqeq = Opal.neqeq, $rb_ge = Opal.rb_ge, $lambda = Opal.lambda, $rb_le = Opal.rb_le, $rb_divide = Opal.rb_divide, $range = Opal.range, $rb_lt = Opal.rb_lt, $slice = Opal.slice, $extract_kwargs = Opal.extract_kwargs, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,include,needs,current_entity,active_step,round,respond_to?,active_entity,player?,owner,==,initial_players,[],any?,compact,map,is_a?,find,players,id,name,to_s,size,each,public_send,instance_variable_get,all?,sort_by,to_proc,to_a,zero?,first,game_phases,include?,all_corporations,companies,index,display_players,active_player,+,check_and_animate,has_treasury_column?,h,render_corporation_table,table_props,render_titles,render_corporations,render_player_rows,each_with_index,format_currency,cash,-,<<,hook,cert_limit,num_certs,>,merge,player_loans,render_companies,render_extra_cards,with_index,tr_default_props,[]=,turn_round_num,sorted_corporations,last,minor?,!,render_corporation,render_player_cash,render_player_loans,render_player_companies,render_player_certs,lambda,update,price,tr,process_action,new,separate_treasury?,any_reserved_shares?,ipo_reserved_name,render_sort_link,capitalization_type_desc,nonzero?,total_loans,priority_deal_player,join,operating?,entities,operating_order,to_h,minors,reject!,closed?,sort,select,sort_order_key,sort_by!,-@,share_price,concat,actions_for,empty?,actions,uniq,status_actions_for,start_with?,Array,to_bundle,shares,percent,sum,bundle_owner,object_id,reverse,entity,type,class,routes,trains,train_by_id,phase,status_corporation_actions,&,status_step_bundles,issuable_shares,bundles_for_corporation,bundles,shares_of,can_sell?,status_bundle_key,redeemable_shares,shares_by_corporation,share_pool,can_buy?,visual_operating_entity,keys,operating_history,current_actions,status_issuable_bundles,explicit_redeemable_bundles,status_redeemable_bundles,color,available?,corporation_available?,treasury_shares_for,share_percent,*,num_reserved_shares,!=,buyable_shares,nil?,buyable,buyable_bank_owned_companies,can_buy_company?,abilities,corporation,positive?,value,exec_buy_shares,exec_issue_share_bundle,render_choice_menu,render_railcard,share_denomination_tooltip,scan,render_loan_dots,available_shorts,can_short?,num_ipo_shares,num_shares_of,can_sell_shares?,must_sell?,must_buy_train?,cash_crisis?,emergency?,sellable_bundles,exec_sell_shares,exec_redeem_share_bundle,percent_of,negative?,shorts,exec_short_shares,render_short_position_railcard,abs,render_ghost_short_railcard,did_sell?,president?,bundle_from_pool?,num_shares,>=,receivership?,append_market_zone_tooltip,ipo_shares,bank,<=,max,corporation?,ipoed,can_par?,can_bid?,get_par_prices_with_help,get_par_prices,par_prices,stock_market,reject,par_chart,none?,presidents_share,multiplier,to_i,/,par_shares,store,exec_buy_shares_simple,color_for,highlight?,contrast_on,par_price,market_zone_details,buyable_trains,corp_owner,call,can_buy_train?,max_price,show_price_dialog,exec_buy_corporate_train,obsolete,train_limit,infinite?,min,times,revenue,values,render_unplaced_tokens,dividend,downcase,kind,withheld?,withhold?,half?,render_major_railcard,tokens,hex,placed?,setting_for,simple_logo,logo,cost,instance_variable_defined?,token_price,token_cost,text_color,const_defined?,types,to_sym,strip,%,to_f,loans,maximum_loans,interest_owed,fly,min_width,const_get,split,steps,buyable_companies,owned_by?,available_targets,min_price,build_company_tooltip,sym,flatten,arity,private,num_ipo_reserved_shares');
+  Opal.add_stubs('require,include,needs,current_entity,active_step,round,respond_to?,active_entity,player?,owner,==,initial_players,[],any?,compact,map,is_a?,find,players,id,name,to_s,size,each,public_send,instance_variable_get,all?,sort_by,to_proc,to_a,zero?,first,game_phases,include?,all_corporations,companies,index,display_players,active_player,+,check_and_animate,has_treasury_column?,h,render_corporation_table,table_props,render_titles,render_corporations,render_player_rows,each_with_index,format_currency,cash,-,<<,hook,cert_limit,num_certs,>,merge,player_loans,render_companies,render_extra_cards,with_index,tr_default_props,[]=,turn_round_num,sorted_corporations,last,minor?,!,render_corporation,render_player_cash,render_player_loans,render_player_companies,render_player_certs,lambda,update,price,tr,process_action,new,separate_treasury?,any_reserved_shares?,ipo_reserved_name,render_sort_link,capitalization_type_desc,nonzero?,total_loans,priority_deal_player,join,operating?,entities,operating_order,to_h,minors,reject!,closed?,sort,select,sort_order_key,sort_by!,-@,share_price,concat,actions_for,empty?,actions,uniq,status_actions_for,start_with?,Array,to_bundle,shares,percent,sum,bundle_owner,object_id,reverse,entity,type,class,routes,trains,train_by_id,phase,status_corporation_actions,&,status_step_bundles,issuable_shares,bundles_for_corporation,bundles,shares_of,can_sell?,status_bundle_key,redeemable_shares,shares_by_corporation,share_pool,can_buy?,visual_operating_entity,keys,operating_history,current_actions,status_issuable_bundles,explicit_redeemable_bundles,status_redeemable_bundles,color,available?,corporation_available?,treasury_shares_for,share_percent,*,num_reserved_shares,!=,buyable_shares,nil?,buyable,buyable_bank_owned_companies,can_buy_company?,abilities,corporation,positive?,value,exec_buy_shares,exec_issue_share_bundle,render_choice_menu,render_railcard,share_denomination_tooltip,scan,render_loan_dots,available_shorts,can_short?,num_ipo_shares,num_shares_of,can_sell_shares?,must_sell?,must_buy_train?,cash_crisis?,emergency?,sellable_bundles,exec_sell_shares,exec_redeem_share_bundle,percent_of,negative?,shorts,exec_short_shares,render_short_position_railcard,abs,render_ghost_short_railcard,did_sell?,president?,bundle_from_pool?,num_shares,>=,receivership?,append_market_zone_tooltip,ipo_shares,bank,<=,max,corporation?,ipoed,can_par?,can_bid?,get_par_prices_with_help,get_par_prices,par_prices,stock_market,reject,par_chart,none?,presidents_share,multiplier,to_i,/,par_shares,store,exec_buy_shares_simple,color_for,highlight?,contrast_on,par_price,market_zone_details,buyable_trains,corp_owner,call,can_buy_train?,max_price,show_price_dialog,exec_buy_corporate_train,obsolete,train_limit,infinite?,min,times,revenue,values,render_unplaced_tokens,dividend,downcase,kind,withheld?,withhold?,half?,render_major_railcard,tokens,hex,placed?,setting_for,simple_logo,logo,cost,instance_variable_defined?,token_price,token_cost,text_color,const_defined?,types,to_sym,strip,%,to_f,loans,maximum_loans,<,fly,interest_owed,min_width,const_get,split,steps,buyable_companies,owned_by?,available_targets,min_price,build_company_tooltip,sym,flatten,arity,private,num_ipo_reserved_shares');
   
   (function($base, $parent_nesting) {
     var self = $module($base, 'Engine');
@@ -58109,7 +58131,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           return corporation.$operating_history().$keys()['$include?'](current_round);
         });
         
-        $def(self, '$render_corporation', function $$render_corporation(corporation, _operating_order, current_round, is_last_minor) {
+        $def(self, '$render_corporation', function $$render_corporation(corporation, _operating_order, _current_round, is_last_minor) {
           var $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, self = this, step = nil, is_active_row = nil, corp_actions = nil, player_actions = nil, $ret_or_1 = nil, $ret_or_2 = nil, corporation_controlled = nil, issuable_bundles = nil, issue_command = nil, can_issue = nil, explicit_redeem_bundles = nil, all_redeemable_bundles = nil, redeem_command = nil, can_redeem = nil, is_unfloated = nil, is_directed = nil, corp_bg = nil, is_for_sale = nil, star_bg = nil, star_color = nil, star_border = nil, tr_props = nil, row_classes = nil, president_sold = nil, president_available = nil, should_grey_unfloated = nil, visual_current = nil, name_props = nil, treasury = nil, t_shares = nil, treasury_cards = nil, treasury_percent = nil, treasury_issuable_bundles = nil, can_issue_treasury = nil, $ret_or_3 = nil, $ret_or_4 = nil, step_buyable = nil, valid_treasury_buys = nil, buyable_share_company = nil, can_buy_treasury = nil, classes = nil, dropdowns = nil, click_handler = nil, options = nil, card = nil, treasury_hover = nil, extra = nil, desc_text = nil, clean_digits = nil, taken = nil, total = nil, pool_shares = nil, valid_pool_shares = nil, player_can_buy_pool = nil, player_can_short = nil, n_ipo_shares = nil, n_market_shares = nil, players_row_content = nil, pool_redeem_bundles = nil, affordable_pool_redeems = nil, corporation_can_redeem_pool = nil, corporation_share_destination = nil, base_share_pct = nil, pool_percent = nil, pool_share_text = nil, pool_click_handler = nil, pool_cell_children = nil, buyer_options = nil, share_val = nil, cancel_handler = nil, pool_card = nil, pool_hover = nil, ipo_actual_shares = nil, ipo_percent = nil, ipo_share_text = nil, ipo_click_handler = nil, valid_ipo_shares = nil, is_corp = nil, corp_available = nil, can_par = nil, $ret_or_5 = nil, can_bid = nil, ipo_issuable_bundles = nil, issue_from_ipo = nil, par_prices = nil, pres_share = nil, shares_multiplier = nil, bundle = nil, player_cash = nil, ipo_shares = nil, ipo_is_director = nil, ipo_cell_children = nil, card_classes = nil, ipo_card = nil, ipo_hover = nil, border_style = nil, market_style = nil, m_color = nil, is_operating = nil, clean_market_price = nil, clean_par_price = nil, pool_cell_style = nil, market_zone = nil, pool_row_content = nil, bank_row_content = nil, train_buyable_step = nil, train_discardable_step = nil, step_buyable_trains = nil, corp_owner = nil, same_player = nil, train_cards = nil, raw_limit = nil, limit = nil, empty_count = nil, clean_corp_cash = nil, last_rev = nil, clean_rev = nil, corporation_row_content = nil, last_run = nil, div = nil, div_kind = nil, held = nil, half_held = nil, font_color = nil, is_hovered_cell = nil, rev_class = nil, rev_props = nil, row_content = nil, major_card = nil;
 
           
@@ -59518,12 +59540,12 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             return ""
           };
           counts = $$('Hash').$new(0);
-          $send(shares_list, 'each', [], function $$156(share){var $a, $b, raw_pct = nil;
+          $send(shares_list, 'each', [], function $$156(share){var $a, $b, $c, raw_pct = nil;
 
             
             if (share == null) share = nil;
-            raw_pct = (($truthy(share['$respond_to?']("percent")) && ($truthy(share.$percent()))) ? (share.$percent()) : (($truthy(($a = corporation, ($a === nil || $a == null) ? nil : $a['$respond_to?']("share_percent"))) && ($truthy(corporation.$share_percent()))) ? (corporation.$share_percent()) : (10)));
-            return ($b = [raw_pct, $rb_plus(counts['$[]'](raw_pct), 1)], $send(counts, '[]=', $b), $b[$b.length - 1]);});
+            raw_pct = (($truthy(share['$respond_to?']("percent")) && ($truthy(share.$percent()))) ? (share.$percent()) : (($truthy(($b = corporation, ($b === nil || $b == null) ? nil : $b['$respond_to?']("share_percent"))) && ($truthy(($a = corporation, ($a === nil || $a == null) ? nil : $a.$share_percent())))) ? (corporation.$share_percent()) : (10)));
+            return ($c = [raw_pct, $rb_plus(counts['$[]'](raw_pct), 1)], $send(counts, '[]=', $c), $c[$c.length - 1]);});
           if (($truthy(counts['$empty?']()) || ($truthy($rb_le(counts.$values().$sum(), 1))))) {
             return ""
           };
@@ -59549,7 +59571,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           };
         });
         
-        $def(self, '$exec_short_shares', function $$exec_short_shares(source_selector, player, corporation) {
+        $def(self, '$exec_short_shares', function $$exec_short_shares(_source_selector, player, corporation) {
           var $a, $b, $c, self = this, action = nil;
 
           
@@ -59605,7 +59627,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
         });
         
         $def(self, '$render_loan_dots', function $$render_loan_dots(entity) {
-          var $a, $b, self = this, taken = nil, maximum = nil, actions = nil, $ret_or_1 = nil, can_take = nil, $ret_or_2 = nil, can_repay = nil, dots = nil, interest = nil, wrapper_props = nil;
+          var $a, $b, self = this, taken = nil, maximum = nil, actions = nil, $ret_or_1 = nil, can_take = nil, $ret_or_2 = nil, $ret_or_3 = nil, can_repay = nil, dots = nil, interest = nil, title = nil;
 
           
           if (($not(entity['$respond_to?']("loans")) || ($not(self.game['$respond_to?']("maximum_loans"))))) {
@@ -59618,38 +59640,74 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           };
           actions = self.$status_actions_for(entity);
           if (($eqeq(entity, self.$active_entity()) && ($truthy(($a = self.game.$round().$active_step(), ($a === nil || $a == null) ? nil : $a['$respond_to?']("current_actions")))))) {
-            actions = $rb_plus(actions, ($truthy(($ret_or_1 = self.game.$round().$active_step().$current_actions())) ? ($ret_or_1) : ([]))).$uniq()
+            actions = $send($rb_plus(actions, ($truthy(($ret_or_1 = self.game.$round().$active_step().$current_actions())) ? ($ret_or_1) : ([]))).$compact(), 'map', [], "to_s".$to_proc()).$uniq()
           };
-          can_take = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = actions['$include?']("take_loan"))) ? (self.game['$respond_to?']("loans")) : ($ret_or_2)))) ? (($b = self.game.$loans(), ($b === nil || $b == null) ? nil : $b['$any?']())) : ($ret_or_1));
+          can_take = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = actions['$include?']("take_loan"))) ? (self.game['$respond_to?']("loans")) : ($ret_or_3)))) ? (($b = self.game.$loans(), ($b === nil || $b == null) ? nil : $b['$any?']())) : ($ret_or_2)))) ? ($rb_lt(taken, maximum)) : ($ret_or_1));
           can_repay = ($truthy(($ret_or_1 = actions['$include?']("payoff_loan"))) ? (entity.$loans()['$any?']()) : ($ret_or_1));
           dots = [];
-          $send(taken, 'times', [], function $$160(index){var self = $$160.$$s == null ? this : $$160.$$s, dot_props = nil;
+          $send(taken, 'times', [], function $$160(index){var self = $$160.$$s == null ? this : $$160.$$s, dot_props = nil, repay = nil;
 
             
             if (index == null) index = nil;
-            dot_props = (new Map([["attrs", (new Map([["id", "loan_dot_" + (entity.$id()) + "_" + (index)]]))], ["style", (new Map([["display", "inline-block"], ["width", "8px"], ["height", "8px"], ["backgroundColor", "#dc3545"], ["borderRadius", "50%"], ["margin", "0 2px"], ["pointerEvents", "none"]]))]]));
+            dot_props = (new Map([["attrs", (new Map([["id", "loan_dot_" + (entity.$id()) + "_" + (index)], ["title", (($truthy(can_repay) && ($eqeq(index, $rb_minus(taken, 1)))) ? ("Repay a loan for " + (entity.$name())) : (nil))], ["role", (($truthy(can_repay) && ($eqeq(index, $rb_minus(taken, 1)))) ? ("button") : (nil))], ["tabindex", (($truthy(can_repay) && ($eqeq(index, $rb_minus(taken, 1)))) ? ("0") : (nil))]])).$compact()], ["style", (new Map([["display", "inline-block"], ["width", "8px"], ["height", "8px"], ["backgroundColor", "#dc3545"], ["border", "1px solid #dc3545"], ["borderRadius", "50%"], ["margin", "0 2px"], ["boxSizing", "border-box"], ["cursor", (($truthy(can_repay) && ($eqeq(index, $rb_minus(taken, 1)))) ? ("pointer") : ("default"))], ["boxShadow", (($truthy(can_repay) && ($eqeq(index, $rb_minus(taken, 1)))) ? ("0 0 0 2px rgba(220,38,38,0.18)") : ("none"))]]))]]));
+            if (($truthy(can_repay) && ($eqeq(index, $rb_minus(taken, 1))))) {
+              
+              repay = $send(self, 'lambda', [], function $$161(event){var self = $$161.$$s == null ? this : $$161.$$s, source_id = nil;
+
+                
+                if (event == null) event = nil;
+                event.stopPropagation();
+                event.preventDefault();
+                source_id = "#loan_dot_" + (entity.$id()) + "_" + (index);
+                return $send($$$($$('Lib'), 'LoanAnimation'), 'fly', [source_id, "#bank_loan_active"], function $$162(){var self = $$162.$$s == null ? this : $$162.$$s;
+
+                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'PayoffLoan').$new(entity, (new Map([["loan", entity.$loans().$last()]]))))}, {$$s: self});}, {$$s: self});
+              dot_props['$[]=']("on", (new Map([["click", repay], ["keydown", $send(self, 'lambda', [], function $$163(event){var key = nil;
+
+                
+                if (event == null) event = nil;
+                key = event.key;
+                if ($truthy(["Enter", " "]['$include?'](key))) {
+                  return repay.$call(event)
+                } else {
+                  return nil
+                };})]])));
+            };
             return dots['$<<'](self.$h("span", dot_props));}, {$$s: self});
-          $send([$rb_minus(maximum, taken), 0].$max(), 'times', [], function $$161(index){var self = $$161.$$s == null ? this : $$161.$$s, dot_props = nil;
+          $send([$rb_minus(maximum, taken), 0].$max(), 'times', [], function $$164(index){var self = $$164.$$s == null ? this : $$164.$$s, dot_props = nil, take = nil;
 
             
             if (index == null) index = nil;
-            dot_props = (new Map([["attrs", (new Map([["id", "loan_empty_" + (entity.$id()) + "_" + (index)]]))], ["style", (new Map([["display", "inline-block"], ["width", "8px"], ["height", "8px"], ["border", "1px solid #dc3545"], ["borderRadius", "50%"], ["margin", "0 2px"], ["boxSizing", "border-box"], ["pointerEvents", "none"]]))]]));
+            dot_props = (new Map([["attrs", (new Map([["id", "loan_empty_" + (entity.$id()) + "_" + (index)], ["title", (($truthy(can_take) && ($truthy(index['$zero?']()))) ? ("Take a loan for " + (entity.$name())) : (nil))], ["role", (($truthy(can_take) && ($truthy(index['$zero?']()))) ? ("button") : (nil))], ["tabindex", (($truthy(can_take) && ($truthy(index['$zero?']()))) ? ("0") : (nil))]])).$compact()], ["style", (new Map([["display", "inline-block"], ["width", "8px"], ["height", "8px"], ["border", (($truthy(can_take) && ($truthy(index['$zero?']()))) ? ("2px solid #16a34a") : ("1px solid #dc3545"))], ["backgroundColor", (($truthy(can_take) && ($truthy(index['$zero?']()))) ? ("#dcfce7") : ("transparent"))], ["borderRadius", "50%"], ["margin", "0 2px"], ["boxSizing", "border-box"], ["cursor", (($truthy(can_take) && ($truthy(index['$zero?']()))) ? ("pointer") : ("default"))], ["boxShadow", (($truthy(can_take) && ($truthy(index['$zero?']()))) ? ("0 0 0 2px rgba(22,163,74,0.18)") : ("none"))]]))]]));
+            if (($truthy(can_take) && ($truthy(index['$zero?']())))) {
+              
+              take = $send(self, 'lambda', [], function $$165(event){var self = $$165.$$s == null ? this : $$165.$$s, target_id = nil;
+
+                
+                if (event == null) event = nil;
+                event.stopPropagation();
+                event.preventDefault();
+                target_id = "#loan_empty_" + (entity.$id()) + "_" + (index);
+                return $send($$$($$('Lib'), 'LoanAnimation'), 'fly', ["#bank_loan_active", target_id], function $$166(){var self = $$166.$$s == null ? this : $$166.$$s;
+                  if (self.game == null) self.game = nil;
+
+                  return self.$process_action($$$($$$($$('Engine'), 'Action'), 'TakeLoan').$new(entity, (new Map([["loan", self.game.$loans().$first()]]))))}, {$$s: self});}, {$$s: self});
+              dot_props['$[]=']("on", (new Map([["click", take], ["keydown", $send(self, 'lambda', [], function $$167(event){var key = nil;
+
+                
+                if (event == null) event = nil;
+                key = event.key;
+                if ($truthy(["Enter", " "]['$include?'](key))) {
+                  return take.$call(event)
+                } else {
+                  return nil
+                };})]])));
+            };
             return dots['$<<'](self.$h("span", dot_props));}, {$$s: self});
           interest = ($truthy(self.game['$respond_to?']("interest_owed")) ? (self.game.$interest_owed(entity)) : (0));
           dots['$<<'](self.$h("span", (new Map([["style", (new Map([["marginLeft", "4px"], ["fontSize", "0.75rem"], ["fontWeight", "bold"], ["pointerEvents", "none"]]))]])), self.game.$format_currency(interest)));
-          wrapper_props = (new Map([["attrs", (new Map([["id", "loan_wrapper_" + (entity.$id())], ["title", ($truthy(can_repay) ? ("Payoff Loan for " + (entity.$name())) : (""))]]))], ["style", (new Map([["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["cursor", ($truthy(can_repay) ? ("pointer") : ("default"))], ["padding", "2px 6px"], ["backgroundColor", ($truthy(can_repay) ? ("#fef2f2") : ("transparent"))], ["border", ($truthy(can_repay) ? ("2px solid #dc2626") : ("1px solid transparent"))], ["borderRadius", "4px"], ["boxShadow", ($truthy(can_repay) ? ("0 1px 3px rgba(220,38,38,0.25)") : ("none"))], ["boxSizing", "border-box"]]))]]));
-          if ($truthy(can_repay)) {
-            wrapper_props['$[]=']("on", (new Map([["click", $send(self, 'lambda', [], function $$162(_event){var self = $$162.$$s == null ? this : $$162.$$s, source_id = nil;
-
-              
-              if (_event == null) _event = nil;
-              if (event) { event.stopPropagation(); event.preventDefault(); };
-              source_id = "#loan_dot_" + (entity.$id()) + "_" + ($rb_minus(taken, 1));
-              return $send($$$($$('Lib'), 'LoanAnimation'), 'fly', [source_id, "#bank_loan_active"], function $$163(){var self = $$163.$$s == null ? this : $$163.$$s;
-
-                return self.$process_action($$$($$$($$('Engine'), 'Action'), 'PayoffLoan').$new(entity, (new Map([["loan", entity.$loans().$last()]]))))}, {$$s: self});}, {$$s: self})]])))
-          };
-          return self.$h("div", wrapper_props, dots);
+          title = (($truthy(can_take) && ($truthy(can_repay))) ? ("Take or repay a loan for " + (entity.$name())) : ($truthy(can_take) ? ("Take a loan for " + (entity.$name())) : ($truthy(can_repay) ? ("Repay a loan for " + (entity.$name())) : (""))));
+          return self.$h("div", (new Map([["attrs", (new Map([["id", "loan_wrapper_" + (entity.$id())], ["title", title]]))], ["style", (new Map([["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["padding", "3px 6px"], ["backgroundColor", ($truthy(can_take) ? ("#f0fdf4") : (($truthy(can_repay) ? ("#fef2f2") : ("transparent"))))], ["border", ($truthy(can_take) ? ("2px solid #16a34a") : (($truthy(can_repay) ? ("2px solid #dc2626") : ("1px solid transparent"))))], ["borderRadius", "4px"], ["boxShadow", ($truthy(can_take) ? ("0 1px 3px rgba(22,163,74,0.25)") : (($truthy(can_repay) ? ("0 1px 3px rgba(220,38,38,0.25)") : ("none"))))], ["boxSizing", "border-box"]]))]])), dots);
         });
         
         $def(self, '$render_companies', function $$render_companies(entity, $a, $b, $c) {
@@ -59671,7 +59729,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             props['$[]']("style")['$[]=']("backgroundColor", bg_color)
           };
           companies_list = ($truthy(entity['$respond_to?']("companies")) ? (entity.$companies()) : ([]));
-          companies_list = $send(companies_list, 'reject', [], function $$164(c){var $ret_or_1 = nil;
+          companies_list = $send(companies_list, 'reject', [], function $$168(c){var $ret_or_1 = nil;
 
             
             if (c == null) c = nil;
@@ -59685,7 +59743,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           actions = (($truthy(active_ent) && ($truthy(self.game.$round()['$respond_to?']("actions_for")))) ? (self.game.$round().$actions_for(active_ent)) : (($truthy(($ret_or_1 = ($d = step, ($d === nil || $d == null) ? nil : $d.$current_actions()))) ? ($ret_or_1) : ([]))));
           company_buyable_step = actions['$include?']("buy_company");
           special_actions = $rb_minus(actions, ["lay_tile", "place_token", "run_routes", "dividend", "payout", "withhold", "half", "split", "buy_train", "pass", "buy_company", "merge", "choose", "end_game", "bankrupt"]);
-          valid_special_actions = $send(special_actions, 'map', [], function $$165(action_name){var action_class = nil, required_args = nil;
+          valid_special_actions = $send(special_actions, 'map', [], function $$169(action_name){var action_class = nil, required_args = nil;
 
             
             if (action_name == null) action_name = nil;
@@ -59707,7 +59765,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             } else {
               return nil
             };}).$compact();
-          company_cards = $send(companies_list, 'map', [], function $$166(c){var self = $$166.$$s == null ? this : $$166.$$s, card_classes = nil, company_click_handler = nil, menu_dropdown = nil, not_own_company = nil, buy_company_step = nil, is_buyable = nil, matching_special_action = nil, min_price = nil, max_price = nil, tooltip_card = nil, wrapper_id = nil, wrapper_classes = nil;
+          company_cards = $send(companies_list, 'map', [], function $$170(c){var self = $$170.$$s == null ? this : $$170.$$s, card_classes = nil, company_click_handler = nil, menu_dropdown = nil, not_own_company = nil, buy_company_step = nil, is_buyable = nil, matching_special_action = nil, min_price = nil, max_price = nil, tooltip_card = nil, wrapper_id = nil, wrapper_classes = nil;
             if (self.game == null) self.game = nil;
 
             
@@ -59720,7 +59778,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             is_buyable = false;
             if ($truthy(self.game.$round()['$respond_to?']("steps"))) {
               
-              buy_company_step = $send(self.game.$round().$steps(), 'find', [], function $$167(s){var $ret_or_2 = nil;
+              buy_company_step = $send(self.game.$round().$steps(), 'find', [], function $$171(s){var $ret_or_2 = nil;
 
                 
                 if (s == null) s = nil;
@@ -59746,7 +59804,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             if ((($truthy(active_ent['$respond_to?']("corporation?")) && ($truthy(active_ent['$corporation?']()))) && (($not(c.$owner()) || ($neqeq(c.$owner(), active_ent.$owner())))))) {
               is_buyable = false
             };
-            matching_special_action = $send(valid_special_actions, 'find', [], function $$168(_, _action_class){var targets = nil;
+            matching_special_action = $send(valid_special_actions, 'find', [], function $$172(_, _action_class){var targets = nil;
 
               
               if (_ == null) _ = nil;
@@ -59757,7 +59815,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
               
               card_classes['$<<']("action-buy");
               card_classes['$<<']("clickable");
-              company_click_handler = $send(self, 'lambda', [], function $$169(){var self = $$169.$$s == null ? this : $$169.$$s;
+              company_click_handler = $send(self, 'lambda', [], function $$173(){var self = $$173.$$s == null ? this : $$173.$$s;
 
                 return self.$process_action(matching_special_action['$[]'](1).$new(active_ent, (new Map([["company", c]]))))}, {$$s: self});
             } else if ((($truthy(company_buyable_step) && ($truthy(not_own_company))) && ($truthy(is_buyable)))) {
@@ -59766,14 +59824,14 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
               card_classes['$<<']("clickable");
               min_price = ($truthy(buy_company_step['$respond_to?']("min_price")) ? (buy_company_step.$min_price(c)) : (($truthy(c['$respond_to?']("min_price")) ? (c.$min_price()) : (1))));
               max_price = ($truthy(buy_company_step['$respond_to?']("max_price")) ? (buy_company_step.$max_price(active_ent, c)) : ($truthy(c['$respond_to?']("max_price")) ? (c.$max_price()) : (($truthy(active_ent['$respond_to?']("cash")) ? (active_ent.$cash()) : (9999)))));
-              company_click_handler = $send(self, 'lambda', [], function $$170(){var self = $$170.$$s == null ? this : $$170.$$s, menu_title = nil, default_price = nil;
+              company_click_handler = $send(self, 'lambda', [], function $$174(){var self = $$174.$$s == null ? this : $$174.$$s, menu_title = nil, default_price = nil;
 
                 
                 var p = document.getElementById('railcard-portal'); if (p) { p.style.display = 'none'; p.innerHTML = ''; };
                 menu_title = "Buy " + (c.$name()) + " (" + (min_price) + "-" + (max_price) + "):";
                 default_price = [($truthy(active_ent['$respond_to?']("cash")) ? (active_ent.$cash()) : (min_price)), max_price].$min();
                 default_price = [default_price, min_price].$max();
-                return self.$show_price_dialog(menu_title, min_price, max_price, default_price, $send(self, 'lambda', [], function $$171(price_val){var self = $$171.$$s == null ? this : $$171.$$s;
+                return self.$show_price_dialog(menu_title, min_price, max_price, default_price, $send(self, 'lambda', [], function $$175(price_val){var self = $$175.$$s == null ? this : $$175.$$s;
 
                   
                   if (price_val == null) price_val = nil;
@@ -59797,7 +59855,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
         $def(self, '$render_player_companies', function $$render_player_companies() {
           var self = this;
 
-          return self.$h("tr", self.$tr_default_props(), [self.$h("th.left", "Companies")].concat($to_a($send(self.$display_players().$map(), 'with_index', [], function $$172(p, idx){var self = $$172.$$s == null ? this : $$172.$$s, is_active_col = nil, bg_color = nil, is_last = nil;
+          return self.$h("tr", self.$tr_default_props(), [self.$h("th.left", "Companies")].concat($to_a($send(self.$display_players().$map(), 'with_index', [], function $$176(p, idx){var self = $$176.$$s == null ? this : $$176.$$s, is_active_col = nil, bg_color = nil, is_last = nil;
             if (self.game == null) self.game = nil;
 
             
@@ -59861,7 +59919,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
         $def(self, '$render_player_cash', function $$render_player_cash() {
           var self = this;
 
-          return self.$h("tr", self.$tr_default_props(), [self.$h("th.left", "Cash")].concat($to_a($send(self.$display_players(), 'map', [], function $$173(p){var self = $$173.$$s == null ? this : $$173.$$s, clean_cash = nil, is_active_col = nil, bg_color = nil;
+          return self.$h("tr", self.$tr_default_props(), [self.$h("th.left", "Cash")].concat($to_a($send(self.$display_players(), 'map', [], function $$177(p){var self = $$177.$$s == null ? this : $$177.$$s, clean_cash = nil, is_active_col = nil, bg_color = nil;
             if (self.game == null) self.game = nil;
 
             
@@ -59878,7 +59936,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           
           cert_limit = self.game.$cert_limit();
           props = (new Map([["style", (new Map([["color", "red"]]))]]));
-          return self.$h("tr", self.$tr_default_props(), [self.$h("th.left", "Cert")].concat($to_a($send(self.$display_players().$map(), 'with_index', [], function $$174(player, idx){var self = $$174.$$s == null ? this : $$174.$$s, is_active_col = nil, bg_color = nil, num_certs = nil, cell_props = nil, is_last = nil;
+          return self.$h("tr", self.$tr_default_props(), [self.$h("th.left", "Cert")].concat($to_a($send(self.$display_players().$map(), 'with_index', [], function $$178(player, idx){var self = $$178.$$s == null ? this : $$178.$$s, is_active_col = nil, bg_color = nil, num_certs = nil, cell_props = nil, is_last = nil;
             if (self.game == null) self.game = nil;
 
             
@@ -59899,7 +59957,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           if (!$truthy(self.game['$respond_to?']("player_loans"))) {
             return ""
           };
-          return self.$h("tr", self.$tr_default_props(), [self.$h("th.left", "Loans")].concat($to_a($send(self.$display_players().$map(), 'with_index', [], function $$175(p, idx){var self = $$175.$$s == null ? this : $$175.$$s, is_active_col = nil, bg_color = nil, is_last = nil;
+          return self.$h("tr", self.$tr_default_props(), [self.$h("th.left", "Loans")].concat($to_a($send(self.$display_players().$map(), 'with_index', [], function $$179(p, idx){var self = $$179.$$s == null ? this : $$179.$$s, is_active_col = nil, bg_color = nil, is_last = nil;
             if (self.game == null) self.game = nil;
 
             
@@ -59930,7 +59988,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           return (new Map([["style", (new Map([["borderCollapse", "collapse"], ["textAlign", "center"], ["whiteSpace", "nowrap"]]))]]))
         });
         
-        $def(self, '$exec_sell_shares', function $$exec_sell_shares(source_selector, player, target_bundle, corporation_id) {
+        $def(self, '$exec_sell_shares', function $$exec_sell_shares(source_selector, player, target_bundle, _corporation_id) {
           var self = this, bundle = nil, shares = nil, percent = nil;
 
           
@@ -59945,7 +60003,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           return self.$process_action($$$($$$($$('Engine'), 'Action'), 'SellShares').$new(player, (new Map([["bundle", bundle], ["shares", shares], ["share_price", ($truthy(bundle['$respond_to?']("share_price")) ? (bundle.$share_price()) : nil)], ["percent", percent]]))));
         });
         
-        $def(self, '$exec_buy_shares', function $$exec_buy_shares(source_selector, player, bnd, corporation_id) {
+        $def(self, '$exec_buy_shares', function $$exec_buy_shares(source_selector, player, bnd, _corporation_id) {
           var self = this, bundle = nil, shares = nil, percent = nil, share_price = nil;
 
           
@@ -59961,7 +60019,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           return self.$process_action($$$($$$($$('Engine'), 'Action'), 'BuyShares').$new(player, (new Map([["bundle", bundle], ["shares", shares], ["share_price", share_price], ["percent", percent]]))));
         });
         
-        $def(self, '$exec_buy_shares_simple', function $$exec_buy_shares_simple(source_selector, player, bnd, corporation_id) {
+        $def(self, '$exec_buy_shares_simple', function $$exec_buy_shares_simple(source_selector, player, bnd, _corporation_id) {
           var self = this, bundle = nil, shares = nil, percent = nil, share_price = nil;
 
           
@@ -60012,11 +60070,11 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
 
           
           menu_elements = [self.$h("div", (new Map([["style", (new Map([["fontSize", "0.75rem"], ["fontWeight", "bold"], ["marginBottom", "0.4rem"], ["color", "#333"], ["whiteSpace", "nowrap"]]))]])), title)];
-          $send(options, 'each', [], function $$176(opt){var self = $$176.$$s == null ? this : $$176.$$s;
+          $send(options, 'each', [], function $$180(opt){var self = $$180.$$s == null ? this : $$180.$$s;
 
             
             if (opt == null) opt = nil;
-            return menu_elements['$<<'](self.$h("button", (new Map([["style", (new Map([["display", "block"], ["width", "100%"], ["marginBottom", "0.2rem"], ["cursor", "pointer"], ["fontSize", "0.75rem"], ["fontWeight", "bold"], ["padding", "3px 6px"], ["backgroundColor", "#ffffff"], ["border", "1px solid #cc0000"], ["borderRadius", "3px"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$177(event){
+            return menu_elements['$<<'](self.$h("button", (new Map([["style", (new Map([["display", "block"], ["width", "100%"], ["marginBottom", "0.2rem"], ["cursor", "pointer"], ["fontSize", "0.75rem"], ["fontWeight", "bold"], ["padding", "3px 6px"], ["backgroundColor", "#ffffff"], ["border", "1px solid #cc0000"], ["borderRadius", "3px"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$181(event){
               
               if (event == null) event = nil;
               event.stopPropagation();
@@ -60025,7 +60083,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
               } else {
                 return opt['$[]']("action").$call(event)
               };})]]))]])), opt['$[]']("label")));}, {$$s: self});
-          menu_elements['$<<'](self.$h("button", (new Map([["style", (new Map([["display", "block"], ["width", "100%"], ["cursor", "pointer"], ["fontSize", "0.75rem"], ["padding", "3px 6px"], ["backgroundColor", "#e0e0e0"], ["border", "1px solid #999"], ["borderRadius", "3px"], ["marginTop", "0.2rem"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$178(event){
+          menu_elements['$<<'](self.$h("button", (new Map([["style", (new Map([["display", "block"], ["width", "100%"], ["cursor", "pointer"], ["fontSize", "0.75rem"], ["padding", "3px 6px"], ["backgroundColor", "#e0e0e0"], ["border", "1px solid #999"], ["borderRadius", "3px"], ["marginTop", "0.2rem"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$182(event){
             
             if (event == null) event = nil;
             event.stopPropagation();
@@ -60038,7 +60096,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
         });
         self.$private();
         
-        $def(self, '$has_treasury_column?', function $DashboardGameStatus_has_treasury_column$ques$179() {
+        $def(self, '$has_treasury_column?', function $DashboardGameStatus_has_treasury_column$ques$183() {
           var self = this, storage_key = nil, treasury_required = nil, $ret_or_1 = nil;
 
           
@@ -60088,10 +60146,10 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           };
         });
         
-        $def(self, '$any_reserved_shares?', function $DashboardGameStatus_any_reserved_shares$ques$180() {
+        $def(self, '$any_reserved_shares?', function $DashboardGameStatus_any_reserved_shares$ques$184() {
           var self = this;
 
-          return $send(self.game.$all_corporations(), 'any?', [], function $$181(c){var self = $$181.$$s == null ? this : $$181.$$s;
+          return $send(self.game.$all_corporations(), 'any?', [], function $$185(c){var self = $$185.$$s == null ? this : $$185.$$s;
 
             
             if (c == null) c = nil;
@@ -63882,7 +63940,7 @@ Opal.modules["view/game/dashboard/dashboard_stock"] = function(Opal) {/* Generat
 Opal.modules["view/game/dashboard/dashboard_stock_market"] = function(Opal) {/* Generated by Opal 1.8.3 */
   var $module = Opal.module, $defs = Opal.defs, $klass = Opal.klass, $const_set = Opal.const_set, $rb_times = Opal.rb_times, $rb_plus = Opal.rb_plus, $rb_minus = Opal.rb_minus, $rb_divide = Opal.rb_divide, $send = Opal.send, $def = Opal.def, $to_a = Opal.to_a, $truthy = Opal.truthy, $rb_gt = Opal.rb_gt, $not = Opal.not, $eqeq = Opal.eqeq, $rb_lt = Opal.rb_lt, $to_ary = Opal.to_ary, $eqeqeq = Opal.eqeqeq, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,include,needs,freeze,*,+,-,/,-@,reject,to_proc,color_for,max,map,first,market,stock_market,sum,active_corporations,corporations,[],corporation_size,include?,class,>,size,!,intersect?,&,merge,[]=,==,acquisition?,h,type,price,operating?,round,index,entities,current_entity,<,id,logo_for_user,name,operated?,setting_for,players,owner,player_colors,nil?,color,each,data,token_props,box_style_1d,box_height_1d,normal_movement?,grid_1d_price,empty?,market_par_bars,<<,par_bars,cell_style,types,shift,ceil,each_with_index,info,even?,last,sqrt,with_index,to_s,reverse,token_svgs,points,cell_style_hex,each_cons,right_ledge?,zero?,compact,simple_logo,logo,const_defined?,flatten,coordinates,select,sort_by,to_sym,===,contrast_on,merge!,respond_to?,show_progress_bar?,timeline,flat_map,progress_information,round_counter,timeline_cell_props,install_marker_pulse,capture_pre_render,hex_market?,grid_hex,one_d?,zigzag,grid_zigzag,grid_1d,grid_2d,render_legend,animate_movements,par_chart,loan_chart,render_timeline');
+  Opal.add_stubs('require,include,needs,freeze,*,+,-,/,-@,reject,to_proc,color_for,max,map,first,market,stock_market,sum,active_corporations,corporations,[],corporation_size,include?,class,>,size,!,intersect?,&,merge,[]=,==,acquisition?,h,type,price,operating?,round,index,entities,current_entity,<,id,logo_for_user,name,operated?,setting_for,players,owner,player_colors,nil?,color,each,token_props,box_style_1d,box_height_1d,normal_movement?,grid_1d_price,empty?,market_par_bars,<<,par_bars,cell_style,types,shift,ceil,each_with_index,info,even?,last,sqrt,with_index,to_s,reverse,token_svgs,points,cell_style_hex,each_cons,right_ledge?,zero?,compact,simple_logo,logo,const_defined?,flatten,coordinates,select,sort_by,to_sym,===,contrast_on,merge!,respond_to?,show_progress_bar?,timeline,flat_map,progress_information,round_counter,timeline_cell_props,install_marker_pulse,capture_pre_render,hex_market?,grid_hex,one_d?,zigzag,grid_zigzag,grid_1d,grid_2d,render_legend,animate_movements,par_chart,loan_chart,render_timeline');
   
   self.$require("lib/settings");
   self.$require("lib/hex");
@@ -64219,18 +64277,14 @@ Opal.modules["view/game/dashboard/dashboard_stock_market"] = function(Opal) {/* 
             under_shape = [self.$h("circle", (new Map([["attrs", (new Map([["cx", 0], ["cy", 0], ["stroke", border_color], ["stroke-width", 2], ["fill", "transparent"], ["r", "" + ($rb_divide(width, 2)) + "px"]]))]])))]
           };
           g_props = (new Map([["attrs", (new Map([["transform", "translate(" + (x_translation) + ",0)"], ["class", "stock-market-token"], ["data-corp", corporation.$id()]]))], ["style", (new Map([["cursor", "pointer"], ["pointerEvents", "auto"]]))]]));
-          $send(under_shape, 'each', [], function $$5(node){var $a, $logical_op_recvr_tmp_1 = nil, $ret_or_1 = nil;
-
+          $send(under_shape, 'each', [], function $$5(node){
             
             if (node == null) node = nil;
             
-            $logical_op_recvr_tmp_1 = node.$data();
-            if ($truthy(($ret_or_1 = $logical_op_recvr_tmp_1['$[]']("attrs")))) {
-              $ret_or_1
-            } else {
-              $logical_op_recvr_tmp_1['$[]=']("attrs", (new Map()))
-            };;
-            return ($a = ["pointer-events", "none"], $send(node.$data()['$[]']("attrs"), '[]=', $a), $a[$a.length - 1]);});
+            if (!node.data) node.data = {};
+            if (!node.data.attrs) node.data.attrs = {};
+            node.data.attrs['pointer-events'] = 'none';
+          ;});
           return self.$h("g", g_props, [self.$h("image", props)].concat($to_a(under_shape)));
         }, -2);
         
