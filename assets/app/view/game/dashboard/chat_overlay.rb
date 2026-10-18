@@ -184,7 +184,10 @@ module View
           )
 
           store(:chat_input, '')
-          update
+          # // --- DELETE --- update
+          # // --- START FIX ---
+          close_overlay
+          # // --- END FIX ---
         end
 
         def handle_input(event)

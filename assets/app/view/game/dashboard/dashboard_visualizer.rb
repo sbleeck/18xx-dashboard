@@ -579,9 +579,15 @@ module View
         ]
 
         if pid == 'map-panel-bot'
+          is_meme_active = [true, 'true'].include?(Lib::Storage['show_meme_revenue'])
+          meme_btn_style = button_style.merge(
+            backgroundColor: is_meme_active ? '#10b981' : '#ffffff',
+            color: is_meme_active ? '#ffffff' : '#333333',
+            borderColor: is_meme_active ? '#059669' : '#999999'
+          )
           buttons << h(:button, {
                          attrs: { id: 'meme-revenue-toggle-btn', title: 'Toggle large route revenue numbers', type: 'button' },
-                         style: button_style,
+                         style: meme_btn_style,
                          on: { click: -> { `window.__toggleMemeRevenue && window.__toggleMemeRevenue()` } },
                        }, '$')
         end
