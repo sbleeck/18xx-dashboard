@@ -326,7 +326,7 @@ module View
           )
         end
 
-# // --- START FIX ---
+        # // --- START FIX ---
         def selectable_targets
           # In a Stock Round (e.g. 1817 IPO auction), an auction is already
           # bound to a single corporation via step.auctioning; do not mount
@@ -475,14 +475,22 @@ module View
           stored = Lib::Storage[price_key]
           stored_signature = Lib::Storage[signature_key]
 
-          current_price = stored.to_i
-          invalid_stored = stored.nil? || stored_signature != signature || current_price < min_bid || current_price > max_bid || (current_price % PRICE_STEP != 0)
-          current_price = min_bid if invalid_stored
+          current_price = stored.nil? ? min_bid : stored.to_i
+          invalid_signature = stored_signature != signature
+          current_price = if stored.nil? || invalid_signature
+                            min_bid
+                          else
+                            [current_price, max_bid].min
+                          end
 
-          set_price = lambda do |raw|
+          set_price = lambda do |raw, clamp: true|
             value = raw.to_i
-            value = min_bid if value < min_bid
-            value = max_bid if value > max_bid
+            if clamp
+              value = min_bid if value < min_bid
+              value = max_bid if value > max_bid
+            elsif value > max_bid
+              value = max_bid
+            end
             Lib::Storage[price_key] = value
             Lib::Storage[signature_key] = signature
             update
@@ -586,15 +594,15 @@ module View
                     },
                     style: { width: '6rem', height: '1.85rem', boxSizing: 'border-box', fontFamily: FONT_MONEY, fontSize: '1rem', fontWeight: 'bold', color: '#4c1d95', textAlign: 'right' },
                     on: {
-                      input: ->(event) { set_price.call(`#{event}.target.value`) },
-                      change: ->(event) { set_price.call(`#{event}.target.value`) },
+                      input: ->(event) { set_price.call(`#{event}.target.value`, clamp: false) },
+                      change: ->(event) { set_price.call(`#{event}.target.value`, clamp: true) },
                       keydown: ->(event) { submit_bid.call if `#{event}.key` == 'Enter' },
                     },
                   }),
                 h(:button, {
                     attrs: { disabled: minus_disabled },
                     style: button.merge(cursor: minus_disabled ? 'not-allowed' : 'pointer', color: minus_disabled ? '#94a3b8' : '#0f172a'),
-                    on: minus_disabled ? {} : { click: -> { set_price.call(current_price - PRICE_STEP) } },
+                    on: minus_disabled ? {} : { click: -> { set_price.call(current_price - PRICE_STEP, clamp: true) } },
                   }, '-5'),
                 h(:button, {
                     attrs: { disabled: plus_disabled },

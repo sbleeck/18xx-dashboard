@@ -2513,7 +2513,7 @@ module View
                       100
                     end
           min_bid = min_bid.to_i
-          min_bid = 100 if min_bid < 100 && !auction_corp
+          min_bid = 0 if min_bid.negative?
 
           max_bid = if step.respond_to?(:max_bid)
                       begin
@@ -2530,19 +2530,22 @@ module View
                     else
                       entity.respond_to?(:cash) ? entity.cash.to_i : 400
                     end
-          max_bid = [max_bid.to_i, 400].min unless auction_corp
+          max_bid = max_bid.to_i
           max_bid = min_bid if max_bid < min_bid
 
           price_key = "bid_price_#{corporation.id}"
           stored_price = Lib::Storage[price_key]
           current_bid = stored_price.nil? ? min_bid : stored_price.to_i
-          current_bid = [[current_bid, min_bid].max, max_bid].min
-
-          set_price = lambda do |value|
-            value = value.to_i
-            value = min_bid if value < min_bid
-            value = max_bid if value > max_bid
-            Lib::Storage[price_key] = value
+          current_bid = [current_bid, max_bid].min
+          set_price = lambda do |value, clamp: true|
+            val = value.to_i
+            if clamp
+              val = min_bid if val < min_bid
+              val = max_bid if val > max_bid
+            elsif val > max_bid
+              val = max_bid
+            end
+            Lib::Storage[price_key] = val
             update
           end
 
@@ -2591,22 +2594,56 @@ module View
           if actions.include?('bid')
             minus_disabled = current_bid <= min_bid
             plus_disabled = current_bid + 5 > max_bid
+            bid_disabled = current_bid < min_bid || current_bid > max_bid || (current_bid % 5) != 0
             children << h(:button, {
                             attrs: { disabled: minus_disabled },
                             style: button_style.merge(cursor: minus_disabled ? 'not-allowed' : 'pointer', color: minus_disabled ? '#94a3b8' : '#0f172a'),
-                            on: minus_disabled ? {} : { click: -> { set_price.call(current_bid - 5) } },
+                            on: minus_disabled ? {} : { click: -> { set_price.call(current_bid - 5, clamp: true) } },
                           }, '-5')
-            children << h(:span, {
-                            style: { minWidth: '4.4rem', textAlign: 'center', fontFamily: FONT_MONEY, color: COLOR_MONEY, fontSize: '1.1rem', fontWeight: 'bold' },
-                          }, @game.format_currency(current_bid))
+            children << h(:input, {
+                            attrs: {
+                              type: 'number',
+                              min: min_bid,
+                              max: max_bid,
+                              step: 5,
+                              value: current_bid.to_s,
+                              inputmode: 'numeric',
+                              'aria-label': 'Bid amount',
+                            },
+                            style: {
+                              width: '5.5rem',
+                              height: '1.85rem',
+                              boxSizing: 'border-box',
+                              fontFamily: FONT_MONEY,
+                              color: COLOR_MONEY,
+                              fontSize: '1rem',
+                              fontWeight: 'bold',
+                              textAlign: 'right',
+                              padding: '0 6px',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '4px',
+                            },
+                            on: {
+                              input: ->(event) { set_price.call(`#{event}.target.value`, clamp: false) },
+                              change: ->(event) { set_price.call(`#{event}.target.value`, clamp: true) },
+                              keydown: ->(event) { place_bid.call if `#{event}.key` == 'Enter' },
+                            },
+                          })
             children << h(:button, {
                             attrs: { disabled: plus_disabled },
                             style: button_style.merge(cursor: plus_disabled ? 'not-allowed' : 'pointer', color: plus_disabled ? '#94a3b8' : '#0f172a'),
-                            on: plus_disabled ? {} : { click: -> { set_price.call(current_bid + 5) } },
+                            on: plus_disabled ? {} : { click: -> { set_price.call(current_bid + 5, clamp: true) } },
                           }, '+5')
             children << h(:button, {
-                            style: button_style.merge(backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #1d4ed8'),
-                            on: { click: place_bid },
+                            attrs: { disabled: bid_disabled },
+                            style: button_style.merge(
+                              backgroundColor: bid_disabled ? '#94a3b8' : '#2563eb',
+                              color: '#ffffff',
+                              border: bid_disabled ? '1px solid #94a3b8' : '1px solid #1d4ed8',
+                              cursor: bid_disabled ? 'not-allowed' : 'pointer',
+                            ),
+                            on: bid_disabled ? {} : { click: place_bid },
+
                           }, "Bid on #{corporation.name} (#{@game.format_currency(current_bid)})")
           end
 
@@ -3002,14 +3039,17 @@ try {
           price_key = "acq_bid_price_#{target.id}"
           stored_price = Lib::Storage[price_key]
           current_bid = stored_price.nil? ? min_bid : stored_price.to_i
-          current_bid = [[current_bid, min_bid].max, max_bid].min
-          current_bid = current_bid.to_i
+          current_bid = [current_bid, max_bid].min.to_i
 
-          set_price = lambda do |val|
-            val = val.to_i
-            val = min_bid if val < min_bid
-            val = max_bid if val > max_bid
-            Lib::Storage[price_key] = val
+          set_price = lambda do |val, clamp: true|
+            v = val.to_i
+            if clamp
+              v = min_bid if v < min_bid
+              v = max_bid if v > max_bid
+            elsif v > max_bid
+              v = max_bid
+            end
+            Lib::Storage[price_key] = v
             update
           end
 
@@ -3036,7 +3076,7 @@ try {
 
           minus_disabled = current_bid <= min_bid
           plus_disabled = current_bid + inc > max_bid
-
+          bid_disabled = current_bid < min_bid || current_bid > max_bid
           minus_btn = h(:button, {
                           attrs: { disabled: minus_disabled },
                           style: button_style.merge(cursor: minus_disabled ? 'not-allowed' : 'pointer', color: minus_disabled ? '#94a3b8' : '#0f172a'),
@@ -3049,13 +3089,44 @@ try {
                          on: plus_disabled ? {} : { click: -> { set_price.call(current_bid + inc) } },
                        }, "+#{inc}")
 
-          price_display = h(:span, {
-                              style: { minWidth: '4.4rem', textAlign: 'center', fontFamily: FONT_MONEY, color: COLOR_MONEY, fontSize: '1rem', fontWeight: 'bold' },
-                            }, @game.format_currency(current_bid))
-
+          price_display = h(:input, {
+                              attrs: {
+                                type: 'number',
+                                min: min_bid,
+                                max: max_bid,
+                                step: inc,
+                                value: current_bid.to_s,
+                                inputmode: 'numeric',
+                                'aria-label': 'Bid amount',
+                              },
+                              style: {
+                                width: '5.5rem',
+                                height: '1.85rem',
+                                boxSizing: 'border-box',
+                                fontFamily: FONT_MONEY,
+                                color: COLOR_MONEY,
+                                fontSize: '1rem',
+                                fontWeight: 'bold',
+                                textAlign: 'right',
+                                padding: '0 6px',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '4px',
+                              },
+                              on: {
+                                input: ->(event) { set_price.call(`#{event}.target.value`, clamp: false) },
+                                change: ->(event) { set_price.call(`#{event}.target.value`, clamp: true) },
+                                keydown: ->(event) { place_bid.call if `#{event}.key` == 'Enter' },
+                              },
+                            })
           submit_btn = h(:button, {
-                           style: button_style.merge(backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #1d4ed8'),
-                           on: { click: place_bid },
+                           attrs: { disabled: bid_disabled },
+                           style: button_style.merge(
+                             backgroundColor: bid_disabled ? '#94a3b8' : '#2563eb',
+                             color: '#ffffff',
+                             border: bid_disabled ? '1px solid #94a3b8' : '1px solid #1d4ed8',
+                             cursor: bid_disabled ? 'not-allowed' : 'pointer',
+                           ),
+                           on: bid_disabled ? {} : { click: place_bid },
                          }, 'Place Bid')
 
           target_badge = render_major_railcard(
@@ -3241,7 +3312,6 @@ try {
             return render_par_step(step, step&.current_entity || current_entity, pending_corp) if pending_corp
           end
 
-          # // --- START FIX ---
           is_stock_round = (@game.round.respond_to?(:stock?) && @game.round.stock?) ||
                            @game.round.is_a?(Engine::Round::Stock)
 
@@ -3295,12 +3365,6 @@ try {
 
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%' } }, stock_components.compact)
             end
-          # // --- END FIX ---
-          when Engine::Round::Operating
-            is_pure_merger_step = step.class.name =~ /Merge/i ||
-                                   (actions.include?('merge') && (actions & %w[lay_tile place_token run_routes dividend buy_train]).empty?)
-          # ... (rest of the method) ...
-
           when Engine::Round::Operating
             is_pure_merger_step = step.class.name =~ /Merge/i ||
                                    (actions.include?('merge') && (actions & %w[lay_tile place_token run_routes dividend buy_train]).empty?)
@@ -3334,7 +3398,6 @@ try {
               # currently possible while the map shows WHERE the action can happen.
               components << render_buy_tokens(step, step&.current_entity || current_entity) if actions.include?('buy_token')
 
-              # // --- START FIX ---
               rendered_issue_entities = []
               corporate_action_entities.each do |action_entity, _entity_actions|
                 action_step = active_step_for(action_entity) || step
@@ -3404,7 +3467,6 @@ try {
                 corporation_or_minor?(acting_entity)
                   components << h(CorporateBuyShares)
                 end
-              # // --- END FIX ---
               elsif actions.include?('corporate_sell_shares')
                 components << h(CorporateSellShares)
               elsif actions.include?('swap_train')
