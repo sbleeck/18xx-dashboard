@@ -2761,9 +2761,13 @@ window.recalcAllPanels = function() {
                        var chatBubble = document.getElementById('dashboard-chat-popup-bubble');
                      if (chatBubble) chatBubble.remove();
                    )
+                         `document.body.style.overflow = ''`
+                         `document.body.style.margin = ''`
+                         `document.body.style.padding = ''`
+
                          `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '' })`
 
-                         `document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' })`
+                         `document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: '', flexDirection: '', overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' })`
                        },
             },
             attrs: {
