@@ -698,62 +698,27 @@ module View
             choice_node = render_generic_choice(step, entity)
             return choice_node if choice_node
           end
-
-          unhandled = unhandled_actions(actions, %w[pass undo redo])
+          supported = %w[
+            pass undo redo bankrupt lay_tile place_token hex_token buy_token
+            run_routes dividend payout withhold half split
+            buy_train sell_train discard_train swap_train borrow_train buy_power
+            scrap_train surrender_train surrender
+            issue issue_shares reissue reissue_shares redeem redeem_shares
+            buy_shares sell_shares corporate_buy_shares corporate_sell_shares
+            take_loan payoff_loan buy_company acquire_company
+            corporate_sell_company corporate_buy_company
+            choose assign special_buy convert switch_trains reassign_trains
+            double_head_trains combined_trains merge view_merge_options buy_corporation
+            par bid
+          ]
+          unhandled = unhandled_actions(actions, supported)
           return nil if unhandled.empty?
 
           step_desc = step.respond_to?(:description) && step.description ? step.description : step.class.name.to_s.split('::').last
-          missing_str = unhandled.join(', ')
-
-          warning_banner = h(:div, {
-                               style: {
-                                 width: '100%',
-                                 padding: '0.5rem 0.75rem',
-                                 marginBottom: '0.5rem',
-                                 backgroundColor: '#fef3c7',
-                                 border: '2px solid #f59e0b',
-                                 borderRadius: '6px',
-                                 color: '#92400e',
-                                 fontSize: '0.85rem',
-                                 fontWeight: 'bold',
-                                 boxSizing: 'border-box',
-                               },
-                             }, "⚠️ Action not yet implemented in Dashboard UI: [#{missing_str}] (Step: #{step_desc}). Showing standard game controls below:")
-
-          standard_view = begin
-            case @game.round
-            when Engine::Round::Stock
-              defined?(View::Game::Round::Stock) ? h(View::Game::Round::Stock, game: @game) : nil
-            when Engine::Round::Operating
-              defined?(View::Game::Round::Operating) ? h(View::Game::Round::Operating, game: @game) : nil
-            when Engine::Round::Merger
-              defined?(View::Game::Round::Merger) ? h(View::Game::Round::Merger, game: @game) : nil
-            when Engine::Round::Auction
-              defined?(View::Game::Round::Auction) ? h(View::Game::Round::Auction, game: @game, user: @user) : nil
-            when Engine::Round::Choices
-              defined?(View::Game::Round::Choices) ? h(View::Game::Round::Choices, game: @game) : nil
-            else
-              if @game.round.respond_to?(:unordered?) && @game.round.unordered? && defined?(View::Game::Round::Unordered)
-                h(View::Game::Round::Unordered, game: @game, user: @user)
-              elsif defined?(View::Game::Round::Operating)
-                h(View::Game::Round::Operating, game: @game)
-              end
-            end
-          rescue StandardError => e
-            h(:div, { style: { color: '#dc2626', fontSize: '0.82rem' } }, "Standard fallback error: #{e.message}")
-          end
-
-          h(:div, {
-              style: {
-                display: 'flex',
-                flexDirection: 'column',
-                width: '100%',
-                boxSizing: 'border-box',
-              },
-            }, [warning_banner, standard_view].compact)
+          h(:div, { style: { width: '100%', padding: '0.5rem 0.75rem', marginBottom: '0.5rem', backgroundColor: '#fef3c7', border: '2px solid #f59e0b', borderRadius: '6px', color: '#92400e', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' } },
+            "⚠️ Unsupported Dashboard action: [#{unhandled.join(', ')}] (Step: #{step_desc})")
         end
 
-        # // --- END FIX ---
         def render_zone3_abilities(entity)
           return nil unless entity
 
@@ -4123,80 +4088,7 @@ try {
 
             zone_2_content << ground_truth_actions if ground_truth_actions
 
-            # A reminder must never replace the real OR object controls. Specialised
-            # Operating round subclasses can miss the exact Engine::Round::Operating
-            # case above, so restore train/private controls from the effective step.
-            if is_operating_round
-              operating_entity = step&.current_entity || entity
-
-              # Preserve all corporation share actions in the OR. These are real
-              # clickable controls, not possibility reminders. Use the effective
-              # entity action list as well as the round-level action list because
-              # 1817-style corporate share actions may be exposed on the corporation.
-              operating_entity_actions = actions_for(operating_entity).compact.map(&:to_s).uniq
-              share_actions = (actions + operating_entity_actions).compact.map(&:to_s).uniq
-              if (share_actions & %w[
-                    issue issue_shares reissue reissue_shares
-                    redeem redeem_shares
-                    corporate_buy_shares corporate_sell_shares
-                    buy_shares sell_shares
-                  ]).any?
-                share_controls = render_issue_shares(step, operating_entity)
-                zone_2_content << share_controls if share_controls
-              end
-
-              if actions.include?('buy_train')
-                train_controls = render_buyable_trains(step, operating_entity)
-                zone_2_content << train_controls if train_controls
-              end
-
-              if (share_actions & %w[take_loan payoff_loan]).any?
-                loan_controls = render_loan_actions(step, operating_entity, share_actions)
-                zone_2_content << loan_controls if loan_controls
-              end
-
-              if share_actions.include?('buy_token')
-                token_controls = render_buy_tokens(step, operating_entity)
-                zone_2_content << token_controls if token_controls
-              end
-
-              if share_actions.include?('discard_train')
-                discard_controls = render_discard_trains(step, operating_entity)
-                zone_2_content << discard_controls if discard_controls
-              end
-
-              # Less-common OR controls that were previously reachable only through
-              # the exact Operating-round dispatch must remain reachable too.
-              zone_2_content << h(BuyPower) if share_actions.include?('buy_power')
-              zone_2_content << h(BorrowTrain) if share_actions.include?('borrow_train')
-              zone_2_content << h(SwapTrain) if share_actions.include?('swap_train')
-              zone_2_content << h(AcquireCompanies) if share_actions.include?('acquire_company')
-              zone_2_content << h(CorporateSellCompanies) if share_actions.include?('corporate_sell_company')
-              zone_2_content << h(CorporateBuyCompanies) if share_actions.include?('corporate_buy_company')
-              if (share_actions & %w[scrap_train surrender_train surrender]).any?
-                surrender_controls = render_surrender_trains(share_actions, step, operating_entity)
-                zone_2_content << surrender_controls if surrender_controls
-              end
-              zone_2_content << h(ViewMergeOptions, corporation: operating_entity) if share_actions.include?('view_merge_options')
-
-              can_buy_companies_here = actions.include?('buy_company')
-              can_buy_companies_here ||= begin
-                step&.respond_to?(:buyable_companies) && step.buyable_companies(operating_entity)&.any?
-              rescue StandardError
-                false
-              end
-              can_buy_companies_here ||= step&.respond_to?(:can_buy_company?) && (@game.companies || []).any? do |company|
-                step.can_buy_company?(operating_entity, company)
-              rescue StandardError
-                false
-              end
-              if can_buy_companies_here
-                private_controls = render_buyable_companies(step, operating_entity)
-                zone_2_content << private_controls if private_controls
-              end
-            end
           end
-
           zone_2 = h(:div, {
                        style: {
                          flex: '1 1 auto',
