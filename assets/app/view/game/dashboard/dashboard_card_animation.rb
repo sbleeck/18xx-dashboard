@@ -33,6 +33,9 @@ module Lib
       %x{
     if (typeof window === 'undefined') return;
 
+    var dashboardRoot = document.getElementById('viz-master-frame');
+    if (!dashboardRoot) return;
+
     var actId = #{current_id};
     var gameId = #{(game.respond_to?(:id) && game.id ? game.id : 'default')};
 
@@ -112,10 +115,10 @@ module Lib
         var findElement = function(selector) {
           if (!selector) return null;
 
-          var el = document.querySelector(selector);
+          var el = dashboardRoot.querySelector(selector);
 
           if (!el && selector.indexOf(' ') !== -1) {
-            el = document.querySelector(selector.split(' ')[0]);
+            el = dashboardRoot.querySelector(selector.split(' ')[0]);
           }
 
           return el;
@@ -341,7 +344,7 @@ module Lib
           'transform 0.55s cubic-bezier(0.2,0.9,0.3,1), ' +
           'opacity 0.15s ease-out';
 
-        document.body.appendChild(flying);
+        dashboardRoot.appendChild(flying);
 
         /*
          * Force the initial position to be painted.
@@ -445,13 +448,13 @@ module Lib
                  (bundle&.respond_to?(:shares) ? bundle.shares : [])
                end
 
-      corp = if bundle&.respond_to?(:corporation) && bundle.corporation
+      corp = if bundle&.respond_to?(:corporation) && bundle&.corporation
                bundle.corporation
              elsif action.respond_to?(:corporation) && action.corporation
                action.corporation
              elsif shares.any? && shares.first.respond_to?(:corporation) && shares.first.corporation
                shares.first.corporation
-             elsif entity&.respond_to?(:corporation?) && entity.corporation?
+             elsif entity&.respond_to?(:corporation?) && entity&.corporation?
                entity
              end
       corp_id = corp&.id
@@ -494,7 +497,7 @@ module Lib
                   elsif shares.any?
                     shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
                   else
-                    corp&.respond_to?(:share_percent) && corp.share_percent ? corp.share_percent : 10
+                    corp&.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
                   end
             pct = 10 if pct.to_i <= 0
             delta = pct
@@ -564,7 +567,7 @@ module Lib
                   elsif shares.any?
                     shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
                   else
-                    corp&.respond_to?(:share_percent) && corp.share_percent ? corp.share_percent : 10
+                    corp&.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
                   end
             pct = 10 if pct.to_i <= 0
             delta = pct
@@ -660,7 +663,7 @@ module Lib
                 elsif action.respond_to?(:percent) && action.percent
                   action.percent
                 else
-                  corp&.respond_to?(:share_percent) && corp.share_percent ? corp.share_percent : 10
+                  corp&.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
                 end
           pct = 10 if pct.to_i <= 0
           delta = pct
@@ -690,7 +693,7 @@ module Lib
                 elsif action.respond_to?(:percent) && action.percent
                   action.percent
                 else
-                  corp&.respond_to?(:share_percent) && corp.share_percent ? corp.share_percent : 10
+                  corp&.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
                 end
           pct = 10 if pct.to_i <= 0
           delta = pct
@@ -757,13 +760,13 @@ module Lib
       }
     end
 
-    def self.fly(source_selector, dest_selector, hide_source: false, &block)
+    def self.fly(_source_selector, _dest_selector, hide_source: false)
       # Retained for backwards compatibility if called elsewhere
-      yield if block_given?
+      yield if block
     end
 
-    def self.animate_action(_game, _action_data, &block)
-      yield if block_given?
+    def self.animate_action(_game, _action_data)
+      yield if block
     end
   end
 end

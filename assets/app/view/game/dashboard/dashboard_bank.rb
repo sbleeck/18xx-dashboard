@@ -154,7 +154,7 @@ module View
         [upcoming.first].compact.uniq(&:name)
       end
 
-      def render_train_cells(item, type, index)
+      def render_train_cells(item, type, _index)
         train = item[:train]
         variant_name = item[:variant_name]
         price = item[:price]
@@ -269,36 +269,36 @@ module View
 
       def render
         css = <<~CSS
-          #spreadsheet #bank,
-          #spreadsheet #bank table,
-          #spreadsheet #bank tr,
-          #spreadsheet #bank th,
-          #spreadsheet #bank td,
-          #bank,
-          #bank table,
-          #bank tr,
-          #bank th,
-          #bank td {
+          #viz-master-frame #spreadsheet #bank,
+          #viz-master-frame #spreadsheet #bank table,
+          #viz-master-frame #spreadsheet #bank tr,
+          #viz-master-frame #spreadsheet #bank th,
+          #viz-master-frame #spreadsheet #bank td,
+          #viz-master-frame #bank,
+          #viz-master-frame #bank table,
+          #viz-master-frame #bank tr,
+          #viz-master-frame #bank th,
+          #viz-master-frame #bank td {
             background-color: #{COLOR_BANK_GREEN} !important;
           }
-          #bank.card {
+          #viz-master-frame #bank.card {
             border: 1px solid #9dc6a7 !important;
             background-color: #{COLOR_BANK_GREEN} !important;
             border-radius: 6px !important;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
             overflow: hidden !important;
           }
-          #bank table {
+          #viz-master-frame #bank table {
             border-collapse: collapse !important;
             border: 1px solid #a7d7b8 !important;
             background-color: #{COLOR_BANK_GREEN} !important;
             width: 100% !important;
             margin: 0 !important;
           }
-          #bank table + table {
+          #viz-master-frame #bank table + table {
             margin-top: 4px !important;
           }
-          #bank th, #bank td {
+          #viz-master-frame #bank th, #bank td {
             border: 1px solid #c0e0ca !important;
             vertical-align: middle !important;
             padding: 4px 6px !important;

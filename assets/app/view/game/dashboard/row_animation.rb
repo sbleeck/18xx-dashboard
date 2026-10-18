@@ -12,6 +12,8 @@ module Lib
         prepatch: %x{
           function(oldVnode, vnode) {
             var elm = oldVnode.elm;
+            var dashboardRoot = window.document.getElementById('viz-master-frame');
+            if (!dashboardRoot || !elm || !dashboardRoot.contains(elm)) return;
             if (elm) {
               window.RowAnimCache[#{id}] = elm.getBoundingClientRect();
             }
@@ -20,9 +22,10 @@ module Lib
         postpatch: %x{
           function(oldVnode, vnode) {
             var elm = vnode.elm;
+            var dashboardRoot = window.document.getElementById('viz-master-frame');
             var oldRect = window.RowAnimCache[#{id}];
 
-            if (!elm || !oldRect) return;
+            if (!dashboardRoot || !elm || !dashboardRoot.contains(elm) || !oldRect) return;
 
             delete window.RowAnimCache[#{id}];
 
@@ -68,7 +71,7 @@ module Lib
 
                 tbody.appendChild(clone);
                 overlay.appendChild(tbody);
-                window.document.body.appendChild(overlay);
+                dashboardRoot.appendChild(overlay);
 
                 // 4. Hide the real row while the clone flies
                 elm.style.opacity = '0';

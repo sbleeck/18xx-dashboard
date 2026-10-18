@@ -29,6 +29,8 @@ module Lib
 
               if (!isNaN(oldVal) && !isNaN(newVal) && oldVal !== newVal) {
                 var target = newV.elm;
+                var dashboardRoot = document.getElementById('viz-master-frame');
+                if (!dashboardRoot || !target || !dashboardRoot.contains(target)) return;
                 var delta = newVal - oldVal;
                 var color = delta > 0 ? '#228B22' : '#DC143C'; // Forest Green : Crimson
                 var duration = 500;
@@ -51,7 +53,7 @@ module Lib
                 bubble.style.pointerEvents = 'none';
                 bubble.style.transition = 'transform ' + duration + 'ms ease-out, opacity ' + duration + 'ms ease-out';
 
-                document.body.appendChild(bubble);
+                dashboardRoot.appendChild(bubble);
 
                 window.requestAnimationFrame(function() {
                   bubble.style.transform = 'translate(-50%, -200%)';

@@ -97,21 +97,21 @@ module Lib
 
         var getElm = function(selector, isHex) {
           if (!selector) return null;
-          var el = document.querySelector(selector);
+          var el = dashboardRoot.querySelector(selector);
           if (!el && selector.indexOf(' ') !== -1) {
-            el = document.querySelector(selector.split(' ')[0]);
+            el = dashboardRoot.querySelector(selector.split(' ')[0]);
           }
           if (!el && isHex) {
             var rawHex = selector.replace(/^#hex-/, '');
-            el = document.getElementById('hex-' + rawHex) ||
-                 document.getElementById('hex-' + rawHex.toUpperCase()) ||
-                 document.querySelector('.hex-' + rawHex) ||
-                 document.querySelector('.hex-' + rawHex.toUpperCase());
+            el = dashboardRoot.querySelector('#hex-' + rawHex) ||
+                 dashboardRoot.querySelector('#hex-' + rawHex.toUpperCase()) ||
+                 dashboardRoot.querySelector('.hex-' + rawHex) ||
+                 dashboardRoot.querySelector('.hex-' + rawHex.toUpperCase());
           }
           if (!el && !isHex && selector.indexOf('#tokens_') !== -1) {
             var corp = selector.replace(/^#tokens_/, '');
-            el = document.querySelector('#tokens_cell_' + corp) ||
-                 document.querySelector('#status_major_' + corp);
+            el = dashboardRoot.querySelector('#tokens_cell_' + corp) ||
+                 dashboardRoot.querySelector('#status_major_' + corp);
           }
           return el;
         };
@@ -176,7 +176,7 @@ module Lib
           flying.innerText = activeData.token_text || activeData.corp_id || 'TOK';
         }
 
-        document.body.appendChild(flying);
+        dashboardRoot.appendChild(flying);
 
         var startTime = performance.now();
         var flightDuration = 560;
@@ -332,11 +332,11 @@ module Lib
       entity = action.respond_to?(:entity) ? action.entity : nil
       token = action.respond_to?(:token) ? action.token : nil
 
-      corp = if entity&.respond_to?(:corporation?) && entity.corporation?
+      corp = if entity&.respond_to?(:corporation?) && entity&.corporation?
                entity
-             elsif token&.respond_to?(:corporation) && token.corporation
+             elsif token&.respond_to?(:corporation) && token&.corporation
                token.corporation
-             elsif entity&.respond_to?(:owner) && entity.owner&.respond_to?(:corporation?) && entity.owner.corporation?
+             elsif entity&.respond_to?(:owner) && entity.owner&.respond_to?(:corporation?) && entity.owner&.corporation?
                entity.owner
              else
                entity
@@ -347,11 +347,11 @@ module Lib
       corp_id = corp.respond_to?(:id) ? corp.id.to_s : corp.to_s
 
       city = action.respond_to?(:city) ? action.city : nil
-      hex = if city&.respond_to?(:hex) && city.hex
+      hex = if city&.respond_to?(:hex) && city&.hex
               city.hex
             elsif action.respond_to?(:hex) && action.hex
               action.hex
-            elsif token&.respond_to?(:hex) && token.hex
+            elsif token&.respond_to?(:hex) && token&.hex
               token.hex
             end
 

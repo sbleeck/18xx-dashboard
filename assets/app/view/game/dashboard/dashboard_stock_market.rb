@@ -13,14 +13,16 @@ module View
         %x{
           window._stockMarketTokens = window._stockMarketTokens || {};
 
-          var oldClones = window.document.querySelectorAll('.stock-market-anim-clone');
+          var dashboardRoot = window.document.getElementById('viz-master-frame');
+          if (!dashboardRoot) return;
+          var oldClones = dashboardRoot.querySelectorAll('.stock-market-anim-clone');
           for (var k = 0; k < oldClones.length; k++) {
             if (oldClones[k].parentNode) {
               oldClones[k].parentNode.removeChild(oldClones[k]);
             }
           }
 
-          var tokens = window.document.querySelectorAll('.stock-market-token');
+          var tokens = dashboardRoot.querySelectorAll('.stock-market-token');
           for (var i = 0; i < tokens.length; i++) {
             var token = tokens[i];
             token.style.opacity = '1';
@@ -46,7 +48,9 @@ module View
           window.requestAnimationFrame(function() {
             window.requestAnimationFrame(function() {
               if (!window._stockMarketTokens) return;
-              var newTokens = window.document.querySelectorAll('.stock-market-token');
+              var dashboardRoot = window.document.getElementById('viz-master-frame');
+              if (!dashboardRoot) return;
+              var newTokens = dashboardRoot.querySelectorAll('.stock-market-token');
 
               for (var i = 0; i < newTokens.length; i++) {
                 (function(token) {
@@ -89,7 +93,7 @@ module View
                     clone.style.outlineOffset = '2px';
                     clone.style.borderRadius = '50%';
 
-                    window.document.body.appendChild(clone);
+                    dashboardRoot.appendChild(clone);
                     token.style.opacity = '0';
 
                     var deltaX = curr.left - prev.left;
@@ -821,17 +825,17 @@ module View
               '    filter: drop-shadow(0 0 2px rgba(0, 255, 255, 0.45));' +
               '  }' +
               '}' +
-              '.marker-pulsing {' +
+              '#viz-master-frame .marker-pulsing {' +
               '  animation: marker-pulse-glow 1.1s ease-in-out infinite !important;' +
               '  transform-box: fill-box !important;' +
               '  transform-origin: center center !important;' +
               '  z-index: 99999 !important;' +
               '}' +
-              'div.marker-pulsing, span.marker-pulsing, th.marker-pulsing {' +
+              '#viz-master-frame div.marker-pulsing, #viz-master-frame span.marker-pulsing, #viz-master-frame th.marker-pulsing {' +
               '  display: inline-block !important;' +
               '  position: relative !important;' +
               '}' +
-'.stock-market-token, [id^="stock-token-"], .map-token, .major-corporation-cell, [id^="status_major_"] {' +
+'#viz-master-frame .stock-market-token, #viz-master-frame [id^="stock-token-"], #viz-master-frame .map-token, #viz-master-frame .major-corporation-cell, #viz-master-frame [id^="status_major_"] {' +
               '  cursor: pointer !important;' +
               '  pointer-events: auto !important;' +
               '}';
@@ -887,7 +891,9 @@ if (orderEl) {
           }
 
           function clearPulsing() {
-            var pulsing = window.document.querySelectorAll('.marker-pulsing');
+            var root = window.document.getElementById('viz-master-frame');
+            if (!root) return;
+            var pulsing = root.querySelectorAll('.marker-pulsing');
             for (var i = 0; i < pulsing.length; i++) {
               pulsing[i].classList.remove('marker-pulsing');
             }
@@ -899,7 +905,9 @@ if (orderEl) {
 
             // Pulse Stock Market token if not the trigger
             if (currentType !== 'stock') {
-              var stockTokens = window.document.querySelectorAll(
+              var root = window.document.getElementById('viz-master-frame');
+              if (!root) return;
+              var stockTokens = root.querySelectorAll(
                 '.stock-market-token[data-corp="' + corpId + '"], #stock-token-' + corpId
               );
               for (var s = 0; s < stockTokens.length; s++) {
@@ -909,7 +917,7 @@ if (orderEl) {
 
             // Pulse Map token(s) if not the trigger
             if (currentType !== 'map') {
-              var mapTokens = window.document.querySelectorAll(
+              var mapTokens = root.querySelectorAll(
                 '.map-token-' + corpId + ', .map-token[data-corp="' + corpId + '"]'
               );
               for (var m = 0; m < mapTokens.length; m++) {
@@ -919,11 +927,11 @@ if (orderEl) {
 
             // Pulse Status Table card if not the trigger
             if (currentType !== 'status') {
-              var statusEls = window.document.querySelectorAll(
+              var statusEls = root.querySelectorAll(
                 '#status_major_' + corpId + ', th.major-corporation-cell[data-corp="' + corpId + '"]'
               );
               if (statusEls.length === 0) {
-                var trTh = window.document.querySelector('tr[data-corp="' + corpId + '"] th.major-corporation-cell');
+                var trTh = root.querySelector('tr[data-corp="' + corpId + '"] th.major-corporation-cell');
                 if (trTh) statusEls = [trTh];
               }
               for (var t = 0; t < statusEls.length; t++) {
@@ -931,7 +939,7 @@ if (orderEl) {
               }
             }
               if (currentType !== 'order') {
-  var orderTokens = window.document.querySelectorAll(
+  var orderTokens = root.querySelectorAll(
     '.entity-order-token[data-corp="' + corpId + '"]'
   );
 
@@ -945,6 +953,7 @@ if (orderEl) {
           var activeType = null;
 
           window.document.addEventListener('mouseover', function(e) {
+            if (!e.target || !e.target.closest || !e.target.closest('#viz-master-frame')) return;
             var info = resolveMarker(e.target);
             if (info) {
               if (activeCorp === info.corpId && activeType === info.type) return;
@@ -955,6 +964,7 @@ if (orderEl) {
           }, true);
 
           window.document.addEventListener('mouseout', function(e) {
+            if (!e.target || !e.target.closest || !e.target.closest('#viz-master-frame')) return;
             if (!activeCorp) return;
             var toInfo = resolveMarker(e.relatedTarget);
             if (!toInfo) {

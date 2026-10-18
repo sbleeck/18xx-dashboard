@@ -12,10 +12,10 @@ module View
         COLOR_MONEY = '#4c1d95'
 
         TOOLTIP_CSS = '
-          .cmd-company-tooltip,
-          .status-company-tooltip,
-          .cmd-corp-tooltip,
-          .status-corp-tooltip {
+          #viz-master-frame .cmd-company-tooltip,
+          #viz-master-frame .status-company-tooltip,
+          #viz-master-frame .cmd-corp-tooltip,
+          #viz-master-frame .status-corp-tooltip {
             display: none !important;
           }
         '
@@ -131,10 +131,10 @@ module View
             .cmd-corp-wrapper:hover .status-corp-tooltip,
             .status-corp-wrapper:hover .status-corp-tooltip,
             .status-corp-wrapper:hover .cmd-corp-tooltip,
-            .cmd-company-tooltip,
-            .status-company-tooltip,
-            .cmd-corp-tooltip,
-            .status-corp-tooltip {
+            #viz-master-frame .cmd-company-tooltip,
+            #viz-master-frame .status-company-tooltip,
+            #viz-master-frame .cmd-corp-tooltip,
+            #viz-master-frame .status-corp-tooltip {
               display: none !important;
             }
           ')
@@ -351,7 +351,9 @@ module View
 
         def show_price_dialog(title, min_price, max_price, default_val, on_confirm, on_cancel = nil)
           %x{
-            var existing = document.getElementById('railcard-dialog-portal');
+            var dashboardRoot = document.getElementById('viz-master-frame');
+            if (!dashboardRoot) return;
+            var existing = dashboardRoot.querySelector('#railcard-dialog-portal');
             if (existing) { existing.remove(); }
 
             var overlay = document.createElement('div');
@@ -457,7 +459,7 @@ module View
             };
 
             overlay.appendChild(box);
-            document.body.appendChild(overlay);
+            dashboardRoot.appendChild(overlay);
 
             setTimeout(function() {
               inputEl.focus();
@@ -494,8 +496,6 @@ module View
             build_company_tooltip(entity, price: price)
           elsif minor_entity?(entity) || major_corporation?(entity)
             render_corp_tooltip(entity)
-          else
-            nil
           end
         end
 
@@ -662,7 +662,7 @@ module View
                          end
           available_on = available_on.to_s.sub(/^.*_/, '').capitalize if available_on
 
-          is_obsolete = train&.respond_to?(:obsolete) && train.obsolete
+          is_obsolete = train&.respond_to?(:obsolete) && train&.obsolete
 
           lines = []
 
@@ -1022,6 +1022,8 @@ module View
 
           %x(
           if (typeof window !== 'undefined') {
+            var dashboardRoot = document.getElementById('viz-master-frame');
+            if (!dashboardRoot) return;
           // Single source of truth for synchronized 3-way corporate breathing animation
             var ensureTokenPulseStyle = function() {
               if (!document.getElementById('corp-token-pulse-style')) {
@@ -1037,32 +1039,32 @@ module View
                   '50% { transform: scale(1.15); } ' +
                   '100% { transform: scale(1); } ' +
                   '} ' +
-                  '.stock-market-token, .map-token, .major-railcard, .status-corp-wrapper, .cmd-corp-wrapper, .entity-order-token, .active-turn-corp-marker { ' +
+                  '#viz-master-frame .stock-market-token, .map-token, .major-railcard, .status-corp-wrapper, .cmd-corp-wrapper, .entity-order-token, .active-turn-corp-marker { ' +
                   'transform: scale(1); ' +
                   'transform-origin: center center !important; ' +
                   'transform-box: fill-box !important; ' +
                   'transition: transform 0.22s ease-out, filter 0.22s ease-out !important; ' +
                   '} ' +
-                  '.stock-market-token-highlight { ' +
+                  '#viz-master-frame .stock-market-token-highlight { ' +
                   'animation: corp-breathing-sync 0.85s ease-in-out infinite !important; ' +
                   'transform-origin: center center !important; ' +
                   'transform-box: fill-box !important; ' +
                   'z-index: 999999 !important; ' +
                   'filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 3px #00ffff) !important; ' +
                   '} ' +
-                  '.map-token.stock-market-token-highlight { ' +
+                  '#viz-master-frame .map-token.stock-market-token-highlight { ' +
                   'animation: corp-breathing-sync 0.85s ease-in-out infinite !important; ' +
                   'transform-origin: center center !important; ' +
                   'transform-box: fill-box !important; ' +
                   'filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 4px #00ffff) !important; ' +
                   '} ' +
-                  '.status-corp-highlight { ' +
+                  '#viz-master-frame .status-corp-highlight { ' +
                   'animation: corp-status-card-breathing-sync 0.85s ease-in-out infinite !important; ' +
                   'transform-origin: center center !important; ' +
                   'z-index: 99999 !important; ' +
                   'filter: drop-shadow(0 0 6px rgba(0, 255, 255, 0.8)) !important; ' +
                   '} ' +
-                  ':has(> .stock-market-token-highlight), :has(.stock-market-token-highlight) { z-index: 99999 !important; }';
+                  '#viz-master-frame :has(> .stock-market-token-highlight), #viz-master-frame :has(.stock-market-token-highlight) { z-index: 99999 !important; }';
                 document.head.appendChild(s);
               }
             };
@@ -1077,7 +1079,7 @@ module View
               var safeCorpAttr = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(corpId) : String(corpId).replace(/["\\]/g, '\\$&');
 
               // 1. Highlight stock market tokens
-              var stockTokens = document.querySelectorAll(
+              var stockTokens = dashboardRoot.querySelectorAll(
                 '.stock-market-token[data-corp="' + safeCorpAttr + '"], [id="stock-token-' + safeCorpAttr + '"]'
               );
               for (var i = 0; i < stockTokens.length; i++) {
@@ -1091,7 +1093,7 @@ module View
               }
 
               // 2. Highlight map tokens (use data-corp attribute only to avoid invalid CSS class identifiers like B&O)
-              var mapTokens = document.querySelectorAll(
+              var mapTokens = dashboardRoot.querySelectorAll(
                 '.map-token[data-corp="' + safeCorpAttr + '"], [data-corp="' + safeCorpAttr + '"].map-token'
               );
               for (var j = 0; j < mapTokens.length; j++) {
@@ -1103,7 +1105,7 @@ module View
                 }
               }
 // 3 & 4. Highlight status panel major railcards, Operating Order tokens, and Move Feed badges
-              var statusCards = document.querySelectorAll(
+              var statusCards = dashboardRoot.querySelectorAll(
                 '.major-railcard[data-corp="' + safeCorpAttr + '"], ' +
                 '.status-corp-wrapper[data-corp="' + safeCorpAttr + '"], ' +
                 '.cmd-corp-wrapper[data-corp="' + safeCorpAttr + '"], ' +
@@ -1122,27 +1124,27 @@ module View
                 window._elevatedMarketCell.style.zIndex = '';
                 window._elevatedMarketCell = null;
               }
-              var highlightedTokens = document.querySelectorAll('.stock-market-token-highlight');
+              var highlightedTokens = dashboardRoot.querySelectorAll('.stock-market-token-highlight');
               for (var i = 0; i < highlightedTokens.length; i++) {
                 highlightedTokens[i].classList.remove('stock-market-token-highlight');
               }
-              var highlightedCards = document.querySelectorAll('.status-corp-highlight');
+              var highlightedCards = dashboardRoot.querySelectorAll('.status-corp-highlight');
               for (var j = 0; j < highlightedCards.length; j++) {
                 highlightedCards[j].classList.remove('status-corp-highlight');
               }
             };
 
             if (!window._railcard_portal_installed) {
-              var portal = document.getElementById('railcard-portal');
+              var portal = dashboardRoot.querySelector('#railcard-portal');
               if (!portal) {
                 portal = document.createElement('div');
                 portal.id = 'railcard-portal';
-                document.body.appendChild(portal);
+                dashboardRoot.appendChild(portal);
               }
               portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
 
               var styleEl = document.createElement('style');
-              styleEl.innerHTML = '.short-railcard { background-color: #fee2e2 !important; color: #991b1b !important; } .ghost-short-card { opacity: 0.35 !important; border: 1.5px dotted #dc2626 !important; background-color: transparent !important; box-shadow: none !important; color: #dc2626 !important; } .ghost-short-card:hover { opacity: 0.85 !important; background-color: rgba(254, 226, 226, 0.35) !important; transform: translateY(-1px); }';
+              styleEl.innerHTML = '#viz-master-frame .short-railcard { background-color: #fee2e2 !important; color: #991b1b !important; } #viz-master-frame .ghost-short-card { opacity: 0.35 !important; border: 1.5px dotted #dc2626 !important; background-color: transparent !important; box-shadow: none !important; color: #dc2626 !important; } #viz-master-frame .ghost-short-card:hover { opacity: 0.85 !important; background-color: rgba(254, 226, 226, 0.35) !important; transform: translateY(-1px); }';
               document.head.appendChild(styleEl);
 
               window._railcard_portal_installed = true;
@@ -1191,6 +1193,7 @@ module View
               };
 
               document.addEventListener('mouseover', function(e) {
+                if (!e.target || !e.target.closest || !e.target.closest('#viz-master-frame')) return;
                 var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
                 if (wrapper) {
                   var tt = wrapper.querySelector('.cmd-company-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .status-corp-tooltip');
@@ -1215,6 +1218,7 @@ module View
               });
 
               document.addEventListener('mousemove', function(e) {
+                if (!e.target || !e.target.closest || !e.target.closest('#viz-master-frame')) return;
                 var p = document.getElementById('railcard-portal');
                 if (p && p.style.display !== 'none') {
                   var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
@@ -1227,6 +1231,7 @@ module View
               });
 
               document.addEventListener('mouseout', function(e) {
+                if (!e.target || !e.target.closest || !e.target.closest('#viz-master-frame')) return;
                 var wrapper = e.target.closest && e.target.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
                 if (wrapper) {
                   var related = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.cmd-company-wrapper, .status-company-wrapper, .cmd-corp-wrapper, .status-corp-wrapper');
@@ -1306,12 +1311,13 @@ module View
               };
 
               document.addEventListener('mouseover', function(e) {
+                if (!e.target || !e.target.closest || !e.target.closest('#viz-master-frame')) return;
                 var corpId = getCorpFromElement(e.target);
                 if (corpId) {
                   if (window.highlightStockMarketToken) {
                     window.highlightStockMarketToken(corpId);
                   }
-                } else if (!e.target.closest || !e.target.closest('.stock-market-token, .map-token, .cert-share-card, .major-railcard')) {
+                } else if (!e.target.closest || !e.target.closest('#viz-master-frame .stock-market-token, .map-token, .cert-share-card, .major-railcard')) {
                   if (window.clearStockMarketTokenHighlight) {
                     window.clearStockMarketTokenHighlight();
                   }
@@ -1319,6 +1325,7 @@ module View
               });
 
               document.addEventListener('mouseout', function(e) {
+                if (!e.target || !e.target.closest || !e.target.closest('#viz-master-frame')) return;
                 var fromCorp = getCorpFromElement(e.target);
                 if (fromCorp) {
                   var toCorp = getCorpFromElement(e.relatedTarget);

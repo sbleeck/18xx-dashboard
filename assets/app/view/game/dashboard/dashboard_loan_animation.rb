@@ -9,13 +9,21 @@ module Lib
 
       %x(
         (function() {
+          var dashboardRoot = document.getElementById('viz-master-frame');
+          if (!dashboardRoot) {
+            var cb = #{done};
+            if (cb && typeof cb.$call === 'function') cb.$call();
+            else if (cb && typeof cb.call === 'function') cb.call(null);
+            else if (typeof cb === 'function') cb();
+            return;
+          }
           function resolveNode(selector) {
             if (!selector || selector === '') return null;
             if (selector === 'bank_loans_taken' || selector === '#bank_loan_active') {
-              var bankEl = document.getElementById('bank_loan_active') ||
-                           document.getElementById('bank_loan_btn') ||
-                           document.getElementById('bank') ||
-                           document.getElementById('extra_cards');
+              var bankEl = dashboardRoot.querySelector('#bank_loan_active') ||
+                           dashboardRoot.querySelector('#bank_loan_btn') ||
+                           dashboardRoot.querySelector('#bank') ||
+                           dashboardRoot.querySelector('#extra_cards');
               if (bankEl) return bankEl;
             }
 
@@ -24,17 +32,17 @@ module Lib
               var sel = parts[i].trim();
               if (!sel) continue;
               if (sel === 'bank_loans_taken' || sel === '#bank_loan_active') {
-                var bEl = document.getElementById('bank_loan_active') ||
-                          document.getElementById('bank_loan_btn') ||
-                          document.getElementById('bank');
+                var bEl = dashboardRoot.querySelector('#bank_loan_active') ||
+                          dashboardRoot.querySelector('#bank_loan_btn') ||
+                          dashboardRoot.querySelector('#bank');
                 if (bEl) return bEl;
               }
               if (sel.charAt(0) === '#') {
-                var elById = document.getElementById(sel.slice(1));
+                var elById = dashboardRoot.querySelector(sel);
                 if (elById) return elById;
               }
               try {
-                var elQs = document.querySelector(sel);
+                var elQs = dashboardRoot.querySelector(sel);
                 if (elQs) return elQs;
               } catch (e) {}
             }
@@ -81,7 +89,7 @@ module Lib
           dot.style.zIndex = '999999';
           dot.style.pointerEvents = 'none';
           dot.style.willChange = 'transform, box-shadow';
-          document.body.appendChild(dot);
+          dashboardRoot.appendChild(dot);
 
           var dx = toX - fromX;
           var dy = toY - fromY;

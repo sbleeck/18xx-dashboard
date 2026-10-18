@@ -2744,7 +2744,8 @@ module View
 var el = null;
 
 try {
-  el = document.querySelector(selector);
+  var dashboardRoot = document.getElementById('viz-master-frame');
+  el = dashboardRoot ? dashboardRoot.querySelector(selector) : null;
 } catch (err) {
   el = null;
 }
@@ -3792,10 +3793,10 @@ try {
           entity_id = entity&.id
 
           price_dialog_style = h(:style, {}, '
-            .modal-overlay,
-            .dialog-overlay,
-            .price-dialog-overlay,
-            .snabberb-modal-overlay {
+            #viz-master-frame .modal-overlay,
+            #viz-master-frame .dialog-overlay,
+            #viz-master-frame .price-dialog-overlay,
+            #viz-master-frame .snabberb-modal-overlay {
               background: transparent !important;
               background-color: transparent !important;
               backdrop-filter: none !important;
