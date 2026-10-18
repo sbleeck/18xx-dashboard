@@ -894,18 +894,15 @@ for (var i = 0; i < list.length; i++) {
 
         phase = @game.phase if @game.respond_to?(:phase)
         p_name = phase&.name.to_s if phase
-        p_color = phase&.color.to_s if phase
         t_color = tile_color.to_s if tile_color
 
-       candidates = [
-          p_name,
-          p_name&.to_sym,
-          (p_name.to_i if p_name =~ /^\d+$/),
-          p_color,
-          p_color&.to_sym,
-          t_color,
-          t_color&.to_sym,
-        ].compact
+        candidates = [
+           p_name,
+           p_name&.to_sym,
+           (p_name.to_i if /^\d+$/.match?(p_name)),
+           t_color,
+           t_color&.to_sym,
+         ].compact
 
         candidates.each do |k|
           val = raw[k]
@@ -1030,7 +1027,6 @@ for (var i = 0; i < list.length; i++) {
 
         phase = @game.phase if @game.respond_to?(:phase)
         p_name = phase&.name.to_s if phase
-        p_color = phase&.color.to_s if phase
         t_color = tile_color.to_s if tile_color
 
         # // --- START FIX ---
@@ -1038,8 +1034,6 @@ for (var i = 0; i < list.length; i++) {
           p_name,
           p_name&.to_sym,
           (p_name.to_i if /^\d+$/.match?(p_name)),
-          p_color,
-          p_color&.to_sym,
           t_color,
           t_color&.to_sym,
         ].compact

@@ -56,18 +56,26 @@ module View
       needs :show_meme_revenue, store: true, default: nil
       include Actionable
 
+      def meme_revenue_enabled?
+        return @show_meme_revenue unless @show_meme_revenue.nil?
+
+        [true, 'true'].include?(Lib::Storage['show_meme_revenue'])
+      end
+
       def toggle_meme_revenue
-        new_val = ![true, 'true'].include?(Lib::Storage['show_meme_revenue'])
+        new_val = !meme_revenue_enabled?
+
+        # The component state is the source of truth for this render.
+        @show_meme_revenue = new_val
         Lib::Storage['show_meme_revenue'] = new_val
+        store(:show_meme_revenue, new_val, skip: true)
+
         %x{
           try {
             localStorage.setItem('show_meme_revenue', #{new_val} ? 'true' : 'false');
           } catch(e) {}
-          if (window.__updateMemeBtnState) {
-            window.__updateMemeBtnState();
-          }
         }
-        store(:show_meme_revenue, new_val)
+
         update
       end
 
@@ -594,7 +602,7 @@ module View
         ]
 
         if pid == 'map-panel-bot'
-          is_meme_active = [true, 'true'].include?(Lib::Storage['show_meme_revenue'])
+          is_meme_active = meme_revenue_enabled?
           meme_btn_style = button_style.merge(
             backgroundColor: is_meme_active ? '#10b981' : '#ffffff',
             color: is_meme_active ? '#ffffff' : '#333333',
@@ -2869,7 +2877,7 @@ window.recalcAllPanels = function() {
                       },
                     }, [
                     h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
-h(View::Game::DashboardMap, game: @game, user: @user, show_meme_revenue: [true, 'true'].include?(Lib::Storage['show_meme_revenue'])),
+h(View::Game::DashboardMap, game: @game, user: @user, show_meme_revenue: meme_revenue_enabled?),
                     ]),
                   ]),
                 ]),
