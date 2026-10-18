@@ -2,7 +2,9 @@
 
 module Lib
   module RowAnimation
-    # Create a global cache to store row coordinates before the DOM patches
+    # Row movement animation intentionally uses FLIP on the live row.
+    # It never clones table rows, never hides the live row, and therefore
+    # cannot leave a static Bank/Status snapshot behind after train transfers.
     %x(
       window.RowAnimCache = window.RowAnimCache || {};
     )
@@ -14,9 +16,27 @@ module Lib
             var elm = oldVnode.elm;
             var dashboardRoot = window.document.getElementById('viz-master-frame');
             if (!dashboardRoot || !elm || !dashboardRoot.contains(elm)) return;
-            if (elm) {
-              window.RowAnimCache[#{id}] = elm.getBoundingClientRect();
+
+            // Never animate player rows, the Bank, or non-corporation rows
+            if (!elm.hasAttribute('data-corp') || elm.querySelector('#bank, #extra_cards')) {
+              delete window.RowAnimCache[#{id}];
+              elm.style.transform = '';
+              elm.style.transition = '';
+              elm.style.opacity = '1';
+              return;
             }
+
+            // Suppress row movement animations during active card/train transfers
+            var transferRecent = (Date.now() - (window._railcard_last_transfer_time || 0)) < 1200;
+            if (window._railcard_pending_transfer || window._railcard_pending_source_rect || transferRecent) {
+              delete window.RowAnimCache[#{id}];
+              elm.style.transform = '';
+              elm.style.transition = '';
+              elm.style.opacity = '1';
+              return;
+            }
+
+            window.RowAnimCache[#{id}] = elm.getBoundingClientRect();
           }
         },
         postpatch: %x{
@@ -24,75 +44,46 @@ module Lib
             var elm = vnode.elm;
             var dashboardRoot = window.document.getElementById('viz-master-frame');
             var oldRect = window.RowAnimCache[#{id}];
+            delete window.RowAnimCache[#{id}];
 
             if (!dashboardRoot || !elm || !dashboardRoot.contains(elm) || !oldRect) return;
 
-            delete window.RowAnimCache[#{id}];
+            // Strict safety guard: never transform rows containing or adjacent to the Bank
+            if (!elm.hasAttribute('data-corp') || elm.querySelector('#bank, #extra_cards')) {
+              elm.style.transform = '';
+              elm.style.transition = '';
+              elm.style.opacity = '1';
+              return;
+            }
 
-            // Snabbdom's postpatch fires *before* the parent tbody physically
-            // moves the row with insertBefore. We use a microtask to wait for
-            // the DOM move to finish, but execute before the browser paints.
+            var transferRecent = (Date.now() - (window._railcard_last_transfer_time || 0)) < 1200;
+            if (window._railcard_pending_transfer || window._railcard_pending_source_rect || transferRecent) {
+              elm.style.transform = '';
+              elm.style.transition = '';
+              elm.style.opacity = '1';
+              return;
+            }
+
             Promise.resolve().then(function() {
               var newRect = elm.getBoundingClientRect();
-              var deltaY = newRect.top - oldRect.top;
+              var deltaY = oldRect.top - newRect.top;
+              if (Math.abs(deltaY) <= 1.0) return;
 
-              // Only animate if it actually moved vertically
-              if (Math.abs(deltaY) > 1.0) {
+              elm.style.opacity = '1';
+              elm.style.transition = 'none';
+              elm.style.transform = 'translateY(' + deltaY + 'px)';
+              elm.getBoundingClientRect();
 
-                // 1. Freeze widths of the original cells
-                var cells = elm.children;
-                var widths = [];
-                for(var i = 0; i < cells.length; i++) {
-                  widths.push(cells[i].getBoundingClientRect().width);
-                }
+              window.requestAnimationFrame(function() {
+                elm.style.transition = 'transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                elm.style.transform = 'translateY(0px)';
+              });
 
-                // 2. Create the "GlassPane" floating overlay table
-                var overlay = window.document.createElement('table');
-                overlay.style.position = 'fixed';
-                overlay.style.top = oldRect.top + 'px';
-                overlay.style.left = oldRect.left + 'px';
-                overlay.style.zIndex = '9999';
-                overlay.style.borderCollapse = 'collapse';
-                overlay.style.pointerEvents = 'none';
-
-                // 3. Clone the row into the overlay
-                var tbody = window.document.createElement('tbody');
-                var clone = elm.cloneNode(true);
-
-                var cloneCells = clone.children;
-                for(var i = 0; i < cloneCells.length; i++) {
-                  cloneCells[i].style.width = widths[i] + 'px';
-                  cloneCells[i].style.boxSizing = 'border-box';
-                }
-
-                clone.style.backgroundColor = window.getComputedStyle(elm).backgroundColor || '#ffffff';
-                clone.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
-                clone.style.outline = '2px solid #2563eb';
-
-                tbody.appendChild(clone);
-                overlay.appendChild(tbody);
-                dashboardRoot.appendChild(overlay);
-
-                // 4. Hide the real row while the clone flies
-                elm.style.opacity = '0';
-
-                // 5. Double rAF ensures the browser paints the starting position before transitioning
-                window.requestAnimationFrame(function() {
-                  window.requestAnimationFrame(function() {
-                    overlay.style.transition = 'transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)';
-                    overlay.style.transform = 'translateY(' + deltaY + 'px)';
-                  });
-                });
-
-                // 6. Cleanup
-                setTimeout(function() {
-                  if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-                  elm.style.transition = 'opacity 0.1s ease-in';
-                  elm.style.opacity = '1';
-
-                  setTimeout(function() { elm.style.transition = ''; }, 100);
-                }, 500);
-              }
+              setTimeout(function() {
+                elm.style.transition = '';
+                elm.style.transform = '';
+                elm.style.opacity = '1';
+              }, 560);
             });
           }
         },

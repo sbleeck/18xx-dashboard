@@ -13,8 +13,10 @@ module Lib
         end
 
       current_id =
-        if action&.respond_to?(:id)
+        if action&.respond_to?(:id) && action&.id
           action.id
+        elsif game.respond_to?(:actions) && game.actions&.any?
+          game.actions.size
         elsif action
           action.object_id
         else
@@ -98,130 +100,85 @@ module Lib
     window.requestAnimationFrame(function() {
       setTimeout(function() {
 
-        var sanitize = function(sel) {
-          if (!sel || sel.indexOf('#') !== 0) return sel;
-
-          var tokens = sel.split(' ');
-          var rawId = tokens[0].substring(1);
-
-          tokens[0] = '#' +
-            (window.CSS && window.CSS.escape
-              ? window.CSS.escape(rawId)
-              : rawId);
-
-          return tokens.join(' ');
-        };
-
         var findElement = function(selector) {
           if (!selector) return null;
-
-          var el = dashboardRoot.querySelector(selector);
-
-          if (!el && selector.indexOf(' ') !== -1) {
-            el = dashboardRoot.querySelector(selector.split(' ')[0]);
+          var s = String(selector).trim();
+          if (s.charAt(0) === '#') {
+            var spaceIdx = s.indexOf(' ');
+            var rawId = spaceIdx === -1 ? s.substring(1) : s.substring(1, spaceIdx);
+            var rest = spaceIdx === -1 ? '' : s.substring(spaceIdx + 1).trim();
+            var baseEl = document.getElementById(rawId);
+            if (baseEl && dashboardRoot.contains(baseEl)) {
+              if (!rest) return baseEl;
+              try {
+                return baseEl.querySelector(rest) || baseEl;
+              } catch (err) {
+                return baseEl;
+              }
+            }
           }
-
-          return el;
+          try {
+            return dashboardRoot.querySelector(s);
+          } catch (e1) {
+            return null;
+          }
         };
 
-        var src = sanitize(fromSel);
-        var tgt = sanitize(toSel);
-
-        var fromEl = findElement(src);
-        var toEl = findElement(tgt);
-
-        /*
-         * TRAIN SOURCE
-         *
-         * During a purchase the source train may already have disappeared
-         * during rerendering. In that case use the rectangle captured
-         * immediately before process_action.
-         *
-         * During Undo the corporation train has disappeared, so use the
-         * landing rectangle saved during the original forward animation.
-         */
-        var savedSourceRect = null;
+        var fromEl = findElement(fromSel);
+        var toEl = findElement(toSel);
 
         if (isTrain) {
-          if (isForward && window._railcard_pending_source_rect) {
-            savedSourceRect =
-              window._railcard_pending_source_rect;
+          var exactTrainCard = function(el) {
+            if (!el) return null;
+            if (el.matches && el.matches('.game-card')) return el;
+            return el.querySelector ? el.querySelector('.game-card') : null;
+          };
+          fromEl = exactTrainCard(fromEl);
+          toEl = exactTrainCard(toEl);
+        }
 
-            window._railcard_pending_source_rect = null;
+        var savedSourceRect = null;
+        if (isTrain) {
+          if (isForward && window._railcard_pending_source_rect) {
+            savedSourceRect = window._railcard_pending_source_rect;
           } else if (!isForward && activeData.train_target_rect) {
-            savedSourceRect =
-              activeData.train_target_rect;
+            savedSourceRect = activeData.train_target_rect;
           }
         }
 
-        /*
-         * Destination must exist after the rerender.
-         */
-        if (!toEl) return;
+        window._railcard_pending_transfer = null;
+        window._railcard_pending_source = null;
+        window._railcard_pending_target = null;
+        window._railcard_pending_source_rect = null;
 
-        /*
-         * Source DOM element is optional when we have its saved rectangle.
-         */
+        if (!toEl) return;
         if (!fromEl && !savedSourceRect) return;
 
         var fromCard = null;
-
         if (fromEl) {
-          if (
-            fromEl.matches &&
-            (
-              fromEl.matches('.game-card') ||
-              fromEl.matches('.major-railcard')
-            )
-          ) {
+          if (fromEl.matches && (fromEl.matches('.game-card') || fromEl.matches('.major-railcard'))) {
             fromCard = fromEl;
           } else {
-            fromCard =
-              fromEl.querySelector('.game-card') ||
-              fromEl.querySelector('.major-railcard') ||
-              fromEl;
+            fromCard = fromEl.querySelector('.game-card') || fromEl.querySelector('.major-railcard');
           }
         }
 
-        /*
-         * The train ID may be directly on the game-card rather than on
-         * an outer wrapper.
-         */
         var toCardInner = null;
-
-        if (
-          toEl.matches &&
-          (
-            toEl.matches('.game-card') ||
-            toEl.matches('.major-railcard')
-          )
-        ) {
+        if (toEl.matches && (toEl.matches('.game-card') || toEl.matches('.major-railcard'))) {
           toCardInner = toEl;
         } else {
-          toCardInner =
-            toEl.querySelector('.game-card') ||
-            toEl.querySelector('.major-railcard');
+          toCardInner = toEl.querySelector('.game-card') || toEl.querySelector('.major-railcard');
         }
 
-        /*
-         * Hide the real arriving train/card until the flying copy lands.
-         */
         var hiddenArrival = null;
-
-        if (!isShare && toCardInner) {
+        if (!isTrain && !isShare && toCardInner) {
           hiddenArrival = toCardInner;
           hiddenArrival.style.visibility = 'hidden';
         }
 
-        var fromRect =
-          savedSourceRect ||
-          (fromCard ? fromCard.getBoundingClientRect() : null);
-
-        var destinationCard =
-          toCardInner || toEl;
-
-        var toRect =
-          destinationCard.getBoundingClientRect();
+        var fromRect = savedSourceRect || (fromCard ? fromCard.getBoundingClientRect() : null);
+        var destinationCard = toCardInner || toEl;
+        var toRect = destinationCard.getBoundingClientRect();
 
         if (
           !fromRect ||
@@ -230,16 +187,10 @@ module Lib
           toRect.width === 0 ||
           toRect.height === 0
         ) {
-          if (hiddenArrival) {
-            hiddenArrival.style.visibility = 'visible';
-          }
+          if (hiddenArrival) hiddenArrival.style.visibility = 'visible';
           return;
         }
 
-        /*
-         * Remember the exact corporation position.
-         * Undo can use this after the train has disappeared there.
-         */
         if (isTrain && isForward) {
           activeData.train_target_rect = {
             left: toRect.left,
@@ -249,140 +200,129 @@ module Lib
           };
         }
 
-        var originalTargetText = null;
+        if (isTrain) {
+          var trainWidth = 54;
+          var trainHeight = 26;
+          var trainStartX = fromRect.left + (fromRect.width / 2) - (trainWidth / 2);
+          var trainStartY = fromRect.top + (fromRect.height / 2) - (trainHeight / 2);
+          var trainEndX = toRect.left + (toRect.width / 2) - (trainWidth / 2);
+          var trainEndY = toRect.top + (toRect.height / 2) - (trainHeight / 2);
 
+          var flyingTrain = document.createElement('div');
+          flyingTrain.className = 'game-card flying-train-card';
+          flyingTrain.textContent = text;
+          flyingTrain.style.position = 'fixed';
+          flyingTrain.style.left = trainStartX + 'px';
+          flyingTrain.style.top = trainStartY + 'px';
+          flyingTrain.style.width = trainWidth + 'px';
+          flyingTrain.style.minWidth = trainWidth + 'px';
+          flyingTrain.style.height = trainHeight + 'px';
+          flyingTrain.style.margin = '0';
+          flyingTrain.style.padding = '0';
+          flyingTrain.style.display = 'flex';
+          flyingTrain.style.alignItems = 'center';
+          flyingTrain.style.justifyContent = 'center';
+          flyingTrain.style.boxSizing = 'border-box';
+          flyingTrain.style.border = '3px solid #2563eb';
+          flyingTrain.style.borderRadius = '13px';
+          flyingTrain.style.background = '#fdfbf7';
+          flyingTrain.style.color = '#111827';
+          flyingTrain.style.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+          flyingTrain.style.fontSize = '0.85rem';
+          flyingTrain.style.fontWeight = '800';
+          flyingTrain.style.lineHeight = '1';
+          flyingTrain.style.zIndex = '2147483647';
+          flyingTrain.style.pointerEvents = 'none';
+          flyingTrain.style.transformOrigin = 'center center';
+          flyingTrain.style.boxShadow = '0 12px 24px rgba(0,0,0,0.35), 0 0 12px rgba(37,99,235,0.65)';
+          dashboardRoot.appendChild(flyingTrain);
+
+          var dxTrain = trainEndX - trainStartX;
+          var dyTrain = trainEndY - trainStartY;
+          var trainAnimation = flyingTrain.animate([
+            { transform: 'translate(0px, 0px) scale(1.15)', opacity: 1, offset: 0 },
+            { transform: 'translate(' + (dxTrain * 0.5) + 'px, ' + ((dyTrain * 0.5) - 70) + 'px) scale(1.35)', opacity: 1, offset: 0.5 },
+            { transform: 'translate(' + dxTrain + 'px, ' + dyTrain + 'px) scale(1)', opacity: 1, offset: 0.88 },
+            { transform: 'translate(' + dxTrain + 'px, ' + dyTrain + 'px) scale(0.92)', opacity: 0, offset: 1 }
+          ], {
+            duration: 720,
+            easing: 'cubic-bezier(0.22, 0.8, 0.25, 1)',
+            fill: 'forwards'
+          });
+
+          var removeFlyingTrain = function() {
+            if (flyingTrain && flyingTrain.parentNode) flyingTrain.parentNode.removeChild(flyingTrain);
+          };
+          trainAnimation.onfinish = removeFlyingTrain;
+          trainAnimation.oncancel = removeFlyingTrain;
+          setTimeout(removeFlyingTrain, 1200);
+          return;
+        }
+
+        var originalTargetText = null;
         if (isShare && toCardInner && isForward) {
           originalTargetText = toCardInner.innerText;
-
-          var currentVal = parseInt(
-            originalTargetText.replace(/[^0-9]/g, ''),
-            10
-          );
-
+          var currentVal = parseInt(originalTargetText.replace(/[^0-9]/g, ''), 10);
           if (!isNaN(currentVal)) {
             var previousVal = currentVal - delta;
-
-            toCardInner.innerText =
-              previousVal > 0 ? previousVal + '%' : '';
-
-            if (previousVal <= 0) {
-              toCardInner.style.visibility = 'hidden';
-            }
+            toCardInner.innerText = previousVal > 0 ? previousVal + '%' : '';
+            if (previousVal <= 0) toCardInner.style.visibility = 'hidden';
           }
         }
 
-        var cardWidth = isTrain ? toRect.width : 56;
-        var cardHeight = isTrain ? toRect.height : 23;
-
-        var startX =
-          fromRect.left +
-          (fromRect.width / 2) -
-          (cardWidth / 2);
-
-        var startY =
-          fromRect.top +
-          (fromRect.height / 2) -
-          (cardHeight / 2);
-
-        var endX =
-          toRect.left +
-          (toRect.width / 2) -
-          (cardWidth / 2);
-
-        var endY =
-          toRect.top +
-          (toRect.height / 2) -
-          (cardHeight / 2);
+        var cardWidth = 56;
+        var cardHeight = 23;
+        var startX = fromRect.left + (fromRect.width / 2) - (cardWidth / 2);
+        var startY = fromRect.top + (fromRect.height / 2) - (cardHeight / 2);
+        var endX = toRect.left + (toRect.width / 2) - (cardWidth / 2);
+        var endY = toRect.top + (toRect.height / 2) - (cardHeight / 2);
 
         var flying = document.createElement('div');
-
-        flying.className =
-          'game-card flying-railcard-token';
-
+        flying.className = 'game-card flying-railcard-token';
         flying.innerText = text;
-
         flying.style.position = 'fixed';
         flying.style.left = startX + 'px';
         flying.style.top = startY + 'px';
-
         flying.style.width = cardWidth + 'px';
         flying.style.minWidth = cardWidth + 'px';
         flying.style.height = cardHeight + 'px';
-
         flying.style.margin = '0';
         flying.style.boxSizing = 'border-box';
-
         flying.style.display = 'inline-flex';
         flying.style.alignItems = 'center';
         flying.style.justifyContent = 'center';
-
         flying.style.backgroundColor = '#fdfbf7';
         flying.style.color = '#000000';
-
         flying.style.border = '2px solid #2563eb';
-        flying.style.borderRadius = isTrain ? '12px' : '4px';
-
+        flying.style.borderRadius = '4px';
         flying.style.fontSize = '0.85rem';
         flying.style.fontWeight = 'bold';
-
-        flying.style.fontFamily =
-          '"Helvetica Neue", Helvetica, Arial, sans-serif';
-
+        flying.style.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
         flying.style.zIndex = '2147483647';
         flying.style.pointerEvents = 'none';
-
-        flying.style.boxShadow =
-          '0 14px 28px rgba(0,0,0,0.35), ' +
-          '0 4px 10px rgba(0,0,0,0.2)';
-
+        flying.style.boxShadow = '0 14px 28px rgba(0,0,0,0.35), 0 4px 10px rgba(0,0,0,0.2)';
         flying.style.opacity = '1';
         flying.style.visibility = 'visible';
-
         flying.style.transform = 'scale(1.12)';
-
-        flying.style.transition =
-          'transform 0.55s cubic-bezier(0.2,0.9,0.3,1), ' +
-          'opacity 0.15s ease-out';
+        flying.style.transition = 'transform 0.55s cubic-bezier(0.2,0.9,0.3,1), opacity 0.15s ease-out';
 
         dashboardRoot.appendChild(flying);
-
-        /*
-         * Force the initial position to be painted.
-         */
         flying.getBoundingClientRect();
 
         window.requestAnimationFrame(function() {
           window.requestAnimationFrame(function() {
-
             var deltaX = endX - startX;
             var deltaY = endY - startY;
 
-            flying.style.transform =
-              'translate(' +
-              deltaX +
-              'px,' +
-              deltaY +
-              'px) scale(1)';
+            flying.style.transform = 'translate(' + deltaX + 'px,' + deltaY + 'px) scale(1)';
 
             setTimeout(function() {
-
               if (toCardInner) {
-                if (originalTargetText !== null) {
-                  toCardInner.innerText =
-                    originalTargetText;
-                }
-
+                if (originalTargetText !== null) toCardInner.innerText = originalTargetText;
                 toCardInner.style.visibility = 'visible';
-
-                toCardInner.style.transition =
-                  'transform 0.18s ease-out, ' +
-                  'filter 0.18s ease-out';
-
-                toCardInner.style.transform =
-                  'scale(1.18)';
-
-                toCardInner.style.filter =
-                  'brightness(1.3)';
+                toCardInner.style.transition = 'transform 0.18s ease-out, filter 0.18s ease-out';
+                toCardInner.style.transform = 'scale(1.18)';
+                toCardInner.style.filter = 'brightness(1.3)';
 
                 setTimeout(function() {
                   toCardInner.style.transform = 'scale(1)';
@@ -393,11 +333,8 @@ module Lib
               flying.style.opacity = '0';
 
               setTimeout(function() {
-                if (flying.parentNode) {
-                  flying.parentNode.removeChild(flying);
-                }
+                if (flying.parentNode) flying.parentNode.removeChild(flying);
               }, 160);
-
             }, 560);
           });
         });
@@ -474,15 +411,12 @@ module Lib
         if (typeof window !== 'undefined') {
           if (window._railcard_pending_transfer) {
             #{pending_transfer = `window._railcard_pending_transfer`};
-            window._railcard_pending_transfer = null;
           }
           if (window._railcard_pending_source) {
             #{pending_source = `window._railcard_pending_source`};
-            window._railcard_pending_source = null;
           }
           if (window._railcard_pending_target) {
             #{pending_target = `window._railcard_pending_target`};
-            window._railcard_pending_target = null;
           }
         }
       }
@@ -620,13 +554,8 @@ module Lib
 
           card_text = train ? train.name.to_s : 'Train'
 
-          # Target the ACTUAL newly rendered train, not an empty slot.
           target_sel =
-            if train
-              "#train_wrapper_#{entity.id}_#{train.id}"
-            else
-              "#trains_#{entity.id}"
-            end
+            ("#train_wrapper_#{entity.id}_#{train.id}" if train)
 
           if pending_transfer
             source_type = transfer_val(pending_transfer, :source_type)&.to_s
@@ -642,15 +571,13 @@ module Lib
                 "#bank_train_fresh_#{item_id}_#{safe_variant}"
               elsif item_id && source_id && source_type == 'corporation'
                 "#train_wrapper_#{source_id}_#{item_id}"
-              else
-                '#extra_cards'
               end
-          elsif pending_source
+          end
+
+          if source_sel.nil? && pending_source
             source_sel = pending_source.to_s.sub(/ \.game-card\z/, '')
-          elsif other && train
+          elsif source_sel.nil? && other && train
             source_sel = "#train_wrapper_#{other.id}_#{train.id}"
-          elsif train
-            source_sel = '#extra_cards'
           end
         end
       when 'IssueShares', 'Issue', 'CorporateSellShares', 'ReissueShares', 'Reissue'

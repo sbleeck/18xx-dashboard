@@ -1849,9 +1849,6 @@ module View
             end
           end
 
-          #
-          # Trains available from another corporation
-          #
           operating_player =
             if entity.respond_to?(:player?) && entity.player?
               entity
@@ -1915,13 +1912,15 @@ module View
                 max_price,
                 min_price,
                 lambda do |price_value|
+                  status_source_selector =
+                    "#train_wrapper_#{seller.id}_#{train.id}"
                   remember_card_transfer(
                     kind: :train,
                     item_id: train.id,
                     source_type: :corporation,
                     source_id: seller.id,
                     variant: train.name,
-                    source_selector: "##{wrapper_id}"
+                    source_selector: status_source_selector
                   )
 
                   process_action(
@@ -2698,41 +2697,51 @@ module View
           }
 
           %x{
-    if (typeof window !== 'undefined') {
-      window._railcard_pending_transfer = #{transfer};
+            if (typeof window !== 'undefined') {
+              window._railcard_last_transfer_time = Date.now();
+              window._railcard_pending_transfer = #{transfer};
 
-      var selector = #{source_selector};
+              var selector = String(#{source_selector} || '').trim();
 
-      if (selector) {
-        window._railcard_pending_source = selector;
+              if (selector) {
+                window._railcard_pending_source = selector;
 
-var el = null;
+                var el = null;
+                var dashboardRoot = document.getElementById('viz-master-frame');
 
-try {
-  var dashboardRoot = document.getElementById('viz-master-frame');
-  el = dashboardRoot ? dashboardRoot.querySelector(selector) : null;
-} catch (err) {
-  el = null;
-}
+                if (selector.charAt(0) === '#') {
+                  var spaceIdx = selector.indexOf(' ');
+                  var rawId = spaceIdx === -1 ? selector.substring(1) : selector.substring(1, spaceIdx);
+                  el = document.getElementById(rawId);
+                }
 
-        if (el) {
-          var card =
-            el.matches && el.matches('.game-card')
-              ? el
-              : (el.querySelector('.game-card') || el);
+                if (!el) {
+                  try {
+                    el = dashboardRoot ? dashboardRoot.querySelector(selector) : null;
+                  } catch (err) {
+                    el = null;
+                  }
+                }
 
-          var r = card.getBoundingClientRect();
+                if (el) {
+                  var card = (el.matches && el.matches('.game-card')) ? el : (el.querySelector ? el.querySelector('.game-card') : null);
 
-          window._railcard_pending_source_rect = {
-            left: r.left,
-            top: r.top,
-            width: r.width,
-            height: r.height
-          };
-        }
-      }
-    }
-  }
+                  if (!card || card.id === 'bank' || card.id === 'extra_cards') {
+                    window._railcard_pending_source_rect = null;
+                    return;
+                  }
+
+                  var r = card.getBoundingClientRect();
+                  window._railcard_pending_source_rect = {
+                    left: r.left,
+                    top: r.top,
+                    width: r.width,
+                    height: r.height
+                  };
+                }
+              }
+            }
+          }
         end
 
         def remaining_subsidiary_cost(step, entity)

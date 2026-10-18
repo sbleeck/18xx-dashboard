@@ -1278,14 +1278,14 @@ badge_el,
       end
 
       def animate_last_action(action)
-        return unless action && defined?(Lib::CardAnimation)
+        return unless action
 
         type = if action.is_a?(Hash)
                  action['type'] || action[:type]
                elsif action.respond_to?(:type)
                  action.type
                end
-        return unless type
+        return unless type.to_s == 'pass'
 
         entity_id = if action.is_a?(Hash)
                       action['entity'] || action[:entity]
@@ -1294,87 +1294,26 @@ badge_el,
                       ent.respond_to?(:id) ? ent.id : ent
                     end
 
-        corp_id = nil
+        round = @game.round
+        is_stock = (round.respond_to?(:stock?) && round.stock?) ||
+                   round.class.name.to_s.include?('Stock')
+        return unless is_stock
 
-        case type
-        when 'buy_shares', 'par'
-          if action.is_a?(Hash)
-            shares = action['shares'] || action[:shares] || []
-            corp_id = shares.first&.dig('corporation') || action['corporation'] || action[:corporation]
-          elsif action.respond_to?(:bundle) && action.bundle
-            corp_id = action.bundle.corporation&.id
-          elsif action.respond_to?(:corporation) && action.corporation
-            c = action.corporation
-            corp_id = c.respond_to?(:id) ? c.id : c
-          end
+        player = if action.respond_to?(:entity) && action.entity.respond_to?(:player?) && action.entity.player?
+                   action.entity
+                 else
+                   @game.players.find { |p| p.id.to_s == entity_id.to_s || p.name.to_s == entity_id.to_s }
+                 end
 
-          return unless corp_id
+        return unless player
 
-          source = "#pool_shares_#{corp_id} .game-card, #ipo_shares_#{corp_id} .game-card, #treasury_shares_#{corp_id} .game-card, #market-cell-#{corp_id}, [data-corp='#{corp_id}']"
-          dest = "#player_shares_#{entity_id}_#{corp_id}, #player-row-#{entity_id}, #temporal-hub"
-          Lib::CardAnimation.fly(source, dest, hide_source: false)
-
-        when 'sell_shares'
-          if action.is_a?(Hash)
-            shares = action['shares'] || action[:shares] || []
-            corp_id = shares.first&.dig('corporation') || action['corporation'] || action[:corporation]
-          elsif action.respond_to?(:bundle) && action.bundle
-            corp_id = action.bundle.corporation&.id
-          end
-
-          return unless corp_id
-
-          source = "#player_shares_#{entity_id}_#{corp_id} .game-card, #player-row-#{entity_id}, #temporal-hub"
-          dest = "#pool_shares_#{corp_id}, #market-cell-#{corp_id}"
-          Lib::CardAnimation.fly(source, dest, hide_source: false)
-
-        when 'buy_train'
-          train_id = if action.is_a?(Hash)
-                       action['train'] || action[:train]
-                     elsif action.respond_to?(:train)
-                       t = action.train
-                       t.respond_to?(:name) ? t.name : t
-                     end
-
-          escaped_train_id = `CSS.escape(#{train_id})`
-          source = "#bank_train_#{escaped_train_id}, [id^='bank_train_#{escaped_train_id}'], #extra_cards .card-train, [id^='cmd_train_'], [id^='cmd_other_train_'], #extra_cards"
-          dest = "#train_drop_#{entity_id}, #trains_#{entity_id}, #status_major_#{entity_id}, #panel-ledger"
-          Lib::CardAnimation.fly(source, dest, hide_source: false)
-
-        when 'buy_company'
-          company_id = if action.is_a?(Hash)
-                         action['company'] || action[:company]
-                       elsif action.respond_to?(:company)
-                         c = action.company
-                         c.respond_to?(:id) ? c.id : c
-                       end
-          source = "[id^='company_wrapper_'][id$='_#{company_id}'] .game-card, #cmd_buy_company_#{company_id} .game-card, .status-company-wrapper .game-card"
-          dest = "#companies_#{entity_id}, #status_major_#{entity_id}, #panel-ledger"
-          Lib::CardAnimation.fly(source, dest, hide_source: false)
-
-        when 'pass'
-          round = @game.round
-          is_stock = (round.respond_to?(:stock?) && round.stock?) ||
-                     round.class.name.to_s.include?('Stock')
-          return unless is_stock
-
-          player = if action.respond_to?(:entity) && action.entity.respond_to?(:player?) && action.entity.player?
-                     action.entity
-                   else
-                     @game.players.find { |p| p.id.to_s == entity_id.to_s || p.name.to_s == entity_id.to_s }
-                   end
-
-          if player
-            p_id = player.id.to_s
-            p_name = player.name.to_s
-            %x(
-              if (window.showPassBubble) {
-                window.showPassBubble(#{p_id}, #{p_name});
-              }
-            )
-          end
-
-        end
+        p_id = player.id.to_s
+        p_name = player.name.to_s
+        %x(
+          if (window.showPassBubble) {
+            window.showPassBubble(#{p_id}, #{p_name});
+          }
+        )
       end
 
       def render_active_turn_card

@@ -368,6 +368,7 @@ module View
 
         rows.map.with_index do |row_cells, idx|
           r_props = tr_default_props
+          r_props[:key] = "status_player_row_#{idx}"
           r_props[:attrs] ||= {}
           r_props[:attrs][:class] = 'last-player-row' if idx == rows.size - 1
           h(:tr, r_props, row_cells)
@@ -2079,9 +2080,8 @@ module View
               default_price = min_price
 
               show_price_dialog(menu_title, min_price, max_price, default_price, lambda { |price_val|
-                escaped_train_wrapper_id = `CSS.escape('train_wrapper_' + #{corporation.id} + '_' + #{t.id})`
-                source_selector = "##{escaped_train_wrapper_id} .game-card"
-                exec_buy_corporate_train(source_selector, active_entity, t, price_val)
+                source_selector = "#train_wrapper_#{corporation.id}_#{t.id}"
+                exec_buy_corporate_train(source_selector, active_entity, t, price_val, corporation.id)
               })
             }
           elsif train_discardable_step && active_entity == corporation
@@ -2907,25 +2907,52 @@ module View
         )
       end
 
-      def exec_buy_corporate_train(source_selector, active_entity, train, price_value)
+      def exec_buy_corporate_train(source_selector, active_entity, train, price_value, seller_id = nil)
+        transfer = {
+          kind: 'train',
+          item_id: train.id.to_s,
+          source_type: 'corporation',
+          source_id: seller_id&.to_s,
+          variant: train.name.to_s,
+        }
+
         %x{
-    if (typeof window !== 'undefined') {
-      window._railcard_pending_source = #{source_selector};
+          if (typeof window !== 'undefined') {
+            window._railcard_last_transfer_time = Date.now();
+            window._railcard_pending_transfer = #{transfer};
+            window._railcard_pending_source = #{source_selector};
 
-      var el = document.querySelector(#{source_selector});
-      if (el) {
-        var card = el.querySelector('.game-card') || el;
-        var r = card.getBoundingClientRect();
+            var sel = String(#{source_selector} || '').trim();
+            var el = null;
+            var dashboardRoot = document.getElementById('viz-master-frame');
 
-        window._railcard_pending_source_rect = {
-          left: r.left,
-          top: r.top,
-          width: r.width,
-          height: r.height
-        };
-      }
-    }
-  }
+            if (sel.charAt(0) === '#') {
+              var spaceIdx = sel.indexOf(' ');
+              var rawId = spaceIdx === -1 ? sel.substring(1) : sel.substring(1, spaceIdx);
+              el = document.getElementById(rawId);
+            }
+            if (!el && sel) {
+              try {
+                el = dashboardRoot ? dashboardRoot.querySelector(sel) : document.querySelector(sel);
+              } catch (err) {
+                el = null;
+              }
+            }
+
+            if (el) {
+              var card = (el.matches && el.matches('.game-card')) ? el : (el.querySelector ? el.querySelector('.game-card') : null);
+              if (card) {
+                var r = card.getBoundingClientRect();
+                window._railcard_pending_source_rect = {
+                  left: r.left,
+                  top: r.top,
+                  width: r.width,
+                  height: r.height
+                };
+              }
+            }
+          }
+        }
 
         process_action(
           Engine::Action::BuyTrain.new(
