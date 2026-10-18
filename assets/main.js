@@ -56287,6 +56287,7 @@ Opal.modules["view/game/dashboard/dashboard_card_animation"] = function(Opal) {/
     window.requestAnimationFrame(function() {
       setTimeout(function() {
 
+        // --- START FIX ---
         var findElement = function(selector) {
           if (!selector) return null;
           var s = String(selector).trim();
@@ -56295,6 +56296,14 @@ Opal.modules["view/game/dashboard/dashboard_card_animation"] = function(Opal) {/
             var rawId = spaceIdx === -1 ? s.substring(1) : s.substring(1, spaceIdx);
             var rest = spaceIdx === -1 ? '' : s.substring(spaceIdx + 1).trim();
             var baseEl = document.getElementById(rawId);
+            if (!baseEl) {
+              var safeId = rawId.replace(/["\\]/g, '\\$&');
+              try {
+                baseEl = dashboardRoot.querySelector('[id="' + safeId + '"]');
+              } catch (e0) {
+                baseEl = null;
+              }
+            }
             if (baseEl && dashboardRoot.contains(baseEl)) {
               if (!rest) return baseEl;
               try {
@@ -56304,12 +56313,16 @@ Opal.modules["view/game/dashboard/dashboard_card_animation"] = function(Opal) {/
               }
             }
           }
+          var safeSel = s.replace(/#([^\s.,>+~:#\[\]]+)/g, function(_, idPart) {
+            return '[id="' + idPart.replace(/["\\]/g, '\\$&') + '"]';
+          });
           try {
-            return dashboardRoot.querySelector(s);
+            return dashboardRoot.querySelector(safeSel);
           } catch (e1) {
             return null;
           }
         };
+        // --- END FIX ---
 
         var fromEl = findElement(fromSel);
         var toEl = findElement(toSel);
@@ -72670,9 +72683,31 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             bg_color = ($truthy(is_buy) ? ("#e6f4ea") : ($truthy(is_sell) ? ("#fef2f2") : ("#fdfbf7")));
             
           if (typeof window !== 'undefined') {
-            var dashboardRoot = document.getElementById('viz-master-frame');
-            if (!dashboardRoot) return;
-          // Single source of truth for synchronized 3-way corporate breathing animation
+            if (!window._safe_qsa_patched && typeof Element !== 'undefined') {
+              window._safe_qsa_patched = true;
+              var sanitizeSelector = function(sel) {
+                if (typeof sel !== 'string' || sel.indexOf('#') === -1) return sel;
+                return sel.replace(/#([a-zA-Z0-9_-]*&[a-zA-Z0-9_&-]*)/g, '[id="$1"]');
+              };
+              var origElQSA = Element.prototype.querySelectorAll;
+              Element.prototype.querySelectorAll = function(sel) {
+                return origElQSA.call(this, sanitizeSelector(sel));
+              };
+              var origDocQSA = Document.prototype.querySelectorAll;
+              Document.prototype.querySelectorAll = function(sel) {
+                return origDocQSA.call(this, sanitizeSelector(sel));
+              };
+              var origElQS = Element.prototype.querySelector;
+              Element.prototype.querySelector = function(sel) {
+                return origElQS.call(this, sanitizeSelector(sel));
+              };
+              var origDocQS = Document.prototype.querySelector;
+              Document.prototype.querySelector = function(sel) {
+                return origDocQS.call(this, sanitizeSelector(sel));
+              };
+            }
+
+            // Single source of truth for synchronized 3-way corporate breathing animation
             var ensureTokenPulseStyle = function() {
               if (!document.getElementById('corp-token-pulse-style')) {
                 var s = document.createElement('style');
@@ -72718,16 +72753,17 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             };
             ensureTokenPulseStyle();
 
-          window.highlightStockMarketToken = function(corpId) {
-              if (!corpId) return;
+            window.highlightStockMarketToken = function(corpId) {
+              var root = document.getElementById('viz-master-frame');
+              if (!corpId || !root) return;
               if (window._highlightedMarketCorp === corpId) return;
               window.clearStockMarketTokenHighlight();
               window._highlightedMarketCorp = corpId;
 
-              var safeCorpAttr = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(corpId) : String(corpId).replace(/["\\]/g, '\\$&');
+              var safeCorpAttr = String(corpId).replace(/["\\]/g, '\\$&');
 
               // 1. Highlight stock market tokens
-              var stockTokens = dashboardRoot.querySelectorAll(
+              var stockTokens = root.querySelectorAll(
                 '.stock-market-token[data-corp="' + safeCorpAttr + '"], [id="stock-token-' + safeCorpAttr + '"]'
               );
               for (var i = 0; i < stockTokens.length; i++) {
@@ -72740,8 +72776,8 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                 }
               }
 
-              // 2. Highlight map tokens (use data-corp attribute only to avoid invalid CSS class identifiers like B&O)
-              var mapTokens = dashboardRoot.querySelectorAll(
+              // 2. Highlight map tokens
+              var mapTokens = root.querySelectorAll(
                 '.map-token[data-corp="' + safeCorpAttr + '"], [data-corp="' + safeCorpAttr + '"].map-token'
               );
               for (var j = 0; j < mapTokens.length; j++) {
@@ -72752,8 +72788,9 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                   hexContainer.parentNode.appendChild(hexContainer);
                 }
               }
-// 3 & 4. Highlight status panel major railcards, Operating Order tokens, and Move Feed badges
-              var statusCards = dashboardRoot.querySelectorAll(
+
+              // 3 & 4. Highlight status panel major railcards, Operating Order tokens, and Move Feed badges
+              var statusCards = root.querySelectorAll(
                 '.major-railcard[data-corp="' + safeCorpAttr + '"], ' +
                 '.status-corp-wrapper[data-corp="' + safeCorpAttr + '"], ' +
                 '.cmd-corp-wrapper[data-corp="' + safeCorpAttr + '"], ' +
@@ -72772,30 +72809,45 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                 window._elevatedMarketCell.style.zIndex = '';
                 window._elevatedMarketCell = null;
               }
-              var highlightedTokens = dashboardRoot.querySelectorAll('.stock-market-token-highlight');
+              var root = document.getElementById('viz-master-frame') || document;
+              var highlightedTokens = root.querySelectorAll('.stock-market-token-highlight');
               for (var i = 0; i < highlightedTokens.length; i++) {
                 highlightedTokens[i].classList.remove('stock-market-token-highlight');
               }
-              var highlightedCards = dashboardRoot.querySelectorAll('.status-corp-highlight');
+              var highlightedCards = root.querySelectorAll('.status-corp-highlight');
               for (var j = 0; j < highlightedCards.length; j++) {
                 highlightedCards[j].classList.remove('status-corp-highlight');
               }
             };
 
-            if (!window._railcard_portal_installed) {
-              var portal = dashboardRoot.querySelector('#railcard-portal');
-              if (!portal) {
-                portal = document.createElement('div');
-                portal.id = 'railcard-portal';
-                dashboardRoot.appendChild(portal);
-              }
+            var dashboardRoot = document.getElementById('viz-master-frame');
+            if (dashboardRoot && !dashboardRoot.querySelector('#railcard-portal')) {
+              var portal = document.createElement('div');
+              portal.id = 'railcard-portal';
               portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
+              dashboardRoot.appendChild(portal);
+            }
 
+            if (!window._railcard_portal_installed) {
               var styleEl = document.createElement('style');
               styleEl.innerHTML = '#viz-master-frame .short-railcard { background-color: #fee2e2 !important; color: #991b1b !important; } #viz-master-frame .ghost-short-card { opacity: 0.35 !important; border: 1.5px dotted #dc2626 !important; background-color: transparent !important; box-shadow: none !important; color: #dc2626 !important; } #viz-master-frame .ghost-short-card:hover { opacity: 0.85 !important; background-color: rgba(254, 226, 226, 0.35) !important; transform: translateY(-1px); }';
               document.head.appendChild(styleEl);
 
               window._railcard_portal_installed = true;
+
+              var ensurePortalEl = function() {
+                var p = document.getElementById('railcard-portal');
+                if (!p) {
+                  var root = document.getElementById('viz-master-frame');
+                  if (root) {
+                    p = document.createElement('div');
+                    p.id = 'railcard-portal';
+                    p.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
+                    root.appendChild(p);
+                  }
+                }
+                return p;
+              };
 
               var hidePortal = function() {
                 var p = document.getElementById('railcard-portal');
@@ -72846,7 +72898,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                 if (wrapper) {
                   var tt = wrapper.querySelector('.cmd-company-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .status-corp-tooltip');
                   if (tt) {
-                    var p = document.getElementById('railcard-portal');
+                    var p = ensurePortalEl();
                     if (p) {
                       p.innerHTML = tt.innerHTML;
                       p.style.display = 'block';
@@ -72896,7 +72948,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
             if (!window._market_token_hover_installed) {
               window._market_token_hover_installed = true;
 
-            var getCorpFromElement = function(el) {
+              var getCorpFromElement = function(el) {
                 if (!el || !el.closest) return null;
 
                 // 1. Stock market token or container
@@ -72915,7 +72967,7 @@ Opal.modules["view/game/dashboard/railcard_helper"] = function(Opal) {/* Generat
                   var mtCorp = mapToken.getAttribute('data-corp');
                   if (mtCorp) return mtCorp;
                 }
-                  // 2b. Operating Order / Turn bar token or Move Feed corp badge
+                // 2b. Operating Order / Turn bar token or Move Feed corp badge
                 var orderToken = el.closest('.entity-order-token, .active-turn-corp-marker, .cmd-corp-wrapper, .status-corp-wrapper');
                 if (orderToken) {
                   var otCorp = orderToken.getAttribute('data-corp');
