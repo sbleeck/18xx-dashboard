@@ -47,9 +47,19 @@ module Lib
               baseHex.setAttribute('data-orig-transform', origTransform);
             }
 
-            // Bring hex container forward in SVG stacking context during animation
-            if (hexContainer.parentNode) {
-              hexContainer.parentNode.appendChild(hexContainer);
+            // Keep the actual laid hex where it belongs. Put the visual animation
+            // in a dedicated SVG overlay layer that is always the final child of the
+            // dashboard map, so neighbouring/later-rendered tiles cannot cover it.
+            var mapSvg = hexContainer.ownerSVGElement;
+            if (!mapSvg) return;
+            var overlayLayer = mapSvg.querySelector('#dashboard-tile-animation-layer');
+            if (!overlayLayer) {
+              overlayLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+              overlayLayer.setAttribute('id', 'dashboard-tile-animation-layer');
+              overlayLayer.setAttribute('pointer-events', 'none');
+              mapSvg.appendChild(overlayLayer);
+            } else if (overlayLayer.parentNode === mapSvg && overlayLayer !== mapSvg.lastChild) {
+              mapSvg.appendChild(overlayLayer);
             }
 
             var poly = hexContainer.querySelector('.hex-highlight-poly');
@@ -81,7 +91,7 @@ module Lib
 
             shockwaveGroup.appendChild(poly1);
             shockwaveGroup.appendChild(poly2);
-            hexContainer.appendChild(shockwaveGroup);
+            overlayLayer.appendChild(shockwaveGroup);
 
             var startTime = performance.now();
             var slamDuration = 420;
@@ -187,18 +197,6 @@ end
 module View
   module Game
     module Part
-      class FutureRevenue < Base
-        alias dashboard_original_render render unless method_defined?(:dashboard_original_render)
-      end
-
-      class SingleRevenue < Snabberb::Component
-        alias dashboard_original_render render unless method_defined?(:dashboard_original_render)
-      end
-
-      class MultiRevenue < Snabberb::Component
-        alias dashboard_original_render render unless method_defined?(:dashboard_original_render)
-      end
-
       class CitySlot < Base
         needs :game, default: nil, store: true
         needs :selected_company, default: nil, store: true
@@ -207,7 +205,6 @@ module View
 
           def render
             rendered = orig_render
-            return rendered unless `document.getElementById('viz-master-frame')`
             return rendered unless flash_token_slot?
 
             highlight = h(:circle, {
@@ -276,14 +273,10 @@ module View
 
           def width_for_index(path, index, path_indexes)
             base_width = orig_width_for_index(path, index, path_indexes)
-            return base_width unless `document.getElementById('viz-master-frame')`
-
             index ? (base_width * 2.5) : base_width
           end
 
           def value_for_index(index, prop, track)
-            return orig_value_for_index(index, prop, track) unless `document.getElementById('viz-master-frame')`
-
             if index && prop == :color
               screaming_palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff']
               screaming_palette[index.to_i] || '#ff1493'
@@ -296,8 +289,6 @@ module View
 
       class FutureRevenue < Base
         def render
-          return dashboard_original_render unless `document.getElementById('viz-master-frame')`
-
           h(:g)
         end
       end
@@ -315,7 +306,6 @@ module View
 
       class SingleRevenue < Snabberb::Component
         def render
-          return dashboard_original_render unless `document.getElementById('viz-master-frame')`
           return h(:g) if @revenue.zero? && !@force
 
           text = @revenue.to_s
@@ -427,7 +417,6 @@ module View
         include DashboardRevenueBadge
 
         def render
-          return dashboard_original_render unless `document.getElementById('viz-master-frame')`
           return h(:g) if @revenue.zero? && !@force
 
           h(
@@ -449,8 +438,6 @@ module View
         include DashboardRevenueBadge
 
         def render
-          return dashboard_original_render unless `document.getElementById('viz-master-frame')`
-
           computed_revenues = @revenues.map do |phase, revenue|
             display_phase = phase == :diesel ? :gray : phase
 
@@ -531,8 +518,6 @@ module View
 
           def render
             rendered = orig_render
-            return rendered unless `document.getElementById('viz-master-frame')`
-
             %x{
               function enlargeLocation(vnode) {
                 if (!vnode) return;

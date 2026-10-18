@@ -34,6 +34,9 @@ module Lib
       %x{
     if (typeof window === 'undefined') return;
 
+    var dashboardRoot = document.getElementById('viz-master-frame');
+    if (!dashboardRoot) return;
+
     var actId = #{current_id};
     var gameId = #{game_id};
     var trackerKey = '_marker_anim_last_act_' + gameId;
