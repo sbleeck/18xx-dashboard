@@ -1661,15 +1661,54 @@ module View
 
             variants = []
 
-            if step.respond_to?(:buyable_train_variants)
+            variants = []
+            variants_are_engine_filtered = false
+
+            if step.respond_to?(:buyable_train_variants) &&
+               train.respond_to?(:variants)
               begin
-                variants = step.buyable_train_variants(train, entity) || []
+                allowed_variants =
+                  step.buyable_train_variants(train, entity) || []
+
+                raw_variants = train.variants || {}
+
+                raw_variants.each do |name, data|
+                  next unless allowed_variants.include?(data)
+
+                  variant_name =
+                    if data.respond_to?(:[])
+                      data[:name] ||
+                        data['name'] ||
+                        name
+                    else
+                      name
+                    end
+
+                  variant_price =
+                    if data.respond_to?(:[])
+                      data[:price] ||
+                        data['price'] ||
+                        train.price
+                    else
+                      train.price
+                    end
+
+                  variants << {
+                    name: variant_name,
+                    price: variant_price,
+                  }
+                end
+
+                variants_are_engine_filtered = true
               rescue StandardError
                 variants = []
+                variants_are_engine_filtered = false
               end
             end
 
-            if variants.empty? && train.respond_to?(:names_to_prices)
+            if variants.empty? &&
+               !variants_are_engine_filtered &&
+               train.respond_to?(:names_to_prices)
               begin
                 names_to_prices = train.names_to_prices
 
@@ -1686,33 +1725,36 @@ module View
               end
             end
 
-            if variants.empty? && train.respond_to?(:variants)
+            if variants.empty? &&
+               !variants_are_engine_filtered &&
+               train.respond_to?(:variants)
               begin
                 raw_variants = train.variants
 
                 if raw_variants.respond_to?(:each)
                   raw_variants.each do |name, data|
-                    if data.respond_to?(:[])
-                      variant_name =
+                    variant_name =
+                      if data.respond_to?(:[])
                         data[:name] ||
-                        data['name'] ||
+                          data['name'] ||
+                          name
+                      else
                         name
+                      end
 
-                      variant_price =
+                    variant_price =
+                      if data.respond_to?(:[])
                         data[:price] ||
-                        data['price'] ||
+                          data['price'] ||
+                          train.price
+                      else
                         train.price
+                      end
 
-                      variants << {
-                        name: variant_name,
-                        price: variant_price,
-                      }
-                    else
-                      variants << {
-                        name: name,
-                        price: train.price,
-                      }
-                    end
+                    variants << {
+                      name: variant_name,
+                      price: variant_price,
+                    }
                   end
                 end
               rescue StandardError
@@ -1720,7 +1762,7 @@ module View
               end
             end
 
-            if variants.empty?
+            if variants.empty? && !variants_are_engine_filtered
               variants = [
                 {
                   name: train.name,
@@ -1728,6 +1770,8 @@ module View
                 },
               ]
             end
+
+            next if variants.empty?
 
             is_pool =
               depot &&

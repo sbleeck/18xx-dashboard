@@ -160,27 +160,60 @@ module View
         price = item[:price]
 
         step = @game.round.active_step
-        train_buyable_step = step&.current_actions&.include?('buy_train')
+        entity = active_entity
+
+        train_buyable_step =
+          step &&
+          step.respond_to?(:current_actions) &&
+          step.current_actions.include?('buy_train')
+
         card_classes = %w[game-card card-train]
         click_handler = nil
 
-        if train_buyable_step && active_entity&.corporation?
-          can_afford = active_entity.cash >= price || active_entity.trains.empty?
+        variant_is_buyable =
+          train_buyable_step &&
+          entity&.corporation? &&
+          train_variant_buyable?(
+            step,
+            entity,
+            train,
+            variant_name
+          )
+
+        if variant_is_buyable
+          can_afford =
+            entity.cash >= price ||
+            entity.trains.empty?
 
           if can_afford
             card_classes << 'action-buy'
             card_classes << 'clickable'
+
             click_handler = lambda {
               variant_str = variant_name.to_s
+
               if @train_handler
-                @train_handler.call(train, price, variant_str, type)
+                @train_handler.call(
+                  train,
+                  price,
+                  variant_str,
+                  type
+                )
               else
-                process_action(Engine::Action::BuyTrain.new(
-                  active_entity,
-                  train: train,
-                  price: price,
-                  variant: (variant_str == train.name.to_s ? nil : variant_str)
-                ))
+                process_action(
+                  Engine::Action::BuyTrain.new(
+                    entity,
+                    train: train,
+                    price: price,
+                    variant: (
+                      if variant_str == train.name.to_s
+                        nil
+                      else
+                        variant_str
+                      end
+                    )
+                  )
+                )
               end
             }
           end
@@ -218,6 +251,53 @@ module View
         ]
       end
 
+      def displayed_train_variants(train)
+        if train.respond_to?(:names_to_prices) &&
+           train.names_to_prices &&
+           !train.names_to_prices.empty?
+          train.names_to_prices
+        else
+          { train.name => train.price }
+        end
+      end
+
+      def train_variant_buyable?(step, entity, train, variant_name)
+        return false unless step && entity
+        return false unless step.respond_to?(:buyable_trains)
+
+        buyable_trains =
+          begin
+            step.buyable_trains(entity) || []
+          rescue StandardError
+            []
+          end
+
+        return false unless buyable_trains.include?(train)
+
+        unless step.respond_to?(:buyable_train_variants) &&
+               train.respond_to?(:variants)
+          return true
+        end
+
+        begin
+          variants = train.variants || {}
+
+          variant =
+            variants[variant_name] ||
+            variants[variant_name.to_s] ||
+            variants[variant_name.to_sym]
+
+          return false unless variant
+
+          allowed_variants =
+            step.buyable_train_variants(train, entity) || []
+
+          allowed_variants.include?(variant)
+        rescue StandardError
+          false
+        end
+      end
+
       def render_trains_table
         pool_trains = depot_pool_trains
         fresh_trains = depot_fresh_trains
@@ -226,24 +306,25 @@ module View
 
         pool_items = []
         pool_trains.each do |train|
-          variants = if train.respond_to?(:names_to_prices) && train.names_to_prices && !train.names_to_prices.empty?
-                       train.names_to_prices
-                     else
-                       { train.name => train.price }
-                     end
-          variants.each { |variant_name, price| pool_items << { train: train, variant_name: variant_name, price: price } }
+          displayed_train_variants(train).each do |variant_name, price|
+            pool_items << {
+              train: train,
+              variant_name: variant_name,
+              price: price,
+            }
+          end
         end
 
         fresh_items = []
         fresh_trains.each do |train|
-          variants = if train.respond_to?(:names_to_prices) && train.names_to_prices && !train.names_to_prices.empty?
-                       train.names_to_prices
-                     else
-                       { train.name => train.price }
-                     end
-          variants.each { |variant_name, price| fresh_items << { train: train, variant_name: variant_name, price: price } }
+          displayed_train_variants(train).each do |variant_name, price|
+            fresh_items << {
+              train: train,
+              variant_name: variant_name,
+              price: price,
+            }
+          end
         end
-
         return nil if pool_items.empty? && fresh_items.empty?
 
         max_rows = [pool_items.size, fresh_items.size].max
