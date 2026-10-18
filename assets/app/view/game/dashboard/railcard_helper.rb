@@ -1020,11 +1020,34 @@ module View
                        '#fdfbf7'
                      end
 
+          # // --- START FIX ---
           %x(
           if (typeof window !== 'undefined') {
-            var dashboardRoot = document.getElementById('viz-master-frame');
-            if (!dashboardRoot) return;
-          // Single source of truth for synchronized 3-way corporate breathing animation
+            if (!window._safe_qsa_patched && typeof Element !== 'undefined') {
+              window._safe_qsa_patched = true;
+              var sanitizeSelector = function(sel) {
+                if (typeof sel !== 'string' || sel.indexOf('#') === -1) return sel;
+                return sel.replace(/#([a-zA-Z0-9_-]*&[a-zA-Z0-9_&-]*)/g, '[id="$1"]');
+              };
+              var origElQSA = Element.prototype.querySelectorAll;
+              Element.prototype.querySelectorAll = function(sel) {
+                return origElQSA.call(this, sanitizeSelector(sel));
+              };
+              var origDocQSA = Document.prototype.querySelectorAll;
+              Document.prototype.querySelectorAll = function(sel) {
+                return origDocQSA.call(this, sanitizeSelector(sel));
+              };
+              var origElQS = Element.prototype.querySelector;
+              Element.prototype.querySelector = function(sel) {
+                return origElQS.call(this, sanitizeSelector(sel));
+              };
+              var origDocQS = Document.prototype.querySelector;
+              Document.prototype.querySelector = function(sel) {
+                return origDocQS.call(this, sanitizeSelector(sel));
+              };
+            }
+
+            // Single source of truth for synchronized 3-way corporate breathing animation
             var ensureTokenPulseStyle = function() {
               if (!document.getElementById('corp-token-pulse-style')) {
                 var s = document.createElement('style');
@@ -1070,16 +1093,17 @@ module View
             };
             ensureTokenPulseStyle();
 
-          window.highlightStockMarketToken = function(corpId) {
-              if (!corpId) return;
+            window.highlightStockMarketToken = function(corpId) {
+              var root = document.getElementById('viz-master-frame');
+              if (!corpId || !root) return;
               if (window._highlightedMarketCorp === corpId) return;
               window.clearStockMarketTokenHighlight();
               window._highlightedMarketCorp = corpId;
 
-              var safeCorpAttr = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(corpId) : String(corpId).replace(/["\\]/g, '\\$&');
+              var safeCorpAttr = String(corpId).replace(/["\\]/g, '\\$&');
 
               // 1. Highlight stock market tokens
-              var stockTokens = dashboardRoot.querySelectorAll(
+              var stockTokens = root.querySelectorAll(
                 '.stock-market-token[data-corp="' + safeCorpAttr + '"], [id="stock-token-' + safeCorpAttr + '"]'
               );
               for (var i = 0; i < stockTokens.length; i++) {
@@ -1092,8 +1116,8 @@ module View
                 }
               }
 
-              // 2. Highlight map tokens (use data-corp attribute only to avoid invalid CSS class identifiers like B&O)
-              var mapTokens = dashboardRoot.querySelectorAll(
+              // 2. Highlight map tokens
+              var mapTokens = root.querySelectorAll(
                 '.map-token[data-corp="' + safeCorpAttr + '"], [data-corp="' + safeCorpAttr + '"].map-token'
               );
               for (var j = 0; j < mapTokens.length; j++) {
@@ -1104,8 +1128,9 @@ module View
                   hexContainer.parentNode.appendChild(hexContainer);
                 }
               }
-// 3 & 4. Highlight status panel major railcards, Operating Order tokens, and Move Feed badges
-              var statusCards = dashboardRoot.querySelectorAll(
+
+              // 3 & 4. Highlight status panel major railcards, Operating Order tokens, and Move Feed badges
+              var statusCards = root.querySelectorAll(
                 '.major-railcard[data-corp="' + safeCorpAttr + '"], ' +
                 '.status-corp-wrapper[data-corp="' + safeCorpAttr + '"], ' +
                 '.cmd-corp-wrapper[data-corp="' + safeCorpAttr + '"], ' +
@@ -1124,30 +1149,45 @@ module View
                 window._elevatedMarketCell.style.zIndex = '';
                 window._elevatedMarketCell = null;
               }
-              var highlightedTokens = dashboardRoot.querySelectorAll('.stock-market-token-highlight');
+              var root = document.getElementById('viz-master-frame') || document;
+              var highlightedTokens = root.querySelectorAll('.stock-market-token-highlight');
               for (var i = 0; i < highlightedTokens.length; i++) {
                 highlightedTokens[i].classList.remove('stock-market-token-highlight');
               }
-              var highlightedCards = dashboardRoot.querySelectorAll('.status-corp-highlight');
+              var highlightedCards = root.querySelectorAll('.status-corp-highlight');
               for (var j = 0; j < highlightedCards.length; j++) {
                 highlightedCards[j].classList.remove('status-corp-highlight');
               }
             };
 
-            if (!window._railcard_portal_installed) {
-              var portal = dashboardRoot.querySelector('#railcard-portal');
-              if (!portal) {
-                portal = document.createElement('div');
-                portal.id = 'railcard-portal';
-                dashboardRoot.appendChild(portal);
-              }
+            var dashboardRoot = document.getElementById('viz-master-frame');
+            if (dashboardRoot && !dashboardRoot.querySelector('#railcard-portal')) {
+              var portal = document.createElement('div');
+              portal.id = 'railcard-portal';
               portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
+              dashboardRoot.appendChild(portal);
+            }
 
+            if (!window._railcard_portal_installed) {
               var styleEl = document.createElement('style');
               styleEl.innerHTML = '#viz-master-frame .short-railcard { background-color: #fee2e2 !important; color: #991b1b !important; } #viz-master-frame .ghost-short-card { opacity: 0.35 !important; border: 1.5px dotted #dc2626 !important; background-color: transparent !important; box-shadow: none !important; color: #dc2626 !important; } #viz-master-frame .ghost-short-card:hover { opacity: 0.85 !important; background-color: rgba(254, 226, 226, 0.35) !important; transform: translateY(-1px); }';
               document.head.appendChild(styleEl);
 
               window._railcard_portal_installed = true;
+
+              var ensurePortalEl = function() {
+                var p = document.getElementById('railcard-portal');
+                if (!p) {
+                  var root = document.getElementById('viz-master-frame');
+                  if (root) {
+                    p = document.createElement('div');
+                    p.id = 'railcard-portal';
+                    p.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
+                    root.appendChild(p);
+                  }
+                }
+                return p;
+              };
 
               var hidePortal = function() {
                 var p = document.getElementById('railcard-portal');
@@ -1198,7 +1238,7 @@ module View
                 if (wrapper) {
                   var tt = wrapper.querySelector('.cmd-company-tooltip, .status-company-tooltip, .cmd-corp-tooltip, .status-corp-tooltip');
                   if (tt) {
-                    var p = document.getElementById('railcard-portal');
+                    var p = ensurePortalEl();
                     if (p) {
                       p.innerHTML = tt.innerHTML;
                       p.style.display = 'block';
@@ -1248,7 +1288,7 @@ module View
             if (!window._market_token_hover_installed) {
               window._market_token_hover_installed = true;
 
-            var getCorpFromElement = function(el) {
+              var getCorpFromElement = function(el) {
                 if (!el || !el.closest) return null;
 
                 // 1. Stock market token or container
@@ -1267,7 +1307,7 @@ module View
                   var mtCorp = mapToken.getAttribute('data-corp');
                   if (mtCorp) return mtCorp;
                 }
-                  // 2b. Operating Order / Turn bar token or Move Feed corp badge
+                // 2b. Operating Order / Turn bar token or Move Feed corp badge
                 var orderToken = el.closest('.entity-order-token, .active-turn-corp-marker, .cmd-corp-wrapper, .status-corp-wrapper');
                 if (orderToken) {
                   var otCorp = orderToken.getAttribute('data-corp');
@@ -1344,6 +1384,7 @@ module View
             }
           }
           )
+          # // --- END FIX ---
           resolved_entity = entity
           if !resolved_entity && @game && text && !text.to_s.strip.empty?
             t_str = text.to_s
@@ -1412,7 +1453,6 @@ module View
           end
           has_dropdown = !dropdown_items.empty?
 
-          # // --- START FIX ---
           is_train = classes.include?('card-train') || wrapper_id.to_s.include?('train') || entity&.respond_to?(:rusts_on)
           if is_train && !classes.include?('card-train')
             classes << 'card-train'
@@ -1451,7 +1491,6 @@ module View
             train_target ||= text
             train_title = train_hover_text(train_target)
           end
-          # // --- END FIX ---
 
           style_props = {
             minWidth: '3.2rem',
@@ -1477,13 +1516,11 @@ module View
             style: style_props,
           }
           card_props[:attrs][:id] = clean_wrapper_id if has_wrapper_id
-          # // --- START FIX ---
           card_props[:attrs][:title] = train_title if train_title
           if is_train
             t_slug = (entity&.respond_to?(:name) ? entity.name : text).to_s.tr('()', '').strip.downcase.tr('+', 'p').gsub(/[^a-z0-9_]/, '')
             card_props[:attrs]['data-train'] = t_slug unless t_slug.empty?
           end
-          # // --- END FIX ---
           card_props[:on] = { click: click_handler } if is_clickable
 
           corp_id_str = nil
@@ -1499,9 +1536,7 @@ module View
             w_attrs[:id] = clean_wrapper_id if has_wrapper_id && !is_train
             w_attrs[:class] = clean_wrapper_classes if has_wrapper_classes
             w_attrs['data-corp'] = corp_id_str if corp_id_str
-            # // --- START FIX ---
             w_attrs[:title] = train_title if is_train && train_title
-            # // --- END FIX ---
 
             children = []
             children << tooltip if has_tooltip

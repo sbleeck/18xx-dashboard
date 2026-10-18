@@ -100,6 +100,7 @@ module Lib
     window.requestAnimationFrame(function() {
       setTimeout(function() {
 
+        // --- START FIX ---
         var findElement = function(selector) {
           if (!selector) return null;
           var s = String(selector).trim();
@@ -108,6 +109,14 @@ module Lib
             var rawId = spaceIdx === -1 ? s.substring(1) : s.substring(1, spaceIdx);
             var rest = spaceIdx === -1 ? '' : s.substring(spaceIdx + 1).trim();
             var baseEl = document.getElementById(rawId);
+            if (!baseEl) {
+              var safeId = rawId.replace(/["\\]/g, '\\$&');
+              try {
+                baseEl = dashboardRoot.querySelector('[id="' + safeId + '"]');
+              } catch (e0) {
+                baseEl = null;
+              }
+            }
             if (baseEl && dashboardRoot.contains(baseEl)) {
               if (!rest) return baseEl;
               try {
@@ -117,12 +126,16 @@ module Lib
               }
             }
           }
+          var safeSel = s.replace(/#([^\s.,>+~:#\[\]]+)/g, function(_, idPart) {
+            return '[id="' + idPart.replace(/["\\]/g, '\\$&') + '"]';
+          });
           try {
-            return dashboardRoot.querySelector(s);
+            return dashboardRoot.querySelector(safeSel);
           } catch (e1) {
             return null;
           }
         };
+        // --- END FIX ---
 
         var fromEl = findElement(fromSel);
         var toEl = findElement(toSel);
