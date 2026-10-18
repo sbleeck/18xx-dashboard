@@ -886,16 +886,172 @@ for (var i = 0; i < list.length; i++) {
         @show_meme_revenue
       end
 
-      def toggle_meme_revenue
-        new_val = !show_meme_revenue?
-        Lib::Storage['show_meme_revenue'] = new_val
-        %x{
-          try {
-            localStorage.setItem('show_meme_revenue', #{new_val} ? 'true' : 'false');
-          } catch(e) {}
-        }
-        store(:show_meme_revenue, new_val)
-        `setTimeout(function() { window.__updateMemeBtnState && window.__updateMemeBtnState(); }, 0)`
+      # // --- START FIX ---
+      def resolve_revenue_val(raw, tile_color = nil)
+        return raw.to_i if raw.is_a?(Numeric)
+        return raw.to_i if raw.is_a?(String) && raw =~ /^\d+$/
+        return 0 unless raw.is_a?(Hash)
+
+        phase = @game.phase if @game.respond_to?(:phase)
+        p_name = phase&.name.to_s if phase
+        p_color = phase&.color.to_s if phase
+        t_color = tile_color.to_s if tile_color
+
+       candidates = [
+          p_name,
+          p_name&.to_sym,
+          (p_name.to_i if p_name =~ /^\d+$/),
+          p_color,
+          p_color&.to_sym,
+          t_color,
+          t_color&.to_sym,
+        ].compact
+
+        candidates.each do |k|
+          val = raw[k]
+          return val.to_i if val.is_a?(Numeric)
+          return val.to_i if val.is_a?(String) && val =~ /^\d+$/
+        end
+
+        raw.values.last.to_i
+      end
+
+      def stop_base_revenue(stop)
+        return 0 unless stop
+
+        raw = nil
+        begin
+          raw = stop.instance_variable_get(:@revenue)
+        rescue StandardError
+        end
+
+        if raw.nil?
+          begin
+            raw = stop.instance_variable_get(:@base_revenue)
+          rescue StandardError
+          end
+        end
+
+        # // --- START FIX ---
+        if raw.nil?
+          begin
+            raw = stop.instance_variable_get(:@revenues)
+          rescue StandardError
+          end
+        end
+
+        if raw.nil? && stop.respond_to?(:base_revenue)
+          begin
+            raw = stop.base_revenue
+          rescue ArgumentError
+            begin
+              raw = stop.base_revenue(@game.phase) if @game.respond_to?(:phase)
+            rescue StandardError
+            end
+          rescue StandardError
+          end
+        end
+
+        if raw.nil? && stop.respond_to?(:revenue)
+          begin
+            r = stop.revenue
+            raw = r if r.is_a?(Numeric) || r.is_a?(Hash)
+          rescue StandardError, ArgumentError
+          end
+        end
+
+        if raw.nil?
+          raw = %x{
+            (function() {
+              if (!stop) return null;
+              if (typeof stop.revenue === 'number') return stop.revenue;
+              if (typeof stop.base_revenue === 'number') return stop.base_revenue;
+              if (stop.revenue && typeof stop.revenue === 'object') return stop.revenue;
+              if (stop.revenues && typeof stop.revenues === 'object') return stop.revenues;
+              if (typeof stop.$base_revenue === 'function') {
+                try { return stop.$base_revenue(); } catch(e) {}
+              }
+              return null;
+            })()
+          }
+        end
+        # // --- END FIX ---
+
+        if raw.respond_to?(:revenue)
+          begin
+            raw = raw.revenue
+          rescue StandardError
+          end
+        end
+
+        t_color = (stop.respond_to?(:tile) && stop.tile&.color) ||
+                  (stop.respond_to?(:hex) && stop.hex&.tile&.color)
+
+        val = resolve_revenue_val(raw, t_color)
+        return val if val.positive?
+
+        tile = stop.respond_to?(:tile) ? stop.tile : nil
+        if tile
+          parts = tile.respond_to?(:parts) ? (tile.parts || []) : []
+          parts.each do |p|
+            next unless p.class.name.to_s.include?('Revenue') ||
+                        (p.respond_to?(:revenue) && !p.respond_to?(:paths) && !p.respond_to?(:slots))
+
+            p_raw = p.respond_to?(:revenue) ? p.revenue : nil
+            p_val = resolve_revenue_val(p_raw, tile.color)
+            return p_val if p_val.positive?
+          end
+        end
+
+        0
+      end
+
+      def tile_base_revenue(tile)
+        return 0 unless tile
+
+        parts = tile.respond_to?(:parts) ? (tile.parts || []) : []
+        rev_parts = parts.select do |p|
+          p.class.name.to_s.include?('Revenue') ||
+            (p.respond_to?(:revenue) && !p.respond_to?(:paths) && !p.respond_to?(:slots))
+        end
+
+        return 0 if rev_parts.empty?
+
+        rev_parts.sum do |p|
+          raw = p.respond_to?(:revenue) ? p.revenue : nil
+          resolve_revenue_val(raw, tile.color)
+        end
+      end
+
+      def resolve_revenue_val(raw, tile_color = nil)
+        return raw.to_i if raw.is_a?(Numeric)
+        return raw.to_i if raw.is_a?(String) && raw =~ /^\d+$/
+        return 0 unless raw.is_a?(Hash)
+
+        phase = @game.phase if @game.respond_to?(:phase)
+        p_name = phase&.name.to_s if phase
+        p_color = phase&.color.to_s if phase
+        t_color = tile_color.to_s if tile_color
+
+        # // --- START FIX ---
+        candidates = [
+          p_name,
+          p_name&.to_sym,
+          (p_name.to_i if /^\d+$/.match?(p_name)),
+          p_color,
+          p_color&.to_sym,
+          t_color,
+          t_color&.to_sym,
+        ].compact
+        # // --- END FIX ---
+
+        candidates.each do |k|
+          val = raw[k]
+          return val.to_i if val.is_a?(Numeric)
+          return val.to_i if val.is_a?(String) && val =~ /^\d+$/
+        end
+
+        raw.values.last.to_i
       end
 
       def install_revenue_button_bridge
@@ -928,66 +1084,25 @@ for (var i = 0; i < list.length; i++) {
       end
 
       def stop_revenue_value(stop, route = nil)
-        val = nil
-
         if route && stop
           if route.respond_to?(:revenue_for)
             begin
               r = route.revenue_for(stop)
-              val = r if r.is_a?(Numeric) && r.positive?
+              return r.to_i if r.is_a?(Numeric) && r.positive?
             rescue StandardError, ArgumentError
             end
           end
-          if val.nil? && stop.respond_to?(:route_revenue)
+          if stop.respond_to?(:route_revenue)
             begin
               train = route.respond_to?(:train) ? route.train : nil
               r = stop.route_revenue(route, train)
-              val = r if r.is_a?(Numeric) && r.positive?
+              return r.to_i if r.is_a?(Numeric) && r.positive?
             rescue StandardError, ArgumentError
             end
           end
         end
 
-        if val.nil? && stop.respond_to?(:revenue)
-          begin
-            r = stop.revenue
-            if r.is_a?(Numeric)
-              val = r
-            elsif r.is_a?(Hash)
-              phase_name = @game.phase&.name if @game.respond_to?(:phase)
-              phase_color = @game.phase&.color if @game.respond_to?(:phase)
-              tile_color = (stop.respond_to?(:tile) && stop.tile&.color) ||
-                           (stop.respond_to?(:hex) && stop.hex&.tile&.color)
-              val = (r[tile_color] if tile_color) ||
-                    (r[tile_color.to_s] if tile_color) ||
-                    (r[tile_color.to_sym] if tile_color.respond_to?(:to_sym)) ||
-                    r[phase_name] ||
-                    r[phase_name.to_s] ||
-                    (r[phase_name.to_sym] if phase_name.respond_to?(:to_sym)) ||
-                    (r[phase_color] if phase_color) ||
-                    (r[phase_color.to_s] if phase_color) ||
-                    (r[phase_color.to_sym] if phase_color.respond_to?(:to_sym)) ||
-                    r.values.last
-            end
-          rescue ArgumentError
-            begin
-              r = stop.revenue([])
-              val = r if r.is_a?(Numeric)
-            rescue StandardError
-            end
-          rescue StandardError
-          end
-        end
-
-        if val.nil? && stop.respond_to?(:base_revenue)
-          begin
-            r = stop.base_revenue
-            val = r if r.is_a?(Numeric)
-          rescue StandardError
-          end
-        end
-
-        val.to_i
+        stop_base_revenue(stop)
       end
 
       def hex_meme_revenue_overlay(hex, x, y, routes)
@@ -1004,29 +1119,37 @@ for (var i = 0; i < list.length; i++) {
                        stops.concat(tile.offboards) if tile.respond_to?(:offboards) && tile.offboards
                        stops
                      end
-        return nil if tile_stops.empty?
+        # // --- START FIX ---
+        # // --- DELETE --- return nil if tile_stops.empty?
+        return nil if tile_stops.empty? && tile_base_revenue(tile).zero?
+
+        # // --- END FIX ---
 
         screaming_palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff', '#ffea00', '#ff4500']
         visited_stops_with_route = []
 
-        Array(routes).each_with_index do |route, r_idx|
-          r_stops = if route.respond_to?(:visited_stops) && route.visited_stops&.any?
-                      route.visited_stops
-                    elsif route.respond_to?(:stops) && route.stops
-                      route.stops
-                    else
-                      []
-                    end
+        active_routes = Array(routes).select { |r| r.respond_to?(:paths_for) }
 
-          tile_stops.each do |ts|
-            matches = r_stops.include?(ts) ||
-                      r_stops.any? do |rs|
-                        rs == ts ||
-                          (rs.respond_to?(:hex) && rs.hex == hex) ||
-                          (rs.respond_to?(:tile) && rs.tile&.hex == hex)
+        if active_routes.any? && tile_stops.any?
+          active_routes.each_with_index do |route, r_idx|
+            r_stops = if route.respond_to?(:visited_stops) && route.visited_stops&.any?
+                        route.visited_stops
+                      elsif route.respond_to?(:stops) && route.stops
+                        route.stops
+                      else
+                        []
                       end
-            if matches && visited_stops_with_route.none? { |v_ts, _, _| v_ts == ts }
-              visited_stops_with_route << [ts, route, r_idx]
+
+            tile_stops.each do |ts|
+              matches = r_stops.include?(ts) ||
+                        r_stops.any? do |rs|
+                          rs == ts ||
+                            (rs.respond_to?(:hex) && rs.hex == hex) ||
+                            (rs.respond_to?(:tile) && rs.tile&.hex == hex)
+                        end
+              if matches && visited_stops_with_route.none? { |v_ts, _, _| v_ts == ts }
+                visited_stops_with_route << [ts, route, r_idx]
+              end
             end
           end
         end
@@ -1036,7 +1159,8 @@ for (var i = 0; i < list.length; i++) {
         total_rev = if is_visited
                       visited_stops_with_route.sum { |ts, r, _| stop_revenue_value(ts, r) }
                     else
-                      tile_stops.sum { |ts| stop_revenue_value(ts, nil) }
+                      rev = tile_stops.sum { |ts| stop_base_revenue(ts) } if tile_stops.any?
+                      rev && rev.positive? ? rev : tile_base_revenue(tile)
                     end
 
         return nil if total_rev <= 0
@@ -1273,7 +1397,7 @@ for (var i = 0; i < list.length; i++) {
         token_action_active = actions.include?('place_token') || actions.include?('hex_token')
 
         hovered_c_id = Lib::Storage['hovered_company_id']
-        hovered_target_hexes = extract_hovered_hexes(hovered_c_id)
+        hovered_hex_set = extract_hovered_hexes(hovered_c_id).map { |h| h.to_s.upcase }
 
         hex_selected = @tile_selector && !@tile_selector.is_a?(Lib::TokenSelector) &&
                          @tile_selector.respond_to?(:hex) && @tile_selector.hex
@@ -1292,7 +1416,7 @@ for (var i = 0; i < list.length; i++) {
                           false
                         end
                       end
-          is_hovered = hovered_target_hexes.map(&:to_s).map(&:upcase).include?(hex.id.to_s.upcase)
+          is_hovered = hovered_hex_set.include?(hex.id.to_s.upcase)
 
           base_hex = h(
               Hex,

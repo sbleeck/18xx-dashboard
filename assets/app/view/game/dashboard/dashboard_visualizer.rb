@@ -53,8 +53,23 @@ module View
       needs :show_other_games_overlay, store: true, default: false
       needs :show_actions_window, store: true, default: false
       needs :show_chat_overlay, store: true, default: false
-
+      needs :show_meme_revenue, store: true, default: nil
       include Actionable
+
+      def toggle_meme_revenue
+        new_val = ![true, 'true'].include?(Lib::Storage['show_meme_revenue'])
+        Lib::Storage['show_meme_revenue'] = new_val
+        %x{
+          try {
+            localStorage.setItem('show_meme_revenue', #{new_val} ? 'true' : 'false');
+          } catch(e) {}
+          if (window.__updateMemeBtnState) {
+            window.__updateMemeBtnState();
+          }
+        }
+        store(:show_meme_revenue, new_val)
+        update
+      end
 
       def action_required_for_me?
         return false if @game.respond_to?(:finished?) && @game.finished?
@@ -588,7 +603,7 @@ module View
           buttons << h(:button, {
                          attrs: { id: 'meme-revenue-toggle-btn', title: 'Toggle large route revenue numbers', type: 'button' },
                          style: meme_btn_style,
-                         on: { click: -> { `window.__toggleMemeRevenue && window.__toggleMemeRevenue()` } },
+                         on: { click: -> { toggle_meme_revenue } },
                        }, '$')
         end
 
@@ -2854,7 +2869,7 @@ window.recalcAllPanels = function() {
                       },
                     }, [
                     h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
-                      h(View::Game::DashboardMap, game: @game, user: @user),
+h(View::Game::DashboardMap, game: @game, user: @user, show_meme_revenue: [true, 'true'].include?(Lib::Storage['show_meme_revenue'])),
                     ]),
                   ]),
                 ]),
