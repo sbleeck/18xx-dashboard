@@ -694,7 +694,7 @@ module View
       needs :historical_laid_hexes, default: nil, store: true
       needs :historical_routes, default: [], store: true
       needs :hovered_routes, default: [], store: true
-      needs :show_meme_revenue, default: false, store: true
+      needs :show_meme_revenue, default: nil, store: true
 
       EDGE_LENGTH = 50
       SIDE_TO_SIDE = 87
@@ -880,14 +880,20 @@ for (var i = 0; i < list.length; i++) {
       end
 
       def show_meme_revenue?
-        return @show_meme_revenue unless @show_meme_revenue.nil?
+        stored = [true, 'true'].include?(Lib::Storage['show_meme_revenue'])
+        return stored if @show_meme_revenue.nil?
 
-        Lib::Storage['show_meme_revenue'] || false
+        @show_meme_revenue
       end
 
       def toggle_meme_revenue
         new_val = !show_meme_revenue?
         Lib::Storage['show_meme_revenue'] = new_val
+        %x{
+          try {
+            localStorage.setItem('show_meme_revenue', #{new_val} ? 'true' : 'false');
+          } catch(e) {}
+        }
         store(:show_meme_revenue, new_val)
         `setTimeout(function() { window.__updateMemeBtnState && window.__updateMemeBtnState(); }, 0)`
       end
@@ -900,6 +906,12 @@ for (var i = 0; i < list.length; i++) {
             var btn = document.getElementById('meme-revenue-toggle-btn');
             if (!btn) return;
             var isActive = #{active};
+            try {
+              var stored = localStorage.getItem('show_meme_revenue');
+              if (stored !== null && stored !== undefined) {
+                isActive = stored === 'true';
+              }
+            } catch(e) {}
             btn.setAttribute('role', 'checkbox');
             btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
             btn.style.backgroundColor = isActive ? '#10b981' : '#ffffff';
@@ -909,7 +921,6 @@ for (var i = 0; i < list.length; i++) {
           window.__toggleMemeRevenue = function() {
             if (selfRef && selfRef.$toggle_meme_revenue) selfRef.$toggle_meme_revenue();
           };
-          // The fixed button is rendered by DashboardVisualizer. Never create or move it here.
           setTimeout(function() {
             if (window.__updateMemeBtnState) window.__updateMemeBtnState();
           }, 0);
@@ -944,7 +955,19 @@ for (var i = 0; i < list.length; i++) {
               val = r
             elsif r.is_a?(Hash)
               phase_name = @game.phase&.name if @game.respond_to?(:phase)
-              val = r[phase_name] || r.values.last
+              phase_color = @game.phase&.color if @game.respond_to?(:phase)
+              tile_color = (stop.respond_to?(:tile) && stop.tile&.color) ||
+                           (stop.respond_to?(:hex) && stop.hex&.tile&.color)
+              val = (r[tile_color] if tile_color) ||
+                    (r[tile_color.to_s] if tile_color) ||
+                    (r[tile_color.to_sym] if tile_color.respond_to?(:to_sym)) ||
+                    r[phase_name] ||
+                    r[phase_name.to_s] ||
+                    (r[phase_name.to_sym] if phase_name.respond_to?(:to_sym)) ||
+                    (r[phase_color] if phase_color) ||
+                    (r[phase_color.to_s] if phase_color) ||
+                    (r[phase_color.to_sym] if phase_color.respond_to?(:to_sym)) ||
+                    r.values.last
             end
           rescue ArgumentError
             begin
@@ -969,22 +992,24 @@ for (var i = 0; i < list.length; i++) {
 
       def hex_meme_revenue_overlay(hex, x, y, routes)
         return nil unless show_meme_revenue?
-        return nil unless routes&.any? && hex&.tile
+        return nil unless hex&.tile
 
         tile = hex.tile
         tile_stops = if tile.respond_to?(:stops) && tile.stops&.any?
                        tile.stops
-                     elsif tile.respond_to?(:cities) && tile.cities&.any?
-                       tile.cities
                      else
-                       []
+                       stops = []
+                       stops.concat(tile.cities) if tile.respond_to?(:cities) && tile.cities
+                       stops.concat(tile.towns) if tile.respond_to?(:towns) && tile.towns
+                       stops.concat(tile.offboards) if tile.respond_to?(:offboards) && tile.offboards
+                       stops
                      end
         return nil if tile_stops.empty?
 
         screaming_palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff', '#ffea00', '#ff4500']
         visited_stops_with_route = []
 
-        routes.each_with_index do |route, r_idx|
+        Array(routes).each_with_index do |route, r_idx|
           r_stops = if route.respond_to?(:visited_stops) && route.visited_stops&.any?
                       route.visited_stops
                     elsif route.respond_to?(:stops) && route.stops
@@ -1175,8 +1200,6 @@ for (var i = 0; i < list.length; i++) {
                       else
                         (if act.respond_to?(:entity)
                            act.entity.respond_to?(:id) ? act.entity.id : act.entity
-                         else
-                           nil
                          end)
                       end
               a_type.to_s == 'run_routes' && a_ent.to_s == hovered_corp.id.to_s
