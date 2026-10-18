@@ -51,10 +51,7 @@ module Engine
                              'At the end of each OR the next available train is exported and removed from the game'],
           'no_ownership_limit' => ['No ownership limit',
                                    'Players may buy shares beyond 60% (70% with 2 players) of a major company'],
-          'ownership_limit' => ['60% ownership limit (70% with 2 players)',
-                                'Players may not buy shares that take them above 60% (70% with 2 players) '\
-                                'of a major company; holdings already above the limit need not be sold'],
-        ).freeze
+        )
 
         PHASES = G1861::Game::PHASES.map do |phase|
           number = phase[:name].to_i
@@ -62,7 +59,7 @@ module Engine
           status |= ['national_operates'] if number >= UP_OPERATES_PHASE
           status |= ['export_train'] if number.between?(UP_OPERATES_PHASE, LAST_EXPORT_PHASE)
           status << (number >= OWNERSHIP_LIMIT_PHASE ? 'ownership_limit' : 'no_ownership_limit')
-          phase.merge(status: status)
+          phase.merge(status: status, train_limit: phase[:train_limit].except(:national))
         end.freeze
 
         TRAIN_EVENTS = {
@@ -77,7 +74,7 @@ module Engine
         TRAINS = (G1867::Game::TRAINS.map do |train|
           events = TRAIN_EVENTS[train[:name]]
           events ? train.merge(events: events.map { |type| { 'type' => type } }) : train
-        end + [{ name: PULLMAN, distance: 0, price: 0, num: 1, rusts_on: '6' }]).freeze
+        end + [{ name: PULLMAN, distance: 0, price: 0, num: 1, rusts_on: '6', reserved: true }]).freeze
 
         EVENTS_TEXT = G1867::Game::EVENTS_TEXT.except(
           'minors_nationalized', 'nationalize_companies', 'trainless_nationalization'
@@ -96,10 +93,7 @@ module Engine
                                        'Minor Company Ability cards, and any Union/Central Station tokens, are removed'],
           'up_ipo_purchasable' => ['Union Pacific shares purchasable',
                                    'Union Pacific IPO shares may be bought in Stock Rounds'],
-          'ownership_limit' => ['60% ownership limit (70% with 2 players)',
-                                'Players may no longer buy shares that take them above 60% (70% with 2 players) '\
-                                'of a major company'],
-        ).freeze
+        )
 
         UP_TILE_RESERVATIONS = { 'X4' => 1, '639' => 3, '641' => 2 }.freeze
         BAILEY_YARD_TILES = { yellow: 'X6', brown: 'X7', gray: 'X8' }.freeze
@@ -142,6 +136,7 @@ module Engine
           setup_future_corporations!
           setup_union_pacific!
           update_ownership_limits!
+          setup_ownership_limit_text!
           deal_ability_cards!
           reserve_ability_train!('EA1', '2')
           reserve_ability_train!('PC1', PULLMAN)
@@ -168,6 +163,15 @@ module Engine
 
         def ownership_limit
           @phase.status.include?('ownership_limit') ? OWNERSHIP_LIMIT[@players.size] : 100
+        end
+
+        def setup_ownership_limit_text!
+          limit = OWNERSHIP_LIMIT[@players.size]
+          STATUS_TEXT['ownership_limit'] = ["#{limit}% ownership limit",
+                                            "Players may not buy shares that take them above #{limit}% of a major company; "\
+                                            'holdings already above the limit need not be sold']
+          EVENTS_TEXT['ownership_limit'] = ["#{limit}% ownership limit",
+                                            "Players may no longer buy shares that take them above #{limit}% of a major company"]
         end
 
         def update_ownership_limits!
@@ -306,8 +310,17 @@ module Engine
           train.name == PULLMAN
         end
 
-        def pullman_distance(train)
-          train.distance.map { |h| h['nodes'] == ['town'] ? h.merge('pay' => PULLMAN_TOWNS) : h }
+        def num_pullman_towns
+          PULLMAN_TOWNS
+        end
+
+        def compute_stops(route)
+          stops = super
+          town_pay = route.train.distance.sum { |h| h['nodes'] == ['town'] ? h['pay'] : 0 }
+          return stops if !stops || town_pay.zero?
+
+          towns = (route.visited_stops - stops).select(&:town?)
+          towns.combination([town_pay, towns.size].min).map { |combo| stops + combo }.max_by { |s| revenue_for(route, s) }
         end
 
         def route_trains(entity)
@@ -575,6 +588,7 @@ module Engine
 
         def train_limit(entity)
           return entity.trains.size + 1 if deregulated?
+          return 99 if entity == @union_pacific
 
           super
         end
