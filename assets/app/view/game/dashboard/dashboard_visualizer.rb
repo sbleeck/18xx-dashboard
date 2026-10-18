@@ -1754,8 +1754,7 @@ badge_el,
 
                         `document.body.style.margin = '0'`
                         `document.body.style.padding = '0'`
-                        `document.body.style.backgroundColor = '#{frame_bg}'`
-                        `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'hidden', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', height: '100vh', backgroundColor: '#{frame_bg}', transition: 'background-color 0.3s ease' })`
+                        `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'hidden', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', height: '100vh'})`
                         `document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 36px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 36px)' })`
 
                         %x(
@@ -1908,12 +1907,11 @@ window.addEventListener('resize', window.positionDashboardButtons);
                       '} ' +
                       '#game > div:first-child a, #game > div:first-child span { ' +
                       '  font-size: 0.78rem !important; font-weight: 500 !important; line-height: 26px !important; padding: 0 0.45rem !important; ' +
-                      '  color: #1a1a1a !important; text-decoration: none !important; display: inline-flex !important; align-items: center !important; ' +
+                      '  text-decoration: none !important; display: inline-flex !important; align-items: center !important; ' +
                       '  border-radius: 3px !important; transition: background-color 0.15s ease !important; ' +
                       '} ' +
-                      '#game > div:first-child a:hover { background-color: rgba(0, 0, 0, 0.12) !important; } ' +
                       '#game > div:first-child a.active, #game > div:first-child .active { ' +
-                      '  font-weight: 700 !important; background-color: rgba(0, 0, 0, 0.18) !important; box-shadow: inset 0 -2px 0 0 #000000 !important; ' +
+                      '  font-weight: 700 !important; ' +
                       '} ' +
                       '#game > div:first-child a u, #game > div:first-child span u { text-decoration: underline !important; } ' +
                       '#viz-master-frame::after { ' +
@@ -2806,6 +2804,10 @@ window.recalcAllPanels = function() {
                          %x(
                      window._dashboardVisualizer = null;
                      window.toggleDashboardPhases = null;
+                     if (window.positionDashboardButtons) {
+                       window.removeEventListener('resize', window.positionDashboardButtons);
+                     }
+                     window.positionDashboardButtons = null;
                    )
 
                          %x(
@@ -2820,8 +2822,8 @@ window.recalcAllPanels = function() {
                        var chatBubble = document.getElementById('dashboard-chat-popup-bubble');
                      if (chatBubble) chatBubble.remove();
                    )
-                         `document.body.style.backgroundColor = ''`
-                         `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '', backgroundColor: '', transition: '' })`
+                         `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '' })`
+
                          `document.getElementById('game') && Object.assign(document.getElementById('game').style, { overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' })`
                        },
             },

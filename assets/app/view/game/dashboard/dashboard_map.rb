@@ -186,140 +186,6 @@ end
 
 module View
   module Game
-    class Hex < Snabberb::Component
-      unless method_defined?(:orig_dashboard_render)
-        alias orig_dashboard_render render
-
-        def render
-          rendered = orig_dashboard_render
-          %x{
-            function removeLegacyFills(vnode) {
-              if (!vnode) return;
-              if (Array.isArray(vnode)) {
-                for (var i = vnode.length - 1; i >= 0; i--) {
-                  var child = vnode[i];
-                  if (child && child.data && child.data.attrs) {
-                    var f = (child.data.attrs['fill'] || '').toLowerCase();
-                    var s = (child.data.attrs['stroke'] || '').toLowerCase();
-                    if (f === 'red' || f === '#ff0000' || f === '#f00' || f === 'rgba(255, 0, 0, 0.5)' || f === 'rgba(255,0,0,0.5)' ||
-                        f === 'green' || f === '#00ff00' || f === '#0f0' ||
-                        s === 'red' || s === '#ff0000' || s === '#f00' ||
-                        s === 'green' || s === '#00ff00' || s === '#0f0') {
-                      vnode.splice(i, 1);
-                      continue;
-                    }
-                  }
-                  removeLegacyFills(child);
-                }
-                return;
-              }
-              if (vnode.children && Array.isArray(vnode.children)) {
-                removeLegacyFills(vnode.children);
-              }
-            }
-            removeLegacyFills(#{rendered});
-          }
-          rendered
-        end
-      end
-    end
-  end
-end
-
-module View
-  module Game
-    class Token < Snabberb::Component
-      unless method_defined?(:orig_map_pulse_render)
-        alias orig_map_pulse_render render
-
-        def render
-          rendered = orig_map_pulse_render
-          corp = @corporation
-          corp ||= @token.corporation if @token.respond_to?(:corporation)
-          return rendered unless corp
-
-          corp_id = corp.id.to_s
-          # // --- START FIX ---
-          %x{
-            var v = #{rendered};
-            if (v) {
-              var list = Array.isArray(v) ? v : [v];
-              for (var i = 0; i < list.length; i++) {
-                var item = list[i];
-                if (!item) continue;
-
-                if (!item.data) item.data = {};
-                if (!item.data.attrs) item.data.attrs = {};
-
-                // Wrap children inside an inner <g> so CSS scale animations never overwrite
-                // the outer SVG transform="translate(...) rotate(...)" of the city slot.
-                if (item.children && Array.isArray(item.children) && !item.data.attrs['data-token-wrapped']) {
-                  item.data.attrs['data-token-wrapped'] = 'true';
-                  var innerG = {
-                    sel: 'g',
-                    data: {
-                      attrs: {
-                        'data-corp': #{corp_id},
-                        'class': 'map-token map-token-' + #{corp_id}
-                      },
-                      hook: {
-                        insert: function(vnode) {
-                          var el = vnode.elm;
-                          if (!el || typeof performance === 'undefined') return;
-                          // Only animate newly placed tokens after initial board render
-                          if (!window._mapTokensInitialized) return;
-                          var start = performance.now();
-                          var dur = 380;
-                          function stepAnim(now) {
-                            var p = Math.min(1, (now - start) / dur);
-                            // Smooth cubic-out drop-in from scale 2.4 -> 0.92 -> 1.0
-                            var s = p < 0.7
-                              ? 2.4 - (1.48 * (p / 0.7) * (p / 0.7))
-                              : 0.92 + (0.08 * ((p - 0.7) / 0.3));
-                            el.style.transform = 'scale(' + s.toFixed(3) + ')';
-                            el.style.transformOrigin = 'center center';
-                            el.style.transformBox = 'fill-box';
-                            if (p < 1) {
-                              window.requestAnimationFrame(stepAnim);
-                            } else {
-                              el.style.transform = '';
-                            }
-                          }
-                          window.requestAnimationFrame(stepAnim);
-                        }
-                      }
-                    },
-                    children: item.children,
-                    elm: undefined,
-                    text: undefined,
-                    key: undefined
-                  };
-                  item.children = [innerG];
-                } else {
-                  item.data.attrs['data-corp'] = #{corp_id};
-                  var c = item.data.attrs['class'] || '';
-                  if (c.indexOf('map-token') === -1) {
-                    item.data.attrs['class'] = (c + ' map-token map-token-' + #{corp_id}).trim();
-                  }
-                }
-              }
-            }
-            if (typeof window !== 'undefined' && !window._mapTokensInitTimer) {
-              window._mapTokensInitTimer = setTimeout(function() {
-                window._mapTokensInitialized = true;
-              }, 600);
-            }
-          }
-          # // --- END FIX ---
-          rendered
-        end
-      end
-    end
-  end
-end
-
-module View
-  module Game
     module Part
       class CitySlot < Base
         needs :game, default: nil, store: true
@@ -709,34 +575,25 @@ module View
       # Register highlighter immediately on load so cyan is active before any layout guards
       %x{
         if (typeof window !== 'undefined') {
-          if (!window.__circle_attr_guard_installed) {
-            window.__circle_attr_guard_installed = true;
-            var origSetAttribute = Element.prototype.setAttribute;
-            Element.prototype.setAttribute = function(name, value) {
-              if (this.tagName && this.tagName.toLowerCase() === 'circle') {
-                if ((name === 'cy' || name === 'cx' || name === 'r') &&
-                    (value === '' || value == null || value === 'NaN' || value === 'undefined')) {
-                  value = '0';
-                }
-              }
-              return origSetAttribute.call(this, name, value);
-            };
-          }
+
+
           window.highlightMapHexes = function(hexIds, _color) {
             if (!hexIds) return;
+            var dashboard = document.getElementById('viz-master-frame');
+            if (!dashboard) return;
             window.clearMapHexHighlights();
             var list = Array.isArray(hexIds) ? hexIds : (hexIds.to_a ? hexIds.to_a() : [hexIds]);
             var len = list.length || 0;
 for (var i = 0; i < list.length; i++) {
               var rawId = String(list[i]);
-              var targets = [
-                document.getElementById('hex-' + rawId),
-                document.querySelector('.hex-' + rawId),
-                document.getElementById('hex-' + rawId.toUpperCase()),
-                document.querySelector('.hex-' + rawId.toUpperCase()),
-                document.getElementById('hex-' + rawId.toLowerCase()),
-                document.querySelector('.hex-' + rawId.toLowerCase())
-              ];
+             var targets = [
+  dashboard.querySelector('#hex-' + rawId),
+  dashboard.querySelector('.hex-' + rawId),
+  dashboard.querySelector('#hex-' + rawId.toUpperCase()),
+  dashboard.querySelector('.hex-' + rawId.toUpperCase()),
+  dashboard.querySelector('#hex-' + rawId.toLowerCase()),
+  dashboard.querySelector('.hex-' + rawId.toLowerCase())
+];
               for (var t = 0; t < targets.length; t++) {
                 var hexEl = targets[t];
                 if (hexEl) {
@@ -753,7 +610,9 @@ for (var i = 0; i < list.length; i++) {
           };
 
           window.clearMapHexHighlights = function() {
-            var polys = document.querySelectorAll('.hex-highlight-poly');
+var dashboard = document.getElementById('viz-master-frame');
+if (!dashboard) return;
+var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             for (var i = 0; i < polys.length; i++) {
               var p = polys[i];
               var origStroke = p.getAttribute('data-orig-stroke') || 'transparent';
@@ -1232,48 +1091,6 @@ for (var i = 0; i < list.length; i++) {
 
         @start_pos = [@cols.first, @rows.first]
         @scale = 1.0
-
-        %x{
-    if (typeof window !== 'undefined') {
-      window.highlightMapHexes = function(hexIds, _color) {
-        if (!hexIds) return;
-        window.clearMapHexHighlights();
-        var list = Array.isArray(hexIds) ? hexIds : (hexIds.to_a ? hexIds.to_a() : [hexIds]);
-for (var i = 0; i < list.length; i++) {
-          var rawId = String(list[i]);
-          var targets = [
-            document.getElementById('hex-' + rawId),
-            document.querySelector('.hex-' + rawId),
-            document.getElementById('hex-' + rawId.toUpperCase()),
-            document.querySelector('.hex-' + rawId.toUpperCase())
-          ];
-          for (var t = 0; t < targets.length; t++) {
-            var hexEl = targets[t];
-            if (hexEl) {
-              var poly = hexEl.querySelector('.hex-highlight-poly');
-              if (poly) {
-                poly.setAttribute('stroke', '#00ffff');
-                poly.setAttribute('stroke-width', '8');
-                poly.setAttribute('fill', '#00ffff');
-                poly.setAttribute('fill-opacity', '0.35');
-              }
-            }
-          }
-        }
-      };
-
-      window.clearMapHexHighlights = function() {
-        var polys = document.querySelectorAll('.hex-highlight-poly');
-        for (var i = 0; i < polys.length; i++) {
-          var p = polys[i];
-          p.setAttribute('stroke', p.getAttribute('data-orig-stroke') || 'transparent');
-          p.setAttribute('stroke-width', p.getAttribute('data-orig-width') || '0');
-          p.setAttribute('fill', p.getAttribute('data-orig-fill') || 'transparent');
-          p.setAttribute('fill-opacity', p.getAttribute('data-orig-fill-opacity') || '0');
-        }
-      };
-    }
-  }
 
         step = @game.round.active_step(@selected_company)
 
