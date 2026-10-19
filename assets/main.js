@@ -51206,9 +51206,12 @@ Opal.modules["view/game/dashboard/chat_overlay"] = function(Opal) {/* Generated 
             self.$store("chat_input", "");
             self.$scroll_to_latest();
             
-    var input = document.getElementById('dashboard_chat_input');
-    if (input) input.focus();
-  ;
+            var input = document.getElementById('dashboard_chat_input');
+            if (input) {
+              input.value = '';
+              input.focus();
+            }
+          ;
           });
           
           $def(self, '$handle_input', function $$handle_input(event) {
