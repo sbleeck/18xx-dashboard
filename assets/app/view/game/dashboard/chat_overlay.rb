@@ -181,6 +181,15 @@ module View
           store(:chat_input, '')
 
           scroll_to_latest
+          # // --- START FIX ---
+
+          %x{
+            var input = document.getElementById('dashboard_chat_input');
+            if (input) {
+              input.value = '';
+              input.focus();
+            }
+          }
         end
 
         def handle_input(event)
