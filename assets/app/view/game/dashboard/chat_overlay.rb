@@ -29,11 +29,6 @@ module View
           '#ea580c',
         ].freeze
 
-        def close_overlay
-          Lib::Storage['dashboard_chat_overlay'] = nil
-          @on_close&.call
-        end
-
         def current_user_id
           return nil unless @user
 
@@ -184,10 +179,12 @@ module View
           )
 
           store(:chat_input, '')
-          # // --- DELETE --- update
-          # // --- START FIX ---
-          close_overlay
-          # // --- END FIX ---
+
+          scroll_to_latest
+          %x{
+    var input = document.getElementById('dashboard_chat_input');
+    if (input) input.focus();
+  }
         end
 
         def handle_input(event)
@@ -197,7 +194,17 @@ module View
 
         def handle_keydown(event)
           native_event = Native(event)
-          return unless native_event['key'] == 'Enter'
+          key = native_event['key']
+
+          # // --- START FIX ---
+          if key == 'Escape'
+            native_event.preventDefault
+            close_overlay
+            return
+          end
+          # // --- END FIX ---
+
+          return unless key == 'Enter'
           return if native_event['shiftKey']
 
           native_event.preventDefault
@@ -622,7 +629,15 @@ module View
                 pointerEvents: 'auto',
               },
               hook: {
-                insert: -> { scroll_to_latest },
+                # // --- START FIX ---
+                insert: lambda {
+                  scroll_to_latest
+                  %x{
+            var input = document.getElementById('dashboard_chat_input');
+            if (input) input.focus();
+          }
+                },
+                # // --- END FIX ---
                 postpatch: -> { scroll_to_latest },
               },
             }, [
@@ -692,13 +707,13 @@ module View
                       on: {
                         click: lambda do |event|
                           %x{
-                            if (
-                              #{event} &&
-                              #{event}.stopPropagation
-                            ) {
-                              #{event}.stopPropagation();
-                            }
-                          }
+                    if (
+                      #{event} &&
+                      #{event}.stopPropagation
+                    ) {
+                      #{event}.stopPropagation();
+                    }
+                  }
 
                           close_overlay
                         end,
@@ -717,16 +732,16 @@ module View
                   on: {
                     scroll: lambda do |event|
                       %x{
-                        var body = #{event}.target;
+                var body = #{event}.target;
 
-                        if (body) {
-                          window.__dashboardChatUserScrolledUp =
-                            body.scrollTop <
-                            body.scrollHeight -
-                              body.offsetHeight -
-                              45;
-                        }
-                      }
+                if (body) {
+                  window.__dashboardChatUserScrolledUp =
+                    body.scrollTop <
+                    body.scrollHeight -
+                      body.offsetHeight -
+                      45;
+                }
+              }
                     end,
                   },
                 }, render_messages),
