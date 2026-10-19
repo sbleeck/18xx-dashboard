@@ -181,10 +181,6 @@ module View
           store(:chat_input, '')
 
           scroll_to_latest
-          %x{
-    var input = document.getElementById('dashboard_chat_input');
-    if (input) input.focus();
-  }
         end
 
         def handle_input(event)
