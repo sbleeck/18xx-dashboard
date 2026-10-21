@@ -258,7 +258,7 @@ module View
                 attrs: { attributeName: 'stroke-opacity', values: '0.35;1.0;0.35', dur: '1.4s', repeatCount: 'indefinite' }),
             ])
 
-            rendered_children = rendered.is_a?(Array) ? rendered : [rendered]
+            rendered_children = `Array.isArray(#{rendered}) ? #{rendered} : [#{rendered}]`
             h(:g, {}, [*rendered_children, highlight].compact)
           end
 
@@ -337,56 +337,6 @@ module View
       MAP_MONEY_FONT = "'Courier New', monospace"
       MAP_MONEY_COLOR = '#4c1d95'
       MAP_MONEY_NEGATIVE_COLOR = '#ffffff'
-
-      class SingleRevenue < Snabberb::Component
-        def render
-          return h(:g) if @revenue.zero? && !@force
-
-          text = @revenue.to_s
-
-          radius =
-            case text.length
-            when 1..2 then 0.72
-            when 3    then 0.84
-            else           0.96
-            end
-
-          h(
-            :g,
-            {
-              attrs: {
-                transform: @transform,
-                class: 'dashboard-money dashboard-revenue',
-                'font-size': "#{18 * MAP_MONEY_SCALE}px",
-              },
-            },
-            [
-              h(:circle, {
-                  attrs: {
-                    cx: '0',
-                    cy: '0',
-                    r: "#{radius}em",
-                    fill: '#ffffff',
-                    stroke: '#777777',
-                    'stroke-width': '0.08em',
-                  },
-                }),
-              h('text.number', {
-                  attrs: {
-                    x: '0',
-                    y: '0',
-                    fill: MAP_MONEY_COLOR,
-                    'text-anchor': 'middle',
-                    'dominant-baseline': 'central',
-                    'alignment-baseline': 'central',
-                    'font-family': MAP_MONEY_FONT,
-                    'font-weight': '700',
-                  },
-                }, text),
-            ]
-          )
-        end
-      end
 
       module DashboardRevenueBadge
         FONT_SIZE = 17 * MAP_MONEY_SCALE
@@ -698,7 +648,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               extra = hex.tile.color == :white ? (tile_lay[:cost] || 0) : (tile_lay[:upgrade_cost] || 0)
               base_cost += extra || 0
             end
-          rescue Exception
+          rescue StandardError
           end
         end
 
@@ -854,7 +804,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           begin
             r = stop.revenue
             raw = r if r.is_a?(Numeric) || r.is_a?(Hash)
-          rescue StandardError, ArgumentError
+          rescue StandardError
           end
         end
 
@@ -920,32 +870,6 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
         end
       end
 
-      def resolve_revenue_val(raw, tile_color = nil)
-        return raw.to_i if raw.is_a?(Numeric)
-        return raw.to_i if raw.is_a?(String) && raw =~ /^\d+$/
-        return 0 unless raw.is_a?(Hash)
-
-        phase = @game.phase if @game.respond_to?(:phase)
-        p_name = phase&.name.to_s if phase
-        t_color = tile_color.to_s if tile_color
-
-        candidates = [
-          p_name,
-          p_name&.to_sym,
-          (p_name.to_i if /^\d+$/.match?(p_name)),
-          t_color,
-          t_color&.to_sym,
-        ].compact
-
-        candidates.each do |k|
-          val = raw[k]
-          return val.to_i if val.is_a?(Numeric)
-          return val.to_i if val.is_a?(String) && val =~ /^\d+$/
-        end
-
-        raw.values.last.to_i
-      end
-
       def install_revenue_button_bridge
         active = show_meme_revenue?
         %x{
@@ -981,7 +905,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             begin
               r = route.revenue_for(stop)
               return r.to_i if r.is_a?(Numeric) && r.positive?
-            rescue StandardError, ArgumentError
+            rescue StandardError
             end
           end
           if stop.respond_to?(:route_revenue)
@@ -989,7 +913,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               train = route.respond_to?(:train) ? route.train : nil
               r = stop.route_revenue(route, train)
               return r.to_i if r.is_a?(Numeric) && r.positive?
-            rescue StandardError, ArgumentError
+            rescue StandardError
             end
           end
         end
@@ -1470,6 +1394,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
         if @tile_selector.is_a?(Lib::TokenSelector)
           h(TokenSelector, zoom: 1.0)
         elsif @tile_selector.role != :map
+          nil
         elsif @tile_selector.hex.tile != @tile_selector.tile
           h(TileConfirmation, zoom: 1.0)
         else

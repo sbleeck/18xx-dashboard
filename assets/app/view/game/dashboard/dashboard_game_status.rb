@@ -1967,15 +1967,15 @@ module View
                            }, '★')
           end
           if Lib::Storage['issue_ipo_menu_corp'] == corporation.id && issue_from_ipo
-            options = (ipo_issuable_bundles || issuable_bundles).map do |bundle|
-              pct = bundle.respond_to?(:percent) ? bundle.percent : bundle.shares.sum(&:percent)
+            options = (ipo_issuable_bundles || issuable_bundles).map do |b|
+              pct = b.respond_to?(:percent) ? b.percent : b.shares.sum(&:percent)
               {
                 label: "Issue #{pct}%",
                 action: lambda { |_event|
                   Lib::Storage['issue_ipo_menu_corp'] = nil
                   exec_issue_share_bundle(
                     corporation,
-                    bundle,
+                    b,
                     corp_actions,
                     "#ipo_shares_#{corporation.id} .game-card",
                     "#pool_shares_#{corporation.id}"

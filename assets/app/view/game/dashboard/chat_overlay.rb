@@ -473,11 +473,7 @@ module View
             ])
 
           children = []
-
-          if mine
-          else
-            children << sender_badge(sender)
-          end
+          children << sender_badge(sender) unless mine
           children << bubble
 
           h(:div, {

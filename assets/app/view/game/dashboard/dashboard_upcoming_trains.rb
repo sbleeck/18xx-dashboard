@@ -324,14 +324,14 @@ module View
             end
             common_rem = entries.first[:train].unlimited ? '(∞)' : "(#{entries.first[:remaining].size})"
 
-            train_nodes = entries.map do |entry|
-              train = entry[:train]
-              name = entry[:name]
-              price = @game.format_currency(entry[:price])
+            train_nodes = entries.map do |ent|
+              train = ent[:train]
+              name = ent[:name]
+              price = @game.format_currency(ent[:price])
               rem_text = if same_remaining
                            nil
                          else
-                           (train.unlimited ? '(∞)' : "(#{entry[:remaining].size})")
+                           (train.unlimited ? '(∞)' : "(#{ent[:remaining].size})")
                          end
               tooltip_node = nil
               wrapper_id = "upcoming_train_#{train.id}_#{name.tr('/', '_')}"

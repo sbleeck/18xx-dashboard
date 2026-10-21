@@ -887,7 +887,7 @@ module View
         mark_chat_messages_read!(total) if unread_from_others.zero?
 
         unread_from_others
-      rescue Exception
+      rescue StandardError
         0
       end
 
@@ -938,7 +938,7 @@ module View
             window.showChatPopupBubble(#{sender_name}, #{msg_text});
           }
         }
-      rescue Exception
+      rescue StandardError
         nil
       end
 

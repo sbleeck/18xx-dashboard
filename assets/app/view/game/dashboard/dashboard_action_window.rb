@@ -424,7 +424,7 @@ module View
           return nil unless step.respond_to?(:description)
 
           step.description
-        rescue NotImplementedError, ScriptError, StandardError
+        rescue ScriptError, StandardError
           nil
         end
 
@@ -432,7 +432,7 @@ module View
           actions.include?('place_token') && (
             step&.class&.name =~ /HomeToken|Home/i ||
             step_description(step) =~ /Home/i ||
-            (step.respond_to?(:home_token?) && (begin; step.home_token?; rescue NotImplementedError, ScriptError, StandardError; false; end))
+            (step.respond_to?(:home_token?) && (begin; step.home_token?; rescue ScriptError, StandardError; false; end))
           )
         end
 
@@ -4482,7 +4482,7 @@ module View
                     update
                   end
                 )
-              rescue Exception
+              rescue StandardError
                 store(:cmd_router_running, false)
                 update
               end

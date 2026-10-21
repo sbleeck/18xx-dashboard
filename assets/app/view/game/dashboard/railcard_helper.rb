@@ -54,7 +54,7 @@ module View
             %i[blocks_hexes teleport tile_lay hex_bonus assign_hexes reservation close].each do |type|
               ab = begin
                 @game.abilities(target, type)
-              rescue StandardError, NoMethodError
+              rescue StandardError
                 nil
               end
               abilities.concat(Array(ab)) if ab
@@ -203,7 +203,7 @@ module View
                           if a.respond_to?(:description)
                             begin
                               desc = a.description
-                            rescue NotImplementedError, ScriptError, StandardError
+                            rescue ScriptError, StandardError
                               desc = nil
                             end
                           end

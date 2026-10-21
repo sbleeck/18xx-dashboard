@@ -263,7 +263,7 @@ module View
                     update
                   end
                 )
-              rescue Exception
+              rescue StandardError
                 store(:cmd_router_running, false)
                 update
               end
