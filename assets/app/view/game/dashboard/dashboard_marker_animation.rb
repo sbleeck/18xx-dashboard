@@ -11,7 +11,7 @@ module Lib
                  game.actions.last
                end
 
-      current_id = if action&.respond_to?(:id)
+      current_id = if action.respond_to?(:id)
                      action.id
                    elsif action
                      action.object_id
@@ -335,11 +335,11 @@ module Lib
       entity = action.respond_to?(:entity) ? action.entity : nil
       token = action.respond_to?(:token) ? action.token : nil
 
-      corp = if entity&.respond_to?(:corporation?) && entity&.corporation?
+      corp = if entity.respond_to?(:corporation?) && entity&.corporation?
                entity
-             elsif token&.respond_to?(:corporation) && token&.corporation
+             elsif token.respond_to?(:corporation) && token&.corporation
                token.corporation
-             elsif entity&.respond_to?(:owner) && entity.owner&.respond_to?(:corporation?) && entity.owner&.corporation?
+             elsif entity.respond_to?(:owner) && entity.owner.respond_to?(:corporation?) && entity.owner&.corporation?
                entity.owner
              else
                entity
@@ -350,15 +350,15 @@ module Lib
       corp_id = corp.respond_to?(:id) ? corp.id.to_s : corp.to_s
 
       city = action.respond_to?(:city) ? action.city : nil
-      hex = if city&.respond_to?(:hex) && city&.hex
+      hex = if city.respond_to?(:hex) && city&.hex
               city.hex
             elsif action.respond_to?(:hex) && action.hex
               action.hex
-            elsif token&.respond_to?(:hex) && token&.hex
+            elsif token.respond_to?(:hex) && token&.hex
               token.hex
             end
 
-      hex_id = if hex&.respond_to?(:id)
+      hex_id = if hex.respond_to?(:id)
                  hex.id.to_s
                elsif hex
                  hex.to_s

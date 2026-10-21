@@ -421,7 +421,7 @@ module View
         end
 
         def step_description(step)
-          return nil unless step && step.respond_to?(:description)
+          return nil unless step.respond_to?(:description)
 
           step.description
         rescue NotImplementedError, ScriptError, StandardError
@@ -529,7 +529,8 @@ module View
             lineHeight: '1',
           }
 
-          buttons = if raw_choices.is_a?(Hash)
+          buttons = case raw_choices
+                    when Hash
                       raw_choices.map do |val, text|
                         btn_click = -> { process_action(Engine::Action::Choose.new(entity, choice: val)) }
                         h(:button, {
@@ -537,7 +538,7 @@ module View
                             on: { click: btn_click },
                           }, text.to_s)
                       end
-                    elsif raw_choices.is_a?(Array)
+                    when Array
                       raw_choices.map do |val|
                         btn_click = -> { process_action(Engine::Action::Choose.new(entity, choice: val)) }
                         h(:button, {
@@ -1015,7 +1016,7 @@ module View
             par_nodes = par_nodes.reject do |node|
               p_obj = node.is_a?(Array) ? node.first : node
               slots = @game.par_chart[p_obj]
-              slots && slots.none?(&:nil?)
+              slots&.none?(&:nil?)
             end
           end
 
@@ -1185,12 +1186,12 @@ module View
                   source_owner = company.owner
 
                   source_type =
-                    if source_owner&.respond_to?(:player?) && source_owner&.player?
+                    if source_owner.respond_to?(:player?) && source_owner&.player?
                       :player
-                    elsif source_owner&.respond_to?(:corporation?) &&
+                    elsif source_owner.respond_to?(:corporation?) &&
                           source_owner&.corporation?
                       :corporation
-                    elsif source_owner&.respond_to?(:minor?) &&
+                    elsif source_owner.respond_to?(:minor?) &&
                           source_owner&.minor?
                       :corporation
                     else
@@ -1202,7 +1203,7 @@ module View
                     item_id: company.id,
                     source_type: source_type,
                     source_id: (
-                      source_owner.id if source_owner&.respond_to?(:id)
+                      source_owner.id if source_owner.respond_to?(:id)
                     ),
                     source_selector: "[id='#{wrapper_id}']"
                   )
@@ -1640,7 +1641,6 @@ module View
 
           unique_depot_trains = depot_trains.uniq do |train|
             is_pool =
-              depot &&
               depot.respond_to?(:discarded) &&
               depot.discarded.include?(train)
 
@@ -1773,7 +1773,6 @@ module View
             next if variants.empty?
 
             is_pool =
-              depot &&
               depot.respond_to?(:discarded) &&
               depot.discarded.include?(train)
 
@@ -2718,7 +2717,7 @@ module View
           rescue StandardError
             nil
           end
-          return nil unless offer && offer.respond_to?(:corporation?) && offer.corporation?
+          return nil unless offer.respond_to?(:corporation?) && offer&.corporation?
 
           offer_card = render_major_railcard(
             offer,
@@ -2839,7 +2838,7 @@ module View
             rescue StandardError
               nil
             end
-            return val.to_i if val&.is_a?(Numeric)
+            return val.to_i if val.is_a?(Numeric)
           end
 
           if step.respond_to?(:winning_bid) && step.winning_bid
@@ -2937,7 +2936,7 @@ module View
           end
 
           if actions.include?('pass')
-            ok_text = remaining_cost && remaining_cost.positive? ? "OK (Pay #{@game.format_currency(remaining_cost)} Cash)" : 'OK (Done)'
+            ok_text = remaining_cost&.positive? ? "OK (Pay #{@game.format_currency(remaining_cost)} Cash)" : 'OK (Done)'
             items << h(:button, {
                          style: {
                            padding: '0 12px',
@@ -2988,7 +2987,7 @@ module View
 
           if !target && step.respond_to?(:corporations)
             c_list = begin; step.corporations; rescue StandardError; []; end
-            target = c_list.find { |c| (c.respond_to?(:receivership?) && c.receivership?) || (c.share_price && c.share_price.price.zero?) } || c_list.first
+            target = c_list.find { |c| (c.respond_to?(:receivership?) && c.receivership?) || c.share_price&.price&.zero? } || c_list.first
           end
 
           return nil unless target
@@ -3017,7 +3016,7 @@ module View
 
           if potential_buyers.empty? && step.respond_to?(:corporations)
             corps = begin; step.corporations; rescue StandardError; []; end
-            potential_buyers = corps.select { |c| c != target }
+            potential_buyers = corps.reject { |c| c == target }
           end
 
           if potential_buyers.empty?
@@ -3038,7 +3037,7 @@ module View
           selected_buyer_id = Lib::Storage["acq_buyer_#{target.id}"]
           selected_buyer = player_buyers.find { |b| b.id.to_s == selected_buyer_id.to_s } || player_buyers.first || potential_buyers.first
 
-          is_corp_buyer = selected_buyer && selected_buyer.respond_to?(:corporation?) && selected_buyer.corporation? && selected_buyer != target
+          is_corp_buyer = selected_buyer.respond_to?(:corporation?) && selected_buyer&.corporation? && selected_buyer != target
 
           min_bid = if step.respond_to?(:min_bid)
                       begin
@@ -3073,7 +3072,7 @@ module View
 
           max_bid ||= if is_corp_buyer
                         selected_buyer.cash
-                      elsif p&.respond_to?(:cash)
+                      elsif p.respond_to?(:cash)
                         p.cash
                       else
                         (entity.respond_to?(:cash) ? entity.cash : 1000)
@@ -3269,11 +3268,11 @@ module View
 
           if actions.include?('par')
             pending_corp =
-              if step&.respond_to?(:auctioning_corporation) &&
+              if step.respond_to?(:auctioning_corporation) &&
                  step&.auctioning_corporation
                 step.auctioning_corporation
 
-              elsif step&.current_entity&.respond_to?(:companies)
+              elsif step&.current_entity.respond_to?(:companies)
                 charter = step.current_entity.companies.find do |company|
                   @game.corporations.any? do |corporation|
                     corporation.id.to_s == company.id.to_s &&
@@ -3286,23 +3285,23 @@ module View
                     corporation.id.to_s == charter.id.to_s
                 end
 
-              elsif step&.respond_to?(:corporation_pending_par) &&
+              elsif step.respond_to?(:corporation_pending_par) &&
                     step&.corporation_pending_par
                 step.corporation_pending_par
 
-              elsif step&.respond_to?(:corporation) &&
+              elsif step.respond_to?(:corporation) &&
                     step&.corporation
                 step.corporation
 
-              elsif step&.respond_to?(:par_corporation) &&
+              elsif step.respond_to?(:par_corporation) &&
                     step&.par_corporation
                 step.par_corporation
 
-              elsif step&.respond_to?(:parring) &&
+              elsif step.respond_to?(:parring) &&
                     step&.parring
                 step.parring
 
-              elsif step&.respond_to?(:corporations) &&
+              elsif step.respond_to?(:corporations) &&
                     step.corporations&.one?
                 step.corporations.first
 
@@ -3315,7 +3314,7 @@ module View
             unless pending_corp
               transacted_company = nil
               %i[company last_company auctioning].each do |m|
-                if step&.respond_to?(m) && (val = step.send(m))
+                if step.respond_to?(m) && (val = step.send(m))
                   transacted_company = val if val.respond_to?(:abilities) || val.is_a?(Engine::Company)
                   break if transacted_company
                 end
@@ -3327,34 +3326,34 @@ module View
                 rescue StandardError
                   nil
                 end
-                if shares_ability&.respond_to?(:shares)
+                if shares_ability.respond_to?(:shares)
                   share = begin
                     shares_ability.shares.first
                   rescue StandardError
                     nil
                   end
-                  pending_corp = share.corporation if share&.respond_to?(:corporation)
+                  pending_corp = share.corporation if share.respond_to?(:corporation)
                 end
               end
 
               unless pending_corp
                 actor = step&.current_entity || current_entity
                 player_actor = actor.respond_to?(:player?) && actor.player? ? actor : actor&.owner
-                if player_actor&.respond_to?(:companies)
+                if player_actor.respond_to?(:companies)
                   player_actor.companies.each do |c|
                     shares_ability = begin
                       c.abilities(:shares)
                     rescue StandardError
                       nil
                     end
-                    next unless shares_ability&.respond_to?(:shares)
+                    next unless shares_ability.respond_to?(:shares)
 
                     share = begin
                       shares_ability.shares.first
                     rescue StandardError
                       nil
                     end
-                    corp = share.corporation if share&.respond_to?(:corporation)
+                    corp = share.corporation if share.respond_to?(:corporation)
                     if corp && !corp.ipoed
                       pending_corp = corp
                       break
@@ -3371,10 +3370,10 @@ module View
                            @game.round.is_a?(Engine::Round::Stock)
 
           is_draft_or_auction = !is_stock_round && (
-                                  (step&.respond_to?(:auctioning) && step&.auctioning) ||
+                                  (step.respond_to?(:auctioning) && step&.auctioning) ||
                                   (!actions.include?('par') && (
                                     (step&.class&.name =~ /Waterfall|Draft|Auction|Initial/i) ||
-                                    (step&.respond_to?(:description) && step.description =~ /Draft|Auction/i) ||
+                                    (step.respond_to?(:description) && step.description =~ /Draft|Auction/i) ||
                                     (@game.respond_to?(:round) && @game.round.class.name =~ /Draft|Auction/i)
                                   ))
                                 )
@@ -3389,7 +3388,7 @@ module View
               render_generic_choice(step, step&.current_entity || current_entity)
             else
               stock_components = []
-              if actions.include?('bid') || (step&.respond_to?(:auctioning) && step&.auctioning)
+              if actions.include?('bid') || (step.respond_to?(:auctioning) && step&.auctioning)
                 bidding_row = render_stock_bidding(step, step&.current_entity || current_entity, actions)
                 stock_components << bidding_row if bidding_row
               end
@@ -3429,7 +3428,7 @@ module View
 
             else
               components = []
-              convert_track = step&.respond_to?(:conversion?) && step&.conversion?
+              convert_track = step.respond_to?(:conversion?) && step&.conversion?
               loans_rendered = false
 
               if actions.include?('choose')
@@ -3479,20 +3478,20 @@ module View
               elsif actions.include?('borrow_train')
                 components << h(BorrowTrain)
 
-              elsif step&.respond_to?(:cash_crisis?) && step&.cash_crisis?
+              elsif step.respond_to?(:cash_crisis?) && step&.cash_crisis?
                 components << h(CashCrisis)
                 loans_rendered = true if (%w[take_loan payoff_loan] & actions).any?
               elsif (actions.include?('buy_shares') || actions.include?('sell_shares')) &&
                 corporation_or_minor?(op_entity)
 
                 price_protection = begin
-                  step.price_protection if step&.respond_to?(:price_protection)
+                  step.price_protection if step.respond_to?(:price_protection)
                 rescue StandardError
                   nil
                 end
 
                 price_protection_corporation =
-                  if price_protection&.respond_to?(:corporation)
+                  if price_protection.respond_to?(:corporation)
                     price_protection.corporation
                   elsif corporation_or_minor?(price_protection)
                     price_protection
@@ -3547,9 +3546,9 @@ module View
                 player = entity&.player? ? entity : entity&.owner
 
                 show_bankrupt = false
-                if step&.respond_to?(:must_buy_train?) && step&.must_buy_train?(entity)
+                if step.respond_to?(:must_buy_train?) && step&.must_buy_train?(entity)
                   show_bankrupt = @game.respond_to?(:can_go_bankrupt?) ? @game.can_go_bankrupt?(player, entity) : true
-                elsif @game.round.respond_to?(:stock?) && @game.round.stock? && step&.respond_to?(:must_sell?) && step&.must_sell?(player)
+                elsif @game.round.respond_to?(:stock?) && @game.round.stock? && step.respond_to?(:must_sell?) && step&.must_sell?(player)
                   show_bankrupt = true
                 end
 
@@ -3698,13 +3697,13 @@ module View
 
         def render_operating_identity_panel(entity, player_name, _bg_color, _text_color)
           player_label = active_player&.name || player_name
-          player_label ||= entity.name if entity&.respond_to?(:player?) && entity&.player? && entity.respond_to?(:name)
+          player_label ||= entity.name if entity.respond_to?(:player?) && entity&.player? && entity.respond_to?(:name)
           player_label = player_label.to_s
 
           acting_company = corporation_or_minor?(entity) ? entity : nil
-          entity_label = if acting_company&.respond_to?(:id) && acting_company&.id
+          entity_label = if acting_company.respond_to?(:id) && acting_company&.id
                            acting_company.id.to_s
-                         elsif acting_company&.respond_to?(:name) && acting_company&.name
+                         elsif acting_company.respond_to?(:name) && acting_company&.name
                            acting_company.name.to_s
                          end
 
@@ -3926,10 +3925,10 @@ module View
           elsif actions.include?('redeem_shares') || actions.include?('redeem')
             phase = :redeem
           elsif actions.include?('par') && (
-            (step&.respond_to?(:corporation_pending_par) && step&.corporation_pending_par) ||
-            (step&.respond_to?(:corporation) && step&.corporation) ||
-            (step&.respond_to?(:par_corporation) && step&.par_corporation) ||
-            (step&.respond_to?(:corporations) && step.corporations&.one?) ||
+            (step.respond_to?(:corporation_pending_par) && step&.corporation_pending_par) ||
+            (step.respond_to?(:corporation) && step&.corporation) ||
+            (step.respond_to?(:par_corporation) && step&.par_corporation) ||
+            (step.respond_to?(:corporations) && step.corporations&.one?) ||
             (step&.current_entity || current_entity)&.corporation?
           )
             phase = :par
@@ -4232,7 +4231,7 @@ module View
                 advance_text = 'Pass (Do Not Offer)'
               else
                 rem_val = remaining_subsidiary_cost(step, entity)
-                advance_text = rem_val && rem_val.positive? ? "OK (Pay #{@game.format_currency(rem_val)})" : 'OK'
+                advance_text = rem_val&.positive? ? "OK (Pay #{@game.format_currency(rem_val)})" : 'OK'
               end
             end
           elsif phase == :run_routes && actions.include?('run_routes') && !@cmd_router_running

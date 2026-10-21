@@ -61,7 +61,7 @@ module View
             end
           end
 
-          if @game && @game.class.const_defined?(:COMPANIES)
+          if @game&.class&.const_defined?(:COMPANIES)
             t_sym = target.respond_to?(:sym) ? target.sym.to_s : target.to_s
             t_name = target.respond_to?(:name) ? target.name.to_s : target.to_s
             raw_def = @game.class::COMPANIES.find { |c_def| c_def[:sym].to_s == t_sym || c_def[:name].to_s == t_name }
@@ -90,14 +90,12 @@ module View
               target_corp = (@game.respond_to?(:minor_by_id) ? @game.minor_by_id(a.minor) : nil) || a.minor
             end
 
-            if target_corp && target_corp.respond_to?(:coordinates) && target_corp.coordinates
-              hexes.concat(Array(target_corp.coordinates))
-            end
+            hexes.concat(Array(target_corp.coordinates)) if target_corp.respond_to?(:coordinates) && target_corp&.coordinates
           end
 
           hexes.concat(Array(target.coordinates)) if target.respond_to?(:coordinates) && target.coordinates
 
-          hexes << target.city.hex.id if target.respond_to?(:city) && target.city&.respond_to?(:hex) && target.city&.hex
+          hexes << target.city.hex.id if target.respond_to?(:city) && target.city.respond_to?(:hex) && target.city&.hex
 
           if (target.respond_to?(:corporation?) && target.corporation?) || (target.respond_to?(:minor?) && target.minor?)
             placed_tokens = []
@@ -572,7 +570,7 @@ module View
             raw_name = train.name.to_s
           else
             raw_name = train_or_name.to_s.tr('()', '').strip
-            if @game.respond_to?(:depot) && @game.depot&.respond_to?(:trains)
+            if @game.respond_to?(:depot) && @game.depot.respond_to?(:trains)
               train = @game.depot.trains.find { |t| t.name == raw_name }
             end
             if !train && @game.respond_to?(:all_corporations)
@@ -647,25 +645,25 @@ module View
                      end
           rusts_on = rusts_on.to_s.sub(/^.*_/, '').capitalize if rusts_on
 
-          obsolete_on = if train&.respond_to?(:obsolete_on)
+          obsolete_on = if train.respond_to?(:obsolete_on)
                           train.obsolete_on
                         elsif train_def
                           train_def['obsolete_on'] || train_def[:obsolete_on] || train_def['obsolete_on_id'] || train_def[:obsolete_on_id]
                         end
           obsolete_on = obsolete_on.to_s.sub(/^.*_/, '').capitalize if obsolete_on
 
-          available_on = if train&.respond_to?(:available_on)
+          available_on = if train.respond_to?(:available_on)
                            train.available_on
                          elsif train_def
                            train_def['available_on'] || train_def[:available_on] || train_def['available_on_id'] || train_def[:available_on_id]
                          end
           available_on = available_on.to_s.sub(/^.*_/, '').capitalize if available_on
 
-          is_obsolete = train&.respond_to?(:obsolete) && train&.obsolete
+          is_obsolete = train.respond_to?(:obsolete) && train&.obsolete
 
           lines = []
 
-          cost_str = price && price.positive? ? " (#{@game.format_currency(price)})" : ''
+          cost_str = price&.positive? ? " (#{@game.format_currency(price)})" : ''
           status_tag = is_obsolete ? ' [Obsolete]' : ''
           parent_tag = parent_name ? " (Band #{parent_name}#{cost_str})" : cost_str
           lines << "#{clean_name} Train#{parent_tag}#{status_tag}"
@@ -1442,7 +1440,7 @@ module View
           end
           has_dropdown = !dropdown_items.empty?
 
-          is_train = classes.include?('card-train') || wrapper_id.to_s.include?('train') || entity&.respond_to?(:rusts_on)
+          is_train = classes.include?('card-train') || wrapper_id.to_s.include?('train') || entity.respond_to?(:rusts_on)
           if is_train && !classes.include?('card-train')
             classes << 'card-train'
             classes_str = classes.join(' ')
@@ -1507,7 +1505,7 @@ module View
           card_props[:attrs][:id] = clean_wrapper_id if has_wrapper_id
           card_props[:attrs][:title] = train_title if train_title
           if is_train
-            t_slug = (entity&.respond_to?(:name) ? entity.name : text).to_s.tr('()', '').strip.downcase.tr('+', 'p').gsub(/[^a-z0-9_]/, '')
+            t_slug = (entity.respond_to?(:name) ? entity.name : text).to_s.tr('()', '').strip.downcase.tr('+', 'p').gsub(/[^a-z0-9_]/, '')
             card_props[:attrs]['data-train'] = t_slug unless t_slug.empty?
           end
           card_props[:on] = { click: click_handler } if is_clickable

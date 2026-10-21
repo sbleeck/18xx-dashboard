@@ -530,7 +530,8 @@ module View
                 elsif step.respond_to?(:choices)
                   begin; choices = step.choices(ent); rescue StandardError; end
                 end
-                if choices.is_a?(Hash)
+                case choices
+                when Hash
                   choices.each do |k, v|
                     rows << {
                       label: "Choose: #{v}",
@@ -541,7 +542,7 @@ module View
                       callback: -> { safe_process_action(Engine::Action::Choose.new(ent, choice: k)) },
                     }
                   end
-                elsif choices.is_a?(Array)
+                when Array
                   choices.each do |v|
                     rows << {
                       label: "Choose: #{v}",

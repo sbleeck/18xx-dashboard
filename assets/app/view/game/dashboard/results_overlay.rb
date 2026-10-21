@@ -68,7 +68,7 @@ module View
           end
 
           reveal_handler = lambda do |e|
-            e.JS.stopPropagation if e
+            e&.JS&.stopPropagation
             if reveal_index < total_players
               Lib::Storage['results_reveal_index'] = reveal_index + 1
               update
@@ -96,7 +96,7 @@ module View
                           }, "Click to Reveal #{place_str}")
           else
             close_handler = lambda do |e|
-              e.JS.stopPropagation if e
+              e&.JS&.stopPropagation
               Lib::Storage['show_results_overlay'] = false
               Lib::Storage['results_reveal_index'] = 0
               update

@@ -646,7 +646,7 @@ module View
           end
         end
         step = @game.round.active_step
-        if actions.empty? && step&.respond_to?(:actions)
+        if actions.empty? && step.respond_to?(:actions)
           begin
             actions.concat(step.actions(entity) || [])
           rescue NotImplementedError, StandardError
@@ -667,7 +667,7 @@ module View
       end
 
       def status_step_bundles(step, method_name, corporation)
-        return [] unless step&.respond_to?(method_name)
+        return [] unless step.respond_to?(method_name)
 
         raw = begin
           step.public_send(method_name, corporation)
@@ -700,7 +700,7 @@ module View
 
         owner = bundle_owner(bundle)
         owner_key =
-          if owner&.respond_to?(:id)
+          if owner.respond_to?(:id)
             owner.id.to_s
           else
             owner&.object_id.to_s
@@ -716,14 +716,14 @@ module View
         run_action = actions_list.reverse.find do |action|
           entity = action.respond_to?(:entity) ? action.entity : nil
           is_corp = (entity == corporation) ||
-                    (entity&.respond_to?(:id) && entity.id.to_s == corporation.id.to_s)
+                    (entity.respond_to?(:id) && entity.id.to_s == corporation.id.to_s)
           is_run = (defined?(Engine::Action::RunRoutes) && action.is_a?(Engine::Action::RunRoutes)) ||
                    (action.respond_to?(:type) && action.type.to_s == 'run_routes') ||
                    action.class.name.to_s.include?('RunRoutes')
           is_corp && is_run
         end
 
-        raw_routes = if run_action&.respond_to?(:routes)
+        raw_routes = if run_action.respond_to?(:routes)
                        Array(run_action.routes)
                      else
                        []
@@ -773,7 +773,7 @@ module View
             bundles = []
           end
         end
-        if bundles.empty? && step&.respond_to?(:bundles_for_corporation)
+        if bundles.empty? && step.respond_to?(:bundles_for_corporation)
           begin
             bundles = Array(step.bundles_for_corporation(corporation, corporation))
           rescue ArgumentError
@@ -782,14 +782,14 @@ module View
             bundles = []
           end
         end
-        if bundles.empty? && step&.respond_to?(:bundles)
+        if bundles.empty? && step.respond_to?(:bundles)
           begin
             bundles = Array(step.bundles(corporation))
           rescue StandardError
             bundles = []
           end
         end
-        if bundles.empty? && step&.respond_to?(:can_sell?)
+        if bundles.empty? && step.respond_to?(:can_sell?)
           shares = corporation.respond_to?(:shares_of) ? corporation.shares_of(corporation) : []
           bundles = shares.map(&:to_bundle).select { |bundle| step.can_sell?(corporation, bundle) }
         end
@@ -822,7 +822,7 @@ module View
             bundles = []
           end
         end
-        if bundles.empty? && step&.respond_to?(:can_buy?)
+        if bundles.empty? && step.respond_to?(:can_buy?)
           shares = @game.share_pool.shares_by_corporation[corporation] || []
           bundles = shares.map(&:to_bundle).select { |bundle| step.can_buy?(corporation, bundle) }
         end
@@ -832,7 +832,7 @@ module View
 
       def bundle_owner(bundle)
         return bundle.owner if bundle.respond_to?(:owner) && bundle.owner
-        return bundle.shares.first.owner if bundle.respond_to?(:shares) && bundle.shares&.first&.respond_to?(:owner)
+        return bundle.shares.first.owner if bundle.respond_to?(:shares) && bundle.shares&.first.respond_to?(:owner)
 
         nil
       end
@@ -859,7 +859,7 @@ module View
         return false if corporation == visual_operating_entity
         return false unless corporation.respond_to?(:operating_history)
 
-        corporation.operating_history.keys.include?(current_round)
+        corporation.operating_history.key?(current_round)
       end
 
       def render_corporation(corporation, _operating_order, _current_round, is_last_minor = false)
@@ -974,7 +974,7 @@ module View
             treasury_percent += num_reserved_shares(corporation) * (corporation.respond_to?(:share_percent) ? corporation.share_percent : 10)
           end
           treasury_issuable_bundles = issuable_bundles.select { |b| bundle_owner(b) == corporation }
-          can_issue_treasury = can_issue && (treasury_issuable_bundles.any? || (!@game.class.name.include?('1846') && !issuable_bundles.any? { |b| bundle_owner(b) != corporation } && !t_shares.empty?))
+          can_issue_treasury = can_issue && (treasury_issuable_bundles.any? || (!@game.class.name.include?('1846') && issuable_bundles.none? { |b| bundle_owner(b) != corporation } && !t_shares.empty?))
           step_buyable = active_player && step.respond_to?(:buyable_shares) ? (step.buyable_shares(active_player) || []) : nil
           valid_treasury_buys = []
           if active_player && step.respond_to?(:can_buy?) && player_actions.include?('buy_shares')
@@ -1860,7 +1860,7 @@ module View
           if @game.respond_to?(:par_chart)
             par_prices = par_prices.reject do |sp|
               slots = @game.par_chart[sp]
-              slots && slots.none?(&:nil?)
+              slots&.none?(&:nil?)
             end
           end
 
@@ -2289,7 +2289,7 @@ module View
         shares_list.each do |share|
           raw_pct = if share.respond_to?(:percent) && share.percent
                       share.percent
-                    elsif corporation&.respond_to?(:share_percent) && corporation&.share_percent
+                    elsif corporation.respond_to?(:share_percent) && corporation&.share_percent
                       corporation.share_percent
                     else
                       10
@@ -2360,7 +2360,7 @@ module View
         maximum = [maximum, 10].min if maximum > 10
 
         actions = status_actions_for(entity)
-        if entity == active_entity && @game.round.active_step&.respond_to?(:current_actions)
+        if entity == active_entity && @game.round.active_step.respond_to?(:current_actions)
           actions = (actions + (@game.round.active_step.current_actions || [])).compact.map(&:to_s).uniq
         end
 
@@ -2640,7 +2640,7 @@ module View
         all_actions = (
           status_actions_for(acting_entity) +
           (corp_actions || status_corporation_actions(corporation)) +
-          (step&.respond_to?(:current_actions) ? (step.current_actions || []) : [])
+          (step.respond_to?(:current_actions) ? (step.current_actions || []) : [])
         ).compact.map(&:to_s).uniq
 
         %x{
@@ -2716,7 +2716,7 @@ module View
         all_actions = (
           status_actions_for(acting_entity) +
           (corp_actions || status_corporation_actions(corporation)) +
-          (step&.respond_to?(:current_actions) ? (step.current_actions || []) : [])
+          (step.respond_to?(:current_actions) ? (step.current_actions || []) : [])
         ).compact.map(&:to_s).uniq
 
         action_kwargs = {

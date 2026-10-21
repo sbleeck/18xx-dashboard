@@ -13,7 +13,7 @@ module Lib
         end
 
       current_id =
-        if action&.respond_to?(:id) && action&.id
+        if action.respond_to?(:id) && action&.id
           action.id
         elsif game.respond_to?(:actions) && game.actions&.any?
           game.actions.size
@@ -393,16 +393,16 @@ module Lib
       shares = if action.respond_to?(:shares)
                  action.shares
                else
-                 (bundle&.respond_to?(:shares) ? bundle.shares : [])
+                 (bundle.respond_to?(:shares) ? bundle.shares : [])
                end
 
-      corp = if bundle&.respond_to?(:corporation) && bundle&.corporation
+      corp = if bundle.respond_to?(:corporation) && bundle&.corporation
                bundle.corporation
              elsif action.respond_to?(:corporation) && action.corporation
                action.corporation
              elsif shares.any? && shares.first.respond_to?(:corporation) && shares.first.corporation
                shares.first.corporation
-             elsif entity&.respond_to?(:corporation?) && entity&.corporation?
+             elsif entity.respond_to?(:corporation?) && entity&.corporation?
                entity
              end
       corp_id = corp&.id
@@ -435,27 +435,27 @@ module Lib
       case action_name
       when 'BuyShares'
         if entity && corp_id
+          is_share = true
           if entity.respond_to?(:corporation?) && entity.corporation?
-            is_share = true
-            pct = if bundle&.respond_to?(:percent)
+            pct = if bundle.respond_to?(:percent)
                     bundle.percent
                   elsif shares.any?
                     shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
                   else
-                    corp&.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
+                    corp.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
                   end
             pct = 10 if pct.to_i <= 0
             delta = pct
             card_text = "#{delta}%"
 
             target_sel = if pending_target && (!pending_target.to_s.include?('treasury') || has_treasury)
-                           pending_target.to_s.sub(/ \.game-card\z/, '')
+                           pending_target.to_s.delete_suffix(' .game-card')
                          else
                            has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
                          end
 
             source_sel = if pending_source
-                           pending_source.to_s.sub(/ \.game-card\z/, '')
+                           pending_source.to_s.delete_suffix(' .game-card')
                          elsif bundle&.owner&.player?
                            "#player_shares_#{bundle.owner.id}_#{corp_id}"
                          elsif shares.any? && shares.first.owner&.player?
@@ -464,8 +464,7 @@ module Lib
                            "#pool_shares_#{corp_id}"
                          end
           else
-            is_share = true
-            pct = if bundle&.respond_to?(:percent)
+            pct = if bundle.respond_to?(:percent)
                     bundle.percent
                   else
                     shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
@@ -477,7 +476,7 @@ module Lib
             target_sel = "#player_shares_#{entity.id}_#{corp_id}"
 
             if pending_source
-              source_sel = pending_source.to_s.sub(/ \.game-card\z/, '')
+              source_sel = pending_source.to_s.delete_suffix(' .game-card')
             else
               from_pool = false
 
@@ -505,33 +504,32 @@ module Lib
         end
       when 'SellShares'
         if entity && corp_id
+          is_share = true
           if entity.respond_to?(:corporation?) && entity.corporation?
-            is_share = true
-            pct = if bundle&.respond_to?(:percent)
+            pct = if bundle.respond_to?(:percent)
                     bundle.percent
                   elsif shares.any?
                     shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
                   else
-                    corp&.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
+                    corp.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
                   end
             pct = 10 if pct.to_i <= 0
             delta = pct
             card_text = "#{delta}%"
 
             source_sel = if pending_source
-                           pending_source.to_s.sub(/ \.game-card\z/, '')
+                           pending_source.to_s.delete_suffix(' .game-card')
                          else
                            has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
                          end
 
             target_sel = if pending_target
-                           pending_target.to_s.sub(/ \.game-card\z/, '')
+                           pending_target.to_s.delete_suffix(' .game-card')
                          else
                            "#pool_shares_#{corp_id}"
                          end
           else
-            is_share = true
-            pct = if bundle&.respond_to?(:percent)
+            pct = if bundle.respond_to?(:percent)
                     bundle.percent
                   else
                     shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
@@ -541,7 +539,7 @@ module Lib
             card_text = "#{delta}%"
 
             source_sel = if pending_source
-                           pending_source.to_s.sub(/ \.game-card\z/, '')
+                           pending_source.to_s.delete_suffix(' .game-card')
                          else
                            "#player_shares_#{entity.id}_#{corp_id}"
                          end
@@ -586,7 +584,7 @@ module Lib
           end
 
           if source_sel.nil? && pending_source
-            source_sel = pending_source.to_s.sub(/ \.game-card\z/, '')
+            source_sel = pending_source.to_s.delete_suffix(' .game-card')
           elsif source_sel.nil? && other && train
             source_sel = "#train_wrapper_#{other.id}_#{train.id}"
           end
@@ -594,21 +592,21 @@ module Lib
       when 'IssueShares', 'Issue', 'CorporateSellShares', 'ReissueShares', 'Reissue'
         if corp_id
           is_share = true
-          pct = if bundle&.respond_to?(:percent)
+          pct = if bundle.respond_to?(:percent)
                   bundle.percent
                 elsif shares.any?
                   shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
                 elsif action.respond_to?(:percent) && action.percent
                   action.percent
                 else
-                  corp&.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
+                  corp.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
                 end
           pct = 10 if pct.to_i <= 0
           delta = pct
           card_text = "#{delta}%"
 
           source_sel = if pending_source
-                         pending_source.to_s.sub(/ \.game-card\z/, '')
+                         pending_source.to_s.delete_suffix(' .game-card')
                        elsif has_treasury && (bundle&.owner == corp || (shares.any? && shares.first.owner == corp))
                          "#treasury_shares_#{corp_id}"
                        else
@@ -616,7 +614,7 @@ module Lib
                        end
 
           target_sel = if pending_target
-                         pending_target.to_s.sub(/ \.game-card\z/, '')
+                         pending_target.to_s.delete_suffix(' .game-card')
                        else
                          "#pool_shares_#{corp_id}"
                        end
@@ -624,21 +622,21 @@ module Lib
       when 'RedeemShares', 'Redeem', 'CorporateBuyShares'
         if corp_id
           is_share = true
-          pct = if bundle&.respond_to?(:percent)
+          pct = if bundle.respond_to?(:percent)
                   bundle.percent
                 elsif shares.any?
                   shares.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
                 elsif action.respond_to?(:percent) && action.percent
                   action.percent
                 else
-                  corp&.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
+                  corp.respond_to?(:share_percent) && corp&.share_percent ? corp.share_percent : 10
                 end
           pct = 10 if pct.to_i <= 0
           delta = pct
           card_text = "#{delta}%"
 
           source_sel = if pending_source
-                         pending_source.to_s.sub(/ \.game-card\z/, '')
+                         pending_source.to_s.delete_suffix(' .game-card')
                        elsif bundle&.owner&.player?
                          "#player_shares_#{bundle.owner.id}_#{corp_id}"
                        elsif shares.any? && shares.first.owner&.player?
@@ -648,7 +646,7 @@ module Lib
                        end
 
           target_sel = if pending_target && (!pending_target.to_s.include?('treasury') || has_treasury)
-                         pending_target.to_s.sub(/ \.game-card\z/, '')
+                         pending_target.to_s.delete_suffix(' .game-card')
                        else
                          has_treasury ? "#treasury_shares_#{corp_id}" : "#ipo_shares_#{corp_id}"
                        end

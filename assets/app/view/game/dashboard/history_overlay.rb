@@ -62,7 +62,7 @@ module Lib
 
       def [](key)
         url_val = _orig_get_param(key)
-        if @overrides && @overrides.key?(key.to_s)
+        if @overrides&.key?(key.to_s)
           @overrides[key.to_s] = url_val if url_val && !url_val.empty? && url_val != @overrides[key.to_s]
           return @overrides[key.to_s]
         end
@@ -208,7 +208,7 @@ module View
 
         def prev_round_action
           curr = current_cursor.to_i
-          round_action_ids.select { |id| id < curr }.last
+          round_action_ids.reverse.find { |id| id < curr }
         end
 
         def next_round_action
@@ -345,7 +345,7 @@ module View
           curr = current_cursor.to_i
           # Clicking left jumps to the beginning of the current company's turn,
           # or if already at the beginning of a company's turn, to the previous company's turn.
-          company_action_ids.select { |id| id < curr }.last
+          company_action_ids.reverse.find { |id| id < curr }
         end
 
         def next_company_action
@@ -377,7 +377,7 @@ module View
         def current_move_text
           curr = current_cursor.to_i
           log = @game.respond_to?(:log) ? @game.log : nil
-          entry = log && log.any? ? log.last : nil
+          entry = log&.any? ? log.last : nil
           text = if entry.respond_to?(:message)
                    entry.message.to_s
                  elsif entry.respond_to?(:text)

@@ -197,7 +197,7 @@ module View
 
           depot.trains.group_by(&:name).each do |_name, trains|
             first = trains.first
-            next unless first&.respond_to?(:variants) && first&.variants
+            next unless first.respond_to?(:variants) && first&.variants
 
             base_variant = first.variants.values.find { |v| !v[:ignore_rust_obsolete_schedule] }
             base_rust = base_variant ? base_variant[:rusts_on] : nil
@@ -239,7 +239,7 @@ module View
             t_sym = first_train.sym.to_s
             rusted_list = rust_schedule[t_name]&.any? ? rust_schedule[t_name] : rust_schedule[t_sym]
             if rusted_list&.any?
-              rem_count = @game.depot.upcoming.select { |t| t.sym == first_train.sym }.size
+              rem_count = @game.depot.upcoming.count { |t| t.sym == first_train.sym }
               rust_warning = "⚠️ Next Rust: Purchasing next #{t_name}-Train rusts all #{rusted_list.join(', ')}-Trains (#{rem_count} left in depot)."
             end
           end
@@ -429,7 +429,7 @@ module View
 
           rows = all_trains.reject(&:reserved).group_by(&:name).map do |name, group|
             train = group.first
-            remaining = depot ? depot.upcoming.select { |t| t.name == name }.size : 0
+            remaining = depot ? depot.upcoming.count { |t| t.name == name } : 0
             rem_str = train.unlimited ? '∞' : "#{remaining} / #{group.size}"
 
             rusts_others = rust_schedule[name] || []

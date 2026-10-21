@@ -41,13 +41,13 @@ module View
           end
         end
         step = @game.round.active_step
-        if step&.respond_to?(:actions)
+        if step.respond_to?(:actions)
           begin
             actions.concat(step.actions(entity) || [])
           rescue NotImplementedError, StandardError
           end
         end
-        if step&.respond_to?(:current_actions)
+        if step.respond_to?(:current_actions)
           begin
             actions.concat(step.current_actions || [])
           rescue NotImplementedError, StandardError
@@ -115,7 +115,7 @@ module View
 
         discarded = @game.depot.respond_to?(:discarded) ? (@game.depot.discarded || []) : []
         discarded.reject { |t| t.respond_to?(:rusted) && t.rusted }
-                 .select { |t| train_available_count(t, from_pool: true).to_s != '0' }
+                 .reject { |t| train_available_count(t, from_pool: true).to_s == '0' }
                  .uniq(&:name)
       end
 
@@ -130,7 +130,7 @@ module View
 
         # Retain buyable step view across turns if available
         step = @game.round.active_step
-        buy_step = step if step&.respond_to?(:buyable_trains)
+        buy_step = step if step.respond_to?(:buyable_trains)
         buy_step = @game.round.steps.find { |s| s.respond_to?(:buyable_trains) } if !buy_step && @game.round.respond_to?(:steps)
 
         if buy_step
@@ -161,7 +161,6 @@ module View
         entity = active_entity
 
         train_buyable_step =
-          step &&
           step.respond_to?(:current_actions) &&
           step.current_actions.include?('buy_train')
 

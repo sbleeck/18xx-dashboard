@@ -75,9 +75,9 @@ module View
               ability = Array(transacted_company.abilities).find { |a| a.type == :shares }
             end
 
-            if ability&.respond_to?(:shares)
+            if ability.respond_to?(:shares)
               sh = ability.shares.first
-              corp = sh.corporation if sh&.respond_to?(:corporation)
+              corp = sh.corporation if sh.respond_to?(:corporation)
               return corp if corp
             end
 
@@ -139,7 +139,7 @@ module View
             par_nodes = par_nodes.reject do |node|
               p_obj = node.is_a?(Array) ? node.first : node
               slots = @game.par_chart[p_obj]
-              slots && slots.none?(&:nil?)
+              slots&.none?(&:nil?)
             end
           end
 

@@ -32,8 +32,8 @@ module View
           return @bidder if @bidder && !@bidder.is_a?(Engine::Bank)
 
           candidates = []
-          candidates.concat(Array(step.active_entities)) if step&.respond_to?(:active_entities)
-          candidates << step.current_entity if step&.respond_to?(:current_entity)
+          candidates.concat(Array(step.active_entities)) if step.respond_to?(:active_entities)
+          candidates << step.current_entity if step.respond_to?(:current_entity)
           candidates << @game.round.current_entity if @game.round.respond_to?(:current_entity)
           candidates << @game.current_entity if @game.respond_to?(:current_entity)
 

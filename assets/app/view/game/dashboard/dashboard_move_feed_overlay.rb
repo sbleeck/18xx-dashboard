@@ -280,13 +280,14 @@ module View
             next if act.to_s.strip.empty?
 
             escaped = Regexp.escape(act.to_s)
-            if clean_text.match?(/^#{escaped}'s\s+share\s+price\s+/i)
+            case clean_text
+            when /^#{escaped}'s\s+share\s+price\s+/i
               clean_text = clean_text.sub(/^#{escaped}'s\s+share\s+price\s+/i, 'Share price ')
               break
-            elsif clean_text.match?(/^#{escaped}'s\s+/i)
+            when /^#{escaped}'s\s+/i
               clean_text = clean_text.sub(/^#{escaped}'s\s+/i, '')
               break
-            elsif clean_text.match?(/^#{escaped}\s+/i)
+            when /^#{escaped}\s+/i
               clean_text = clean_text.sub(/^#{escaped}\s+/i, '')
               break
             end
@@ -539,7 +540,7 @@ module View
 
             entity = entity_map[aid] if aid
             if !entity && msg
-              first_word = msg.split(' ').first
+              first_word = msg.split.first
               entity = begin
                 @game.corporation_by_id(first_word) || @game.minor_by_id(first_word) || @game.player_by_id(first_word) || @game.company_by_id(first_word)
               rescue StandardError
@@ -547,7 +548,7 @@ module View
               end
             end
 
-            group_key = entity || msg.split(' ').first
+            group_key = entity || msg.split.first
 
             if current_block && current_block[:group_key] == group_key
               current_block[:lines] << { text: msg, time: time_str, id: aid }

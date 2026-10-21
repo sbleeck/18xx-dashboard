@@ -422,7 +422,7 @@ module View
           mine = my_message?(action)
 
           sender_name =
-            if sender&.respond_to?(:name)
+            if sender.respond_to?(:name)
               sender.name.to_s
             else
               'Player'
@@ -475,11 +475,10 @@ module View
           children = []
 
           if mine
-            children << bubble
           else
             children << sender_badge(sender)
-            children << bubble
           end
+          children << bubble
 
           h(:div, {
               style: {

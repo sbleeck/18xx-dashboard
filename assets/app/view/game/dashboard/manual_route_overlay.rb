@@ -113,7 +113,7 @@ module View
             track_color = SCREAMING_PALETTE[idx % SCREAMING_PALETTE.size]
 
             rev_val = begin
-              if route && route.chains.any?
+              if route&.chains&.any?
                 @game.respond_to?(:format_revenue_currency) ? @game.format_revenue_currency(route.revenue) : @game.format_currency(route.revenue)
               else
                 @game.format_currency(0)
@@ -123,7 +123,7 @@ module View
             end
 
             stops_str = begin
-              if route && route.chains.any?
+              if route&.chains&.any?
                 dist = if route.respond_to?(:distance_str)
                          route.distance_str
                        else

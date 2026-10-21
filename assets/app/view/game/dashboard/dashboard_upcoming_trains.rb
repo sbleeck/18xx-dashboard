@@ -101,12 +101,10 @@ module View
               details << "Train Limit: #{limit}"
             end
 
-            if phase[:events]
-              phase[:events].each do |k, v|
-                next unless v
+            phase[:events]&.each do |k, v|
+              next unless v
 
-                details << "Event: #{k.to_s.tr('_', ' ').capitalize}"
-              end
+              details << "Event: #{k.to_s.tr('_', ' ').capitalize}"
             end
 
             if phase[:status]
@@ -210,7 +208,7 @@ module View
         bank_train_syms.concat(discarded.reject { |t| t.respond_to?(:rusted) && t.rusted }.map(&:sym))
 
         step = @game.round.active_step
-        buy_step = step if step&.respond_to?(:buyable_trains)
+        buy_step = step if step.respond_to?(:buyable_trains)
         if !buy_step && @game.round.respond_to?(:steps)
           buy_step = @game.round.steps.find do |s|
             s.respond_to?(:buyable_trains)
@@ -267,7 +265,7 @@ module View
             variants = if train.respond_to?(:names_to_prices) && train.names_to_prices && !train.names_to_prices.empty?
                          train.names_to_prices
                        elsif train.respond_to?(:variants) && train.variants && !train.variants.empty?
-                         train.variants.map { |k, v| [k, v[:price] || train.price] }.to_h
+                         train.variants.transform_values { |v| v[:price] || train.price }
                        else
                          { train.name || train.sym => train.price }
                        end

@@ -97,7 +97,7 @@ module View
 
         candidates = []
         candidates << active_entity if active_entity
-        candidates.concat(Array(step.active_entities)) if step&.respond_to?(:active_entities)
+        candidates.concat(Array(step.active_entities)) if step.respond_to?(:active_entities)
         candidates << @game.round.current_entity if @game.round.respond_to?(:current_entity)
         candidates << @game.current_entity if @game.respond_to?(:current_entity)
         candidates = candidates.compact.uniq
@@ -138,14 +138,14 @@ module View
         end
 
         p = active_player
-        return true if p && p.respond_to?(:id) && p.id.to_s == uid
+        return true if p.respond_to?(:id) && p.id.to_s == uid
 
         candidates.any? do |ent|
           owner_id = if ent.respond_to?(:player?) && ent.player? && ent.respond_to?(:id)
                        ent.id.to_s
-                     elsif ent.respond_to?(:player) && ent.player&.respond_to?(:id)
+                     elsif ent.respond_to?(:player) && ent.player.respond_to?(:id)
                        ent.player.id.to_s
-                     elsif ent.respond_to?(:owner) && ent.owner&.respond_to?(:id)
+                     elsif ent.respond_to?(:owner) && ent.owner.respond_to?(:id)
                        ent.owner.id.to_s
                      end
           owner_id == uid
@@ -295,7 +295,7 @@ module View
             },
             on: {
               click: lambda {
-                new_val = !(@show_history_overlay == true)
+                new_val = @show_history_overlay != true
                 Lib::Storage['cmd_history_overlay'] = nil
                 store(:show_history_overlay, new_val)
                 update
@@ -337,7 +337,7 @@ module View
             },
             on: {
               click: lambda {
-                new_val = !(@show_move_history == true)
+                new_val = @show_move_history != true
                 Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
                 store(:show_move_history, new_val)
                 update
@@ -390,7 +390,7 @@ module View
           nil
         end
 
-        if step&.respond_to?(:active_entities)
+        if step.respond_to?(:active_entities)
           act_ent = step.active_entities&.first
           if act_ent
             return act_ent if act_ent.player?
@@ -512,7 +512,7 @@ module View
           []
         end
 
-        return nil if is_stock_round && !(actions & %w[bid pass]).any?
+        return nil if is_stock_round && (actions & %w[bid pass]).none?
         return nil unless (actions & %w[bid choose buy_company pass]).any? || auction_target
 
         available_items =
@@ -1129,7 +1129,7 @@ module View
         btn_title = has_turns ? "#{turns_count} other game(s) waiting on your turn" : 'View active games list'
 
         click_action = lambda do
-          val = !(@show_other_games_overlay == true)
+          val = @show_other_games_overlay != true
           Lib::Storage['show_other_games_overlay'] = val ? true : nil
           %x{
             if (!#{val}) {
@@ -1314,9 +1314,9 @@ badge_el,
 
       def render_active_turn_card
         player = active_player
-        player_label = if player&.respond_to?(:name) && player&.name
+        player_label = if player.respond_to?(:name) && player&.name
                          player.name.to_s
-                       elsif player&.respond_to?(:id) && player&.id
+                       elsif player.respond_to?(:id) && player&.id
                          player.id.to_s
                        else
                          ''
@@ -1324,11 +1324,11 @@ badge_el,
 
         if player_label.empty?
           entity = active_entity
-          if entity&.respond_to?(:player) && entity.player&.name
+          if entity.respond_to?(:player) && entity.player&.name
             player_label = entity.player.name.to_s
-          elsif entity&.respond_to?(:owner) && entity.owner&.name
+          elsif entity.respond_to?(:owner) && entity.owner&.name
             player_label = entity.owner.name.to_s
-          elsif entity&.respond_to?(:name) && entity&.name
+          elsif entity.respond_to?(:name) && entity&.name
             player_label = entity.name.to_s
           end
         end
@@ -1618,13 +1618,13 @@ badge_el,
                         round.current_entity
                       end
 
-        corp_ribbon_text = (!is_stock && acting_corp&.respond_to?(:name) ? acting_corp.name.to_s : '')
+        corp_ribbon_text = (!is_stock && acting_corp.respond_to?(:name) ? acting_corp.name.to_s : '')
         player_ribbon_text = begin
           p = active_player
-          if p&.respond_to?(:name)
+          if p.respond_to?(:name)
             p.name.to_s
           else
-            (p&.respond_to?(:id) ? p.id.to_s : '')
+            (p.respond_to?(:id) ? p.id.to_s : '')
           end
         rescue StandardError
           ''

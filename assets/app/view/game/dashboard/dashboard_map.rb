@@ -702,7 +702,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           end
         end
 
-        border_objs = (hex.tile&.borders || []).select { |b| b.cost && b.cost.positive? }
+        border_objs = (hex.tile&.borders || []).select { |b| b.cost&.positive? }
 
         format_val = ->(val) { val.to_i.to_s }
 
@@ -772,10 +772,10 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
 
       def dashboard_current_entity(step)
         entity = @selected_company
-        entity ||= step.current_entity if step&.respond_to?(:current_entity)
+        entity ||= step.current_entity if step.respond_to?(:current_entity)
         entity ||= @game.round.current_entity if @game.round.respond_to?(:current_entity)
         entity ||= @game.current_entity if @game.respond_to?(:current_entity)
-        entity ||= step.active_entities.first if step&.respond_to?(:active_entities)
+        entity ||= step.active_entities.first if step.respond_to?(:active_entities)
         entity ||= @game.round.entities.first if @game.round.respond_to?(:entities) && @game.round.operating?
         entity
       rescue NotImplementedError, StandardError
@@ -1049,7 +1049,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                       visited_stops_with_route.sum { |ts, r, _| stop_revenue_value(ts, r) }
                     else
                       rev = tile_stops.sum { |ts| stop_base_revenue(ts) } if tile_stops.any?
-                      rev && rev.positive? ? rev : tile_base_revenue(tile)
+                      rev&.positive? ? rev : tile_base_revenue(tile)
                     end
 
         return nil if total_rev <= 0
@@ -1535,7 +1535,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           if hovered_company.respond_to?(:coordinates) && hovered_company.coordinates
             Array(hovered_company.coordinates).each { |coord| target_hexes << coord.to_s }
           end
-          if hovered_company.respond_to?(:city) && hovered_company.city&.respond_to?(:hex)
+          if hovered_company.respond_to?(:city) && hovered_company.city.respond_to?(:hex)
             target_hexes << hovered_company.city.hex.id.to_s
           end
 
@@ -1568,7 +1568,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             elsif ab.respond_to?(:minor) && ab.minor
               target_corp = (@game.respond_to?(:minor_by_id) ? @game.minor_by_id(ab.minor) : nil) || ab.minor
             end
-            next unless target_corp && target_corp.respond_to?(:coordinates) && target_corp.coordinates
+            next unless target_corp.respond_to?(:coordinates) && target_corp&.coordinates
 
             Array(target_corp.coordinates).each do |coord|
               target_hexes << coord.to_s

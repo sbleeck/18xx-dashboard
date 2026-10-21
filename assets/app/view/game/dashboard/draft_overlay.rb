@@ -83,9 +83,9 @@ module View
                 ability = Array(transacted_company.abilities).find { |a| a.type == :shares }
               end
 
-              if ability&.respond_to?(:shares)
+              if ability.respond_to?(:shares)
                 sh = ability.shares.first
-                pending = sh.corporation if sh&.respond_to?(:corporation)
+                pending = sh.corporation if sh.respond_to?(:corporation)
               end
 
               if !pending && @game.respond_to?(:corporations)
@@ -100,21 +100,21 @@ module View
 
           if !pending && @game.respond_to?(:corporations)
             player_actor = entity.respond_to?(:player?) && entity.player? ? entity : entity&.owner
-            if player_actor&.respond_to?(:companies)
+            if player_actor.respond_to?(:companies)
               player_actor.companies.each do |c|
                 ability = begin
                   c.abilities(:shares)
                 rescue StandardError
                   nil
                 end
-                next unless ability&.respond_to?(:shares)
+                next unless ability.respond_to?(:shares)
 
                 share = begin
                   ability.shares.first
                 rescue StandardError
                   nil
                 end
-                corp = share.corporation if share&.respond_to?(:corporation)
+                corp = share.corporation if share.respond_to?(:corporation)
                 if corp && !corp.ipoed
                   pending = corp
                   break
@@ -231,9 +231,10 @@ module View
                                 end
                               end
 
-          choice_list = if available_choices.is_a?(Hash)
+          choice_list = case available_choices
+                        when Hash
                           available_choices.keys
-                        elsif available_choices.is_a?(Array)
+                        when Array
                           available_choices
                         else
                           []
@@ -571,7 +572,7 @@ module View
                                  raw_bids = step.bids[item]
                                  bids_list = raw_bids.is_a?(Array) ? raw_bids : [raw_bids].compact
                                  p_bid = bids_list.find { |b| (b.respond_to?(:entity) && b.entity == p) || (b.respond_to?(:player) && b.player == p) }
-                                 bid_text = @game.format_currency(p_bid.price) if p_bid && p_bid.respond_to?(:price)
+                                 bid_text = @game.format_currency(p_bid.price) if p_bid.respond_to?(:price)
                                end
 
                                if bid_text
