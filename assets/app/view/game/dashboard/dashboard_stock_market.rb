@@ -918,7 +918,7 @@ if (orderEl) {
             // Pulse Map token(s) if not the trigger
             if (currentType !== 'map') {
               var mapTokens = root.querySelectorAll(
-                '.map-token-' + corpId + ', .map-token[data-corp="' + corpId + '"]'
+'.map-token-' + CSS.escape(String(corpId)) + ', .map-token[data-corp="' + corpId + '"]'
               );
               for (var m = 0; m < mapTokens.length; m++) {
                 mapTokens[m].classList.add('marker-pulsing');
