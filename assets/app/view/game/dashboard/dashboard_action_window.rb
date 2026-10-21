@@ -690,7 +690,6 @@ module View
           )
         end
 
-        # // --- START FIX ---
         def render_generic_fallback(step, entity, actions)
           return nil unless step && entity
 
@@ -2267,7 +2266,6 @@ module View
               price_str = "#{@game.format_currency(price)}#{owner_label}"
               can_afford = (entity.respond_to?(:cash) ? entity.cash : 0) >= price
 
-              # // --- START FIX ---
               click_handler = lambda do
                 acting_entity = entity.respond_to?(:corporation?) && entity.corporation? ? entity : (@game.current_entity || current_entity)
                 all_actions = (actions_for(acting_entity) + actions_for(entity) + (step.respond_to?(:current_actions) ? (step.current_actions || []) : [])).compact.map(&:to_s).uniq
@@ -2293,7 +2291,6 @@ module View
 
                 process_action(action)
               end
-              # // --- END FIX ---
 
               card_classes = %w[game-card action-buy]
               card_classes << 'clickable' if can_afford
@@ -2316,7 +2313,6 @@ module View
           h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' } }, rows.compact)
         end
 
-        # // --- START FIX ---
         def saved_window_geometry
           geom = %x{
             (function() {
@@ -2539,7 +2535,6 @@ module View
             ])
         end
 
-        # // --- START FIX ---
         def render_stock_bidding(step, entity, actions)
           return nil unless (actions.include?('bid') || actions.include?('pass')) && entity
 
@@ -2714,7 +2709,6 @@ module View
           row_label = auction_corp ? "Bid on #{corporation.name}:" : 'Opening Bid:'
           render_action_row(row_label, children)
         end
-        # // --- END FIX ---
 
         def render_offer_for_sale_step(step, entity, actions)
           return nil unless step && entity && actions.include?('assign')
@@ -2859,7 +2853,6 @@ module View
           nil
         end
 
-        # // --- START FIX ---
         def render_assign_step(step, entity, actions)
           player = if entity.respond_to?(:player?) && entity.player?
                      entity
@@ -2973,7 +2966,6 @@ module View
 
           render_action_row(label, items)
         end
-        # // --- END FIX ---
 
         def render_acquisition_step(step, entity, actions)
           return nil unless step && entity && actions.include?('bid')
@@ -3789,7 +3781,6 @@ module View
             ].compact)
         end
 
-        # // --- START FIX ---
         # Deterministically checks whether clicking the Progress Control will finish
         # the player's current turn (no subsequent steps for this entity, and control
         # does not immediately stay with the same player).
@@ -3847,7 +3838,6 @@ module View
         rescue StandardError
           false
         end
-        # // --- END FIX ---
 
         def render_command_content
           step = @game.round.active_step

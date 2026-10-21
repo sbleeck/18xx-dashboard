@@ -474,7 +474,6 @@ module View
         end || candidates.find { |candidate| candidate.respond_to?(:player?) && candidate.player? }
       end
 
-      # // --- START FIX ---
       def render_global_auction_overlay
         step = @game.round&.active_step
         return nil unless step
@@ -564,7 +563,6 @@ module View
             actor: actor)
         end
       end
-      # // --- END FIX ---
 
       def render_zoom_controls(panel_id, position_styles = {})
         pid = panel_id.to_s
@@ -841,7 +839,6 @@ module View
         }
       end
 
-      # // --- START FIX ---
       def unread_chat_count
         gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
         msgs = game_chat_messages
@@ -944,7 +941,6 @@ module View
       rescue Exception
         nil
       end
-      # // --- END FIX ---
 
       def render_chat_button
         is_open = @show_chat_overlay == true ||

@@ -326,7 +326,6 @@ module View
           )
         end
 
-        # // --- START FIX ---
         def selectable_targets
           # In a Stock Round (e.g. 1817 IPO auction), an auction is already
           # bound to a single corporation via step.auctioning; do not mount
@@ -348,7 +347,6 @@ module View
         rescue StandardError
           []
         end
-        # // --- END FIX ---
 
         def select_target(item)
           Lib::Storage["dashboard_bidding_selected_target_#{@game.id}"] = item.id.to_s

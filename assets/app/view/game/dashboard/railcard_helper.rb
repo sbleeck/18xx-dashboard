@@ -532,7 +532,6 @@ module View
             ])
         end
 
-        # // --- START FIX ---
         TRAIN_QUIRKS = {
           # 1849 Gauge & Express Quirks
           '1849_4h' => 'Standard/dual gauge = 1 edge; narrow gauge = 2 edges.',
@@ -852,9 +851,7 @@ module View
 
           wrapper_attrs = {
             class: 'major-railcard-wrapper status-corp-wrapper cmd-corp-wrapper',
-            # --- START FIX ---
             'data-corp': corporation.id,
-            # --- END FIX ---
           }
           wrapper_attrs[:id] = wrapper_id if wrapper_id && !wrapper_id.to_s.empty?
 
@@ -924,9 +921,7 @@ module View
             attrs: {
               class: classes.join(' '),
               title: "#{corp_label} Short Liability: −#{short_percent}%",
-              # --- START FIX ---
               'data-corp': corporation.id,
-              # --- END FIX ---
             },
             style: {
               minWidth: '3.5rem',
@@ -956,11 +951,8 @@ module View
           dropdown_items = Array(dropdown).compact
           return card if !wrapper_id && dropdown_items.empty?
 
-          # --- DELETE ---
-          # wrapper_attrs = { class: 'short-railcard-wrapper' }
-          # --- START FIX ---
+
           wrapper_attrs = { class: 'short-railcard-wrapper', 'data-corp': corporation.id }
-          # --- END FIX ---
           wrapper_attrs[:id] = wrapper_id if wrapper_id && !wrapper_id.to_s.empty?
 
           h(:div, {
@@ -1020,7 +1012,6 @@ module View
                        '#fdfbf7'
                      end
 
-          # // --- START FIX ---
           %x(
           if (typeof window !== 'undefined') {
             if (!window._safe_qsa_patched && typeof Element !== 'undefined') {
@@ -1384,7 +1375,6 @@ module View
             }
           }
           )
-          # // --- END FIX ---
           resolved_entity = entity
           if !resolved_entity && @game && text && !text.to_s.strip.empty?
             t_str = text.to_s
@@ -1573,9 +1563,7 @@ module View
             attrs: {
               class: classes.join(' '),
               title: "Sell Short #{corporation.name} (−#{share_percent}%)",
-              # --- START FIX ---
               'data-corp': corporation.id,
-              # --- END FIX ---
             },
             style: {
               minWidth: '3.5rem',
@@ -1608,11 +1596,8 @@ module View
           return card if !wrapper_id && dropdown_items.empty?
 
           h(:div, {
-              # --- DELETE ---
-              # attrs: { id: wrapper_id, class: 'ghost-short-card-wrapper' },
-              # --- START FIX ---
+
               attrs: { id: wrapper_id, class: 'ghost-short-card-wrapper', 'data-corp': corporation.id },
-              # --- END FIX ---
               style: {
                 display: 'inline-flex',
                 position: 'relative',

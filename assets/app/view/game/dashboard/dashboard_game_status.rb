@@ -691,14 +691,12 @@ module View
             []
           end
 
-        # // --- START FIX ---
         pct = if bundle.respond_to?(:percent) && bundle.percent
                 bundle.percent
               else
                 shares.compact.sum { |s| s.respond_to?(:percent) ? s.percent : 10 }
               end
         price = bundle.respond_to?(:price) && bundle.price ? bundle.price : 0
-        # // --- END FIX ---
 
         owner = bundle_owner(bundle)
         owner_key =
@@ -708,10 +706,7 @@ module View
             owner&.object_id.to_s
           end
 
-        # // --- DELETE --- [owner_key, share_ids]
-        # // --- START FIX ---
         [owner_key, pct, price]
-        # // --- END FIX ---
       end
 
       def previous_routes_for(corporation)
@@ -2621,7 +2616,6 @@ module View
       end
 
       def exec_issue_share_bundle(corporation, bundle, corp_actions = nil, source_selector = nil, target_selector = nil)
-        # // --- START FIX ---
         step = @game.round.active_step
         acting_entity =
           if corporation.respond_to?(:corporation?) && corporation.corporation?
@@ -2678,7 +2672,6 @@ module View
           end
 
         process_action(action)
-        # // --- END FIX ---
       end
 
       def exec_redeem_share_bundle(
@@ -2688,7 +2681,6 @@ module View
         source_selector = nil,
         target_selector = nil
       )
-        # // --- START FIX ---
         step = @game.round.active_step
         acting_entity =
           if corporation.respond_to?(:corporation?) && corporation.corporation?
@@ -2768,7 +2760,6 @@ module View
           end
 
         process_action(action)
-        # // --- END FIX ---
       end
 
       def render_player_cash

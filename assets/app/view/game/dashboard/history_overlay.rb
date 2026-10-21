@@ -227,7 +227,6 @@ module View
           set_action(target) if target
         end
 
-        # --- START FIX ---
         def company_cache_key
           game_id = if @game_data && @game_data['id']
                       @game_data['id']
@@ -364,7 +363,6 @@ module View
           target = next_company_action
           set_action(target) if target
         end
-        # --- END FIX ---
 
         def history_minimized?
           value = Lib::Storage['history_overlay_minimized']
@@ -507,7 +505,6 @@ module View
           }
         end
 
-        # --- START FIX ---
         def nav_btn(label, onclick, disabled: false, primary: false, danger: false, title: nil)
           bg = if disabled
                  '#f1f5f9'
@@ -564,7 +561,6 @@ module View
               on: disabled ? {} : { click: onclick },
             }, label)
         end
-        # --- END FIX ---
 
         def render
           total = total_actions
@@ -805,7 +801,6 @@ h(:div, { style: { padding: '0.85rem 1rem', display: is_minimized ? 'none' : 'fl
     ]),
   ]),
 
-  # --- START FIX ---
   h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', flexWrap: 'nowrap' } }, [
     nav_btn('|◀', -> { set_action(1) }, disabled: curr <= 1, title: 'Beginning of Game (Action #1)'),
     nav_btn('◀|', -> { jump_prev_round }, disabled: prev_round_action.nil?, title: 'Beginning of Round / Previous Round'),
@@ -818,7 +813,6 @@ h(:div, { style: { padding: '0.85rem 1rem', display: is_minimized ? 'none' : 'fl
     nav_btn('|▶', -> { jump_next_round }, disabled: next_round_action.nil?, title: 'Next Round'),
     nav_btn('▶|', -> { set_action(total) }, disabled: !is_hist, title: 'End of Game (Live)'),
   ]),
-  # --- END FIX ---
 
   h(:div, {
       style: {

@@ -69,7 +69,6 @@ module View
           [h(:div, parent_props, [h(:div, props, [selector])])]
         end
 
-        # --- START FIX ---
         def render_count_badge(label, num, shift: 0)
           h(:div, {
               style: {
@@ -102,7 +101,6 @@ module View
                 }, "×#{num}"),
             ])
         end
-        # --- END FIX ---
 
         def render_tile_manifest
           remaining = @game.tiles.group_by(&:name)
@@ -195,7 +193,6 @@ module View
               return (t && t !== 'undefined' && t !== 'null' && !isNaN(parseFloat(t))) ? parseFloat(t) : null;
             } catch(e) { return null; }
           })())
-          # --- START FIX ---
           saved_width = %x((function() {
             try {
               var w = sessionStorage.getItem('dashboard_tile_manifest_width');
@@ -208,7 +205,6 @@ module View
               return (h && h !== 'undefined' && h !== 'null' && !isNaN(parseFloat(h))) ? parseFloat(h) : null;
             } catch(e) { return null; }
           })())
-          # --- END FIX ---
 
           on_header_mousedown = lambda do |event|
             %x(
@@ -290,7 +286,6 @@ module View
             )
           end
 
-          # --- START FIX ---
           on_resize_mousedown = lambda do |event|
             %x(
             var ev = #{event} || (typeof arguments !== 'undefined' ? arguments[0] : null) || window.event;
@@ -351,17 +346,14 @@ module View
             window.addEventListener('mouseup', onResizeUp, true);
             )
           end
-          # --- END FIX ---
 
           reset_pos = lambda do
             %x(
             try {
               sessionStorage.removeItem('dashboard_tile_manifest_left');
               sessionStorage.removeItem('dashboard_tile_manifest_top');
-              // --- START FIX ---
               sessionStorage.removeItem('dashboard_tile_manifest_width');
               sessionStorage.removeItem('dashboard_tile_manifest_height');
-              // --- END FIX ---
             } catch(e) {}
             var modal = document.getElementById('dashboard-tile-manifest-dialog');
             if (modal) {
@@ -389,7 +381,6 @@ module View
             update
           end
 
-          # --- START FIX ---
           dialog_style = {
             width: saved_width ? "#{saved_width}px" : '92%',
             maxWidth: saved_width ? 'none' : '1120px',
@@ -425,7 +416,6 @@ module View
           else
             dialog_style[:maxHeight] = '82vh'
           end
-          # --- END FIX ---
 
           header_controls = [
             h(:button, {
@@ -461,7 +451,6 @@ module View
               }, '✕'),
           ]
 
-          # --- START FIX ---
           body_content = if is_minimized
                            nil
                          else
@@ -493,7 +482,6 @@ module View
                                 on: { mousedown: on_resize_mousedown },
                               })
                           end
-          # --- END FIX ---
 
           remaining_count = @game.tiles.size
 
@@ -525,9 +513,7 @@ module View
             ]),
           ]
           dialog_children << body_content if body_content
-          # --- START FIX ---
           dialog_children << resize_handle if resize_handle
-          # --- END FIX ---
 
           h(:div, {
               attrs: { id: 'dashboard-tile-manifest-container' },

@@ -789,7 +789,6 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
         @show_meme_revenue
       end
 
-      # // --- START FIX ---
       def resolve_revenue_val(raw, tile_color = nil)
         return raw.to_i if raw.is_a?(Numeric)
         return raw.to_i if raw.is_a?(String) && raw =~ /^\d+$/
@@ -832,7 +831,6 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           end
         end
 
-        # // --- START FIX ---
         if raw.nil?
           begin
             raw = stop.instance_variable_get(:@revenues)
@@ -875,7 +873,6 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             })()
           }
         end
-        # // --- END FIX ---
 
         if raw.respond_to?(:revenue)
           begin
@@ -932,7 +929,6 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
         p_name = phase&.name.to_s if phase
         t_color = tile_color.to_s if tile_color
 
-        # // --- START FIX ---
         candidates = [
           p_name,
           p_name&.to_sym,
@@ -940,7 +936,6 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           t_color,
           t_color&.to_sym,
         ].compact
-        # // --- END FIX ---
 
         candidates.each do |k|
           val = raw[k]
@@ -1016,11 +1011,9 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                        stops.concat(tile.offboards) if tile.respond_to?(:offboards) && tile.offboards
                        stops
                      end
-        # // --- START FIX ---
-        # // --- DELETE --- return nil if tile_stops.empty?
+
         return nil if tile_stops.empty? && tile_base_revenue(tile).zero?
 
-        # // --- END FIX ---
 
         screaming_palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff', '#ffea00', '#ff4500']
         visited_stops_with_route = []

@@ -100,7 +100,6 @@ module Lib
     window.requestAnimationFrame(function() {
       setTimeout(function() {
 
-        // --- START FIX ---
         var findElement = function(selector) {
           if (!selector) return null;
           var s = String(selector).trim();
@@ -135,7 +134,6 @@ module Lib
             return null;
           }
         };
-        // --- END FIX ---
 
         var fromEl = findElement(fromSel);
         var toEl = findElement(toSel);

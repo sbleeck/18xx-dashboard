@@ -181,7 +181,6 @@ module View
           store(:chat_input, '')
 
           scroll_to_latest
-          # // --- START FIX ---
 
           %x{
             var input = document.getElementById('dashboard_chat_input');
@@ -201,13 +200,11 @@ module View
           native_event = Native(event)
           key = native_event['key']
 
-          # // --- START FIX ---
           if key == 'Escape'
             native_event.preventDefault
             close_overlay
             return
           end
-          # // --- END FIX ---
 
           return unless key == 'Enter'
           return if native_event['shiftKey']
@@ -216,7 +213,6 @@ module View
           send_message
         end
 
-        # // --- START FIX ---
         def scroll_to_latest
           mark_all_read!
           %x{
@@ -236,7 +232,6 @@ module View
             }
           }
         end
-        # // --- END FIX ---
 
         def start_drag(event)
           %x{
@@ -332,7 +327,6 @@ module View
           }
         end
 
-        # // --- START FIX ---
         def mark_all_read!
           gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
           count = chat_messages.size
@@ -356,7 +350,6 @@ module View
           Lib::Storage['dashboard_chat_overlay'] = nil
           @on_close&.call
         end
-        # // --- END FIX ---
 
         def saved_position
           result = %x{
@@ -634,7 +627,6 @@ module View
                 pointerEvents: 'auto',
               },
               hook: {
-                # // --- START FIX ---
                 insert: lambda {
                   scroll_to_latest
                   %x{
@@ -642,7 +634,6 @@ module View
             if (input) input.focus();
           }
                 },
-                # // --- END FIX ---
                 postpatch: -> { scroll_to_latest },
               },
             }, [
