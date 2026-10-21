@@ -258,7 +258,7 @@ module View
                 attrs: { attributeName: 'stroke-opacity', values: '0.35;1.0;0.35', dur: '1.4s', repeatCount: 'indefinite' }),
             ])
 
-            rendered_children = `Array.isArray(#{rendered})` ? rendered : [rendered]
+            rendered_children = rendered.is_a?(Array) ? rendered : [rendered]
             h(:g, {}, [*rendered_children, highlight].compact)
           end
 
@@ -1013,7 +1013,6 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                      end
 
         return nil if tile_stops.empty? && tile_base_revenue(tile).zero?
-
 
         screaming_palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff', '#ffea00', '#ff4500']
         visited_stops_with_route = []

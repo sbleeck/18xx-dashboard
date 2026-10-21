@@ -280,13 +280,14 @@ module View
         end.compact
       end
 
-    def render_input(corporation)
+      def render_input(corporation)
         pre_ipo = corporation.ipoed ? h(::View::Game::BuySellShares, corporation: corporation) : render_pre_ipo(corporation)
         inputs = [
           pre_ipo,
           render_loan(corporation),
         ]
-        inputs << h(::View::Game::IssueShares, entity: corporation) unless (@step.actions(corporation) & %w[buy_shares sell_shares]).empty?
+        inputs << h(::View::Game::IssueShares, entity: corporation) unless (@step.actions(corporation) & %w[buy_shares
+                                                                                                            sell_shares]).empty?
         inputs << h(::View::Game::BuyTrains, corporation: corporation) if @step.actions(corporation).include?('buy_train')
         inputs << h(::View::Game::ScrapTrains, corporation: corporation) if @step.actions(corporation).include?('scrap_train')
         if @current_actions.include?('choose') && @step.choice_available?(corporation)
@@ -323,7 +324,7 @@ module View
         children.compact!
         children.empty? ? nil : h(:div, children)
       end
-      
+
       def render_subsidiaries
         return [] unless @current_actions.include?('assign')
 

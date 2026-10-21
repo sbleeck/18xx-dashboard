@@ -197,7 +197,7 @@ module View
 
           depot.trains.group_by(&:name).each do |_name, trains|
             first = trains.first
-            next unless first&.respond_to?(:variants) && first.variants
+            next unless first&.respond_to?(:variants) && first&.variants
 
             base_variant = first.variants.values.find { |v| !v[:ignore_rust_obsolete_schedule] }
             base_rust = base_variant ? base_variant[:rusts_on] : nil

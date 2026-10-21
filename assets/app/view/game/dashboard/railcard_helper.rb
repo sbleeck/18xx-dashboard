@@ -951,7 +951,6 @@ module View
           dropdown_items = Array(dropdown).compact
           return card if !wrapper_id && dropdown_items.empty?
 
-
           wrapper_attrs = { class: 'short-railcard-wrapper', 'data-corp': corporation.id }
           wrapper_attrs[:id] = wrapper_id if wrapper_id && !wrapper_id.to_s.empty?
 

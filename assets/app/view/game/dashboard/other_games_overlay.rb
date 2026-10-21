@@ -133,14 +133,10 @@ module View
                           desc_node = if desc && !desc.empty?
                                         h(:span,
                                           { style: { fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '320px' } }, desc)
-                                      else
-                                        nil
                                       end
                           round_node = if round && !round.empty?
                                          h(:span,
                                            { style: { fontSize: '0.78rem', color: '#64748b', fontWeight: '600' } }, "• #{round}")
-                                       else
-                                         nil
                                        end
 
                           h(:div, {
@@ -178,11 +174,9 @@ module View
                                       color: badge_color,
                                     },
                                   }, badge_text),
-                                (if !is_cur
+                                (unless is_cur
                                    h(:span, { style: { fontSize: '1rem', color: '#0284c7', fontWeight: 'bold' } },
                                      '→')
-                                 else
-                                   nil
                                  end),
                               ].compact),
                             ])
