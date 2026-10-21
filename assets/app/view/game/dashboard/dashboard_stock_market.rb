@@ -177,8 +177,8 @@ module View
       PAD = 4
       BORDER = 1
       WIDTH_TOTAL = 50
-      TOKEN_SIZE = 25
-      TOKEN_SIZES = { small: 25, medium: 32, large: 40 }.freeze
+      TOKEN_SIZE = 30
+      TOKEN_SIZES = { small: 30, medium: 35, large: 40 }.freeze
 
       VERTICAL_TOKEN_PAD = 4
       MIN_NUM_TOKENS = 3
@@ -811,13 +811,13 @@ module View
             var style = window.document.createElement('style');
             style.id = 'symmetric-marker-pulse-styles';
             style.textContent = '' +
-              '@keyframes marker-pulse-glow {' +
+              '@keyframes marker-pulse-glow-stock {' +
               '  0% {' +
               '    transform: scale(1);' +
               '    filter: drop-shadow(0 0 2px rgba(0, 255, 255, 0.45));' +
               '  }' +
               '  50% {' +
-              '    transform: scale(1.24);' +
+              '    transform: scale(1.44);' +
               '    filter: drop-shadow(0 0 8px #00ffff) drop-shadow(0 0 16px rgba(0, 255, 255, 0.85));' +
               '  }' +
               '  100% {' +
@@ -825,8 +825,54 @@ module View
               '    filter: drop-shadow(0 0 2px rgba(0, 255, 255, 0.45));' +
               '  }' +
               '}' +
+              '@keyframes marker-pulse-glow-order {' +
+              '  0% {' +
+              '    transform: scale(1);' +
+              '    filter: drop-shadow(0 0 2px rgba(0, 255, 255, 0.45));' +
+              '  }' +
+              '  50% {' +
+              '    transform: scale(1.50);' +
+              '    filter: drop-shadow(0 0 8px #00ffff) drop-shadow(0 0 16px rgba(0, 255, 255, 0.85));' +
+              '  }' +
+              '  100% {' +
+              '    transform: scale(1);' +
+              '    filter: drop-shadow(0 0 2px rgba(0, 255, 255, 0.45));' +
+              '  }' +
+              '}' +
+              '@keyframes marker-pulse-glow-map {' +
+              '  0% {' +
+              '    transform: scale(1);' +
+              '    filter: drop-shadow(0 0 4px rgba(0, 255, 255, 0.6));' +
+              '  }' +
+              '  50% {' +
+              '    transform: scale(1.45);' +
+              '    filter: drop-shadow(0 0 12px #00ffff) drop-shadow(0 0 24px rgba(0, 255, 255, 0.95));' +
+              '  }' +
+              '  100% {' +
+              '    transform: scale(1);' +
+              '    filter: drop-shadow(0 0 4px rgba(0, 255, 255, 0.6));' +
+              '  }' +
+              '}' +
               '#viz-master-frame .marker-pulsing {' +
-              '  animation: marker-pulse-glow 1.1s ease-in-out infinite !important;' +
+              '  animation: marker-pulse-glow-stock 1.1s ease-in-out infinite !important;' +
+              '  transform-box: fill-box !important;' +
+              '  transform-origin: center center !important;' +
+              '  z-index: 99999 !important;' +
+              '}' +
+              '#viz-master-frame .stock-market-token.marker-pulsing, #viz-master-frame [id^="stock-token-"].marker-pulsing {' +
+              '  animation: marker-pulse-glow-stock 1.1s ease-in-out infinite !important;' +
+              '  transform-box: fill-box !important;' +
+              '  transform-origin: center center !important;' +
+              '  z-index: 99999 !important;' +
+              '}' +
+              '#viz-master-frame .entity-order-token.marker-pulsing {' +
+              '  animation: marker-pulse-glow-order 1.1s ease-in-out infinite !important;' +
+              '  transform-box: fill-box !important;' +
+              '  transform-origin: center center !important;' +
+              '  z-index: 99999 !important;' +
+              '}' +
+              '#viz-master-frame .map-token.marker-pulsing, #viz-master-frame svg g.map-token.marker-pulsing {' +
+              '  animation: marker-pulse-glow-map 1.1s ease-in-out infinite !important;' +
               '  transform-box: fill-box !important;' +
               '  transform-origin: center center !important;' +
               '  z-index: 99999 !important;' +
@@ -835,7 +881,7 @@ module View
               '  display: inline-block !important;' +
               '  position: relative !important;' +
               '}' +
-'#viz-master-frame .stock-market-token, #viz-master-frame [id^="stock-token-"], #viz-master-frame .map-token, #viz-master-frame .major-corporation-cell, #viz-master-frame [id^="status_major_"] {' +
+              '#viz-master-frame .stock-market-token, #viz-master-frame [id^="stock-token-"], #viz-master-frame .map-token, #viz-master-frame .major-corporation-cell, #viz-master-frame [id^="status_major_"] {' +
               '  cursor: pointer !important;' +
               '  pointer-events: auto !important;' +
               '}';
@@ -878,14 +924,15 @@ module View
               }
               if (stCorp) return { corpId: String(stCorp), type: 'status' };
             }
-                // 4. Entity Order Marker
-var orderEl = target.closest('.entity-order-token');
-if (orderEl) {
-  var oCorp = orderEl.getAttribute('data-corp');
-  if (oCorp) {
-    return { corpId: String(oCorp), type: 'order' };
-  }
-}
+
+            // 4. Entity Order Marker
+            var orderEl = target.closest('.entity-order-token');
+            if (orderEl) {
+              var oCorp = orderEl.getAttribute('data-corp');
+              if (oCorp) {
+                return { corpId: String(oCorp), type: 'order' };
+              }
+            }
 
             return null;
           }
@@ -918,7 +965,7 @@ if (orderEl) {
             // Pulse Map token(s) if not the trigger
             if (currentType !== 'map') {
               var mapTokens = root.querySelectorAll(
-'.map-token-' + CSS.escape(String(corpId)) + ', .map-token[data-corp="' + corpId + '"]'
+                '.map-token-' + CSS.escape(String(corpId)) + ', .map-token[data-corp="' + corpId + '"]'
               );
               for (var m = 0; m < mapTokens.length; m++) {
                 mapTokens[m].classList.add('marker-pulsing');
@@ -938,15 +985,16 @@ if (orderEl) {
                 statusEls[t].classList.add('marker-pulsing');
               }
             }
-              if (currentType !== 'order') {
-  var orderTokens = root.querySelectorAll(
-    '.entity-order-token[data-corp="' + corpId + '"]'
-  );
 
-  for (var o = 0; o < orderTokens.length; o++) {
-    orderTokens[o].classList.add('marker-pulsing');
-  }
-}
+            if (currentType !== 'order') {
+              var orderTokens = root.querySelectorAll(
+                '.entity-order-token[data-corp="' + corpId + '"]'
+              );
+
+              for (var o = 0; o < orderTokens.length; o++) {
+                orderTokens[o].classList.add('marker-pulsing');
+              }
+            }
           }
 
           var activeCorp = null;

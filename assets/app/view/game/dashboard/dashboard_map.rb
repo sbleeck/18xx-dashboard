@@ -18,6 +18,40 @@ begin
 rescue LoadError
 end
 
+# Inside assets/app/view/game/dashboard/dashboard_map.rb
+module View
+  module Game
+    class Token < Snabberb::Component
+      unless method_defined?(:orig_pulse_render)
+        alias orig_pulse_render render
+
+        def render
+          rendered = orig_pulse_render
+          corp = @corporation || (@token.respond_to?(:corporation) ? @token.corporation : nil)
+          return rendered unless corp
+
+          corp_id = corp.id.to_s
+          safe_id = `CSS.escape(#{corp_id})`
+
+          %x{
+          if (#{rendered} && #{rendered}.data) {
+            if (!#{rendered}.data.attrs) #{rendered}.data.attrs = {};
+            var existingCls = #{rendered}.data.attrs['class'] || #{rendered}.data.class || '';
+            var addCls = 'map-token map-token-' + #{safe_id};
+            #{rendered}.data.attrs['class'] = (existingCls + ' ' + addCls).trim();
+            #{rendered}.data.attrs['data-corp'] = #{corp_id};
+            if (!#{rendered}.data.style) #{rendered}.data.style = {};
+            #{rendered}.data.style['cursor'] = 'pointer';
+            #{rendered}.data.style['pointer-events'] = 'auto';
+          }
+        }
+          rendered
+        end
+      end
+    end
+  end
+end
+
 module Lib
   module TileLayAnimation
     def self.hook
