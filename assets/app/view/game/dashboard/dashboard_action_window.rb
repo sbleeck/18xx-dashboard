@@ -2423,8 +2423,52 @@ module View
               attrs: { id: 'action_floating_window' },
 
               hook: {
-                insert: ->(_vnode) { apply_saved_geometry_to_dom },
+                insert: lambda do |_vnode|
+                  apply_saved_geometry_to_dom
+                  %x{
+                    if (window._actionHubKeyHandler) {
+                      window.removeEventListener('keydown', window._actionHubKeyHandler, true);
+                    }
+                    window._actionHubKeyHandler = function(e) {
+                      if (e.key !== 'Enter' && e.keyCode !== 13 && e.code !== 'Enter' && e.code !== 'NumpadEnter') {
+                        return;
+                      }
+                      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+
+                      var active = document.activeElement;
+                      if (active) {
+                        var tag = (active.tagName || '').toUpperCase();
+                        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || active.isContentEditable) {
+                          return;
+                        }
+                        if (tag === 'BUTTON' && active.id !== 'btn-action-hub-default') {
+                          return;
+                        }
+                      }
+
+                      var btn = document.getElementById('btn-action-hub-default');
+                      if (!btn) return;
+
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+
+                      if (!btn.disabled && btn.offsetParent !== null) {
+                        btn.click();
+                      }
+                    };
+                    window.addEventListener('keydown', window._actionHubKeyHandler, true);
+                  }
+                end,
                 postpatch: ->(_old, _vnode) { apply_saved_geometry_to_dom },
+                destroy: lambda do |_vnode|
+                           %x{
+                    if (window._actionHubKeyHandler) {
+                      window.removeEventListener('keydown', window._actionHubKeyHandler, true);
+                      window._actionHubKeyHandler = null;
+                    }
+                  }
+                         end,
               },
 
               style: {
@@ -4390,6 +4434,7 @@ module View
                     whiteSpace: 'nowrap',
                   },
                   attrs: {
+                    id: 'btn-action-hub-default',
                     disabled: advance_disabled,
                     title: advance_tooltip,
                   }.compact,
