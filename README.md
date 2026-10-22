@@ -93,49 +93,32 @@ The dashboard is built to drop cleanly into `18xx.games` without destabilizing u
 * **Native Fallback Pipeline:** Tested across ~30 titles. If an obscure title presents an action branch or unique mechanic that lacks a bespoke dashboard component, the Action Hub displays a notice and mounts the native, unstyled engine control inline. Play is never blocked.
 
 ---
+## 🚀 Installation
 
-## 🧪 Public Beta Installation (Live Testing via Requestly)
+### Option 1: Chrome Web Store (One-Click)
+*Automated background updates for Chrome, Brave, Edge, and Opera.*
 
-You can run the dashboard immediately on the live [18xx.games](https://18xx.games) platform using the **Requestly** browser extension to load the dashboard files.
-
-### 1. Install the Extension
-Install Requestly for your desktop browser:
-* [Requestly for Chrome / Edge / Brave](https://requestly.com/)
-* [Requestly for Firefox](https://addons.mozilla.org/en-US/firefox/addon/requestly/)
-
-### 2. Sign In
-Open the Requestly dashboard and sign in using a standard Google or GitHub account.
-
-### 3. Import the Dashboard Rules
-Open this shared rule link in your browser:  
-👉 **[18xx Dashboard Shared Requestly Rule List](https://app.requestly.io/rules#sharedList/51a6307917014fffad42d8190a754803-requestly_shared_list_30_09_2026)**
-
-Preview the rules and click **Import / Save**.
-
-### 4. Enable the Rules
-Ensure both imported rules are toggled **ON** in your Requestly rules list (verify all 3 confirmation tick boxes are checked).
-
-### 5. Launch
-Navigate to any match on [18xx.games](https://18xx.games) and select the new **Dashboard** tab in the main navigation bar.
-
-*To return to the standard interface at any time, toggle the rules off in Requestly.*
-
-> **🔐 Security & Transparency:**  
-> Requestly is a powerful developer tool that intercepts network requests to redirect script assets. You should never blindly import browser extension scripts from sources you do not trust. You can inspect the imported rules in Requestly and review the complete client-side code directly in this repository before installing.
+* **Status:** ⏳ *Currently under review by Google. Direct store link will be posted here upon approval.*
 
 ---
 
-## 💻 Local Development (Docker)
+### Option 2: Direct Install (Available Now)
+*Works immediately on any Chromium browser (takes 60 seconds).*
 
-If you maintain a local development environment for `18xx.games`, you can run the dashboard directly within the Docker stack:
+1. Download the latest build: [**18xx-dashboard-v1.0.0.zip**](https://github.com/sbleeck/18xx-dashboard/releases/latest)
+2. Unzip the file on your computer.
+3. In your browser, open `chrome://extensions/`.
+4. Toggle **Developer mode** ON (top-right switch).
+5. Click **Load unpacked** (top-left) and select the unzipped `18xx-extension` directory.
+6. Open [18xx.games](https://18xx.games)—the **Dashboard** tab will appear in the navigation bar.
 
-```bash
-git clone https://github.com/sbleeck/18xx-dashboard.git
-cd 18xx-dashboard
-docker compose up
-```
+<details>
+<summary><b>Legacy: Requestly Beta Setup (Deprecated)</b></summary>
 
-Once booted, open `http://localhost:9292` in your browser and open any game. The **Dashboard** tab will appear alongside standard tabs.
+If you were part of the initial alpha test using Requestly, we recommend removing your Requestly rule and switching to the standalone extension above. If needed, the legacy rule list remains accessible via the [shared rule list](https://app.requestly.io/rules#sharedList/51a6307917014fffad42d8190a754803-requestly_shared_list_30_09_2026).
+</details>
+
+---
 
 ---
 
