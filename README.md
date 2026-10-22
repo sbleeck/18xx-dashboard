@@ -112,11 +112,6 @@ The dashboard is built to drop cleanly into `18xx.games` without destabilizing u
 5. Click **Load unpacked** (top-left) and select the unzipped `18xx-extension` directory.
 6. Open [18xx.games](https://18xx.games)—the **Dashboard** tab will appear in the navigation bar.
 
-<details>
-<summary><b>Legacy: Requestly Beta Setup (Deprecated)</b></summary>
-
-If you were part of the initial alpha test using Requestly, we recommend removing your Requestly rule and switching to the standalone extension above. If needed, the legacy rule list remains accessible via the [shared rule list](https://app.requestly.io/rules#sharedList/51a6307917014fffad42d8190a754803-requestly_shared_list_30_09_2026).
-</details>
 
 ---
 
@@ -134,6 +129,19 @@ If you encounter an issue or strange behavior, please report it via [GitHub Issu
 4. **Environment:** Browser and operating system.
 5. **Game Link:** The game number or URL (if public).
 6. **Visuals:** A screenshot or short screen recording if possible.
+
+---
+
+
+
+## ☕ Support the Project
+
+If the Zero-Tab Dashboard improves your matches, consider supporting ongoing development, hosting, and title expansion:
+
+[![Support on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/stefanbleeck)
+
+*One-off tips and monthly memberships help fund bespoke visual components across new 18xx titles.*
+
 
 ---
 
