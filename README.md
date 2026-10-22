@@ -1,157 +1,133 @@
-18xx Desktop Dashboard
+# 18xx Zero-Tab Dashboard
 
-"The interface should disappear into the game."
+> *"The interface should disappear into the game."*
 
-An alternative, single-screen spatial board game interface for 18xx.games.
+An alternative, unified, single-screen spatial interface for [18xx.games](https://18xx.games). 
 
-🚀 Quick Install Options
+This project re-engineers digital 18xx interaction from the ground up: moving away from multi-tab spreadsheet navigation and text-log auditing back to the persistent, tactile, and spatially stable mental model of an authentic tabletop board game.
 
-Option 1: Chrome Web Store (Recommended)
+---
 
-One-click install with automatic background updates for Chrome, Brave, and Edge.
+## 📺 Video Demonstrations
 
-Status: In review by Google. Direct link will be posted here as soon as approved.
+* **[2-Minute Quick Demo](https://www.youtube.com/watch?v=F9EsonE6uOM)** — A rapid visual tour of the zero-tab spatial layout in action.
+* **[Full Walkthrough & Design Architecture (1846)](https://www.youtube.com/watch?v=p6TUtUSi_AM)** — Complete match walkthrough covering Stock Rounds, Operating Rounds, tile and token lays, route calculation, and interface telemetry.
+* **[YouTube Channel: @Rails-Evolution-18xx](https://www.youtube.com/@Rails-Evolution-18xx)** — Strategy guides, rule deltas, and live gameplay analysis using the dashboard.
 
-Option 2: Direct Unpacked Install (Available Now)
+---
 
-No browser store required. Takes 60 seconds.
+## 🧭 Why This Exists
 
-Download the latest release: Download 18xx-dashboard-v1.0.0.zip
+Modern digital 18xx implementations run on rock-solid game engines, but their presentation defaults to asynchronous spreadsheet tables:
+* Key information is fragmented across disconnected browser tabs (*Game, Map, Market, Tiles, Spreadsheet, Tools*).
+* Tracking what opponents did during your absence requires reading through dozens of lines of text logs.
+* Switching tabs continuously breaks spatial memory. On a physical table, players never fold up the board just to inspect the stock market or check the bank pool.
 
-Unzip the downloaded file on your computer.
+The **Zero-Tab Dashboard** integrates the entire game state into a single, immutable, non-collapsing viewport while enforcing a strict distinction between clerical automation and player agency:
 
-Open your browser and navigate to chrome://extensions/.
+1. **Automate Bookkeeping:** Graph traversal, tile validity, legal route arithmetic, and asset accounting are fully handled by the software.
+2. **Preserve Strategic Integrity:** The interface strictly refuses to automate derived strategic decisions. It does not calculate optimal route combinations, forecast opponent cash flows, or display real-time net-worth leaderboards during play. Strategic calculation remains entirely the player's responsibility.
 
-Enable Developer mode (toggle in the top-right corner).
+---
 
-Click Load unpacked (top-left) and select the unzipped 18xx-extension folder.
+## 📐 The Five Visual Laws
 
-Open 18xx.games — the Dashboard tab is ready!
+Visual encoding across the dashboard is governed strictly by five orthogonal channels:
 
-📺 Video Walkthroughs
+| Visual Channel | Function | System Behavior |
+| :--- | :--- | :--- |
+| **1. Shape** | **Domain Ontology** | Components retain their real-world physical geometry and never mutate into generic web buttons. Tokens are circles; train cards are rounded pills; share certificates are rectangular cards; private companies feature asymmetric silhouettes. |
+| **2. Colour & Typography** | **Semantic Meaning** | Colour communicates system status, not decoration. **Green** indicates asset acquisition/ingress; **Red** indicates asset disposal/egress; **Cyan** is strictly reserved for spatial map affordances; **Blue** is locked to state progression. All monetary values share invariant typography. |
+| **3. Movement** | **Positional Change** | Animation is restricted to spatial deltas representing physical asset transfer (e.g., certificates sliding from the IPO into a player portfolio, or tiles dropping onto hexes). |
+| **4. Breathing** | **Connection & Affordance** | Low-frequency luminance/scale oscillation (~1 Hz) visually links distributed entities. Hovering over a corporation pulses its map tokens, market marker, and charter simultaneously. Valid placement targets pulse in cyan. |
+| **5. Visual Weight** | **Decision Consequence** | Visual emphasis, scale, and contrast scale proportionally with the irreversibility and impact of an action (e.g., bankruptcy, emergency train purchases). |
 
-2-Minute Visual Overview: See the unified layout, live market interactions, and spatial stability in under three minutes.
+---
 
-Full Match Walkthrough & Design Deep-Dive (1846): Complete 25-minute breakdown showing Stock Rounds, tile drops, token placements, route running, and Action Hub mechanics.
+## 🖥️ Layout & Interaction Engine
 
-🎨 The Five Visual Laws
+┌────────────────────────────────────────────────────────────────────────┐
+│                        TOP NAVIGATION / TAB BAR                        │
+│ [Game] [Map] [Market] [Tiles] [Spreadsheet] [Tools] | [DASHBOARD]      │
+│                                           [⚡] [🧵] [⏱] [🌐] [♫]       │
+├───────────────────────────────────┬────────────────────────────────────┤
+│                                   │ ACTIVE PLAYER & OPERATING ORDER    │
+│                                   ├────────────────────────────────────┤
+│                                   │                                    │
+│             THE MAP               │         THE STATUS MATRIX          │
+│      (Persistent Geometry)        │  (Players, Companies, Bank, Depot) │
+│                                   │                                    │
+│                                   ├────────────────────────────────────┤
+│                                   │         THE STOCK MARKET           │
+│                                   │      (2D Spatial Valuation)        │
+└───────────────────────────────────┴────────────────────────────────────┘
 
-The dashboard abandons arbitrary web buttons and spreadsheet tables, encoding all information through five orthogonal channels:
+* **The Map (Left):** High-resolution topological canvas with cyan placement affordances, manual or automated route overlays, and large-format toggleable revenue centers.
+* **The Status Matrix (Top-Right):** Replaces the spreadsheet with semantic groupings:
+  * *Muted Purple:* Corporate charters, treasuries, trains, and token reserves.
+  * *Muted Green:* The Bank, IPO, Bank Pool, and Train Depot.
+  * *Clear White / Grey:* Player portfolios, cash balances, certificate limits, and privates.
+* **The Stock Market (Bottom-Right):** The persistent 2D market grid showing exact share coordinates, ledges, and capitalization zones.
+* **The Action Hub (`⚡`):** A dockable, resizable tactical control panel that manages turn actions sequentially:
+  * Displays round-specific direct-manipulation controls.
+  * Bottom-left quick **Undo / Redo** controls.
+  * **Invariant Progress Control:** The bottom-right corner is permanently anchored for committing choices and advancing state (`Pass`, `Done`, `Submit`, `Pay Out`).
+* **Turn Telemetry:**
+  * Active player row illuminated in pure white.
+  * Subtle 1 Hz soft green peripheral border pulse.
+  * Psychoacoustic turn chime engineered to avoid microphone bleed during voice calls.
+* **Multi-Game Switcher (`🌐`):** Displays all concurrent active games with immediate green status indicators when your turn is pending.
+* **Game History Thread (`🧵`):** A scrubbable timeline slider allowing move-by-move historical audit without disrupting active board coordinates.
 
-Channel
+---
 
-Meaning
+## 🛠️ Architecture & Sandboxing
 
-Visual Expression
+The dashboard is built to drop cleanly into `18xx.games` without destabilizing upstream logic:
 
-Shape
+* **Hermetic Directory Isolation:** 100% of the code, styles, state adapters, and DOM mutations live inside the `view/dashboard/` directory.
+* **Zero Core Engine Mutation:** State is consumed strictly read-only. Upstream rules, models, and calculation routines are never altered or monkey-patched.
+* **Zero Global CSS Pollution:** All styling is encapsulated; native tabs (`Game`, `Map`, `Market`, `Spreadsheet`) and platform themes (including Night Shift) operate independently.
+* **Native Fallback Pipeline:** Tested across ~30 titles. If an obscure title presents an action branch or unique mechanic that lacks a bespoke dashboard component, the Action Hub displays a notice and mounts the native, unstyled engine control inline. Play is never blocked.
 
-Object Identity
+---
 
-Tokens are circles; trains are pills; share certificates are proportioned rectangles; privates have distinct asymmetric silhouettes.
+## 🧪 Public Beta Installation (Live Testing via Requestly)
 
-Colour
+You can run the dashboard immediately on the live [18xx.games](https://18xx.games) platform using the **Requestly** browser extension to load the dashboard files.
 
-Semantic Meaning
+### 1. Install the Extension
+Install Requestly for your desktop browser:
+* [Requestly for Chrome / Edge / Brave](https://requestly.com/)
+* [Requestly for Firefox](https://addons.mozilla.org/en-US/firefox/addon/requestly/)
 
-Green = Ingress (buying assets); Red = Egress (selling/scrap); Cyan = Spatial Map Affordances (legal tiles/tokens); Blue = State progression.
+### 2. Sign In
+Open the Requestly dashboard and sign in using a standard Google or GitHub account.
 
-Movement
+### 3. Import the Dashboard Rules
+Open this shared rule link in your browser:  
+👉 **[18xx Dashboard Shared Requestly Rule List](https://app.requestly.io/rules#sharedList/51a6307917014fffad42d8190a754803-requestly_shared_list_30_09_2026)**
 
-Change of State
+Preview the rules and click **Import / Save**.
 
-Assets physically glide from origin to destination across the screen. Tiles drop from above. Tokens trigger subtle seismic vibration upon landing.
+### 4. Enable the Rules
+Ensure both imported rules are toggled **ON** in your Requestly rules list (verify all 3 confirmation tick boxes are checked).
 
-Breathing
+### 5. Launch
+Navigate to any match on [18xx.games](https://18xx.games) and select the new **Dashboard** tab in the main navigation bar.
 
-Connection & Affordance
+*To return to the standard interface at any time, toggle the rules off in Requestly.*
 
-Hovering over any corporation pulses all four of its board manifestations (map tokens, stock marker, charter, and operating order) at 1 Hz.
+> **🔐 Security & Transparency:**  
+> Requestly is a powerful developer tool that intercepts network requests to redirect script assets. You should never blindly import browser extension scripts from sources you do not trust. You can inspect the imported rules in Requestly and review the complete client-side code directly in this repository before installing.
 
-Visual Weight
+---
 
-Decision Consequence
+## 💻 Local Development (Docker)
 
-Irreversible, high-stakes decisions (bankruptcies, emergency train purchases) command high visual contrast and scale.
+If you maintain a local development environment for `18xx.games`, you can run the dashboard directly within the Docker stack:
 
-🗺️ Title Compatibility Matrix
-
-The dashboard includes a Native Fallback Pipeline: if a game features a custom rule or mechanism not yet drawn in the bespoke design system, it mounts the engine's native controls inline. No game is ever blocked.
-
-Title
-
-Implementation Status
-
-Features Verified
-
-1846
-
-Full Bespoke
-
-Private Draft, Steamboat/Meat tokens, East/West runs
-
-1830
-
-Full Bespoke
-
-Aggressive dumps, brown tile upgrades, emergency buys
-
-1889 (Shikoku)
-
-Full Bespoke
-
-Fast rust pacing, single-hex upgrades, island geography
-
-18Chesapeake
-
-Full Bespoke
-
-Train export mechanism, standard capitalization
-
-1870
-
-Full Bespoke
-
-Destination tokens, reissue mechanics, protected stock
-
-1856
-
-Full Bespoke
-
-Escrow capital, CGR formation, debt loans
-
-18MS
-
-Full Bespoke
-
-Fixed 10-turn pacing, Mississippi token reservations
-
-1837
-
-Verified Support
-
-National coal concessions, multi-gauge track
-
-Other 18xx Titles
-
-Native Fallback
-
-All core game actions supported via native engine fallback
-
-☕ Support the Project
-
-The 18xx Desktop Dashboard is 100% free and open-source software built for the tabletop train gamer community.
-
-If this interface enhances your matches and saves you from tab-flipping fatigue, voluntary contributions help support ongoing maintenance and new title adaptations:
-
-Support via Ko-fi (One-time or monthly)
-
-Sponsor on GitHub
-
-🐛 Bug Reports & Feature Suggestions
-
-Encountered an unusual edge case or want your favorite title prioritized?
-
-Open an issue on the GitHub Issue Tracker.
-
-Send details, game link, and browser info to bleeck@gmail.com.
+```bash
+git clone [https://github.com/sbleeck/18xx-dashboard.git](https://github.com/sbleeck/18xx-dashboard.git)
+cd 18xx-dashboard
+docker compose up
