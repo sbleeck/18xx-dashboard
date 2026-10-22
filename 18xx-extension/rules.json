@@ -1,0 +1,28 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "extensionPath": "/main.js" }
+    },
+    "condition": {
+      "urlFilter": "||18xx.games/assets/main.js*",
+      "resourceTypes": ["script"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        { "header": "content-security-policy", "operation": "remove" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||18xx.games/*",
+      "resourceTypes": ["main_frame", "sub_frame"]
+    }
+  }
+]

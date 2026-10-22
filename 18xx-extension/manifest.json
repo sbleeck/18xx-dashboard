@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "18xx.games Desktop Dashboard",
+  "version": "1.0.0",
+  "description": "A persistent, zero-tab spatial dashboard for 18xx.games.",
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "https://18xx.games/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["main.js"],
+      "matches": ["https://18xx.games/*"]
+    }
+  ]
+}

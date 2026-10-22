@@ -43,3 +43,10 @@ validate/
 MAINLINE 1864 Forty-Niner Rules.pdf
 /map/
 /cards/
+
+# 18xx Extension build artifacts & temporary files
+dist/
+*.zip
+18xx-extension/main.js
+18xx-extension/_metadata/
+*screenshot_1280x800.png
