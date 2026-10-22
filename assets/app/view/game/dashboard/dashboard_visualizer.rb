@@ -942,6 +942,80 @@ module View
         nil
       end
 
+      def map_wider_than_high?
+        return false unless @game && @game.layout && @game.layout != :none
+
+        hexes = @game.hexes || []
+        axes_hexes = hexes.reject(&:ignore_for_axes)
+        return false if axes_hexes.empty?
+
+        xs = axes_hexes.map(&:x)
+        ys = axes_hexes.map(&:y)
+        return false if xs.empty? || ys.empty?
+
+        min_x, max_x = xs.minmax
+        min_y, max_y = ys.minmax
+
+        cols_count = (max_x - min_x) + 1
+        rows_count = (max_y - min_y) + 1
+
+        edge_length = 50
+        side_to_side = 87
+        gap = 25
+
+        w, h = if @game.layout == :flat
+                 [(((cols_count * 1.5) + 0.5) * edge_length) + (2 * gap),
+                  (((rows_count / 2.0) + 0.5) * side_to_side) + (2 * gap)]
+               else
+                 [((((cols_count / 2.0) + 0.5) * side_to_side) + (2 * gap)) + 1,
+                  (((rows_count * 1.5) + 0.5) * edge_length) + (2 * gap)]
+               end
+
+        w > h
+      rescue StandardError
+        false
+      end
+
+      def render_temporal_hub
+        h(:div, {
+            attrs: { id: 'temporal-hub' },
+            style: {
+              flex: '0 0 3.75rem',
+              minHeight: '3.25rem',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              backgroundColor: '#f8f9fa',
+              padding: '0 0.5rem 0 0',
+              boxSizing: 'border-box',
+              overflow: 'hidden',
+              gap: '0.5rem',
+            },
+          }, [
+          render_active_turn_card,
+          h(:div, {
+              attrs: { class: 'entity-order-content' },
+              style: {
+                flex: '1 1 auto',
+                minWidth: '0',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                overflow: 'hidden',
+              },
+            }, [
+            if @game.respond_to?(:finished?) && @game.finished?
+              h(View::Game::DashboardEntityOrder, round: nil)
+            else
+              h(View::Game::DashboardEntityOrder, round: @game.round)
+            end,
+          ]),
+        ].compact)
+      end
+
       def render_chat_button
         is_open = @show_chat_overlay == true ||
                   [true, 'true'].include?(Lib::Storage['dashboard_chat_overlay'])
@@ -2268,6 +2342,7 @@ window.addEventListener('resize', window.positionDashboardButtons);
                     };
 
                     createResizer('resizer-v-main', 'col-left', 'col-right', false);
+                  createResizer('resizer-h-entity-map', 'temporal-hub', 'map-panel-bot', true);
                     createResizer('resizer-h-entity-ledger', 'temporal-hub', 'panel-ledger', true);
                     createResizer('resizer-h-ledger-market', 'panel-ledger', 'panel-market', true);
 
@@ -2787,9 +2862,11 @@ window.recalcAllPanels = function() {
               transition: 'background-color 0.3s ease, border 0.3s ease',
             },
           }, [
-            h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, [
-
+            h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: '0.5rem' } }, [
+              (render_temporal_hub if map_wider_than_high?),
+              (h(:div, { attrs: { id: 'resizer-h-entity-map', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }) if map_wider_than_high?),
               h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', width: '100%', height: '100%', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
+
                 render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
                 render_map_phase_indicator,
                 h(:div, {
@@ -2874,51 +2951,15 @@ h(View::Game::DashboardMap, game: @game, user: @user, show_meme_revenue: meme_re
                       },
                     }, 'Show Remaining Tiles'),
                 ]),
-              ]),
-            ]),
+]),
+              ].compact),
 
             h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
 
             h(:div, { attrs: { id: 'col-right' }, style: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100%', overflow: 'hidden', gap: '0.5rem' } }, [
-              h(:div, {
-                  attrs: { id: 'temporal-hub' },
-                  style: {
-                    flex: '0 0 3.75rem',
-                    minHeight: '3.25rem',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'flex-start',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    backgroundColor: '#f8f9fa',
-                    padding: '0 0.5rem 0 0',
-                    boxSizing: 'border-box',
-                    overflow: 'hidden',
-                    gap: '0.5rem',
-                  },
-                }, [
-                render_active_turn_card,
-                h(:div, {
-                    attrs: { class: 'entity-order-content' },
-                    style: {
-                      flex: '1 1 auto',
-                      minWidth: '0',
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      overflow: 'hidden',
-                    },
-                  }, [
-                  if @game.respond_to?(:finished?) && @game.finished?
-                    h(View::Game::DashboardEntityOrder, round: nil)
-                  else
-                    h(View::Game::DashboardEntityOrder, round: @game.round)
-                  end,
-                ]),
-              ].compact),
+              (render_temporal_hub unless map_wider_than_high?),
+              (h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }) unless map_wider_than_high?),
 
-              h(:div, { attrs: { id: 'resizer-h-entity-ledger', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }),
               h(:div, {
                   attrs: { id: 'panel-ledger' },
                   style: {
@@ -2934,61 +2975,61 @@ h(View::Game::DashboardMap, game: @game, user: @user, show_meme_revenue: meme_re
                     position: 'relative',
                   },
                 }, [
-render_zoom_controls('panel-ledger', { top: '6px', right: '18px' }),
-h(:div, {
-    attrs: { id: 'panel-ledger-scroll' },
-    style: {
-      width: '100%',
-      height: '100%',
-      maxHeight: '100%',
-      minHeight: '0',
-      overflow: 'auto',
-      overflowX: 'auto',
-      overflowY: 'auto',
-      position: 'relative',
-      boxSizing: 'border-box',
-    },
-  }, [
-    h(:div, {
-        attrs: { class: 'ledger-sizer' },
-        style: {
-          position: 'relative',
-          display: 'block',
-          width: '100%',
-          height: '100%',
-          minWidth: '100%',
-          minHeight: '100%',
-        },
-      }, [
-        h(:div, {
-            attrs: { class: 'scaler-content' },
-            style: {
-              position: 'absolute',
-              top: '0',
-              left: '0',
-              width: 'max-content',
-              height: 'max-content',
-              transformOrigin: 'top left',
-              padding: '0.35rem',
-              boxSizing: 'border-box',
-            },
-          }, [
-            h(:div, {
-                style: {
-                  display: 'flex',
-                  flexDirection: 'column',
-                  width: 'max-content',
-                  minWidth: '100%',
-                },
-              }, [
-                h(View::Game::DashboardGameStatus,
-                  game: @game,
-                  user: @user),
-              ]),
-          ]),
-      ]),
-  ]),
-                              ]),
+  render_zoom_controls('panel-ledger', { top: '6px', right: '18px' }),
+  h(:div, {
+      attrs: { id: 'panel-ledger-scroll' },
+      style: {
+        width: '100%',
+        height: '100%',
+        maxHeight: '100%',
+        minHeight: '0',
+        overflow: 'auto',
+        overflowX: 'auto',
+        overflowY: 'auto',
+        position: 'relative',
+        boxSizing: 'border-box',
+      },
+    }, [
+      h(:div, {
+          attrs: { class: 'ledger-sizer' },
+          style: {
+            position: 'relative',
+            display: 'block',
+            width: '100%',
+            height: '100%',
+            minWidth: '100%',
+            minHeight: '100%',
+          },
+        }, [
+          h(:div, {
+              attrs: { class: 'scaler-content' },
+              style: {
+                position: 'absolute',
+                top: '0',
+                left: '0',
+                width: 'max-content',
+                height: 'max-content',
+                transformOrigin: 'top left',
+                padding: '0.35rem',
+                boxSizing: 'border-box',
+              },
+            }, [
+              h(:div, {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: 'max-content',
+                    minWidth: '100%',
+                  },
+                }, [
+                  h(View::Game::DashboardGameStatus,
+                    game: @game,
+                    user: @user),
+                ]),
+            ]),
+        ]),
+    ]),
+                                ]),
 
               h(:div, { attrs: { id: 'resizer-h-ledger-market' }, style: { flex: '0 0 0.5rem', cursor: 'row-resize', zIndex: 10 } }),
 
@@ -3052,7 +3093,7 @@ h(:div, {
                         ]),
                     ]),
                 ]),
-            ]),
+].compact),
             render_global_auction_overlay,
             render_par_overlay,
             render_tile_manifest_overlay,
