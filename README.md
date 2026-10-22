@@ -46,6 +46,7 @@ Visual encoding across the dashboard is governed strictly by five orthogonal cha
 
 ## 🖥️ Layout & Interaction Engine
 
+<pre>
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        TOP NAVIGATION / TAB BAR                        │
 │ [Game] [Map] [Market] [Tiles] [Spreadsheet] [Tools] | [DASHBOARD]      │
@@ -61,6 +62,7 @@ Visual encoding across the dashboard is governed strictly by five orthogonal cha
 │                                   │         THE STOCK MARKET           │
 │                                   │      (2D Spatial Valuation)        │
 └───────────────────────────────────┴────────────────────────────────────┘
+</pre>
 
 * **The Map (Left):** High-resolution topological canvas with cyan placement affordances, manual or automated route overlays, and large-format toggleable revenue centers.
 * **The Status Matrix (Top-Right):** Replaces the spreadsheet with semantic groupings:
@@ -128,6 +130,32 @@ Navigate to any match on [18xx.games](https://18xx.games) and select the new **D
 If you maintain a local development environment for `18xx.games`, you can run the dashboard directly within the Docker stack:
 
 ```bash
-git clone [https://github.com/sbleeck/18xx-dashboard.git](https://github.com/sbleeck/18xx-dashboard.git)
+git clone https://github.com/sbleeck/18xx-dashboard.git
 cd 18xx-dashboard
 docker compose up
+```
+
+Once booted, open `http://localhost:9292` in your browser and open any game. The **Dashboard** tab will appear alongside standard tabs.
+
+---
+
+## 🐛 Feedback & Bug Reports
+
+The dashboard is currently in active beta. Testing across uncommon titles, multi-entity mergers, complex auctions, and non-standard capitalization models is particularly valuable.
+
+If you encounter an issue or strange behavior, please report it via [GitHub Issues](https://github.com/sbleeck/18xx-dashboard/issues) or email **`bleeck@gmail.com`** with:
+
+1. **Title:** Which 18xx game were you playing?
+2. **Context:** What round and specific action was being taken?
+3. **Expected vs. Actual:** What did you expect to happen, and what occurred?
+4. **Environment:** Browser and operating system.
+5. **Game Link:** The game number or URL (if public).
+6. **Visuals:** A screenshot or short screen recording if possible.
+
+---
+
+## 📜 License & Credits
+
+* Built by **Stefan Bleeck**.
+* Dedicated to the [18xx.games](https://18xx.games) community, built upon the foundation created by Toby Mao and contributors.
+* Derived from 25 years of 18xx tabletop play, DOS simulations, and the open-source *Rails* Java project.
