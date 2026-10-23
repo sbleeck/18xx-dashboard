@@ -1639,7 +1639,16 @@ h(:style, {}, %(
   font-weight: 700 !important;
 }
 
-
+) +
+# // --- START FIX ---
+%(
+  #map-axis text,
+  #map > g > g:not(#map-hexes) text {
+    fill: #000000 !important;
+  }
+) +
+# // --- END FIX ---
+%(
 
 
   #map .dashboard-tile-cost {
@@ -1672,16 +1681,18 @@ h(:pattern, {
 
           h(:g, { attrs: { transform: "scale(#{@scale})" } }, [
             h(:g, { attrs: { id: 'map-hexes', transform: "translate(#{map_x} #{map_y})" } }, @hexes),
-            h(Axis,
-              cols: @cols,
-              rows: @rows,
-              axes: @game.axes,
-              layout: @layout,
-              font_size: FONT_SIZE,
-              gap: GAP,
-              map_x: map_x,
-              map_y: map_y,
-              start_pos: @start_pos),
+            h(:g, { attrs: { id: 'map-axis' } }, [
+               h(Axis,
+                 cols: @cols,
+                 rows: @rows,
+                 axes: @game.axes,
+                 layout: @layout,
+                 font_size: FONT_SIZE,
+                 gap: GAP,
+                 map_x: map_x,
+                 map_y: map_y,
+                 start_pos: @start_pos),
+             ]),
           ]),
         ])
       end

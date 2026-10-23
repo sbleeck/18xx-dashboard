@@ -17,6 +17,7 @@ require 'view/game/dashboard/other_games_overlay'
 require 'view/game/dashboard/dashboard_action_window'
 require 'view/game/dashboard/chat_overlay'
 require 'view/game/dashboard/dashboard_ai_player'
+require 'view/game/dashboard/dashboard_help_overlay'
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
 module Engine
@@ -56,6 +57,7 @@ module View
       needs :show_other_games_overlay, store: true, default: false
       needs :show_actions_window, store: true, default: false
       needs :show_chat_overlay, store: true, default: false
+      needs :show_help_overlay, store: true, default: false
       needs :show_meme_revenue, store: true, default: nil
       needs :show_location_names, store: true, default: nil
       needs :simple_logos, store: true, default: nil
@@ -162,6 +164,82 @@ module View
       def actions_window_storage_key
         game_id = @game.respond_to?(:id) ? @game.id : 'default'
         "dashboard_actions_open_#{game_id}"
+      end
+
+      def render_help_button
+        is_open = @show_help_overlay == true ||
+                  [true, 'true'].include?(Lib::Storage['dashboard_show_help'])
+
+        bg_color = is_open ? '#eff6ff' : '#ffffff'
+        text_color = is_open ? '#1d4ed8' : '#334155'
+        border_style = is_open ? '2px solid #2563eb' : '1px solid #cbd5e1'
+
+        click_action = lambda do
+          new_value = !is_open
+          Lib::Storage['dashboard_show_help'] = new_value ? true : nil
+          store(:show_help_overlay, new_value)
+          update
+        end
+
+        h(:button, {
+            attrs: {
+              id: 'btn-dashboard-help',
+              type: 'button',
+              title: is_open ? 'Close Dashboard Help' : 'Open Dashboard Help & Guide',
+              'aria-pressed': is_open ? 'true' : 'false',
+            },
+            style: {
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+              minWidth: '48px',
+              padding: '0',
+              flexShrink: '0',
+              borderRadius: '8px',
+              backgroundColor: bg_color,
+              color: text_color,
+              border: border_style,
+              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
+              cursor: 'pointer',
+              lineHeight: '1',
+              zIndex: 10,
+              transition: 'all 0.2s ease',
+            },
+            on: {
+              click: click_action,
+            },
+          }, [
+            h(:span, {
+                style: {
+                  fontSize: '1.8rem',
+                  lineHeight: '1',
+                },
+              }, '❓'),
+          ])
+      end
+
+      def render_help_overlay
+        is_open = @show_help_overlay == true ||
+                  [true, 'true'].include?(Lib::Storage['dashboard_show_help'])
+        return nil unless is_open
+
+        close_handler = lambda do
+          Lib::Storage['dashboard_show_help'] = nil
+          %x{
+      try {
+        localStorage.removeItem('dashboard_show_help');
+      } catch(e) {}
+    }
+          store(:show_help_overlay, false)
+          update
+        end
+
+        h(::View::Game::Dashboard::DashboardHelpOverlay,
+          game: @game,
+          on_close: close_handler)
       end
 
       def actions_window_open?
@@ -1228,6 +1306,7 @@ module View
               zIndex: 99_999,
             },
           }, [
+            render_help_button,
             render_action_hub_button,
             render_history_button,
             render_move_history_button,
@@ -3200,6 +3279,7 @@ h(:div, {
             render_other_games_overlay,
             render_top_nav_utility_cluster,
             render_chat_overlay,
+            render_help_overlay,
             render_phases_overlay,
             render_action_window,
 

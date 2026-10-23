@@ -345,6 +345,80 @@ module View
           cost.to_i
         end
 
+        def rotation_passes_restrictions?(step, entity, hex, tile, r)
+          old_tile = hex.tile
+          # Laying yellow track on an empty hex connected to network is always valid
+          return true unless old_tile
+
+          orig_rot = tile.rotation || 0
+          old_hex = tile.hex
+          old_prevs = hex.instance_variable_get(:@previous_tiles)&.dup
+
+          begin
+            # 1. Rotate candidate tile to target rotation
+            diff = (r - orig_rot) % 6
+            tile.rotate!(diff) if diff != 0
+
+            # 2. Temporarily mount tile to hex in isolation
+            hex.tile = tile
+            tile.hex = hex
+            if hex.instance_variable_defined?(:@previous_tiles)
+              p_list = hex.instance_variable_get(:@previous_tiles) || []
+              hex.instance_variable_set(:@previous_tiles, p_list + [old_tile])
+            end
+
+            # 3. Temporarily copy existing city tokens so city checks detect ownership
+            if old_tile.respond_to?(:cities) && tile.respond_to?(:cities)
+              old_tile.cities.each_with_index do |c, idx|
+                tile.cities[idx].tokens = c.tokens.dup if tile.cities[idx] && c.tokens.any?
+              end
+            end
+
+            # 4. Invoke engine track restriction checker
+            passes = true
+            if step.respond_to?(:check_track_restrictions!, true)
+              begin
+                step.send(:check_track_restrictions!, entity, hex)
+              rescue Engine::GameError
+                passes = false
+              rescue ArgumentError
+                begin
+                  step.send(:check_track_restrictions!, entity, hex, old_tile, tile)
+                rescue Engine::GameError
+                  passes = false
+                rescue StandardError
+                end
+              rescue StandardError
+              end
+            elsif @game.respond_to?(:check_track_restrictions!, true)
+              begin
+                @game.send(:check_track_restrictions!, entity, hex)
+              rescue Engine::GameError
+                passes = false
+              rescue StandardError
+              end
+            end
+
+            passes
+          rescue StandardError
+            false
+          ensure
+            # 5. Clean up temporary city tokens on candidate tile
+            if tile.respond_to?(:cities)
+              tile.cities.each { |c| c.tokens = [nil] * c.tokens.size if c.respond_to?(:tokens) && c.tokens }
+            end
+
+            # 6. Revert hex and candidate tile references
+            hex.tile = old_tile
+            tile.hex = old_hex
+            hex.instance_variable_set(:@previous_tiles, old_prevs) if old_prevs
+
+            # 7. Revert tile rotation cleanly
+            diff_back = (orig_rot - (tile.rotation || 0)) % 6
+            tile.rotate!(diff_back) if diff_back != 0
+          end
+        end
+
         def collect_tiles(step, entity, actions)
           return [] unless actions.include?('lay_tile')
           return [] if step.respond_to?(:can_lay_tile?) && !step.can_lay_tile?(entity)
@@ -368,6 +442,9 @@ module View
                     end
 
             available_tiles = Array(tiles).compact.select do |tile|
+              count = tile.respond_to?(:count) ? tile.count : nil
+              next false if count && count <= 0 && (!tile.respond_to?(:unlimited) || !tile.unlimited)
+
               if @game.respond_to?(:tile_available?)
                 @game.tile_available?(tile)
               elsif @game.respond_to?(:tiles)
@@ -381,19 +458,26 @@ module View
               cost = calculate_tile_cost(step, entity, hex, tile)
               next if entity.respond_to?(:cash) && entity.cash < cost
 
-              # Delegate directly to the engine tracker's rotation evaluator
               rotations = if step.respond_to?(:legal_tile_rotations)
                             begin
                               step.legal_tile_rotations(entity, hex, tile)
                             rescue StandardError
                               []
                             end
+                          elsif step.respond_to?(:legal_tile_rotation?)
+                            (0..5).select do |r|
+                              step.legal_tile_rotation?(entity, hex, tile, r)
+                            rescue StandardError
+                              false
+                            end
                           else
                             []
                           end
 
               Array(rotations).each do |r|
-                legal << Engine::Action::LayTile.new(entity, hex: hex, tile: tile, rotation: r)
+                if rotation_passes_restrictions?(step, entity, hex, tile, r)
+                  legal << Engine::Action::LayTile.new(entity, hex: hex, tile: tile, rotation: r)
+                end
               end
             end
           end
