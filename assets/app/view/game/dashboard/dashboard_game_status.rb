@@ -257,11 +257,41 @@ module View
           #viz-master-frame #spreadsheet th.header-cash, #viz-master-frame #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }
           #viz-master-frame #spreadsheet th.header-trains, #viz-master-frame #spreadsheet td.corporation-trains { min-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; white-space: nowrap !important; }
 
-          #viz-master-frame .status-corp-wrapper:hover { z-index: 99999; }
-          #viz-master-frame .status-corp-tooltip,
-          #viz-master-frame .status-company-tooltip,
-          #viz-master-frame .cmd-corp-tooltip,
-          #viz-master-frame .cmd-company-tooltip { display: none !important; }
+
+          /* Suppress all floating hover portal overlays across the entire DOM */
+          #railcard-portal,
+          #railcard-portal *,
+          #hover,
+          #hover *,
+          #entity_hover,
+          #entity_hover *,
+          .status-corp-tooltip,
+          .status-company-tooltip,
+          .cmd-corp-tooltip,
+          .cmd-company-tooltip,
+          .hover_card,
+          .hover-card,
+          [class*="hover_card"],
+          [class*="corp-tooltip"],
+          [class*="company-tooltip"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+
+          /* Ensure major corporation elements capture mouse events for selection and breathing */
+          #viz-master-frame .major-corporation-cell,
+          #viz-master-frame .status-corp-wrapper,
+          #viz-master-frame .major-railcard {
+            pointer-events: auto !important;
+            cursor: pointer !important;
+          }
+
+
+
+
+
           #viz-master-frame .share-card-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; }
 
           #viz-master-frame #spreadsheet tbody tr:has(.choice-menu-popup) {
