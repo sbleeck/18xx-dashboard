@@ -611,6 +611,37 @@ module View
                          style: meme_btn_style,
                          on: { click: -> { toggle_meme_revenue } },
                        }, '$')
+          is_loc_active = location_names_enabled?
+          loc_btn_style = button_style.merge(
+            backgroundColor: is_loc_active ? '#10b981' : '#ffffff',
+            color: is_loc_active ? '#ffffff' : '#333333',
+            borderColor: is_loc_active ? '#059669' : '#999999'
+          )
+          buttons << h(:button, {
+                         attrs: {
+                           id: 'btn-toggle-location-names',
+                           title: is_loc_active ? 'Location names: ON (click to hide)' : 'Location names: OFF (click to show)',
+                           type: 'button',
+                         },
+                         style: loc_btn_style,
+                         on: { click: -> { toggle_location_names } },
+                       }, 'T')
+
+          is_simple_active = simple_logos_enabled?
+          logo_btn_style = button_style.merge(
+            backgroundColor: is_simple_active ? '#10b981' : '#ffffff',
+            color: is_simple_active ? '#ffffff' : '#333333',
+            borderColor: is_simple_active ? '#059669' : '#999999'
+          )
+          buttons << h(:button, {
+                         attrs: {
+                           id: 'btn-toggle-simple-logos',
+                           title: is_simple_active ? 'Logos: Simple (click for Fancy)' : 'Logos: Fancy (click for Simple)',
+                           type: 'button',
+                         },
+                         style: logo_btn_style,
+                         on: { click: -> { toggle_simple_logos } },
+                       }, 'L')
         end
 
         h(:div, {
@@ -1618,7 +1649,9 @@ badge_el,
             style: {
               position: 'absolute',
               top: '6px',
-              left: '154px',
+              # // --- START FIX ---
+              left: '6px',
+              # // --- END FIX ---
               zIndex: 30,
               display: 'inline-flex',
               alignItems: 'center',
@@ -1631,6 +1664,70 @@ badge_el,
           }, hexes)
       end
 
+      # // --- START FIX ---
+      def location_names_enabled?
+        return @show_location_names unless @show_location_names.nil?
+
+        val = Lib::Storage['location_names']
+        return [true, 'true'].include?(val) unless val.nil?
+
+        true
+      end
+
+      def toggle_location_names
+        new_val = !location_names_enabled?
+
+        @show_location_names = new_val
+        Lib::Storage['location_names'] = new_val
+        Lib::Storage['show_location_names'] = new_val
+        store(:show_location_names, new_val, skip: true)
+
+        if @user && @user.respond_to?(:dig) && @user['settings']
+          @user['settings']['location_names'] = new_val
+          @user['settings'][:location_names] = new_val
+        end
+
+        %x{
+          try {
+            localStorage.setItem('location_names', #{new_val} ? 'true' : 'false');
+            localStorage.setItem('show_location_names', #{new_val} ? 'true' : 'false');
+          } catch(e) {}
+        }
+
+        update
+      end
+
+      def simple_logos_enabled?
+        return @simple_logos unless @simple_logos.nil?
+
+        val = Lib::Storage['simple_logos']
+        return [true, 'true'].include?(val) unless val.nil?
+
+        false
+      end
+
+      def toggle_simple_logos
+        new_val = !simple_logos_enabled?
+
+        @simple_logos = new_val
+        Lib::Storage['simple_logos'] = new_val
+        store(:simple_logos, new_val, skip: true)
+
+        if @user && @user.respond_to?(:dig) && @user['settings']
+          @user['settings']['simple_logos'] = new_val
+          @user['settings'][:simple_logos] = new_val
+        end
+
+        %x{
+          try {
+            localStorage.setItem('simple_logos', #{new_val} ? 'true' : 'false');
+          } catch(e) {}
+        }
+
+        update
+      end
+
+      # // --- END FIX ---
       def render
         if @game.respond_to?(:finished?) && @game.finished?
           return h(:div, {
@@ -2867,90 +2964,90 @@ window.recalcAllPanels = function() {
               (h(:div, { attrs: { id: 'resizer-h-entity-map', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }) if map_wider_than_high?),
               h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', width: '100%', height: '100%', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
 
-                render_zoom_controls('map-panel-bot', { top: '6px', left: '6px' }),
-                render_map_phase_indicator,
-                h(:div, {
-                    attrs: { id: 'map-scroll-canvas' },
-                    style: {
-                      width: '100%',
-                      height: '100%',
-                      maxHeight: '100%',
-                      minHeight: '0',
-                      overflow: 'auto',
-                      overflowX: 'auto',
-                      overflowY: 'auto',
-                      position: 'relative',
-                      boxSizing: 'border-box',
-                    },
-                  }, [
-                  h(:div, {
-                      attrs: { class: 'map-sizer' },
-                      style: {
-                        position: 'relative',
-                        display: 'block',
-                        width: '100%',
-                        height: '100%',
-                        minWidth: '100%',
-                        minHeight: '100%',
-                      },
-                    }, [
-                    h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
+render_zoom_controls('map-panel-bot', { top: '6px', right: '12px' }),
+render_map_phase_indicator,
+h(:div, {
+    attrs: { id: 'map-scroll-canvas' },
+    style: {
+      width: '100%',
+      height: '100%',
+      maxHeight: '100%',
+      minHeight: '0',
+      overflow: 'auto',
+      overflowX: 'auto',
+      overflowY: 'auto',
+      position: 'relative',
+      boxSizing: 'border-box',
+    },
+  }, [
+  h(:div, {
+      attrs: { class: 'map-sizer' },
+      style: {
+        position: 'relative',
+        display: 'block',
+        width: '100%',
+        height: '100%',
+        minWidth: '100%',
+        minHeight: '100%',
+      },
+    }, [
+    h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
 h(View::Game::DashboardMap, game: @game, user: @user, show_meme_revenue: meme_revenue_enabled?),
-                    ]),
-                  ]),
-                ]),
-                h(:div, {
-                    attrs: { id: 'canvas-game-watermark' },
-                    style: {
-                      position: 'absolute',
-                      bottom: '8px',
-                      right: '16px',
-                      zIndex: 15,
-                      pointerEvents: 'none',
-                      userSelect: 'none',
-                      fontFamily: 'Impact, "Arial Black", sans-serif',
-                      fontSize: '5.5rem',
-                      fontWeight: '900',
-                      lineHeight: '1',
-                      letterSpacing: '2px',
-                      color: 'rgba(15, 23, 42, 0.18)',
-                      textShadow: '0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)',
-                    },
-                  }, game_title),
-                h(:div, {
-                    attrs: { class: 'panel-manifest-control' },
-                    style: {
-                      position: 'absolute',
-                      top: '36px',
-                      left: '6px',
-                      zIndex: 30,
-                      display: 'flex',
-                    },
-                  }, [
-                  h(:button, {
-                      attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
-                      style: {
-                        backgroundColor: '#ffffff',
-                        color: '#1e293b',
-                        border: '1px solid #94a3b8',
-                        borderRadius: '4px',
-                        padding: '4px 9px',
-                        fontSize: '0.78rem',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        lineHeight: '1.2',
-                      },
-                      on: {
-                        click: lambda {
-                          Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
-                          update
-                        },
-                      },
-                    }, 'Show Remaining Tiles'),
-                ]),
+    ]),
+  ]),
+]),
+h(:div, {
+    attrs: { id: 'canvas-game-watermark' },
+    style: {
+      position: 'absolute',
+      bottom: '8px',
+      right: '16px',
+      zIndex: 15,
+      pointerEvents: 'none',
+      userSelect: 'none',
+      fontFamily: 'Impact, "Arial Black", sans-serif',
+      fontSize: '5.5rem',
+      fontWeight: '900',
+      lineHeight: '1',
+      letterSpacing: '2px',
+      color: 'rgba(15, 23, 42, 0.18)',
+      textShadow: '0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)',
+    },
+  }, game_title),
+h(:div, {
+    attrs: { class: 'panel-manifest-control' },
+    style: {
+      position: 'absolute',
+      top: '36px',
+      left: '6px',
+      zIndex: 30,
+      display: 'flex',
+    },
+  }, [
+  h(:button, {
+      attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
+      style: {
+        backgroundColor: '#ffffff',
+        color: '#1e293b',
+        border: '1px solid #94a3b8',
+        borderRadius: '4px',
+        padding: '4px 9px',
+        fontSize: '0.78rem',
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        lineHeight: '1.2',
+      },
+      on: {
+        click: lambda {
+          Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
+          update
+        },
+      },
+    }, 'Show Remaining Tiles'),
+]),
 ]),
               ].compact),
 
