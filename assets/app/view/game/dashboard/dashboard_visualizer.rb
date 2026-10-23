@@ -1862,8 +1862,8 @@ if (window._dashboardAiKeyHandler) {
                       window.removeEventListener('keydown', window._dashboardAiKeyHandler);
                     }
                     window._dashboardAiKeyHandler = function(e) {
-                      if (e.key !== 'a' && e.key !== 'A') return;
-                      if (e.ctrlKey || e.metaKey || e.altKey) return;
+if (e.key !== 'r' && e.key !== 'R') return;
+                        if (e.ctrlKey || e.metaKey || e.altKey) return;
 
                       var tag = (e.target && e.target.tagName ? e.target.tagName : '').toUpperCase();
                       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) {

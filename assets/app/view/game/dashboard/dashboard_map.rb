@@ -756,19 +756,18 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
       def resolve_revenue_val(raw, tile_color = nil)
         return raw.to_i if raw.is_a?(Numeric)
         return raw.to_i if raw.is_a?(String) && raw =~ /^\d+$/
-        return 0 unless raw.is_a?(Hash)
+        return 0 unless raw.is_a?(Hash) && !raw.empty?
 
         phase = @game.phase if @game.respond_to?(:phase)
         p_name = phase&.name.to_s if phase
-        t_color = tile_color.to_s if tile_color
 
+        # // --- START FIX ---
+        # 1. Direct phase name or number match
         candidates = [
-           p_name,
-           p_name&.to_sym,
-           (p_name.to_i if /^\d+$/.match?(p_name)),
-           t_color,
-           t_color&.to_sym,
-         ].compact
+          p_name,
+          p_name&.to_sym,
+          (p_name.to_i if /^\d+$/.match?(p_name)),
+        ].compact
 
         candidates.each do |k|
           val = raw[k]
@@ -776,7 +775,49 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           return val.to_i if val.is_a?(String) && val =~ /^\d+$/
         end
 
-        raw.values.last.to_i
+        # 2. Check active phase tile colors in reverse order (e.g. [:yellow, :green, :brown, :gray])
+        phase_tiles = if phase.respond_to?(:tiles) && phase.tiles&.any?
+                        phase.tiles.map(&:to_s)
+                      else
+                        []
+                      end
+
+        phase_tiles.reverse_each do |color_str|
+          [color_str.to_sym, color_str].each do |k|
+            val = raw[k]
+            return val.to_i if val.is_a?(Numeric)
+            return val.to_i if val.is_a?(String) && val =~ /^\d+$/
+          end
+        end
+
+        # 3. Numeric phase progression match (highest phase key in hash <= current phase)
+        curr_phase_num = p_name[/\d+/]&.to_i
+        if curr_phase_num&.positive?
+          matching_keys = raw.keys.select do |k|
+            k_num = k.is_a?(Numeric) ? k.to_i : k.to_s[/\d+/]&.to_i
+            k_num && k_num <= curr_phase_num
+          end
+          if matching_keys.any?
+            best_key = matching_keys.max_by { |k| k.is_a?(Numeric) ? k.to_i : k.to_s[/\d+/].to_i }
+            val = raw[best_key]
+            return val.to_i if val.is_a?(Numeric)
+            return val.to_i if val.is_a?(String) && val =~ /^\d+$/
+          end
+        end
+
+        # 4. Active tile_color fallback if permitted in the current phase
+        if tile_color && (phase_tiles.empty? || phase_tiles.include?(tile_color.to_s))
+          [tile_color.to_s, tile_color.to_sym].each do |k|
+            val = raw[k]
+            return val.to_i if val.is_a?(Numeric)
+            return val.to_i if val.is_a?(String) && val =~ /^\d+$/
+          end
+        end
+
+        # 5. Default to the initial phase revenue instead of the maximum end-game revenue
+        # // --- DELETE --- raw.values.last.to_i
+        raw.values.first.to_i
+        # // --- END FIX ---
       end
 
       def stop_base_revenue(stop)
@@ -983,11 +1024,36 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
 
         is_visited = visited_stops_with_route.any?
 
-        total_rev = if is_visited
-                      visited_stops_with_route.sum { |ts, r, _| stop_revenue_value(ts, r) }
+        cities = tile.respond_to?(:cities) ? (tile.cities || []) : []
+        offboards = tile.respond_to?(:offboards) ? (tile.offboards || []) : []
+        towns = tile.respond_to?(:towns) ? (tile.towns || []) : []
+
+        total_rev = if cities.any?
+                      city = cities.first
+                      if is_visited
+                        v_city = visited_stops_with_route.find { |ts, _, _| cities.include?(ts) }
+                        v_city ? stop_revenue_value(v_city[0], v_city[1]) : stop_base_revenue(city)
+                      else
+                        stop_base_revenue(city)
+                      end
+                    elsif offboards.any?
+                      ob = offboards.first
+                      if is_visited
+                        v_ob = visited_stops_with_route.find { |ts, _, _| offboards.include?(ts) }
+                        v_ob ? stop_revenue_value(v_ob[0], v_ob[1]) : stop_base_revenue(ob)
+                      else
+                        stop_base_revenue(ob)
+                      end
+                    elsif towns.any?
+                      tw = towns.first
+                      if is_visited
+                        v_tw = visited_stops_with_route.find { |ts, _, _| towns.include?(ts) }
+                        v_tw ? stop_revenue_value(v_tw[0], v_tw[1]) : stop_base_revenue(tw)
+                      else
+                        stop_base_revenue(tw)
+                      end
                     else
-                      rev = tile_stops.sum { |ts| stop_base_revenue(ts) } if tile_stops.any?
-                      rev&.positive? ? rev : tile_base_revenue(tile)
+                      tile_base_revenue(tile)
                     end
 
         return nil if total_rev <= 0
@@ -997,13 +1063,18 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                        first_idx = visited_stops_with_route.first[2]
                        (first_route.respond_to?(:color) && first_route.color) || screaming_palette[first_idx % screaming_palette.size]
                      else
-                       '#cbd5e1'
+                       '#334155'
                      end
 
+        # // --- START FIX ---
         text_str = total_rev.to_s
-        font_size = 72
-        pill_w = [(text_str.length * 48) + 32, 84].max
-        pill_h = 76
+        font_size = 44
+        pill_w = [(text_str.length * 24) + 20, 56].max
+        pill_h = 48
+        # // --- DELETE --- font_size = 28
+        # // --- DELETE --- pill_w = [(text_str.length * 17) + 16, 46].max
+        # // --- DELETE --- pill_h = 32
+        # // --- END FIX ---
 
         h(:g, {
             attrs: {
@@ -1018,12 +1089,20 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                 y: (-pill_h / 2.0).round(1).to_s,
                 width: pill_w.to_s,
                 height: pill_h.to_s,
-                rx: '14',
-                ry: '14',
-                fill: '#0f172a',
-                'fill-opacity': is_visited ? '0.85' : '0.65',
-                stroke: is_visited ? fill_color : '#475569',
-                'stroke-width': is_visited ? '3.5' : '2',
+                # // --- START FIX ---
+                rx: '8',
+                ry: '8',
+                fill: '#ffffff',
+                'fill-opacity': '0.92',
+                stroke: is_visited ? fill_color : '#334155',
+                'stroke-width': is_visited ? '3.5' : '1.5',
+                # // --- DELETE --- rx: '7',
+                # // --- DELETE --- ry: '7',
+                # // --- DELETE --- fill: '#0f172a',
+                # // --- DELETE --- 'fill-opacity': is_visited ? '0.85' : '0.65',
+                # // --- DELETE --- stroke: is_visited ? fill_color : '#475569',
+                # // --- DELETE --- 'stroke-width': is_visited ? '2.5' : '1.5',
+                # // --- END FIX ---
               },
             }),
           h(:text, {
@@ -1032,18 +1111,19 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                 y: '1',
                 'text-anchor': 'middle',
                 'dominant-baseline': 'central',
-                fill: '#4c1d95',
-                stroke: '#ffffff',
-                'stroke-width': '8',
-                'stroke-linejoin': 'round',
-                'paint-order': 'stroke fill',
+                # // --- START FIX ---
+                fill: '#000000',
+                stroke: 'none',
                 'font-family': "'Courier New', monospace",
                 'font-size': "#{font_size}px",
                 'font-weight': '900',
                 'pointer-events': 'none',
-              },
-              style: {
-                paintOrder: 'stroke fill',
+                # // --- DELETE --- fill: '#4c1d95',
+                # // --- DELETE --- stroke: '#ffffff',
+                # // --- DELETE --- 'stroke-width': '3.5',
+                # // --- DELETE --- 'stroke-linejoin': 'round',
+                # // --- DELETE --- 'paint-order': 'stroke fill',
+                # // --- END FIX ---
               },
             }, text_str),
         ])
