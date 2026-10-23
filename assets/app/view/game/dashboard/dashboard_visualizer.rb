@@ -5,6 +5,7 @@
 require 'view/game/actionable'
 require 'view/game/dashboard/dashboard_map'
 require 'view/game/dashboard/dashboard_entity_order'
+require 'lib/settings'
 require 'view/game/dashboard/dashboard_game_status'
 require 'view/game/dashboard/dashboard_stock_market'
 require 'view/game/history_and_undo'
@@ -15,6 +16,7 @@ require 'view/game/dashboard/dashboard_tile_manifest'
 require 'view/game/dashboard/other_games_overlay'
 require 'view/game/dashboard/dashboard_action_window'
 require 'view/game/dashboard/chat_overlay'
+require 'view/game/dashboard/dashboard_ai_player'
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
 module Engine
@@ -44,6 +46,7 @@ module View
     class DashboardVisualizer < Snabberb::Component
       needs :game
       needs :game_data, store: true
+      include Lib::Settings
       needs :tile_selector, default: nil
       needs :routes, store: true, default: []
       needs :user, default: nil, store: true
@@ -54,6 +57,8 @@ module View
       needs :show_actions_window, store: true, default: false
       needs :show_chat_overlay, store: true, default: false
       needs :show_meme_revenue, store: true, default: nil
+      needs :show_location_names, store: true, default: nil
+      needs :simple_logos, store: true, default: nil
       include Actionable
 
       def meme_revenue_enabled?
@@ -695,6 +700,14 @@ module View
               .catch(function() {});
           }
         }
+      end
+
+      def trigger_random_ai_move
+        return unless action_required_for_me?
+
+        View::Game::Dashboard::DashboardAiPlayer.play(@game, @routes) do |act|
+          process_action(act)
+        end
       end
 
       def other_games_turn_count
@@ -1465,8 +1478,13 @@ badge_el,
         corp_marker = nil
         if !is_stock && acting_corp
           logo_src = begin
-            (acting_corp.respond_to?(:simple_logo) && acting_corp.simple_logo) ||
-              (acting_corp.respond_to?(:logo) && acting_corp.logo)
+            if simple_logos_enabled?
+              (acting_corp.respond_to?(:simple_logo) && acting_corp.simple_logo) ||
+                (acting_corp.respond_to?(:logo) && acting_corp.logo)
+            else
+              (acting_corp.respond_to?(:logo) && acting_corp.logo) ||
+                (acting_corp.respond_to?(:simple_logo) && acting_corp.simple_logo)
+            end
           rescue StandardError
             nil
           end
@@ -1664,70 +1682,24 @@ badge_el,
           }, hexes)
       end
 
-      # // --- START FIX ---
       def location_names_enabled?
-        return @show_location_names unless @show_location_names.nil?
-
-        val = Lib::Storage['location_names']
-        return [true, 'true'].include?(val) unless val.nil?
-
-        true
+        setting_for(:show_location_names, @game)
       end
 
       def toggle_location_names
-        new_val = !location_names_enabled?
-
-        @show_location_names = new_val
-        Lib::Storage['location_names'] = new_val
-        Lib::Storage['show_location_names'] = new_val
-        store(:show_location_names, new_val, skip: true)
-
-        if @user && @user.respond_to?(:dig) && @user['settings']
-          @user['settings']['location_names'] = new_val
-          @user['settings'][:location_names] = new_val
-        end
-
-        %x{
-          try {
-            localStorage.setItem('location_names', #{new_val} ? 'true' : 'false');
-            localStorage.setItem('show_location_names', #{new_val} ? 'true' : 'false');
-          } catch(e) {}
-        }
-
+        toggle_setting(:show_location_names, @game)
         update
       end
 
       def simple_logos_enabled?
-        return @simple_logos unless @simple_logos.nil?
-
-        val = Lib::Storage['simple_logos']
-        return [true, 'true'].include?(val) unless val.nil?
-
-        false
+        setting_for(:simple_logos, @game)
       end
 
       def toggle_simple_logos
-        new_val = !simple_logos_enabled?
-
-        @simple_logos = new_val
-        Lib::Storage['simple_logos'] = new_val
-        store(:simple_logos, new_val, skip: true)
-
-        if @user && @user.respond_to?(:dig) && @user['settings']
-          @user['settings']['simple_logos'] = new_val
-          @user['settings'][:simple_logos] = new_val
-        end
-
-        %x{
-          try {
-            localStorage.setItem('simple_logos', #{new_val} ? 'true' : 'false');
-          } catch(e) {}
-        }
-
+        toggle_setting(:simple_logos, @game)
         update
       end
 
-      # // --- END FIX ---
       def render
         if @game.respond_to?(:finished?) && @game.finished?
           return h(:div, {
@@ -1885,6 +1857,26 @@ badge_el,
 setTimeout(window.positionDashboardButtons, 300);
 
 window.addEventListener('resize', window.positionDashboardButtons);
+
+if (window._dashboardAiKeyHandler) {
+                      window.removeEventListener('keydown', window._dashboardAiKeyHandler);
+                    }
+                    window._dashboardAiKeyHandler = function(e) {
+                      if (e.key !== 'a' && e.key !== 'A') return;
+                      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+                      var tag = (e.target && e.target.tagName ? e.target.tagName : '').toUpperCase();
+                      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) {
+                        return;
+                      }
+
+                      if (comp && comp.$trigger_random_ai_move) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        comp.$trigger_random_ai_move();
+                      }
+                    };
+                    window.addEventListener('keydown', window._dashboardAiKeyHandler);
 
                     window.toggleDashboardPhases = function() {
                       var cur = localStorage.getItem('dashboard_show_phases') === 'true';
@@ -2915,6 +2907,10 @@ window.recalcAllPanels = function() {
                        window.removeEventListener('resize', window.positionDashboardButtons);
                      }
                      window.positionDashboardButtons = null;
+                     if (window._dashboardAiKeyHandler) {
+                       window.removeEventListener('keydown', window._dashboardAiKeyHandler);
+                       window._dashboardAiKeyHandler = null;
+                     }
                    )
 
                          %x(
@@ -2992,8 +2988,13 @@ h(:div, {
       },
     }, [
     h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
-h(View::Game::DashboardMap, game: @game, user: @user, show_meme_revenue: meme_revenue_enabled?),
-    ]),
+h(View::Game::DashboardMap,
+  game: @game,
+  user: @user,
+  show_meme_revenue: meme_revenue_enabled?,
+  show_location_names: location_names_enabled?,
+  simple_logos: simple_logos_enabled?),
+      ]),
   ]),
 ]),
 h(:div, {

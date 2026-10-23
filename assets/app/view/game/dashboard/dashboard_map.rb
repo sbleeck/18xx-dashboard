@@ -497,10 +497,22 @@ module View
       end
 
       class LocationName < Base
+        include Lib::Settings
+        needs :game, default: nil, store: true
+        needs :user, default: nil, store: true
+        needs :show_location_names, default: nil, store: true
+
         unless method_defined?(:orig_render)
           alias orig_render render
 
           def render
+            return h(:g) if @show_location_names == false
+
+            begin
+              return h(:g) unless setting_for(:show_location_names, @game)
+            rescue StandardError
+            end
+
             rendered = orig_render
             %x{
               function enlargeLocation(vnode) {
@@ -555,6 +567,8 @@ module View
       needs :historical_routes, default: [], store: true
       needs :hovered_routes, default: [], store: true
       needs :show_meme_revenue, default: nil, store: true
+      needs :show_location_names, default: nil, store: true
+      needs :simple_logos, default: nil, store: true
 
       EDGE_LENGTH = 50
       SIDE_TO_SIDE = 87
