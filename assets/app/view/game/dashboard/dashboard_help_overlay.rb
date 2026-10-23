@@ -9,6 +9,10 @@ module View
         needs :game, default: nil
         needs :on_close, default: nil
 
+        # --- VERSION & BUILD METADATA ---
+        VERSION = '1.0.0'
+        BUILD_TIME = '2026-10-23 20:45 BST'
+
         SECTIONS = [
           {
             id: 'overview',
@@ -96,6 +100,12 @@ module View
             }
           end
 
+          open_youtube = lambda do
+            %x{
+              window.open('https://www.youtube.com/@18xxGamesAndRules', '_blank');
+            }
+          end
+
           send_email_report = lambda do
             %x{
               var currentUrl = window.location.href;
@@ -106,7 +116,7 @@ module View
               var subject = encodeURIComponent('18xx Dashboard Error Report: Game #' + gameId);
               var body = encodeURIComponent(
                 'Game URL: ' + currentUrl + '\n' +
-                'Dashboard Version: v1.0.0 (Extension)\n' +
+                'Dashboard Version: v' + #{VERSION} + ' (Built: ' + #{BUILD_TIME} + ')\n' +
                 'Browser / OS: ' + userAgent + '\n\n' +
                 'Issue Description:\n' +
                 '[Describe what happened on this turn]\n\n' +
@@ -332,10 +342,26 @@ module View
                 }, [
                 h(:div, { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' } }, [
                   h(:div, [
-                    h(:div, { style: { fontSize: '1.05rem', fontWeight: '800', letterSpacing: '0.2px', color: '#ffffff' } },
-                      '18xx.games Desktop Dashboard'),
-                    h(:div, { style: { fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' } },
-                      'Extension v1.0.0 • Developed by Stefan Bleeck'),
+                    h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' } }, [
+                      h(:span, { style: { fontSize: '1.05rem', fontWeight: '800', letterSpacing: '0.2px', color: '#ffffff' } },
+                        '18xx.games Desktop Dashboard'),
+                      h(:span, {
+                          style: {
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: '#0284c7',
+                            color: '#ffffff',
+                            letterSpacing: '0.3px',
+                          },
+                        }, "v#{VERSION}"),
+                    ]),
+                    h(:div, { style: { fontSize: '0.78rem', color: '#94a3b8', marginTop: '3px' } }, [
+                      h(:span, { style: { color: '#38bdf8', fontWeight: '600' } }, "Build: #{BUILD_TIME}"),
+                      h(:span, { style: { margin: '0 6px', color: '#64748b' } }, '•'),
+                      h(:span, 'By Stefan Bleeck'),
+                    ]),
                   ]),
                   h(:div, { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } }, [
                     h(:button, {
@@ -362,10 +388,36 @@ module View
                       h(:span, '☕'),
                       h(:span, 'Support on Ko-fi'),
                     ]),
+                    # // --- START FIX ---
                     h(:button, {
                         attrs: {
                           type: 'button',
-                          title: 'Send an email error report with your current game diagnostics to bleeck@gmail.com',
+                          title: 'Watch strategy masterclasses and guides on YouTube (@Rails-Evolution-18xx)',
+                        },
+                        style: {
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          backgroundColor: '#dc2626',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '0.45rem 0.85rem',
+                          borderRadius: '5px',
+                          fontWeight: '700',
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        },
+                        on: { click: open_youtube },
+                      }, [
+                      h(:span, '📺'),
+                      h(:span, 'YouTube Channel'),
+                    ]),
+                    # // --- END FIX ---
+                    h(:button, {
+                        attrs: {
+                          type: 'button',
+                          title: 'Send an email error report with current game diagnostics to bleeck@gmail.com',
                         },
                         style: {
                           display: 'inline-flex',
@@ -488,6 +540,31 @@ module View
                   h(:span, '☕'),
                   h(:span, 'Ko-fi Tip Jar'),
                 ]),
+                # // --- START FIX ---
+                h(:button, {
+                    attrs: {
+                      type: 'button',
+                      title: 'Watch strategy masterclasses and guides on YouTube (@Rails-Evolution-18xx)',
+                    },
+                    style: {
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      backgroundColor: '#dc2626',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: '5px',
+                      fontWeight: '700',
+                      fontSize: '0.78rem',
+                      cursor: 'pointer',
+                    },
+                    on: { click: open_youtube },
+                  }, [
+                  h(:span, '📺'),
+                  h(:span, 'YouTube Channel'),
+                ]),
+                # // --- END FIX ---
                 h(:button, {
                     attrs: {
                       type: 'button',
@@ -513,8 +590,8 @@ module View
                 ]),
               ]),
               h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.75rem' } }, [
-                h(:span, { style: { fontSize: '0.75rem', color: '#64748b' } },
-                  'Drag bar to move • Double-click to reset'),
+                h(:span, { style: { fontSize: '0.73rem', color: '#64748b' } },
+                  "v#{VERSION} (#{BUILD_TIME}) • Drag bar to move"),
                 h(:button, {
                     attrs: { type: 'button' },
                     style: {
