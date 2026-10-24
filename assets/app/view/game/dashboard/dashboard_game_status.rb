@@ -976,7 +976,7 @@ module View
         should_grey_unfloated = is_unfloated
 
         row_classes << 'company-row-unfloated' if should_grey_unfloated
-        visual_current = is_active_row || corporation == visual_operating_entity
+visual_current = is_active_row || corporation == visual_operating_entity
         row_classes << 'active-turn-focus' if visual_current
         row_classes << 'directed-by-active-player' if is_directed && !visual_current
         row_classes << 'last-minor-row' if is_last_minor

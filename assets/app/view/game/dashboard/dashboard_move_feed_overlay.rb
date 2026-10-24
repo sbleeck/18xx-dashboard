@@ -2,6 +2,7 @@
 
 # backtick_javascript: true
 
+require 'lib/params'
 require 'native'
 require 'lib/storage'
 require 'view/game/dashboard/railcard_helper'
@@ -15,11 +16,137 @@ module View
         needs :game, store: true
         needs :game_data, store: true, default: nil
         needs :show_move_history, store: true, default: true
+        needs :app_route, store: true, default: nil
         needs :on_close, default: nil
 
         PLAYER_NEUTRAL_BG = '#475569'
 
+        def total_actions
+          acts = if @game_data && @game_data['actions']&.any?
+                   @game_data['actions'].last['id'] || @game_data['actions'].size
+                 elsif @game.respond_to?(:raw_actions) && @game.raw_actions&.any?
+                   last = @game.raw_actions.last
+                   if last.is_a?(Hash)
+                     last['id'] || last[:id]
+                   else
+                     (last.respond_to?(:id) ? last.id : @game.raw_actions.size)
+                   end
+                 elsif @game.respond_to?(:last_game_action_id)
+                   @game.last_game_action_id
+                 else
+                   0
+                 end
+          acts.to_i
+        end
+
+        def current_cursor
+          param = Lib::Params['action']
+          param && !param.to_s.empty? ? param.to_i : total_actions
+        end
+
+        def viewing_history?
+          param = Lib::Params['action']
+          !param.nil? && !param.to_s.empty? && param.to_i < total_actions
+        end
+
+        def full_log
+          raw_log = @game&.log || []
+          gid = (@game.respond_to?(:id) ? @game.id : (@game_data && @game_data['id'])).to_s
+
+          if !viewing_history? && raw_log.any?
+            %x{
+              if (!window._dashboard_full_log_cache) window._dashboard_full_log_cache = {};
+              window._dashboard_full_log_cache[#{gid}] = #{raw_log};
+            }
+            raw_log
+          else
+            cached = `(window._dashboard_full_log_cache && window._dashboard_full_log_cache[#{gid}]) || null`
+            if cached && cached.length > raw_log.length
+              cached
+            else
+              raw_log
+            end
+          end
+        rescue StandardError
+          @game&.log || []
+        end
+
+        def view_action(target_id)
+          aid = target_id.to_i
+          max_id = [total_actions, 1].max
+          new_cursor = aid >= max_id ? nil : aid
+
+          Lib::Params['action'] = new_cursor ? new_cursor.to_s : nil
+
+          curr_route = @app_route
+          if !curr_route || curr_route.empty?
+            curr_route = `window.location.pathname + window.location.search + window.location.hash`
+          end
+          new_route = Lib::Params.add(curr_route, 'action', new_cursor)
+
+          %x{
+            if (window.history && window.history.replaceState) {
+              window.history.replaceState(null, '', #{new_route});
+            }
+          }
+
+          store(:app_route, new_route)
+        end
+
+        def play_from_action(target_id)
+          curr = target_id.to_i
+          total = total_actions
+          return if curr >= total
+
+          confirmed = `confirm("Discard all actions after #" + #{curr} + " and resume play from here?")`
+          return unless confirmed
+
+          if @game_data && @game_data['actions']
+            filtered = @game_data['actions'].select do |a|
+              aid = if a.is_a?(Hash)
+                      a['id'] || a[:id]
+                    else
+                      (a.respond_to?(:id) ? a.id : nil)
+                    end
+              aid ? aid.to_i <= curr : true
+            end
+            @game_data['actions'] = filtered
+            Lib::Storage[@game_data['id']] = @game_data if @game_data['id']
+          end
+
+          %x{
+            (function() {
+              try {
+                var gameData = #{@game_data.to_n};
+                if (gameData && gameData.actions) {
+                  var targetId = #{curr};
+                  var list = [];
+                  for (var i = 0; i < gameData.actions.length; i++) {
+                    var act = gameData.actions[i];
+                    var aid = act.id !== undefined ? act.id : (act.get && act.get('id'));
+                    if (aid === undefined || aid <= targetId) {
+                      list.push(act);
+                    }
+                  }
+                  gameData.actions = list;
+                  if (gameData.id) {
+                    localStorage.setItem('game_' + gameData.id, JSON.stringify(gameData));
+                    localStorage.setItem(gameData.id, JSON.stringify(gameData));
+                  }
+                }
+              } catch(e) {
+                console.error('Failed syncing truncated actions', e);
+              }
+
+              var url = new URL(window.location.href);
+              url.searchParams.delete('action');
+              window.location.href = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') + url.hash;
+            })()
+          }
+        end
+
         def close_overlay
+          view_action(total_actions) if viewing_history?
           Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
           begin
             store(:show_move_history, false)
@@ -147,6 +274,8 @@ module View
         end
 
         def scroll_to_latest
+          return if viewing_history?
+
           %x{
             var container = document.getElementById('move_history_scroll_body');
             if (container) {
@@ -483,7 +612,7 @@ module View
           time_map = action_time_map
           entity_map = action_entity_map
 
-          log = @game&.log || []
+          log = full_log
           log.each do |entry|
             raw_message = entry.respond_to?(:message) ? entry.message : nil
 
@@ -687,6 +816,69 @@ module View
                 ])
               end
 
+              action_controls = []
+              action_controls << h(:span, { style: { fontSize: '0.72rem', color: '#94a3b8', fontWeight: 'bold' } }, id_str)
+
+              if last_id
+                aid_num = last_id.to_i
+                is_current = current_cursor == aid_num
+
+                action_controls << h(:button, {
+                                       attrs: { type: 'button', title: "View board at Action ##{aid_num}" },
+                                       style: {
+                                         padding: '1px 5px',
+                                         fontSize: '0.68rem',
+                                         fontWeight: '600',
+                                         backgroundColor: is_current ? '#2563eb' : '#f1f5f9',
+                                         color: is_current ? '#ffffff' : '#334155',
+                                         border: '1px solid #cbd5e1',
+                                         borderRadius: '3px',
+                                         cursor: 'pointer',
+                                         lineHeight: '1.2',
+                                         boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                       },
+                                       on: {
+                                         click: lambda { |e|
+                                           %x{
+                        if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
+                      }
+                                           view_action(aid_num)
+                                         },
+                                       },
+                                     }, is_current ? 'Viewing' : 'View here')
+
+                if aid_num < total_actions
+                  action_controls << h(:button, {
+                                         attrs: {
+                                           type: 'button',
+                                           title: "Discard subsequent actions and resume play from Action ##{aid_num}",
+                                         },
+                                         style: {
+                                           padding: '1px 5px',
+                                           fontSize: '0.68rem',
+                                           fontWeight: '600',
+                                           backgroundColor: '#fff1f2',
+                                           color: '#e11d48',
+                                           border: '1px solid #fecdd3',
+                                           borderRadius: '3px',
+                                           cursor: 'pointer',
+                                           lineHeight: '1.2',
+                                           boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                         },
+                                         on: {
+                                           click: lambda { |e|
+                                             %x{
+                          if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
+                        }
+                                             play_from_action(aid_num)
+                                           },
+                                         },
+                                       }, 'Move from here')
+                end
+              end
+
+              action_header_right = h(:div, { style: { display: 'flex', alignItems: 'center', gap: '5px' } }, action_controls)
+
               h(:div, {
                   style: {
                     display: 'flex',
@@ -713,7 +905,7 @@ module View
                       },
                     }, [
                     h(:div, { style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap' } }, header_title_nodes),
-                    h(:span, { style: { fontSize: '0.72rem', color: '#94a3b8', fontWeight: 'bold' } }, id_str),
+                    action_header_right,
                   ]),
                   h(:div, {
                       style: { fontSize: '0.85rem', lineHeight: '1.45', wordBreak: 'break-word' },
@@ -726,6 +918,49 @@ module View
           nodes << h(:div, { style: { height: '10px' } }, '')
           nodes
         end
+
+        # // --- START FIX ---
+        def render_history_banner
+          return nil unless viewing_history?
+
+          h(:div, {
+              style: {
+                backgroundColor: '#eff6ff',
+                borderBottom: '1px solid #bfdbfe',
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.8rem',
+                color: '#1e40af',
+                fontWeight: '600',
+                flexShrink: '0',
+              },
+            }, [
+            h(:span, "Viewing Action ##{current_cursor} of #{total_actions}"),
+            h(:button, {
+                attrs: { type: 'button', title: 'Return board to current live state' },
+                style: {
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '3px 8px',
+                  fontSize: '0.74rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                },
+                on: {
+                  click: lambda { |e|
+                    `if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();`
+                    view_action(total_actions)
+                  },
+                },
+              }, 'Return to Live ▶|'),
+          ])
+        end
+        # // --- END FIX ---
 
         def render
           saved_pos = %x{
@@ -789,25 +1024,8 @@ module View
             userSelect: 'none',
           }
 
-          h('div#move_history_floating_hud', {
-              style: hud_style,
-              hook: {
-                insert: -> { scroll_to_latest },
-                postpatch: -> { scroll_to_latest },
-              },
-              on: {
-                mouseup: lambda {
-                  %x{
-                    var hud = document.getElementById('move_history_floating_hud');
-                    if (hud && hud.style.width && hud.style.height) {
-                      try {
-                        localStorage.setItem('move_hist_overlay_size', JSON.stringify({ width: hud.style.width, height: hud.style.height }));
-                      } catch(e) {}
-                    }
-                  }
-                },
-              },
-            }, [
+          # // --- START FIX ---
+          hud_children = [
             h('div#move_history_hud_handle', {
                 style: {
                   padding: '0.6rem 0.9rem',
@@ -859,6 +1077,8 @@ module View
                   },
                 }, '✕'),
             ]),
+
+            render_history_banner,
 
             h('div#move_history_scroll_body', {
                 style: {
@@ -931,7 +1151,36 @@ module View
                   }),
               ]),
             ]),
-          ])
+          ].compact
+          # // --- END FIX ---
+
+          h('div#move_history_floating_hud', {
+              style: hud_style,
+              hook: {
+                insert: -> { scroll_to_latest },
+                postpatch: -> { scroll_to_latest },
+              },
+              on: {
+                mouseup: lambda {
+                  %x{
+                    var hud = document.getElementById('move_history_floating_hud');
+                    if (hud && hud.style.width && hud.style.height) {
+                      try {
+                        localStorage.setItem('move_hist_overlay_size', JSON.stringify({ width: hud.style.width, height: hud.style.height }));
+                      } catch(e) {}
+                    }
+                  }
+                },
+              },
+              # // --- DELETE --- }, [
+              # // --- DELETE ---   h('div#move_history_hud_handle', ...),
+              # // --- DELETE ---   (if viewing_history? ... end),
+              # // --- DELETE ---   h('div#move_history_scroll_body', ...),
+              # // --- DELETE ---   h('div#move_history_resize_grip', ...),
+              # // --- DELETE --- ])
+              # // --- START FIX ---
+            }, hud_children)
+          # // --- END FIX ---
         end
       end
     end
