@@ -896,7 +896,7 @@ module View
         return '' if @hide_not_floated && !@game.operating_order.include?(corporation)
 
         step = @game.round.active_step
-        is_active_row = (active_entity == corporation)
+        is_active_row = (active_entity == corporation) || corporation == visual_operating_entity
 
         # Include actions exposed through either the corporation or its
         # controlling player.
@@ -976,7 +976,7 @@ module View
         should_grey_unfloated = is_unfloated
 
         row_classes << 'company-row-unfloated' if should_grey_unfloated
-        visual_current = @game.round.operating? && corporation == visual_operating_entity
+        visual_current = is_active_row || corporation == visual_operating_entity
         row_classes << 'active-turn-focus' if visual_current
         row_classes << 'directed-by-active-player' if is_directed && !visual_current
         row_classes << 'last-minor-row' if is_last_minor
