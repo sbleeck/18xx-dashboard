@@ -1313,6 +1313,7 @@ module View
             render_other_games_button,
             render_sound_toggle_button,
             render_chat_button,
+            render_help_button,
             ].compact)
       end
 
