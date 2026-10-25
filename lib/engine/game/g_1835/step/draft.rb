@@ -50,7 +50,11 @@ module Engine
 
           def may_purchase?(company)
             return false unless company
+<<<<<<< HEAD
             return true if @game.optional_rules&.include?(:clemens)
+=======
+            return true if @game.option_clemens?
+>>>>>>> upstream/master
 
             # in the vanilla draft a company can only be purchased if it is either in the top-most row or furthest to
             # the left in the second top-most row if the top-most row only has one company
@@ -106,6 +110,9 @@ if entity.player? && !@companies.any? { |c| entity.cash >= c.value }
             player = action.entity
             price = action.price
 
+            raise GameError, "#{company.name} is not purchasable" unless may_purchase?(company)
+            raise GameError, "#{player.name} does not have enough money to buy #{company.name}" if price > player.cash
+
             assign_company(company, player)
             player.spend(price, @game.bank)
             remove_company(company)
@@ -122,9 +129,17 @@ if entity.player? && !@companies.any? { |c| entity.cash >= c.value }
             float_minor(company, minor, player, price) if minor
 
             entities.each(&:unpass!)
+<<<<<<< HEAD
             @round.last_to_act = player
             @round.next_entity_index!
             action_finalized
+=======
+
+            # In the rare case of no one buying anything in the first round taking place in proper player order in a
+            # Clemens variant game, the PD remains with the first player
+            @round.last_to_act = player unless @round.very_first_round_with_clemens?
+            @round.next_entity!
+>>>>>>> upstream/master
           end
 
           def assign_company(company, player)

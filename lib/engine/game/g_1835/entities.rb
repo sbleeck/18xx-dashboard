@@ -15,14 +15,23 @@ module Engine
                   'round. This can be in addition to the normal placing of a station marker and is free. A connection with the '\
                   'track of the company is not required. This action closes the Nürnberg-Fürth.',
             abilities: [{ type: 'shares', shares: 'BY_2' }, {
+              description: 'Free token in Nürnberg or Fürth (L14)',
               type: 'token',
-              when: 'owning_player_track',
-              owner_type: 'player',
+              when: 'owning_player_token',
               hexes: ['L14'],
+<<<<<<< HEAD
               price: 0,
               count: 1,
               extra_action: true,
               special_only: true,
+=======
+              teleport_price: 0,
+              count: 1,
+              extra_action: true,
+              from_owner: true,
+              connected: false,
+              closed_when_used_up: true,
+>>>>>>> upstream/master
             }],
             color: :dodgerblue,
             auction_row: 0,
@@ -327,8 +336,12 @@ module Engine
             sym: 'M1',
             name: 'Bergisch Märkische Bahn',
             type: 'minor',
+<<<<<<< HEAD
             logo: '1835/M1',
             simple_logo: '1835/PR.alt',
+=======
+            logo: '1835/P1',
+>>>>>>> upstream/master
             tokens: [0],
             coordinates: 'H2',
             color: '#37383a',
@@ -337,8 +350,12 @@ module Engine
             sym: 'M2',
             name: 'Berlin Potsdamer Bahn',
             type: 'minor',
+<<<<<<< HEAD
             logo: '1835/M2',
             simple_logo: '1835/PR.alt',
+=======
+            logo: '1835/P2',
+>>>>>>> upstream/master
             tokens: [0],
             coordinates: 'E19',
             city: 0,
@@ -348,8 +365,12 @@ module Engine
             sym: 'M3',
             name: 'Magdeburger-Bahn',
             type: 'minor',
+<<<<<<< HEAD
             logo: '1835/M3',
             simple_logo: '1835/PR.alt',
+=======
+            logo: '1835/P3',
+>>>>>>> upstream/master
             tokens: [0],
             coordinates: 'F14',
             color: '#37383a',
@@ -358,8 +379,12 @@ module Engine
             sym: 'M4',
             name: 'Köln-Mindener Bahn',
             type: 'minor',
+<<<<<<< HEAD
             logo: '1835/M4',
             simple_logo: '1835/PR.alt',
+=======
+            logo: '1835/P4',
+>>>>>>> upstream/master
             tokens: [0],
             coordinates: 'G5',
             color: '#37383a',
@@ -368,8 +393,12 @@ module Engine
             sym: 'M5',
             name: 'Berlin Stettiner Bahn',
             type: 'minor',
+<<<<<<< HEAD
             logo: '1835/M5',
             simple_logo: '1835/PR.alt',
+=======
+            logo: '1835/P5',
+>>>>>>> upstream/master
             tokens: [0],
             coordinates: 'E19',
             city: 1,
@@ -379,8 +408,12 @@ module Engine
             sym: 'M6',
             name: 'Altona Kiel Bahn',
             type: 'minor',
+<<<<<<< HEAD
             logo: '1835/M6',
             simple_logo: '1835/PR.alt',
+=======
+            logo: '1835/P6',
+>>>>>>> upstream/master
             tokens: [0],
             coordinates: 'C11',
             city: 1,

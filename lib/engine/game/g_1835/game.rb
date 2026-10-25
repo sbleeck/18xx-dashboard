@@ -220,6 +220,10 @@ module Engine
           @corporation_blocks = CORPORATION_BLOCKS.map { |block| block.map { |c| corporation_by_id(c) } }
         end
 
+        def option_clemens?
+          @optional_rules&.include?(:clemens)
+        end
+
         def company_header(company)
           return 'MINOR' if '123456'.include?(company.sym)
           return 'SHARE' if company.sym == 'BY_D'
@@ -271,11 +275,17 @@ module Engine
         end
 
         def init_round
+<<<<<<< HEAD
           if @optional_rules&.include?(:clemens)
             G1835::Round::ClemensDraft.new(self, [G1835::Step::Draft])
           else
             G1835::Round::Draft.new(self, [G1835::Step::Draft])
           end
+=======
+          round_num = @draft_round_num || 1
+          G1835::Round::Draft.new(self,
+                                  [G1835::Step::Draft], round_num: round_num, reverse_order: round_num == 1 && option_clemens?)
+>>>>>>> upstream/master
         end
 
         def new_draft_round
@@ -307,12 +317,19 @@ module Engine
             G1835::Step::MinorExchange,
             Engine::Step::DiscardTrain,
             Engine::Step::SpecialTrack,
+<<<<<<< HEAD
             Engine::Step::HomeToken,
 
             G1835::Step::SpecialToken,
             Engine::Step::Track,
             Engine::Step::HomeToken,
             Engine::Step::Token,
+=======
+            Engine::Step::Track,
+            Engine::Step::HomeToken,
+            Engine::Step::SpecialToken,
+            G1835::Step::Token,
+>>>>>>> upstream/master
             Engine::Step::Route,
             G1835::Step::Dividend,
             G1835::Step::BuyTrain,
@@ -320,7 +337,7 @@ module Engine
         end
 
         def stock_round
-          Engine::Round::Stock.new(self, [
+          G1835::Round::Stock.new(self, [
             G1835::Step::MinorExchange,
             G1835::Step::BuySellParShares,
           ])
@@ -404,10 +421,32 @@ module Engine
           LAY_OR_UPGRADE
         end
 
+<<<<<<< HEAD
         def operating_order
           order = super
           order.reject!(&:minor?) if @optional_rules&.include?(:clemens) && !corporation_by_id('BY').floated?
           order
+=======
+        def upgrades_to?(from, to, special = nil, selected_company: nil)
+          # green double cities cannot be upgraded any further
+          return false if %w[14 15].include?(from.name)
+          return true if EXTRA_UPGRADES[from.name]&.include?(to.name)
+
+          super
+        end
+
+        def entity_can_use_company?(entity, _company)
+          return false if entity.minor?
+
+          super
+        end
+
+        # Modified to select operator if company is player owned
+        def token_owner(entity)
+          return @round.current_operator if entity&.company? && entity.owner&.player? && @round.operating?
+
+          super
+>>>>>>> upstream/master
         end
 
         def payout_companies
