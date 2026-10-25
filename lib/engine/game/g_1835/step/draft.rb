@@ -14,29 +14,13 @@ module Engine
           def setup
             @companies = @game.companies.select { |c| c.owner.nil? && !c.closed? }
 
-            if @game.optional_rules&.include?(:clemens)
-             @tiered_companies = Array.new(3) { [] }
-              @companies.each do |company|
-                if company.sym.start_with?('M')
-                  @tiered_companies[0] << company
-                elsif %w[NF LD BY_D OBB PB].include?(company.sym)
-                  @tiered_companies[1] << company
-                else
-                  @tiered_companies[2] << company
-                end
-              end
-              @tiered_companies[0].sort_by! { |c| c.sym }
-              @tiered_companies[1].sort_by! { |c| %w[NF LD BY_D OBB PB].index(c.sym) }
-              @tiered_companies[2].sort_by! { |c| %w[BB HB].index(c.sym) }
-                        else
-              # set up the tiered companies as 2d array that might contain empty arrays if the starting package was not
-              # fully sold in a previous draft round. These empty arrays are important for may_purchase: companies in rows
-              # after an empty row can only be purchased if all rows before are empty. If we were to only group_by
-              # auction_row, we might lose these empty rows.
-              @tiered_companies = Array.new(4) { [] }
-              @companies.each do |company|
-                @tiered_companies[company.auction_row] << company
-              end
+            # set up the tiered companies as 2d array that might contain empty arrays if the starting package was not
+            # fully sold in a previous draft round. These empty arrays are important for may_purchase: companies in rows
+            # after an empty row can only be purchased if all rows before are empty. If we were to only group_by
+            # auction_row, we might lose these empty rows.
+            @tiered_companies = Array.new(4) { [] }
+            @companies.each do |company|
+              @tiered_companies[company.auction_row] << company
             end
           end
 
@@ -50,11 +34,7 @@ module Engine
 
           def may_purchase?(company)
             return false unless company
-<<<<<<< HEAD
-            return true if @game.optional_rules&.include?(:clemens)
-=======
             return true if @game.option_clemens?
->>>>>>> upstream/master
 
             # in the vanilla draft a company can only be purchased if it is either in the top-most row or furthest to
             # the left in the second top-most row if the top-most row only has one company
@@ -89,20 +69,11 @@ module Engine
           end
 
           def actions(entity)
-              return [] if finished?
+            return [] if finished?
 
-if entity.player? && !@companies.any? { |c| entity.cash >= c.value }
-              @log << "#{entity.name} has no valid actions and passes"
-              return []
-            end
+            return [] unless @companies.any? { |c| current_entity.cash >= min_bid(c) && may_purchase?(c) }
 
             entity == current_entity ? ACTIONS : []
-          end
-
-          def skip!
-            current_entity.pass!
-            @round.next_entity_index!
-            action_finalized
           end
 
           def process_bid(action)
@@ -129,17 +100,11 @@ if entity.player? && !@companies.any? { |c| entity.cash >= c.value }
             float_minor(company, minor, player, price) if minor
 
             entities.each(&:unpass!)
-<<<<<<< HEAD
-            @round.last_to_act = player
-            @round.next_entity_index!
-            action_finalized
-=======
 
             # In the rare case of no one buying anything in the first round taking place in proper player order in a
             # Clemens variant game, the PD remains with the first player
             @round.last_to_act = player unless @round.very_first_round_with_clemens?
             @round.next_entity!
->>>>>>> upstream/master
           end
 
           def assign_company(company, player)
@@ -157,16 +122,18 @@ if entity.player? && !@companies.any? { |c| entity.cash >= c.value }
           end
 
           def process_pass(action)
-            @log << "#{action.entity.name} passes"
+            log_pass(action.entity)
             action.entity.pass!
-            @round.next_entity_index!
-            action_finalized
+            @round.next_entity!
           end
 
-          def action_finalized
-            return unless finished?
+          def log_skip(entity)
+            @log << "#{entity.name} has no valid actions and passes"
+          end
 
-            @round.next_entity_index!
+          def skip!
+            super
+            current_entity&.pass!
           end
 
           def may_choose?(_company)
@@ -204,16 +171,6 @@ if entity.player? && !@companies.any? { |c| entity.cash >= c.value }
             # which might be during the current or any earlier action
             allow_president_change = share.president || !share.corporation.shares.first.president
             @game.share_pool.transfer_shares(ShareBundle.new(share), player, allow_president_change: allow_president_change)
-
-            # Under Clemens rules, force BY to float immediately once 50% of its total equity is player-held
-            by_corp = share.corporation
-            if @game.optional_rules&.include?(:clemens) && by_corp.name == 'BY' && !by_corp.floated?
-              total_held = by_corp.player_share_holders.values.sum
-              if total_held >= 50
-                by_corp.floated = true
-                @log << "#{by_corp.name} floats early via the Clemens Gate at #{total_held}% shares sold!"
-              end
-            end
 
             @game.place_home_token(share.corporation) if share.corporation.floated?
           end
