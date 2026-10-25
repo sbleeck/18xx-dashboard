@@ -1306,13 +1306,13 @@ module View
               zIndex: 99_999,
             },
           }, [
-            render_help_button,
             render_action_hub_button,
             render_history_button,
             render_move_history_button,
             render_other_games_button,
             render_sound_toggle_button,
             render_chat_button,
+            render_help_button,
             ].compact)
       end
 
