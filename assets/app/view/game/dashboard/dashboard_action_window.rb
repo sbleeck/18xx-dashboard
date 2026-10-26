@@ -870,20 +870,6 @@ module View
                              }, 'Convert')
           end
 
-          show_merge = Lib::Storage['show_merge_candidates'] || !actions.include?('convert')
-
-          if actions.include?('merge')
-            top_buttons << h(:button, {
-                               style: { padding: '0.3rem 0.6rem', fontSize: '0.9rem', fontWeight: 'bold', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' },
-                               on: {
-                                 click: lambda {
-                                   Lib::Storage['show_merge_candidates'] = true
-                                   update
-                                 },
-                               },
-                             }, 'Merge')
-          end
-
           if actions.include?('take_loan')
             escaped_id = entity.id.to_s
             loan_amount = @game.respond_to?(:loan_value) ? @game.loan_value(entity) : (@game.loans.first&.amount || 0)
@@ -918,16 +904,49 @@ module View
 
           components << render_action_row('Action:', top_buttons) if top_buttons.any?
 
-          if actions.include?('merge') && show_merge
-            mergeables = if step.respond_to?(:mergeable_candidates)
-                           step.mergeable_candidates(entity)
-                         elsif step.respond_to?(:mergeable)
-                           step.mergeable(entity)
-                         elsif step.respond_to?(:mergeable_entities)
-                           step.mergeable_entities(entity)
-                         else
-                           []
-                         end
+          if actions.include?('merge')
+            all_mergeables = if step.respond_to?(:mergeable_candidates)
+                               step.mergeable_candidates(entity)
+                             elsif step.respond_to?(:mergeable)
+                               step.mergeable(entity)
+                             elsif step.respond_to?(:mergeable_entities)
+                               step.mergeable_entities(entity)
+                             else
+                               []
+                             end || []
+
+            operating_player =
+              if entity.respond_to?(:player?) && entity.player?
+                entity
+              elsif entity.respond_to?(:owner) && entity.owner
+                if entity.owner.respond_to?(:player?) && entity.owner.player?
+                  entity.owner
+                else
+                  (entity.owner.respond_to?(:owner) ? entity.owner.owner : entity.owner)
+                end
+              else
+                active_player
+              end
+
+            mergeables = all_mergeables.select do |target|
+              next false if target == entity
+
+              target_owner = target.respond_to?(:owner) ? target.owner : nil
+              target_director = if target_owner.respond_to?(:player?) && target_owner.player?
+                                  target_owner
+                                elsif target_owner.respond_to?(:owner) && target_owner.owner
+                                  target_owner.owner
+                                else
+                                  target_owner
+                                end
+
+              if operating_player
+                target_director == operating_player ||
+                  (target_director.respond_to?(:id) && operating_player.respond_to?(:id) && target_director.id.to_s == operating_player.id.to_s)
+              else
+                true
+              end
+            end
 
             if mergeables.any?
               merge_boxes = mergeables.map do |target|
@@ -943,8 +962,11 @@ module View
                   "cmd_merge_target_#{target.id}"
                 )
               end
-              components << h(:div, { style: { fontSize: '0.85rem', fontWeight: 'bold', color: '#333', marginTop: '0.2rem', marginBottom: '0.2rem' } }, "Corporations that can merge with #{entity.name}:")
-              components << h(:div, { style: { display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '0.3rem' } }, merge_boxes)
+              components << render_action_row('Merge with:', merge_boxes)
+            else
+              components << render_action_row('Merge with:', [
+                h(:span, { style: { fontStyle: 'italic', color: '#64748b', fontSize: '0.85rem' } }, 'No corporations with the same director available to merge'),
+              ])
             end
           end
 
