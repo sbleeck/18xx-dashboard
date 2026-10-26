@@ -424,7 +424,7 @@ module View
           return nil unless step.respond_to?(:description)
 
           step.description
-        rescue ScriptError, StandardError
+        rescue NotImplementedError, ScriptError, StandardError
           nil
         end
 
@@ -483,8 +483,8 @@ module View
 
           prompt = if step.respond_to?(:choice_name) && step.choice_name
                      step.choice_name
-                   elsif step.respond_to?(:description) && step.description
-                     step.description
+                   elsif (desc = step_description(step))
+                     desc
                    else
                      'Choice:'
                    end
@@ -714,7 +714,7 @@ module View
           unhandled = unhandled_actions(actions, supported)
           return nil if unhandled.empty?
 
-          step_desc = step.respond_to?(:description) && step.description ? step.description : step.class.name.to_s.split('::').last
+          step_desc = step_description(step) || step.class.name.to_s.split('::').last
           h(:div, { style: { width: '100%', padding: '0.5rem 0.75rem', marginBottom: '0.5rem', backgroundColor: '#fef3c7', border: '2px solid #f59e0b', borderRadius: '6px', color: '#92400e', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' } },
             "⚠️ Unsupported Dashboard action: [#{unhandled.join(', ')}] (Step: #{step_desc})")
         end
@@ -2960,7 +2960,7 @@ module View
                        }, ok_text)
           end
 
-          label = (step.respond_to?(:description) && step.description) || 'Assign Privates'
+          label = step_description(step) || 'Assign Privates'
           label = "#{label}:" unless label.end_with?(':')
 
           render_action_row(label, items)
@@ -3253,10 +3253,10 @@ module View
           return h(UpgradeOrDiscardTrains) if actions.include?('discard_train') && actions.include?('swap_train')
 
           is_acquisition = actions.include?('bid') && (
-            @game.round.class.name =~ /Acquisition|Merger/i ||
-            step&.class&.name =~ /Acquire|Acquisition/i ||
-            (step.respond_to?(:description) && step.description =~ /Acquire/i)
-          )
+             @game.round.class.name =~ /Acquisition|Merger/i ||
+             step&.class&.name =~ /Acquire|Acquisition/i ||
+             (step_description(step) =~ /Acquire/i)
+           )
           if actions.include?('assign') && step&.class&.name =~ /Acquire|Acquisition/i
             offer_node = render_offer_for_sale_step(step, step&.current_entity || current_entity, actions)
             return offer_node if offer_node
@@ -3370,13 +3370,13 @@ module View
                            @game.round.is_a?(Engine::Round::Stock)
 
           is_draft_or_auction = !is_stock_round && (
-                                  (step.respond_to?(:auctioning) && step&.auctioning) ||
-                                  (!actions.include?('par') && (
-                                    (step&.class&.name =~ /Waterfall|Draft|Auction|Initial/i) ||
-                                    (step.respond_to?(:description) && step.description =~ /Draft|Auction/i) ||
-                                    (@game.respond_to?(:round) && @game.round.class.name =~ /Draft|Auction/i)
-                                  ))
-                                )
+                                   (step.respond_to?(:auctioning) && step&.auctioning) ||
+                                   (!actions.include?('par') && (
+                                     (step&.class&.name =~ /Waterfall|Draft|Auction|Initial/i) ||
+                                     (step_description(step) =~ /Draft|Auction/i) ||
+                                     (@game.respond_to?(:round) && @game.round.class.name =~ /Draft|Auction/i)
+                                   ))
+                                 )
           return nil if is_draft_or_auction
 
           case @game.round
@@ -3900,8 +3900,8 @@ module View
           actions = actions_for(entity)
 
           is_draft = step&.class&.name =~ /Draft/i ||
-                     (step.respond_to?(:description) && step.description =~ /Draft/i) ||
-                     (@game.respond_to?(:round) && @game.round.class.name =~ /Draft/i)
+                             (step_description(step) =~ /Draft/i) ||
+                             (@game.respond_to?(:round) && @game.round.class.name =~ /Draft/i)
 
           is_home_token = home_token_step?(step, actions)
 
@@ -4434,60 +4434,80 @@ module View
           current_action_id = @game.respond_to?(:raw_actions) && @game.raw_actions ? @game.raw_actions.size : last_action_id
           routed_token = "#{entity&.id}_#{current_action_id}"
 
-          if phase == :run_routes && @last_routed_action_id != routed_token && !@cmd_router_running
+          # 1. Never compute routes while scrubbing or reviewing historical actions
+          is_viewing_history = !Lib::Params['action'].nil? && !Lib::Params['action'].to_s.empty?
+          is_game_1862 = @game.class.name.to_s.include?('1862') || @game_data&.dig('title').to_s.include?('1862')
+
+          if phase == :run_routes && @last_routed_action_id != routed_token && !@cmd_router_running && !is_viewing_history
             store(:last_routed_action_id, routed_token, skip: true)
-            store(:cmd_router_running, true, skip: false)
 
-            @routes.each(&:reset!) if @routes&.any?
-            @game.reset_adjustable_trains!(entity, @routes) if @game.respond_to?(:reset_adjustable_trains!)
-            @routes = []
-            store(:routes, @routes, skip: true)
-            store(:selected_route, nil, skip: true)
+            # In 1862, bypass auto-router to avoid intractable combinatorial lock
+            if is_game_1862
+              store(:show_manual_routes, true, skip: true)
+              Lib::Storage['cmd_manual_routes'] = true
+            else
+              store(:cmd_router_running, true, skip: false)
 
-            lambda {
-              `setTimeout(function() {`
-              begin
-                flash_cb = lambda do |msg|
-                  store(:flash_opts, { message: msg }, skip: false)
-                end
-                router = Engine::AutoRouter.new(@game, flash_cb)
-                router_entity = @game.current_entity || entity
-                p_timeout = setting_for(:path_timeout).to_i
-                p_timeout = 10_000 if p_timeout.zero?
-                r_timeout = setting_for(:route_timeout).to_i
-                r_timeout = 10_000 if r_timeout.zero?
+              train_count = entity.respond_to?(:trains) ? entity.trains.size : 1
+              has_d_train = entity.respond_to?(:trains) && entity.trains.any? { |t| t.name.to_s.upcase.include?('D') }
 
-                router.compute(
-                  router_entity,
-                  routes: [],
-                  path_timeout: p_timeout,
-                  route_timeout: r_timeout,
-                  callback: lambda do |computed_routes|
-                    routes_list = computed_routes || []
-                    store(:routes, routes_list, skip: true)
-                    store(:selected_route, routes_list.first, skip: true)
-
-                    auto_rev = 0
-                    routes_list.each do |r|
-                      auto_rev += r.revenue if r.chains.any?
-                    rescue Engine::GameError, StandardError
-                    end
-
-                    storage_key = "rev_override_#{entity&.id}"
-                    last_base_key = "last_base_rev_#{entity&.id}"
-                    Lib::Storage[storage_key] = auto_rev
-                    Lib::Storage[last_base_key] = auto_rev
-
-                    store(:cmd_router_running, false)
-                    update
-                  end
-                )
-              rescue StandardError
-                store(:cmd_router_running, false)
-                update
+              # Preserve existing routes if company already has multi-train routes running
+              routes_seed = []
+              if train_count < 3 && !has_d_train
+                @routes.each(&:reset!) if @routes&.any?
+                @game.reset_adjustable_trains!(entity, @routes) if @game.respond_to?(:reset_adjustable_trains!)
+                @routes = []
+                store(:routes, @routes, skip: true)
+                store(:selected_route, nil, skip: true)
+              else
+                routes_seed = @routes.select { |r| r.chains.any? }
               end
-              `}, 50);`
-            }.call
+
+              lambda {
+                `setTimeout(function() {`
+                begin
+                  flash_cb = lambda do |msg|
+                    store(:flash_opts, { message: msg }, skip: false)
+                  end
+                  router = Engine::AutoRouter.new(@game, flash_cb)
+                  router_entity = @game.current_entity || entity
+
+                  # Strict timeout: 4s path + 6s route = 10s maximum total cutoff
+                  p_timeout = 4_000
+                  r_timeout = 6_000
+
+                  router.compute(
+                    router_entity,
+                    routes: routes_seed,
+                    path_timeout: p_timeout,
+                    route_timeout: r_timeout,
+                    callback: lambda do |computed_routes|
+                      routes_list = computed_routes || routes_seed || []
+                      store(:routes, routes_list, skip: true)
+                      store(:selected_route, routes_list.first, skip: true)
+
+                      auto_rev = 0
+                      routes_list.each do |r|
+                        auto_rev += r.revenue if r.chains.any?
+                      rescue Engine::GameError, StandardError
+                      end
+
+                      storage_key = "rev_override_#{entity&.id}"
+                      last_base_key = "last_base_rev_#{entity&.id}"
+                      Lib::Storage[storage_key] = auto_rev
+                      Lib::Storage[last_base_key] = auto_rev
+
+                      store(:cmd_router_running, false)
+                      update
+                    end
+                  )
+                rescue StandardError
+                  store(:cmd_router_running, false)
+                  update
+                end
+                `}, 50);`
+              }.call
+            end
           end
 
           overlays = []

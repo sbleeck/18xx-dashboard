@@ -42,6 +42,50 @@ module Engine
   end
 end
 
+# Snabbdom Extensibility Shield:
+# Prevents Opal.nil and NilClass singletons from being frozen so Snabbdom
+# can assign `.elm` anchors safely if a component's render method returns nil.
+%x{
+  (function() {
+    if (window.__snabbdom_extensibility_shield) return;
+    window.__snabbdom_extensibility_shield = true;
+
+    var origFreeze = Object.freeze;
+    Object.freeze = function(obj) {
+      if (obj && (
+        (typeof Opal !== 'undefined' && obj === Opal.nil) ||
+        (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
+        (obj.constructor && obj.constructor.name === 'NilClass')
+      )) {
+        return obj;
+      }
+      return origFreeze.call(Object, obj);
+    };
+
+    var origPreventExtensions = Object.preventExtensions;
+    Object.preventExtensions = function(obj) {
+      if (obj && (
+        (typeof Opal !== 'undefined' && obj === Opal.nil) ||
+        (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
+        (obj.constructor && obj.constructor.name === 'NilClass')
+      )) {
+        return obj;
+      }
+      return origPreventExtensions.call(Object, obj);
+    };
+
+    if (typeof Opal !== 'undefined' && Opal.nil) {
+      try {
+        Object.defineProperty(Opal.nil, 'elm', {
+          writable: true,
+          configurable: true,
+          value: null
+        });
+      } catch (e) {}
+    }
+  })();
+}
+
 module View
   module Game
     class DashboardVisualizer < Snabberb::Component
@@ -1780,30 +1824,9 @@ badge_el,
       end
 
       def render
-        if @game.respond_to?(:finished?) && @game.finished?
-          return h(:div, {
-                     style: { display: 'flex', flexDirection: 'row', width: '100vw', height: '100vh', padding: '0.5rem', boxSizing: 'border-box', backgroundColor: '#ffffff', gap: '0.75rem' },
-                   }, [
-            h(:div, { style: { width: '55%', height: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflow: 'hidden' } }, [
-              h(:div, { style: { flex: '1 1 auto', border: '1px solid #ccc', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' } }, [
-                h(:div, { attrs: { class: 'scaler-content' }, style: { display: 'flex', justifyContent: 'center', alignItems: 'center' } }, [
-                  h(View::Game::DashboardMap, game: @game, user: @user, minimal: true),
-                ]),
-              ]),
-            ]),
-            h(:div, { style: { width: '45%', display: 'flex', flexDirection: 'column', height: '100%', gap: '0.5rem' } }, [
-              h(:div, { style: { flex: '1 1 62%', border: '1px solid #ccc', padding: '2rem', borderRadius: '4px', textAlign: 'center', fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' } }, [
-                h(:h3, 'Final Match State'),
-                h(:p, 'The 1846 game has concluded. Active turn components and ledgers are disabled.'),
-              ]),
-              h(:div, { style: { flex: '1 1 30%', minHeight: '12rem', border: '1px solid #ccc', padding: '0.5rem', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'hidden' } }, [
-                h(:div, { attrs: { class: 'scaler-content' }, style: { width: 'max-content', height: 'max-content', minWidth: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', transformOrigin: 'center top' } }, [
-                  h(View::Game::DashboardStockMarket, game: @game),
-                ]),
-              ]),
-            ]),
-          ])
-        end
+        # Allow finished games to mount the complete dashboard, attach window._dashboardVisualizer,
+        # and render the navigation cluster for history scrubbing and post-game review.
+        #
 
         last_action = @game.respond_to?(:raw_actions) && @game.raw_actions ? @game.raw_actions.last : nil
         last_action ||= @game_data['actions']&.last if @game_data && @game_data['actions']
@@ -3128,7 +3151,7 @@ h(:div, {
       },
     }, 'Show Remaining Tiles'),
 ]),
-]),
+].compact),
               ].compact),
 
             h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
