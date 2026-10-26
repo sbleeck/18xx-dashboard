@@ -211,8 +211,11 @@ module View
             tooltip = build_entity_tooltip(item, price: price)
             render_railcard(label, classes + ['card-private'], click_handler, tooltip, nil, wrapper_id,
                             %w[cmd-company-wrapper status-company-wrapper], entity: item)
-          else
+          elsif item.respond_to?(:corporation?) && item.corporation?
             render_major_railcard(item, click_handler, classes + ['major-railcard'], wrapper_id)
+          else
+            label = entity_name(item)
+            h(:div, { class: classes.join(' '), style: { padding: '4px 8px', fontWeight: 'bold' } }, label)
           end
         end
 
@@ -232,7 +235,9 @@ module View
                             end
 
           bidders_with_bids = bids.map { |b| b.respond_to?(:entity) ? b.entity : b.bidder }.compact
-          all_players = (auction_players + bidders_with_bids).uniq
+          all_players = (Array(auction_players) + bidders_with_bids).compact.uniq.select do |p|
+            p.respond_to?(:player?) ? p.player? : p.respond_to?(:name)
+          end
 
           cols = all_players.map do |p|
             p_bids = bids.select { |b| (b.respond_to?(:entity) ? b.entity : b.bidder) == p }
@@ -268,6 +273,7 @@ module View
                             h(:div, { style: { color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' } }, '—')
                           end
 
+            p_name = p.respond_to?(:name) ? p.name.to_s : p.to_s
             h(:div, {
                 style: {
                   flex: '1',
@@ -282,7 +288,7 @@ module View
                   boxShadow: is_current ? '0 2px 4px rgba(59, 130, 246, 0.2)' : 'none',
                 },
               }, [
-                h(:div, { style: { fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '0.35rem', textAlign: 'center', color: '#0f172a' } }, p.name),
+                h(:div, { style: { fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '0.35rem', textAlign: 'center', color: '#0f172a' } }, p_name),
                 bid_display,
               ])
           end
@@ -297,6 +303,51 @@ module View
                 backgroundColor: '#f8fafc',
               },
             }, cols)
+        end
+
+        def resolve_entity(item)
+          return nil if item.nil?
+          return item if item.is_a?(Engine::Company) || item.is_a?(Engine::Corporation) || (defined?(Engine::Minor) && item.is_a?(Engine::Minor))
+          return item if item.respond_to?(:name) && (item.respond_to?(:company?) || item.respond_to?(:corporation?) || item.respond_to?(:minor?))
+
+          if item.is_a?(String) || item.is_a?(Symbol)
+            id_str = item.to_s
+            corp = (@game.corporation_by_id(id_str) if @game.respond_to?(:corporation_by_id)) ||
+                   (@game.corporations.find { |c| c.id.to_s == id_str || (c.respond_to?(:sym) && c.sym.to_s == id_str) } if @game.respond_to?(:corporations))
+            return corp if corp
+
+            comp = (@game.company_by_id(id_str) if @game.respond_to?(:company_by_id)) ||
+                   (@game.companies.find { |c| c.id.to_s == id_str || (c.respond_to?(:sym) && c.sym.to_s == id_str) } if @game.respond_to?(:companies))
+            return comp if comp
+
+            minor = (@game.minor_by_id(id_str) if @game.respond_to?(:minor_by_id)) ||
+                    (@game.minors.find { |m| m.id.to_s == id_str || (m.respond_to?(:sym) && m.sym.to_s == id_str) } if @game.respond_to?(:minors))
+            return minor if minor
+          end
+
+          nil
+        rescue StandardError
+          nil
+        end
+
+        def entity_name(item)
+          return '' unless item
+          return item.name.to_s if item.respond_to?(:name)
+          return item.sym.to_s if item.respond_to?(:sym)
+          return item.id.to_s if item.respond_to?(:id)
+
+          item.to_s
+        end
+
+        def target
+          raw = if step.respond_to?(:auctioning) && step.auctioning
+                  step.auctioning
+                elsif step.respond_to?(:target) && step.target
+                  step.target
+                end
+          resolve_entity(raw)
+        rescue StandardError
+          nil
         end
 
         def begin_drag(event)
@@ -343,7 +394,7 @@ module View
               []
             end
 
-          Array(items).compact
+          Array(items).map { |it| resolve_entity(it) }.compact.uniq
         rescue StandardError
           []
         end
@@ -371,8 +422,9 @@ module View
             item_price = minimum_bid(item)
             card = render_auction_item_card(item, click_handler: click_handler, action_class: 'action-buy',
                                                   price: item_price, wrapper_id: "auction_selection_#{item.id}")
+            name_str = entity_name(item)
             h(:div, {
-                attrs: { title: "Select #{item.name} for auction" },
+                attrs: { title: "Select #{name_str} for auction" },
                 style: {
                   display: 'flex',
                   alignItems: 'center',
@@ -390,7 +442,7 @@ module View
               }, [
                 card,
                 h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: '0' } }, [
-                  h(:span, { style: { fontWeight: 'bold', color: '#0f172a' } }, item.name.to_s),
+                  h(:span, { style: { fontWeight: 'bold', color: '#0f172a' } }, name_str),
                   h(:span, { style: { fontFamily: FONT_MONEY, fontSize: '0.82rem', fontWeight: 'bold', color: '#4c1d95' } },
                     "Minimum bid: #{@game.format_currency(item_price)}"),
                 ]),
@@ -467,8 +519,11 @@ module View
           min_bid = minimum_bid(item)
           max_bid = maximum_bid
           max_bid = min_bid if max_bid < min_bid
-          price_key = "dashboard_auction_price_#{item.id}"
-          signature_key = "dashboard_auction_signature_#{item.id}"
+
+          item_id = item.respond_to?(:id) ? item.id : item.to_s
+          price_key = "dashboard_auction_price_#{item_id}"
+          signature_key = "dashboard_auction_signature_#{item_id}"
+
           signature = "#{min_bid}:#{bids_for(item).length}:#{bidder.respond_to?(:id) ? bidder.id : bidder.name}"
           stored = Lib::Storage[price_key]
           stored_signature = Lib::Storage[signature_key]
@@ -539,7 +594,7 @@ module View
           bid_disabled = !legal_actions.include?('bid') || current_price < min_bid || current_price > max_bid || (current_price % PRICE_STEP != 0)
 
           item_card = render_auction_item_card(item, action_class: 'action-buy', price: min_bid,
-                                                     wrapper_id: "auction_target_#{item.id}")
+                                                     wrapper_id: "auction_target_#{item_id}")
           header = h(:div, {
                        attrs: { title: 'Drag to move' },
                        style: {
@@ -557,7 +612,7 @@ module View
                      }, [
               item_card,
               h(:div, { style: { minWidth: '0' } }, [
-                h(:div, { style: { fontSize: '1.05rem', lineHeight: '1.2', fontWeight: 'bold' } }, item.name.to_s),
+                h(:div, { style: { fontSize: '1.05rem', lineHeight: '1.2', fontWeight: 'bold' } }, entity_name(item)),
                 h(:div, { style: { marginTop: '0.15rem', fontSize: '0.82rem', color: '#64748b' } }, "Bidder: #{bidder.name}"),
               ]),
             ])
