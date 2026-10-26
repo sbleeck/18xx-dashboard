@@ -892,6 +892,20 @@ module View
         corporation.operating_history.key?(current_round)
       end
 
+      def corp_available?(corporation)
+        return false unless corporation
+
+        if corporation.respond_to?(:available?)
+          corporation.available?
+        elsif @game.respond_to?(:corporation_available?)
+          @game.corporation_available?(corporation)
+        else
+          true
+        end
+      rescue StandardError
+        false
+      end
+
       def render_corporation(corporation, _operating_order, _current_round, is_last_minor = false)
         return '' if @hide_not_floated && !@game.operating_order.include?(corporation)
 
@@ -965,18 +979,14 @@ module View
         president_sold = corporation.respond_to?(:owner) && corporation.owner ? true : false
         president_available = if corporation.respond_to?(:minor?) && corporation.minor?
                                 !president_sold
-                              elsif corporation.respond_to?(:available?)
-                                corporation.available?
-                              elsif @game.respond_to?(:corporation_available?)
-                                @game.corporation_available?(corporation)
                               else
-                                true
+                                corp_available?(corporation)
                               end
 
         should_grey_unfloated = is_unfloated
 
         row_classes << 'company-row-unfloated' if should_grey_unfloated
-visual_current = is_active_row || corporation == visual_operating_entity
+        visual_current = is_active_row || corporation == visual_operating_entity
         row_classes << 'active-turn-focus' if visual_current
         row_classes << 'directed-by-active-player' if is_directed && !visual_current
         row_classes << 'last-minor-row' if is_last_minor
@@ -1828,13 +1838,7 @@ visual_current = is_active_row || corporation == visual_operating_entity
                   (!corporation.respond_to?(:minor?) || !corporation.minor?) &&
                   (!corporation.respond_to?(:ipoed) || !corporation.ipoed)
 
-        corp_available = if corporation.respond_to?(:available?)
-                           corporation.available?
-                         elsif @game.respond_to?(:corporation_available?)
-                           @game.corporation_available?(corporation)
-                         else
-                           true
-                         end
+        corp_available = corp_available?(corporation)
 
         can_par = is_corp &&
                   active_player &&
