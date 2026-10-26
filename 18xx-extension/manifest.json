@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "18xx.games Desktop Dashboard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A persistent, zero-tab spatial dashboard for 18xx.games.",
   "permissions": [
     "declarativeNetRequest"

@@ -27,4 +27,12 @@ SIZE=$(ls -lh "$EXTENSION_DIR/main.js" | awk '{print $5}')
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
 
 echo "    Copied $SRC_MAIN -> $EXTENSION_DIR/main.js ($SIZE)"
-echo "==> Extension updated successfully at $TIMESTAMP."
+
+# Read version from manifest.json
+VERSION=$(grep '"version"' "$EXTENSION_DIR/manifest.json" | sed -E 's/.*"version": *"([^"]+)".*/\1/')
+ZIP_NAME="18xx-dashboard-v${VERSION}.zip"
+
+echo "==> Packaging extension version $VERSION into $ZIP_NAME..."
+(cd "$EXTENSION_DIR" && zip -qr "$REPO_ROOT/$ZIP_NAME" . -x "*.DS_Store" -x "*__MACOSX*" -x "*.git*")
+
+echo "==> Extension updated and packaged at $TIMESTAMP: $ZIP_NAME"
