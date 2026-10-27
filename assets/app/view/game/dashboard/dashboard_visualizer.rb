@@ -2846,22 +2846,56 @@ createPanHandler('panel-ledger');
                         var cw = wrapper.scrollWidth;
                         var ch = wrapper.scrollHeight;
 
-                        if (panel.id === 'map-panel-bot') {
+                       if (panel.id === 'map-panel-bot') {
                           var svg = wrapper.querySelector('svg');
-                          var topG = svg ? svg.querySelector('g') : null;
-                          if (svg && topG) {
-                            var bbox = topG.getBBox();
-                            var requiredWidth = bbox.width + 50;
-                            var requiredHeight = bbox.height + 50;
-                            svg.setAttribute('viewBox', (bbox.x - 25) + ' ' + (bbox.y - 25) + ' ' + requiredWidth + ' ' + requiredHeight);
-                            svg.setAttribute('width', requiredWidth);
-                            svg.setAttribute('height', requiredHeight);
-                            svg.style.width = requiredWidth + 'px';
-                            svg.style.height = requiredHeight + 'px';
-                            wrapper.style.width = requiredWidth + 'px';
-                            wrapper.style.height = requiredHeight + 'px';
-                            cw = requiredWidth;
-                            ch = requiredHeight;
+                          if (svg) {
+                            var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                            var allG = svg.querySelectorAll('g');
+                            if (allG.length > 0) {
+                              for (var gi = 0; gi < allG.length; gi++) {
+                                try {
+                                  var gb = allG[gi].getBBox();
+                                  if (gb && (gb.width > 0 || gb.height > 0)) {
+                                    minX = Math.min(minX, gb.x);
+                                    minY = Math.min(minY, gb.y);
+                                    maxX = Math.max(maxX, gb.x + gb.width);
+                                    maxY = Math.max(maxY, gb.y + gb.height);
+                                  }
+                                } catch(err) {}
+                              }
+                            }
+                            if (svg.getBBox) {
+                              try {
+                                var sb = svg.getBBox();
+                                if (sb && (sb.width > 0 || sb.height > 0)) {
+                                  minX = Math.min(minX, sb.x);
+                                  minY = Math.min(minY, sb.y);
+                                  maxX = Math.max(maxX, sb.x + sb.width);
+                                  maxY = Math.max(maxY, sb.y + sb.height);
+                                }
+                              } catch(err) {}
+                            }
+
+                            if (isFinite(maxX) && isFinite(maxY) && (maxX - minX) > 50 && (maxY - minY) > 50) {
+                              var requiredWidth = (maxX - minX) + 50;
+                              var requiredHeight = (maxY - minY) + 50;
+                              svg.setAttribute('viewBox', (minX - 25) + ' ' + (minY - 25) + ' ' + requiredWidth + ' ' + requiredHeight);
+                              svg.setAttribute('width', requiredWidth);
+                              svg.setAttribute('height', requiredHeight);
+                              svg.style.width = requiredWidth + 'px';
+                              svg.style.height = requiredHeight + 'px';
+                              wrapper.style.width = requiredWidth + 'px';
+                              wrapper.style.height = requiredHeight + 'px';
+                              cw = requiredWidth;
+                              ch = requiredHeight;
+                            } else {
+                              var attrW = parseFloat(svg.getAttribute('width')) || (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width) || 0;
+                              var attrH = parseFloat(svg.getAttribute('height')) || (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.height) || 0;
+                              if (attrW > 50 && attrH > 50) {
+                                cw = attrW;
+                                ch = attrH;
+                              }
+                            }
                           }
                         }
 
@@ -2922,8 +2956,8 @@ createPanHandler('panel-ledger');
 
                         var pw = entries[i].contentRect.width - 16;
                         var ph = entries[i].contentRect.height - 16;
-if (cw > 0 && ch > 0) {
-                          if (panel.id === 'panel-ledger') {
+if (cw > 50 && ch > 50 && pw > 50 && ph > 50) {
+                            if (panel.id === 'panel-ledger') {
                             // Fit width (up to 1.0x) so tall status tables remain readable and scroll vertically
                             window.scalerScales[panel.id] = Math.min(1.0, pw / cw);
                           } else {
@@ -2944,12 +2978,23 @@ window.recalcAllPanels = function() {
                         if (!wrapper) return;
                         var cw = wrapper.scrollWidth;
                         var ch = wrapper.scrollHeight;
+                        if (id === 'map-panel-bot') {
+                          var svg = wrapper.querySelector('svg');
+                          if (svg) {
+                            var sw = parseFloat(wrapper.style.width) || parseFloat(svg.getAttribute('width')) || (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width) || 0;
+                            var sh = parseFloat(wrapper.style.height) || parseFloat(svg.getAttribute('height')) || (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.height) || 0;
+                            if (sw > 50 && sh > 50) {
+                              cw = sw;
+                              ch = sh;
+                            }
+                          }
+                        }
                         var pw = panel.clientWidth - 16;
                         var ph = panel.clientHeight - 16;
-                        if (cw > 0 && ch > 0 && pw > 0 && ph > 0) {
+                        if (cw > 50 && ch > 50 && pw > 50 && ph > 50) {
                           if (id === 'panel-ledger') {
                             window.scalerScales[id] = Math.min(1.0, pw / cw);
-                          } else if (!window.scalerScales[id]) {
+                          } else {
                             window.scalerScales[id] = Math.min(pw / cw, ph / ch);
                           }
                         }
@@ -2965,6 +3010,10 @@ window.recalcAllPanels = function() {
                         if (innerWrapper) fitObserver.observe(innerWrapper);
                       }
                     });
+
+
+                    setTimeout(window.recalcAllPanels, 100);
+                    setTimeout(window.recalcAllPanels, 400);
                   };
                   setTimeout(window.init18xxResizers, 200);)
                       },
