@@ -314,13 +314,16 @@ module View
         }
         if index
           props[:attrs][:width] = "#{TOKEN_SIZE}px"
+          # // --- START FIX ---
           props[:style] = {
             position: 'absolute',
             left: num > 1 ? "#{LEFT_TOKEN_POS + ((num - index - 1) * spacing)}px" : "#{MID_TOKEN_POS}px",
+            top: "#{PAD + 12}px",
             zIndex: num - index,
             cursor: 'pointer',
             pointerEvents: 'auto',
           }
+          # // --- END FIX ---
         end
         if operated?(corporation)
           props[:attrs][:title] = "#{corporation.name} has operated"
@@ -590,14 +593,17 @@ module View
 
               first_price = false
 
+              # // --- START FIX ---
               h(:div, { style: cell_style(@box_style_2d, price.types) },
                 [
-                  h('div.xsmall_font', price.price),
+                  h('div.xsmall_font', { style: { fontSize: '11px', lineHeight: '12px', textAlign: 'center' } },
+                    price.price),
                   h(:div, tokens),
                   h(:div, { style: { color: '#00000060', position: 'absolute', 'font-size': '170%' }.merge(align) },
                     arrow),
                   price.info ? h(:div, { style: PRICE_STYLE_INFO }, price.info) : nil,
                 ].compact)
+              # // --- END FIX ---
             else
               h(:div, { style: @space_style_2d }, '')
             end

@@ -870,38 +870,6 @@ module View
                              }, 'Convert')
           end
 
-          if actions.include?('take_loan')
-            escaped_id = entity.id.to_s
-            loan_amount = @game.respond_to?(:loan_value) ? @game.loan_value(entity) : (@game.loans.first&.amount || 0)
-            btn_text = loan_amount.positive? ? "Take Loan (#{@game.format_currency(loan_amount)})" : 'Take Loan'
-            click_take = lambda {
-              target_selector = "#loan_empty_#{escaped_id}_0, #loans_#{escaped_id}"
-              Lib::LoanAnimation.fly('#bank_loan_active', target_selector) do
-                process_action(Engine::Action::TakeLoan.new(entity, loan: @game.loans.first))
-              end
-            }
-            top_buttons << h(:button, {
-                               style: { padding: '0.3rem 0.6rem', fontSize: '0.9rem', fontWeight: 'bold', fontFamily: loan_amount.positive? ? FONT_MONEY : 'inherit', backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #94a3b8', borderRadius: '5px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(15,23,42,0.08)' },
-                               on: { click: click_take },
-                             }, btn_text)
-          end
-
-          if actions.include?('payoff_loan')
-            escaped_id = entity.id.to_s
-            taken = entity.respond_to?(:loans) && entity.loans ? entity.loans.size : 1
-            source_selector = "#loan_dot_#{escaped_id}_#{[taken - 1, 0].max}, #loans_#{escaped_id}"
-            loan_to_pay = entity.respond_to?(:loans) && entity.loans ? (entity.loans.last || entity.loans.first) : nil
-            click_payoff = lambda {
-              Lib::LoanAnimation.fly(source_selector, '#bank_loan_active') do
-                process_action(Engine::Action::PayoffLoan.new(entity, loan: loan_to_pay))
-              end
-            }
-            top_buttons << h(:button, {
-                               style: { padding: '0.3rem 0.6rem', fontSize: '0.9rem', fontWeight: 'bold', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' },
-                               on: { click: click_payoff },
-                             }, 'Payoff Loan')
-          end
-
           components << render_action_row('Action:', top_buttons) if top_buttons.any?
 
           if actions.include?('merge')
@@ -1292,34 +1260,80 @@ module View
         end
 
         def render_discard_trains(step, entity)
-          return nil unless entity && step
+          return nil unless step
 
-          discardable = if step.respond_to?(:discardable_trains)
-                          step.discardable_trains(entity)
-                        elsif entity.respond_to?(:trains)
-                          entity.trains
+          target_corp = if corporation_or_minor?(entity)
+                          entity
+                        elsif step.respond_to?(:crowded_corps) && step.crowded_corps&.any?
+                          step.crowded_corps.first
+                        elsif step.respond_to?(:corporation) && step.corporation
+                          step.corporation
+                        elsif corporation_or_minor?(current_entity)
+                          current_entity
+                        elsif entity.respond_to?(:corporations) && entity.corporations&.any?
+                          entity.corporations.find { |c| c.trains&.any? }
                         else
-                          []
+                          entity
                         end
+
+          return nil unless target_corp
+
+          discardable = begin
+            if step.respond_to?(:discardable_trains)
+              begin
+                step.discardable_trains(target_corp)
+              rescue ArgumentError
+                step.discardable_trains
+              end
+            elsif target_corp.respond_to?(:trains)
+              target_corp.trains
+            else
+              []
+            end
+          rescue StandardError
+            target_corp.respond_to?(:trains) ? target_corp.trains : []
+          end
+
+          discardable = target_corp.trains if (discardable.nil? || discardable.empty?) && target_corp.respond_to?(:trains)
 
           train_boxes = (discardable || []).map do |train|
             wrapper_id = "cmd_discard_train_#{train.id}"
 
             click_handler = lambda {
+              source_corp = (train.respond_to?(:owner) && train.owner) || target_corp
+              source_corp_id = if source_corp.respond_to?(:id)
+                                 source_corp.id
+                               else
+                                 (source_corp.respond_to?(:name) ? source_corp.name : nil)
+                               end
+              status_source_selector = source_corp_id ? "#train_wrapper_#{source_corp_id}_#{train.id}" : nil
+              source_selector = [status_source_selector, "##{wrapper_id}"].compact.join(', ')
+
               remember_card_transfer(
                 kind: :train,
                 item_id: train.id,
                 source_type: :corporation,
-                source_id: entity.id,
-                variant: train.name
+                source_id: source_corp_id,
+                variant: train.name,
+                source_selector: source_selector
               )
 
-              process_action(
-                Engine::Action::DiscardTrain.new(
-                  entity,
-                  train: train
+              action_entity = source_corp || entity || target_corp
+              begin
+                process_action(
+                  Engine::Action::DiscardTrain.new(
+                    action_entity,
+                    train: train
+                  )
                 )
-              )
+              rescue StandardError
+                process_action(
+                  Engine::Action::DiscardTrain.new(
+                    entity || target_corp,
+                    train: train
+                  )
+                )
+              end
             }
 
             render_railcard(
@@ -1328,13 +1342,15 @@ module View
               click_handler,
               nil,
               nil,
-              wrapper_id
+              wrapper_id,
+              nil,
+              entity: train
             )
           end
 
           return nil if train_boxes.empty?
 
-          render_action_row('Discard:', train_boxes)
+          render_action_row('Discard Trains:', train_boxes)
         end
 
         def render_loan_actions(_step, entity, actions)
@@ -3274,6 +3290,11 @@ module View
 
           return h(UpgradeOrDiscardTrains) if actions.include?('discard_train') && actions.include?('swap_train')
 
+          if actions.include?('discard_train') && (actions & %w[lay_tile place_token run_routes dividend buy_train merge convert bid take_loan payoff_loan]).empty?
+            discard_node = render_discard_trains(step, step&.current_entity || current_entity)
+            return discard_node if discard_node
+          end
+
           is_acquisition = actions.include?('bid') && (
              @game.round.class.name =~ /Acquisition|Merger/i ||
              step&.class&.name =~ /Acquire|Acquisition/i ||
@@ -3446,7 +3467,11 @@ module View
                                    (actions.include?('merge') && (actions & %w[lay_tile place_token run_routes dividend buy_train]).empty?)
 
             if is_pure_merger_step
-              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [render_merger_step(step, step&.current_entity || current_entity, actions)].compact)
+              merger_items = [
+                              render_merger_step(step, step&.current_entity || current_entity, actions),
+                              render_loan_actions(step, step&.current_entity || current_entity, actions),
+                            ].compact
+              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, merger_items)
 
             else
               components = []
@@ -3600,8 +3625,7 @@ module View
               components << render_buyable_companies(step, step&.current_entity) if can_buy_companies
 
               components << render_buyable_trains(step, step&.current_entity) if actions.include?('buy_train')
-              components << render_discard_trains(step, step&.current_entity) if actions.include?('discard_train')
-
+              components << render_discard_trains(step, step&.current_entity || current_entity) if actions.include?('discard_train')
               components << h(AcquireCompanies) if actions.include?('acquire_company')
               components << h(CorporateSellCompanies) if actions.include?('corporate_sell_company')
               components << h(CorporateBuyCompanies) if actions.include?('corporate_buy_company')
@@ -3646,23 +3670,54 @@ module View
             end
 
           when Engine::Round::Merger
-            if !(%w[buy_train scrap_train reassign_trains] & actions).empty? &&
-               @game.train_actions_always_use_operating_round_view? &&
-               !(step&.current_entity || current_entity).is_a?(Engine::Bank)
+            merger_entity = step&.current_entity || current_entity
+            components = []
 
-              defined?(View::Game::Round::Operating) ? h(View::Game::Round::Operating, game: @game) : h(:div)
+            if actions.include?('choose')
+              choice_item = render_generic_choice(step, merger_entity)
+              components << choice_item if choice_item
+            end
 
-            elsif (%w[merge convert buy_shares corporate_buy_shares take_loan payoff_loan] & actions).any?
-              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [render_merger_step(step, step&.current_entity || current_entity, actions)].compact)
-            elsif actions.include?('choose')
-              choice_item = render_generic_choice(step, step&.current_entity || current_entity)
-              if choice_item
-                h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [choice_item])
-              else
-                (defined?(View::Game::Round::Merger) ? h(View::Game::Round::Merger, game: @game) : h(:div))
-              end
+            if actions.include?('assign')
+              assign_item = render_assign_step(step, merger_entity, actions)
+              components << assign_item if assign_item
+            end
+
+            if actions.include?('discard_train')
+              discard_node = render_discard_trains(step, merger_entity)
+              components << discard_node if discard_node
+            end
+
+            if actions.include?('buy_train')
+              buy_train_node = render_buyable_trains(step, merger_entity)
+              components << buy_train_node if buy_train_node
+            end
+
+            if actions.include?('scrap_train') || actions.include?('surrender_train') || actions.include?('surrender')
+              surrender_node = render_surrender_trains(actions, step, merger_entity)
+              components << surrender_node if surrender_node
+            end
+
+            components << h(ReassignTrains) if actions.include?('reassign_trains')
+
+            components << h(SwapTrain) if actions.include?('swap_train')
+
+            if (%w[merge convert buy_shares corporate_buy_shares] & actions).any?
+              merger_node = render_merger_step(step, merger_entity, actions)
+              components << merger_node if merger_node
+            end
+
+            if (%w[take_loan payoff_loan] & actions).any?
+              loan_node = render_loan_actions(step, merger_entity, actions)
+              components << loan_node if loan_node
+            end
+
+            if components.compact.any?
+              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, components.compact)
+            elsif defined?(View::Game::Round::Merger)
+              h(View::Game::Round::Merger, game: @game)
             else
-              defined?(View::Game::Round::Merger) ? h(View::Game::Round::Merger, game: @game) : h(:div)
+              h(:div)
             end
           else
             if actions.include?('assign')
@@ -3683,6 +3738,9 @@ module View
                 },
                 [choice_item].compact
               )
+            elsif actions.include?('discard_train')
+              render_discard_trains(step, step&.current_entity || current_entity) || h(:div)
+
             elsif @game.round.unordered?
               defined?(View::Game::Round::Unordered) ? h(View::Game::Round::Unordered, game: @game, user: nil) : h(:div)
             else
@@ -3710,6 +3768,8 @@ module View
           name = described.to_s.strip
           name = raw_name.gsub(/([a-z0-9])([A-Z])/, '\1 \2') if name.empty?
           name = name.gsub(%r{\b\d+(?:/\d+)?\b}, '')
+          name = name.gsub(/\s*\(\s*(?:part|of)?\s*\)/i, '')
+          name = name.gsub(/\s*[.,]\s*$/, '')
           name = name.gsub(/\s+/, ' ').strip
           name = "#{name} Round" unless name.downcase.end_with?('round')
           name
@@ -3940,6 +4000,8 @@ module View
             phase = :dividend
           elsif actions.include?('buy_train')
             phase = :buy_train
+          elsif actions.include?('discard_train')
+            phase = :discard_train
           elsif actions.include?('buy_token')
             phase = :buy_token
           elsif actions.include?('issue_shares') || actions.include?('reissue_shares') || actions.include?('reissue')
@@ -4236,6 +4298,7 @@ module View
             when :build_track then advance_text = 'Skip'
             when :place_token then advance_text = 'Skip'
             when :buy_train then advance_text = 'Done'
+            when :discard_train then advance_text = 'Done'
             when :issue_shares then advance_text = 'Skip'
             when :redeem then advance_text = 'Skip'
             when :par then advance_text = 'Skip'
