@@ -1907,7 +1907,9 @@ badge_el,
               insert: lambda {
                         Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
                         # `window.scrollTo(0, 0)`
-                        `document.body.style.overflow = 'hidden'`
+                        `document.body.style.overflow = ''`
+                        `document.body.style.overflowX = 'hidden'`
+                        `document.body.style.overflowY = 'auto'`
                         fetch_user_games(false)
 
                         comp = self
@@ -1934,8 +1936,8 @@ badge_el,
 
                         `document.body.style.margin = '0'`
                         `document.body.style.padding = '0'`
-                        `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'hidden', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', height: '100vh'})`
-                        `document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100vw', height: 'calc(100dvh - 36px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 36px)' })`
+                        `document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: 'visible', padding: '0', margin: '0', maxWidth: '100vw', width: '100vw', minHeight: '100vh', height: 'auto'})`
+                        `document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: 'flex', flexDirection: 'column', overflow: 'visible', width: '100vw', height: 'calc(100dvh - 36px)', maxWidth: '100vw', maxHeight: 'calc(100dvh - 36px)' })`
 
                         %x(
                     window._dashboardVisualizer = comp;
@@ -1959,6 +1961,7 @@ badge_el,
 setTimeout(window.positionDashboardButtons, 300);
 
 window.addEventListener('resize', window.positionDashboardButtons);
+window.addEventListener('scroll', window.positionDashboardButtons, { passive: true });
 
 if (window._dashboardAiKeyHandler) {
                       window.removeEventListener('keydown', window._dashboardAiKeyHandler);
@@ -3007,6 +3010,7 @@ window.recalcAllPanels = function() {
                      window.toggleDashboardPhases = null;
                      if (window.positionDashboardButtons) {
                        window.removeEventListener('resize', window.positionDashboardButtons);
+ window.removeEventListener('scroll', window.positionDashboardButtons);
                      }
                      window.positionDashboardButtons = null;
                      if (window._dashboardAiKeyHandler) {
@@ -3028,6 +3032,8 @@ window.recalcAllPanels = function() {
                      if (chatBubble) chatBubble.remove();
                    )
                          `document.body.style.overflow = ''`
+                         `document.body.style.overflowX = ''`
+                         `document.body.style.overflowY = ''`
                          `document.body.style.margin = ''`
                          `document.body.style.padding = ''`
 
