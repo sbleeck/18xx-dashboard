@@ -87,12 +87,28 @@ module View
           actions = generate_legal_actions(step, entity)
           return false if actions.empty?
 
-          # Draft / generic Choose step:
-          # every legal choice has EXACTLY the same probability.
+          # Draft / auction policy:
+          # Buying receives 50% of the total probability when at least one legal
+          # BuyCompany action exists. All buy actions share that half equally.
+          # Legal Bid and Pass actions share the other half equally. Without a
+          # buy action, all legal Bid and Pass actions are equally likely.
+          draft_action = AiExpertRules.select_draft_action(actions)
+          if draft_action
+            return false unless action_belongs_to_entity?(draft_action, entity)
+            return false unless @game.round.equal?(round_before)
+            return false unless @game.round.active_step.equal?(step)
+            return false unless current_acting_entity(step).equal?(entity)
+
+            @process_block.call(draft_action)
+            `console.log("[AI Expert] Draft/auction action selected:", #{draft_action.class.name})`
+            return true
+          end
+
+          # Generic Choose step: every legal choice has exactly the same probability.
           choose_actions = actions.select { |action| action.is_a?(Engine::Action::Choose) }
 
           if choose_actions.any?
-            action = choose_actions.sample
+            action = AiExpertRules.select_uniform_choice(actions)
 
             return false unless action_belongs_to_entity?(action, entity)
             return false unless @game.round.equal?(round_before)
@@ -109,12 +125,19 @@ module View
             score, rules = AiExpertRules.score_action(action, features, @game)
             { action: action, score: score, rules: rules, features: features }
           end
-          scored = apply_probability_policy(scored)
+          scored = AiExpertRules.apply_probability_policy(scored)
 
           # Every draft/choice option has exactly the same probability.
           choice_items = scored.select { |item| item[:features][:action_type] == 'choose' }
+          tile_items = scored.select { |item| item[:features][:action_type] == 'lay_tile' }
           winning = if choice_items.any?
-                      choice_items.sample
+                      chosen_action = AiExpertRules.select_uniform_choice(choice_items.map { |item| item[:action] })
+                      choice_items.find { |item| item[:action].equal?(chosen_action) }
+                    elsif tile_items.any?
+                      # Building is an optimisation problem, not a weighted lottery.
+                      # Choose uniformly only among candidates tied for the highest score.
+                      best_score = tile_items.map { |item| item[:score] }.max
+                      tile_items.select { |item| item[:score] == best_score }.sample
                     else
                       scored.sort_by! { |item| -item[:score] }
                       AiExpertRules.select_candidate(scored)
@@ -231,16 +254,6 @@ module View
         rescue StandardError
           0
         end
-
-def apply_probability_policy(items)
-  # IMPORTANT:
-  # Every legal action produced by generate_legal_actions remains a candidate.
-  #
-  # Rules may influence relative probability through their scores,
-  # but this method must never silently remove legal actions.
-  items
-end
-
 
         def extract_features(action, step, entity, all_actions)
           f = {}
@@ -425,8 +438,8 @@ end
           legal = []
 
           if actions.include?('bid')
-bids = collect_auction_bids(step, entity)
-legal.concat(bids)
+            bids = collect_auction_bids(step, entity)
+            legal.concat(bids)
           end
 
           legal.concat(collect_company_purchases(step, entity)) if (actions & %w[buy_company buy_companies]).any?
@@ -434,22 +447,18 @@ legal.concat(bids)
           legal
         end
 
-def collect_auction_bids(step, entity)
-  return nil unless defined?(Engine::Action::Bid)
+        def collect_auction_bids(step, entity)
+          return [] unless defined?(Engine::Action::Bid)
 
           cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
-          return nil unless cash.positive?
+          return [] unless cash.positive?
 
           companies = auction_bid_companies(step)
-          return nil if companies.empty?
+          return [] if companies.empty?
 
-          candidates = companies.filter_map do |company|
+          companies.filter_map do |company|
             current = current_company_bid(step, company)
-            price = if current.positive?
-                      current + bid_increment(step, company)
-                    else
-                      opening_bid(step, company)
-                    end
+            price = current.positive? ? current + bid_increment(step, company) : opening_bid(step, company)
             maximum = maximum_bid(step, entity, company, cash)
 
             next unless price.positive?
@@ -477,36 +486,10 @@ def collect_auction_bids(step, entity)
               next unless can_bid
             end
 
-            {
-              company: company,
-              current: current,
-              price: price,
-            }
+            Engine::Action::Bid.new(entity, company: company, price: price)
           rescue StandardError
             nil
           end
-
-          return nil if candidates.empty?
-
-          # Make ONE decision per press, not one probability roll per company.
-          # Any existing bid means this is a raise: 15% chance.
-          # Otherwise this is an opening/draft bid: 50% chance.
-        
-candidates.map do |candidate|
-  Engine::Action::Bid.new(
-    entity,
-    company: candidate[:company],
-    price: candidate[:price]
-  )
-end
-
-          return nil unless selected
-
-          Engine::Action::Bid.new(
-            entity,
-            company: selected[:company],
-            price: selected[:price]
-          )
         end
 
         def auction_bid_companies(step)
@@ -634,7 +617,6 @@ end
 
         def collect_company_purchases(step, entity)
           return [] unless defined?(Engine::Action::BuyCompany)
-          return [] unless rand < 0.50
 
           companies = begin
             step.respond_to?(:buyable_companies) ? Array(step.buyable_companies(entity)) : Array(step.companies)
@@ -658,7 +640,7 @@ end
           rescue StandardError
             nil
           end
-          candidates.empty? ? [] : [candidates.sample]
+          candidates
         end
 
         def collect_dividends(step, entity, actions)
@@ -850,33 +832,55 @@ end
 
               kwargs = { corporation: corp, share_price: p_obj }
               kwargs[:slot] = slot if slot
-              legal << Engine::Action::Par.new(entity, **kwargs)
+              president_shares = if corp.respond_to?(:presidents_share) && corp.presidents_share
+                                   [corp.presidents_share]
+                                 else
+                                   []
+                                 end
+              begin
+                # Some game-specific Par actions require the president shares explicitly.
+                legal << Engine::Action::Par.new(entity, **kwargs.merge(shares: president_shares))
+              rescue ArgumentError => e
+                # Standard 18xx Par actions derive the shares from the corporation.
+                raise unless e.message.to_s.include?('unknown keyword') || e.message.to_s.include?('shares')
+                legal << Engine::Action::Par.new(entity, **kwargs)
+              end
             end
           end
 
           legal
         end
 
-        # Number of trains the current connected network can plausibly run.
+        # Number of distinct trains the current network can actually route next OR.
+        # AutoRouter is authoritative here: counting connected stops overstates capacity
+        # because several stops may belong to the same overlapping route.
         def drivable_train_capacity(entity)
           limit = @game.respond_to?(:train_limit) ? @game.train_limit(entity).to_i : 1
           limit = 1 unless limit.positive?
-          connected = begin; @game.graph.connected_nodes(entity); rescue StandardError; nil; end
-          connected ||= begin; @game.graph.connected_hexes(entity).keys; rescue StandardError; []; end
-          stops = Array(connected).flat_map do |item|
-            if item.respond_to?(:tile) && item.tile.respond_to?(:stops)
-              item.tile.stops
-            elsif item.respond_to?(:route_revenue) || item.respond_to?(:revenue)
-              [item]
-            else
-              []
-            end
-          end.compact.uniq
-          revenue_stops = stops.count do |stop|
-            value = stop.respond_to?(:revenue) ? stop.revenue : 1
-            value.is_a?(Hash) ? value.values.any? { |v| v.to_i.positive? } : value.to_i.positive?
+
+          if defined?(Engine::AutoRouter) && entity.respond_to?(:trains) && entity.trains&.any?
+            routed_count = 0
+            router = Engine::AutoRouter.new(@game, ->(_msg) {})
+            router.compute(
+              entity,
+              routes: [],
+              path_timeout: 1000,
+              route_timeout: 1500,
+              callback: lambda do |computed_routes|
+                routed_count = Array(computed_routes).count do |route|
+                  route.respond_to?(:chains) && route.chains&.any?
+                end
+              end
+            )
+            return [[routed_count, 1].max, limit].min if routed_count.positive?
           end
-          [[revenue_stops - 1, 1].max, limit].min
+
+          # Before the corporation owns a train AutoRouter cannot construct routes.
+          # Fall back conservatively: one train for a connected network, never infer
+          # multiple trains merely from the number of visible revenue stops.
+          connected = begin; @game.graph.connected_nodes(entity); rescue StandardError; []; end
+          connected = begin; @game.graph.connected_hexes(entity).keys; rescue StandardError; []; end if Array(connected).empty?
+          Array(connected).empty? ? 1 : [1, limit].min
         rescue StandardError
           1
         end
@@ -890,9 +894,19 @@ end
 
           current_count = entity.respond_to?(:trains) ? entity.trains.size : 0
           useful_count = drivable_train_capacity(entity)
-          # Stop at useful capacity; at capacity there is a 20% chance to buy one extra.
-          return [] if current_count > useful_count
-          return [] if current_count == useful_count && rand >= 0.20
+
+          # Buy enough trains to reach the number the network can drive next OR.
+          # Decide the optional +1 exactly once for this corporation while it is in
+          # the train-buying step, so repeated AI presses cannot reroll the 20% chance.
+          target_key = [@game.round.object_id, step.object_id, entity.object_id].join(':')
+          target_count = @random_target_train_count[target_key]
+          unless target_count
+            limit = @game.respond_to?(:train_limit) ? @game.train_limit(entity).to_i : useful_count + 1
+            target_count = AiExpertRules.train_target_count(useful_count, limit)
+            @random_target_train_count[target_key] = target_count
+          end
+
+          return [] if current_count >= target_count
 
           trains = step.respond_to?(:buyable_trains) ? (begin; step.buyable_trains(entity); rescue StandardError; []; end) : []
           b_power = if step.respond_to?(:buying_power)
@@ -1051,92 +1065,16 @@ end
           0
         end
 
-        # Evaluates Horizon 0 (this hex), Horizon 1 (adjacent hexes), and Horizon 2 (2 hexes away)
-        # while the candidate tile is temporarily mounted on hex at rotation r.
+        # Mechanical adapter: expert policy owns the two-build evaluation.
         def evaluate_horizons_while_mounted(entity, hex, old_tile, new_tile, cost)
-          old_rev = printed_hex_revenue(old_tile)
-          new_rev = printed_hex_revenue(new_tile)
-          tile_rev_gain = [new_rev - old_rev, 0].max
-
-          has_own_token = if old_tile.respond_to?(:cities) && old_tile.cities&.any?
-                            old_tile.cities.any? do |c|
-                              if c.respond_to?(:tokened_by?)
-                                c.tokened_by?(entity)
-                              else
-                                c.tokens.compact.any? do |t|
-                                  t.corporation == entity
-                                end
-                              end
-                            end
-                          else
-                            false
-                          end
-
-          old_exits = old_tile.respond_to?(:exits) ? Array(old_tile.exits).uniq : []
-          new_exits = new_tile.respond_to?(:exits) ? Array(new_tile.exits).uniq : []
-          added_exits = new_exits - old_exits
-          added_exits = new_exits if added_exits.empty?
-
-          neighbors = hex.respond_to?(:neighbors) && hex.neighbors ? hex.neighbors : {}
-          all_neighbors = hex.respond_to?(:all_neighbors) && hex.all_neighbors ? hex.all_neighbors : neighbors
-
-          horizon_1_value = 0
-          horizon_2_value = 0
-          dead_end_count = 0
-
-          added_exits.each do |edge|
-            n1 = neighbors[edge] || all_neighbors[edge]
-            unless n1
-              dead_end_count += 1
-              next
-            end
-
-            inv_edge = hex.respond_to?(:invert) ? hex.invert(edge) : ((edge + 3) % 6)
-            n1_tile = n1.tile
-            n1_rev = printed_hex_revenue(n1_tile)
-            n1_exits = n1_tile.respond_to?(:exits) ? Array(n1_tile.exits) : []
-            n1_has_stops = n1_tile && ((n1_tile.respond_to?(:cities) && n1_tile.cities.any?) ||
-                                       (n1_tile.respond_to?(:towns) && n1_tile.towns.any?) ||
-                                       (n1_tile.respond_to?(:offboards) && n1_tile.offboards.any?))
-
-            # Horizon 1: Neighbor n1 has a city, town, offboard, or connecting track
-            if n1_has_stops
-              # Direct link if n1 is an offboard stub, an un-tiled yellow target, or already points back at inv_edge
-              if n1_exits.empty? || n1_exits.include?(inv_edge) || n1_tile.color == :white || n1_tile.color == :yellow
-                horizon_1_value += [n1_rev, 20].max
-              end
-            elsif n1_exits.include?(inv_edge)
-              # Connects to existing plain track on n1; trace 1 step further along n1's other exits
-              (n1_exits - [inv_edge]).each do |e2|
-                n2 = (n1.respond_to?(:neighbors) && n1.neighbors[e2]) || (n1.respond_to?(:all_neighbors) && n1.all_neighbors[e2])
-                next unless n2&.tile
-
-                r2 = printed_hex_revenue(n2.tile)
-                horizon_1_value += r2 if r2.positive?
-              end
-            end
-
-            # Horizon 2 (2-Tile Bridge): n1 is an open/upgradeable hex, inspect its neighbors n2
-            next unless n1_tile && %i[white yellow].include?(n1_tile.color)
-
-            n1_cost = n1.respond_to?(:cost) ? (n1.cost || 0).to_i : 0
-            n1_neighbors = (n1.respond_to?(:neighbors) && n1.neighbors) || {}
-            n1_all_neighbors = (n1.respond_to?(:all_neighbors) && n1.all_neighbors) || n1_neighbors
-
-            (0..5).each do |edge2|
-              next if edge2 == inv_edge
-
-              n2 = n1_neighbors[edge2] || n1_all_neighbors[edge2]
-              next unless n2 && n2 != hex && n2.tile
-
-              n2_rev = printed_hex_revenue(n2.tile)
-              next unless n2_rev.positive?
-
-              # Discount by terrain cost on n1 so AI prefers flat bridges over mountains
-              net_h2 = [n2_rev - (n1_cost / 3), 5].max
-              horizon_2_value = [horizon_2_value, net_h2].max
-            end
-          end
+          features = AiExpertRules.two_build_tile_features(
+            entity: entity,
+            hex: hex,
+            old_tile: old_tile,
+            new_tile: new_tile,
+            cost: cost,
+            revenue_for: ->(tile) { printed_hex_revenue(tile) },
+          )
 
           min_train_price = if @game.respond_to?(:depot) && @game.depot.respond_to?(:min_depot_train)
                               @game.depot.min_depot_train&.price || 0
@@ -1145,19 +1083,10 @@ end
                             end
           corp_trains = entity.respond_to?(:trains) ? entity.trains.size : 0
           corp_cash = entity.respond_to?(:cash) ? entity.cash : 0
-          breaks_train_budget = corp_trains.zero? && cost.positive? && min_train_price.positive? &&
-                                (corp_cash >= min_train_price) && ((corp_cash - cost) < min_train_price)
-
-          {
-            tile_rev_gain: tile_rev_gain,
-            has_own_token: has_own_token,
-            horizon_1_value: horizon_1_value,
-            horizon_2_value: horizon_2_value,
-            is_dead_end_edge: (added_exits.any? && dead_end_count == added_exits.size),
-            tile_cost: cost,
-            breaks_train_budget: breaks_train_budget,
-            route_revenue_gain: 0,
-          }
+          features[:breaks_train_budget] = corp_trains.zero? && cost.positive? && min_train_price.positive? &&
+                                             corp_cash >= min_train_price && (corp_cash - cost) < min_train_price
+          features[:route_revenue_gain] = 0
+          features
         end
 
         # Mounts tile at absolute rotation r in-place, verifies all engine restrictions,

@@ -69,6 +69,151 @@ module View
           valid.last
         end
 
+        # Policy: preserve every generated legal action as a candidate.
+        def self.apply_probability_policy(items)
+          items
+        end
+
+        # Policy: generic choices are intentionally uniform.
+        def self.select_uniform_choice(actions)
+          choices = actions.select { |action| action.is_a?(Engine::Action::Choose) }
+          choices.sample
+        end
+
+        # Policy: draft/auction probabilities.
+        # If a buy is available, the buy group receives 50% and bid/pass receives 50%.
+        # Actions inside either group are uniformly selected.
+        def self.select_draft_action(actions)
+          buy_class = defined?(Engine::Action::BuyCompany) ? Engine::Action::BuyCompany : nil
+          bid_class = defined?(Engine::Action::Bid) ? Engine::Action::Bid : nil
+
+          buys = buy_class ? actions.select { |action| action.is_a?(buy_class) } : []
+          alternatives = actions.select do |action|
+            action.is_a?(Engine::Action::Pass) || (bid_class && action.is_a?(bid_class))
+          end
+          has_bid = alternatives.any? { |action| bid_class && action.is_a?(bid_class) }
+          return nil if buys.empty? && !has_bid
+          return buys.sample if alternatives.empty?
+          return alternatives.sample if buys.empty?
+
+          rand < 0.50 ? buys.sample : alternatives.sample
+        end
+
+        # Policy: buy as many trains as the network can drive next OR, with a single
+        # 20% roll for one additional train. The caller stores this target for the step.
+        def self.train_target_count(useful_count, train_limit)
+          extra_train = rand < 0.20 ? 1 : 0
+          [useful_count.to_i + extra_train, train_limit.to_i].min
+        end
+
+        # Policy: evaluate a tile lay as the first of two consecutive builds.
+        # The callback supplies printed revenue so this policy remains game-agnostic.
+        def self.two_build_tile_features(entity:, hex:, old_tile:, new_tile:, cost:, revenue_for:)
+          old_rev = revenue_for.call(old_tile)
+          new_rev = revenue_for.call(new_tile)
+          tile_rev_gain = [new_rev - old_rev, 0].max
+          has_own_token = old_tile.respond_to?(:cities) && Array(old_tile.cities).any? do |city|
+            if city.respond_to?(:tokened_by?)
+              city.tokened_by?(entity)
+            else
+              Array(city.tokens).compact.any? { |token| token.corporation == entity }
+            end
+          end
+
+          old_exits = old_tile.respond_to?(:exits) ? Array(old_tile.exits).uniq : []
+          new_exits = new_tile.respond_to?(:exits) ? Array(new_tile.exits).uniq : []
+          added_exits = new_exits - old_exits
+          # For an initial yellow lay old_tile normally has no exits. Use the actual
+          # exits of the candidate tile. Never treat every edge of an empty hex as usable.
+          considered_exits = added_exits.empty? ? new_exits : added_exits
+
+          neighbors = hex.respond_to?(:neighbors) && hex.neighbors ? hex.neighbors : {}
+          all_neighbors = hex.respond_to?(:all_neighbors) && hex.all_neighbors ? hex.all_neighbors : neighbors
+          horizon_1_value = 0
+          horizon_2_value = 0
+          dead_end_count = 0
+
+          considered_exits.each do |edge|
+            n1 = neighbors[edge] || all_neighbors[edge]
+            unless n1 && n1.respond_to?(:tile) && n1.tile
+              dead_end_count += 1
+              next
+            end
+
+            inv_edge = hex.respond_to?(:invert) ? hex.invert(edge) : ((edge + 3) % 6)
+            n1_tile = n1.tile
+            n1_rev = revenue_for.call(n1_tile)
+            n1_exits = n1_tile.respond_to?(:exits) ? Array(n1_tile.exits).uniq : []
+            n1_color = n1_tile.respond_to?(:color) ? n1_tile.color : nil
+            n1_is_buildable = n1_color == :white
+            n1_connects_back = n1_exits.include?(inv_edge)
+
+            # One-build lookahead. A printed revenue centre immediately next to the
+            # new exit is attractive only when it is actually connectable from this edge.
+            if n1_rev.positive?
+              if n1_connects_back
+                horizon_1_value = [horizon_1_value, n1_rev].max
+              elsif n1_is_buildable
+                # This is a future build, not an immediate connection. Give a modest
+                # first-horizon signal; horizon 2 below determines whether it leads on.
+                horizon_1_value = [horizon_1_value, [n1_rev, 20].max].max
+              end
+            elsif n1_connects_back
+              horizon_1_value = [horizon_1_value, 10].max
+            end
+
+            # A genuine second build can only happen by laying track on a WHITE hex.
+            # The old version incorrectly treated existing yellow track as freely
+            # redirectable and merely inspected arbitrary n2 neighbours.
+            next unless n1_is_buildable
+
+            n1_neighbors = n1.respond_to?(:neighbors) && n1.neighbors ? n1.neighbors : {}
+            n1_all = n1.respond_to?(:all_neighbors) && n1.all_neighbors ? n1.all_neighbors : n1_neighbors
+            n1_cost = n1.respond_to?(:cost) ? (n1.cost || 0).to_i : 0
+            best_second_build = 0
+
+            (0..5).each do |edge2|
+              next if edge2 == inv_edge
+
+              n2 = n1_neighbors[edge2] || n1_all[edge2]
+              next unless n2 && n2 != hex && n2.respond_to?(:tile) && n2.tile
+
+              n2_tile = n2.tile
+              n2_rev = revenue_for.call(n2_tile)
+              n2_exits = n2_tile.respond_to?(:exits) ? Array(n2_tile.exits).uniq : []
+              n2_color = n2_tile.respond_to?(:color) ? n2_tile.color : nil
+              back_to_n1 = n1.respond_to?(:invert) ? n1.invert(edge2) : ((edge2 + 3) % 6)
+
+              # For a coloured destination, the second build must enter an existing
+              # matching edge. A white destination is a possible later extension but
+              # has no current revenue target, so it gets no two-build reward.
+              if n2_color != :white
+                next unless n2_exits.include?(back_to_n1)
+              else
+                next
+              end
+
+              value = if n2_rev.positive?
+                        n2_rev
+                      else
+                        (n2_exits.any? ? 10 : 0)
+                      end
+              value -= n1_cost / 3
+              best_second_build = [best_second_build, value].max
+            end
+            horizon_2_value = [horizon_2_value, best_second_build].max
+          end
+
+          {
+            tile_rev_gain: tile_rev_gain,
+            has_own_token: has_own_token,
+            horizon_1_value: horizon_1_value,
+            horizon_2_value: horizon_2_value,
+            is_dead_end_edge: considered_exits.any? && dead_end_count == considered_exits.size,
+            tile_cost: cost,
+          }
+        end
+
         def self.matches_condition?(condition, features)
           return true if condition.nil? || condition.empty?
 
@@ -272,14 +417,14 @@ module View
             description: '1-Tile Horizon: New exit connects directly to an adjacent city, town, or offboard',
             when: { action_type: 'lay_tile', horizon_1_value_gt: 0 },
             score_add: 140,
-            score_per_unit: { field: 'horizon_1_value', multiplier: 4.5 },
+            score_per_unit: { field: 'horizon_1_value', multiplier: 12.0 },
           },
           {
             id: 'OR_TL06_horizon2_two_tile_bridge',
             description: '2-Tile Horizon: New exit points across an open neighbor toward a city/offboard 2 hexes away',
             when: { action_type: 'lay_tile', horizon_2_value_gt: 0 },
             score_add: 70,
-            score_per_unit: { field: 'horizon_2_value', multiplier: 2.5 },
+            score_per_unit: { field: 'horizon_2_value', multiplier: 8.0 },
           },
           {
             id: 'OR_TL07_penalize_map_border_dead_end',

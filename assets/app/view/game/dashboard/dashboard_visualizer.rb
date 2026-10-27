@@ -859,6 +859,21 @@ module View
       def trigger_random_ai_move
         return unless action_required_for_me?
 
+        # Undo/history can replace the game object and shorten the action list.
+        # Clear AI invocation state for the abandoned future before continuing.
+        game_id = (@game.respond_to?(:id) ? @game.id : 'default').to_s
+        action_count = if @game.respond_to?(:raw_actions)
+                         Array(@game.raw_actions).size
+                       elsif @game.respond_to?(:actions)
+                         Array(@game.actions).size
+                       else
+                         0
+                       end
+        count_key = "dashboard_ai_action_count_#{game_id}"
+        previous_count = Lib::Storage[count_key]
+        View::Game::Dashboard::DashboardAiPlayer.reset! if previous_count && action_count < previous_count.to_i
+        Lib::Storage[count_key] = action_count
+
         View::Game::Dashboard::DashboardAiPlayer.play(@game, @routes) do |act|
           process_action(act)
         end
@@ -2177,12 +2192,13 @@ setTimeout(function() {
   window._dashboardAiRDown = false;
 }, 150);
 
-if (comp && comp.$trigger_random_ai_move) {
+var liveComp = window._dashboardVisualizer || comp;
+if (liveComp && liveComp.$trigger_random_ai_move) {
   if (e.preventDefault) e.preventDefault();
   if (e.stopPropagation) e.stopPropagation();
   if (e.stopImmediatePropagation) e.stopImmediatePropagation();
 
-  comp.$trigger_random_ai_move();
+  liveComp.$trigger_random_ai_move();
 }
 
 
@@ -3225,6 +3241,8 @@ window.recalcAllPanels = function() {
                   setTimeout(window.init18xxResizers, 200);)
                       },
               postpatch: lambda { |_old, _vnode|
+                           # Refresh the live component after undo/history rebuilds.
+                           `window._dashboardVisualizer = #{self};`
                            %x{
   if (window.positionDashboardButtons) {
     window.positionDashboardButtons();
