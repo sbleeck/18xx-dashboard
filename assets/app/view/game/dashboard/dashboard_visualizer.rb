@@ -146,62 +146,94 @@ module View
           nil
         end
 
-        candidates = []
-        candidates << active_entity if active_entity
-        candidates.concat(Array(step.active_entities)) if step.respond_to?(:active_entities)
-        candidates << @game.round.current_entity if @game.round.respond_to?(:current_entity)
-        candidates << @game.current_entity if @game.respond_to?(:current_entity)
-        candidates = candidates.compact.uniq
+        return false unless step
 
-        return false if candidates.empty?
+        # Use exactly ONE acting entity.
+        #
+        # Do not aggregate step.active_entities here. Some OR steps expose
+        # multiple entities even though the dashboard AI must perform only
+        # the action belonging to the entity whose turn is current.
+        entity = begin
+          step.current_entity if step.respond_to?(:current_entity)
+        rescue StandardError
+          nil
+        end
 
-        actionable = candidates.any? do |ent|
-          acts = begin
-            @game.round.actions_for(ent) || []
+        entity ||= begin
+          @game.round.current_entity if @game.round.respond_to?(:current_entity)
+        rescue StandardError
+          nil
+        end
+
+        entity ||= begin
+          @game.current_entity if @game.respond_to?(:current_entity)
+        rescue StandardError
+          nil
+        end
+
+        entity ||= active_entity
+
+        return false unless entity
+
+        # Check only the current entity for a real game action.
+        actions = begin
+          step.respond_to?(:actions) ? (step.actions(entity) || []) : []
+        rescue NotImplementedError, StandardError
+          []
+        end
+
+        if actions.empty?
+          actions = begin
+            @game.round.actions_for(entity) || []
           rescue NotImplementedError, StandardError
             []
           end
-          acts.any? { |a| a.to_s != 'undo' && a.to_s != 'redo' }
         end
 
-        if !actionable && @game.respond_to?(:players)
-          uid_check = current_user_id
-          my_player = @game.players.find { |p| p.id.to_s == uid_check.to_s } unless uid_check.empty?
-          if my_player
-            p_acts = begin
-              @game.round.actions_for(my_player) || []
-            rescue StandardError
-              []
-            end
-            actionable = p_acts.any? { |a| a.to_s != 'undo' && a.to_s != 'redo' }
+        actionable =
+          actions.any? do |action|
+            action_name = action.to_s
+            action_name != 'undo' && action_name != 'redo'
           end
-        end
 
         return false unless actionable
+
+        # In hotseat mode the locally displayed current entity is actionable.
         return true if is_hotseat
 
         uid = current_user_id
         return false if uid.empty?
 
+        # Player entity
+        if entity.respond_to?(:player?) &&
+           entity.player? &&
+           entity.respond_to?(:id)
+
+          return entity.id.to_s == uid.to_s
+        end
+
+        # Corporation/entity exposing its controlling player directly
+        if entity.respond_to?(:player)
+          player = entity.player
+          return player.id.to_s == uid.to_s if player && player.respond_to?(:id)
+        end
+
+        # Corporation/entity owned by a player
+        if entity.respond_to?(:owner)
+          owner = entity.owner
+          return owner.id.to_s == uid.to_s if owner && owner.respond_to?(:id)
+        end
+
+        # Final fallback for games which expose player activity separately.
         if @game.respond_to?(:active_players_id)
-          active_ids = Array(@game.active_players_id).map(&:to_s)
-          return true if active_ids.include?(uid)
+          active_ids = Array(@game.active_players_id).compact.map(&:to_s)
+          return active_ids.include?(uid.to_s)
         end
 
-        p = active_player
-        return true if p.respond_to?(:id) && p.id.to_s == uid
-
-        candidates.any? do |ent|
-          owner_id = if ent.respond_to?(:player?) && ent.player? && ent.respond_to?(:id)
-                       ent.id.to_s
-                     elsif ent.respond_to?(:player) && ent.player.respond_to?(:id)
-                       ent.player.id.to_s
-                     elsif ent.respond_to?(:owner) && ent.owner.respond_to?(:id)
-                       ent.owner.id.to_s
-                     end
-          owner_id == uid
-        end
-      rescue StandardError
+        player = active_player
+        player.respond_to?(:id) && player.id.to_s == uid.to_s
+      rescue StandardError => e
+        `console.warn("[Dashboard] action_required_for_me? failed:", #{e.message})`
         false
       end
 
@@ -2115,19 +2147,46 @@ if (window._dashboardAiKeyHandler) {
                         return;
                       }
 
-                      if (e.key !== 'r' && e.key !== 'R') return;
-                      if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-                      var tag = (e.target && e.target.tagName ? e.target.tagName : '').toUpperCase();
-                      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) {
-                        return;
-                      }
+if (e.key !== 'r' && e.key !== 'R') return;
+if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-                      if (comp && comp.$trigger_random_ai_move) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        comp.$trigger_random_ai_move();
-                      }
+/*
+ * One physical R press must execute exactly one AI action.
+ *
+ * e.repeat catches the browser's normal key-repeat behaviour.
+ * _dashboardAiRDown provides a second short guard against the
+ * same physical key press being dispatched twice.
+ */
+if (e.repeat) return;
+if (window._dashboardAiRDown) return;
+
+var tag = (e.target && e.target.tagName ? e.target.tagName : '').toUpperCase();
+if (
+  tag === 'INPUT' ||
+  tag === 'TEXTAREA' ||
+  tag === 'SELECT' ||
+  (e.target && e.target.isContentEditable)
+) {
+  return;
+}
+
+window._dashboardAiRDown = true;
+
+setTimeout(function() {
+  window._dashboardAiRDown = false;
+}, 150);
+
+if (comp && comp.$trigger_random_ai_move) {
+  if (e.preventDefault) e.preventDefault();
+  if (e.stopPropagation) e.stopPropagation();
+  if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+
+  comp.$trigger_random_ai_move();
+}
+
+
+
                     };
                     window.addEventListener('keydown', window._dashboardAiKeyHandler, true);
 
