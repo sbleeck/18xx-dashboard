@@ -1494,6 +1494,138 @@ badge_el,
           ])
       end
 
+      def dismiss_all_overlays
+        any_closed = false
+
+        # 1. Game History HUD & Live Action Reset
+        history_active = @show_history_overlay == true ||
+                         Lib::Storage['cmd_history_overlay'] ||
+                         (defined?(Lib::Params) && Lib::Params['action']) ||
+                         `window.location.search.indexOf('action=') !== -1`
+
+        if history_active
+          @show_history_overlay = false
+          Lib::Storage['cmd_history_overlay'] = nil
+          store(:show_history_overlay, false)
+
+          Lib::Params['action'] = nil if defined?(Lib::Params)
+
+          %x{
+            try {
+              var u = new URL(window.location.href);
+              if (u.searchParams.has('action')) {
+                u.searchParams.delete('action');
+                var cleanPath = u.pathname + (u.searchParams.toString() ? '?' + u.searchParams.toString() : '') + u.hash;
+                if (window.history && window.history.replaceState) {
+                  window.history.replaceState(null, '', cleanPath);
+                }
+              }
+            } catch(e) {}
+          }
+
+          begin
+            curr_route = `window.location.pathname + window.location.search + window.location.hash`
+            new_route = defined?(Lib::Params) ? Lib::Params.add(curr_route, 'action', nil) : curr_route
+            store(:app_route, new_route)
+          rescue StandardError
+          end
+
+          any_closed = true
+        end
+
+        # 2. Move Feed / Last Moves Overlay
+        if @show_move_history == true || Lib::Storage['cmd_dashboard_move_feed_overlay']
+          @show_move_history = false
+          Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
+          store(:show_move_history, false)
+          any_closed = true
+        end
+
+        # 3. Dashboard Help Overlay
+        if @show_help_overlay == true || [true, 'true'].include?(Lib::Storage['dashboard_show_help'])
+          @show_help_overlay = false
+          Lib::Storage['dashboard_show_help'] = nil
+          %x{
+            try {
+              localStorage.removeItem('dashboard_show_help');
+            } catch(e) {}
+          }
+          store(:show_help_overlay, false)
+          any_closed = true
+        end
+
+        # 4. Other Active Games List
+        if @show_other_games_overlay == true || Lib::Storage['show_other_games_overlay']
+          @show_other_games_overlay = false
+          Lib::Storage['show_other_games_overlay'] = nil
+          %x{
+            try {
+              localStorage.removeItem('show_other_games_overlay');
+            } catch(e) {}
+          }
+          store(:show_other_games_overlay, false)
+          any_closed = true
+        end
+
+        # 5. Table Chat Overlay & Popup Bubbles
+        if @show_chat_overlay == true || [true, 'true'].include?(Lib::Storage['dashboard_chat_overlay'])
+          @show_chat_overlay = false
+          mark_chat_messages_read!
+          Lib::Storage['dashboard_chat_overlay'] = nil
+          store(:show_chat_overlay, false)
+          %x{
+            var bubble = document.getElementById('dashboard-chat-popup-bubble');
+            if (bubble) bubble.remove();
+          }
+          any_closed = true
+        end
+
+        # 6. Phases & Train Durability Table
+        if [true, 'true'].include?(Lib::Storage['dashboard_show_phases'])
+          Lib::Storage['dashboard_show_phases'] = 'false'
+          %x{
+            try {
+              localStorage.setItem('dashboard_show_phases', 'false');
+            } catch (e) {}
+          }
+          any_closed = true
+        end
+
+        # 7. Remaining Tiles Manifest
+        if Lib::Storage['dashboard_tile_manifest']
+          Lib::Storage['dashboard_tile_manifest'] = false
+          any_closed = true
+        end
+
+        # 8. Par Selection Matrix
+        if @par_menu_corp || Lib::Storage['par_menu_corp']
+          @par_menu_corp = nil
+          Lib::Storage['par_menu_corp'] = nil
+          store(:par_menu_corp, nil)
+          any_closed = true
+        end
+
+        # 9. Manual Route Selection HUD
+        if Lib::Storage['cmd_manual_routes'] || [true, 'true'].include?(Lib::Storage['show_manual_routes'])
+          Lib::Storage['cmd_manual_routes'] = false
+          store(:show_manual_routes, false)
+          store(:selected_route, nil)
+          any_closed = true
+        end
+
+        # 10. Voluntary Action Hub Drawer
+        storage_key = actions_window_storage_key
+        if (@show_actions_window == true || [true, 'true'].include?(Lib::Storage[storage_key])) && !action_required_for_me?
+          @show_actions_window = false
+          Lib::Storage[storage_key] = false
+          store(:show_actions_window, false)
+          any_closed = true
+        end
+
+        update if any_closed
+        any_closed
+      end
+
       def render_phases_overlay
         val = Lib::Storage['dashboard_show_phases']
         is_open = [true, 'true'].include?(val)
@@ -1963,12 +2095,28 @@ setTimeout(window.positionDashboardButtons, 300);
 window.addEventListener('resize', window.positionDashboardButtons);
 window.addEventListener('scroll', window.positionDashboardButtons, { passive: true });
 
+
 if (window._dashboardAiKeyHandler) {
-                      window.removeEventListener('keydown', window._dashboardAiKeyHandler);
+                      window.removeEventListener('keydown', window._dashboardAiKeyHandler, true);
+                      window.removeEventListener('keydown', window._dashboardAiKeyHandler, false);
                     }
                     window._dashboardAiKeyHandler = function(e) {
-if (e.key !== 'r' && e.key !== 'R') return;
-                        if (e.ctrlKey || e.metaKey || e.altKey) return;
+                      if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) {
+                        if (e.target && e.target.blur) {
+                          e.target.blur();
+                        }
+                        if (comp && comp.$dismiss_all_overlays) {
+                          var dismissed = comp.$dismiss_all_overlays();
+                          if (dismissed) {
+                            if (e.preventDefault) e.preventDefault();
+                            if (e.stopPropagation) e.stopPropagation();
+                          }
+                        }
+                        return;
+                      }
+
+                      if (e.key !== 'r' && e.key !== 'R') return;
+                      if (e.ctrlKey || e.metaKey || e.altKey) return;
 
                       var tag = (e.target && e.target.tagName ? e.target.tagName : '').toUpperCase();
                       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) {
@@ -1981,7 +2129,7 @@ if (e.key !== 'r' && e.key !== 'R') return;
                         comp.$trigger_random_ai_move();
                       }
                     };
-                    window.addEventListener('keydown', window._dashboardAiKeyHandler);
+                    window.addEventListener('keydown', window._dashboardAiKeyHandler, true);
 
                     window.toggleDashboardPhases = function() {
                       var cur = localStorage.getItem('dashboard_show_phases') === 'true';
@@ -3062,8 +3210,9 @@ window.recalcAllPanels = function() {
  window.removeEventListener('scroll', window.positionDashboardButtons);
                      }
                      window.positionDashboardButtons = null;
-                     if (window._dashboardAiKeyHandler) {
-                       window.removeEventListener('keydown', window._dashboardAiKeyHandler);
+                    if (window._dashboardAiKeyHandler) {
+                       window.removeEventListener('keydown', window._dashboardAiKeyHandler, true);
+                       window.removeEventListener('keydown', window._dashboardAiKeyHandler, false);
                        window._dashboardAiKeyHandler = null;
                      }
                    )

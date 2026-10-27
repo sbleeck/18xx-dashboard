@@ -76,6 +76,7 @@ module View
             content: [
               'Alt + Mouse Wheel: Smooth zoom in/out on Map, Ledger, or Stock Market.',
               'Alt + Drag: Smooth pan across any viewport canvas.',
+              'Ret: Execute the current Default (blue) action',
               'Esc: Dismiss active overlays, close menus, or exit this help screen.',
               'R: Trigger automated test action (sandbox and hotseat modes only).',
             ],
