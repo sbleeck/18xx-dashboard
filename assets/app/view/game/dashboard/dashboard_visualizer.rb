@@ -17,6 +17,7 @@ require 'view/game/dashboard/other_games_overlay'
 require 'view/game/dashboard/dashboard_action_window'
 require 'view/game/dashboard/chat_overlay'
 require 'view/game/dashboard/dashboard_ai_player'
+require 'view/game/dashboard/dashboard_ai_engine_search'
 require 'view/game/dashboard/dashboard_help_overlay'
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
@@ -874,7 +875,7 @@ module View
         View::Game::Dashboard::DashboardAiPlayer.reset! if previous_count && action_count < previous_count.to_i
         Lib::Storage[count_key] = action_count
 
-        View::Game::Dashboard::DashboardAiPlayer.play(@game, @routes) do |act|
+        View::Game::Dashboard::DashboardAiPlayer.engine_play(@game, @routes) do |act|
           process_action(act)
         end
       end

@@ -73,6 +73,7 @@ module View
           @routes = routes || []
           @process_block = process_block
           @tile_eval_cache = {}
+          @token_eval_cache = {}
           @random_target_train_count = {}
         end
 
@@ -85,6 +86,9 @@ module View
 
           round_before = @game.round
           actions = generate_legal_actions(step, entity)
+          if actions.any? { |action| action.is_a?(Engine::Action::LayTile) }
+            actions = actions.reject { |action| action.is_a?(Engine::Action::Pass) }
+          end
           return false if actions.empty?
 
           # Draft / auction policy:
@@ -134,17 +138,59 @@ module View
                       chosen_action = AiExpertRules.select_uniform_choice(choice_items.map { |item| item[:action] })
                       choice_items.find { |item| item[:action].equal?(chosen_action) }
                     elsif tile_items.any?
-                      # Building is an optimisation problem, not a weighted lottery.
-                      # Choose uniformly only among candidates tied for the highest score.
-                      best_score = tile_items.map { |item| item[:score] }.max
-                      tile_items.select { |item| item[:score] == best_score }.sample
+                      # Tile building is selected strictly by the highest recursive
+                      # AutoRouter income; ties are random among the joint winners.
+                      # First maximise income that is realised immediately on an
+                      # already connected, own-token city. Only then compare the
+                      # speculative two-build continuation value. This prevents a
+                      # remote track lay with an attractive heuristic horizon from
+                      # defeating a real revenue upgrade such as I15 tile 53.
+                      tile_items.each do |item|
+                        features = item[:features]
+                        features[:realized_income_gain] = if features[:has_own_token]
+                                                            features[:tile_rev_gain].to_i
+                                                          else
+                                                            0
+                                                          end
+                      end
+                      best_key = tile_items.map do |item|
+                        [item[:features][:realized_income_gain].to_i,
+                         item[:features][:projected_revenue].to_i]
+                      end.max
+                      tied = tile_items.select do |item|
+                        [item[:features][:realized_income_gain].to_i,
+                         item[:features][:projected_revenue].to_i] == best_key
+                      end
+                      selected = tied.sample
+                      chosen = selected[:action]
+                      chosen_rotation = chosen.tile.respond_to?(:rotation) ? chosen.tile.rotation : nil
+                      chosen_message = "[AI BUILD CHOSEN] hex=#{chosen.hex.id} tile=#{chosen.tile.name} " \
+                                       "rotation=#{chosen_rotation} realized_gain=#{best_key[0]} " \
+                                       "two_build_value=#{best_key[1]} tied_candidates=#{tied.size} " \
+                                       "best_second=#{selected[:features][:best_second]}"
+                      `console.log(#{chosen_message})`
+                      selected
                     else
-                      scored.sort_by! { |item| -item[:score] }
-                      AiExpertRules.select_candidate(scored)
+                      token_items = scored.select { |item| item[:features][:action_type] == 'place_token' }
+                      if token_items.any?
+                        profitable = token_items.select { |item| item[:features][:token_revenue_gain].to_i.positive? }
+                        if profitable.any?
+                          best_gain = profitable.map { |item| item[:features][:token_revenue_gain].to_i }.max
+                          profitable.select { |item| item[:features][:token_revenue_gain].to_i == best_gain }.sample
+                        else
+                          non_tokens = scored.reject { |item| item[:features][:action_type] == 'place_token' }
+                          non_tokens.sort_by! { |item| -item[:score] }
+                          AiExpertRules.select_candidate(non_tokens)
+                        end
+                      else
+                        scored.sort_by! { |item| -item[:score] }
+                        AiExpertRules.select_candidate(scored)
+                      end
                     end
           return false unless winning
 
-          action = winning[:action]
+          action = materialize_action_for_dispatch(winning[:action])
+          return false unless action
           return false unless action_belongs_to_entity?(action, entity)
           unless @game.round.equal?(round_before) && @game.round.active_step.equal?(step) && current_acting_entity(step).equal?(entity)
             return false
@@ -223,6 +269,34 @@ module View
           else
             entity.class.name.to_s
           end
+        end
+
+        # Trial search may create detached tile copies with the same tile id.
+        # Immediately before dispatch, rebuild LayTile using a currently available
+        # supply object. Never send a trial/search object to the engine.
+        def materialize_action_for_dispatch(action)
+          return action unless action.is_a?(Engine::Action::LayTile)
+
+          wanted = action.tile
+          wanted_name = wanted.respond_to?(:name) ? wanted.name : nil
+          candidates = @game.respond_to?(:tiles) ? Array(@game.tiles) : []
+          supply_tile = candidates.find do |candidate|
+            same_name = !wanted_name.nil? && candidate.respond_to?(:name) && candidate.name == wanted_name
+            off_map = !candidate.respond_to?(:hex) || candidate.hex.nil?
+            available = !@game.respond_to?(:tile_available?) || @game.tile_available?(candidate)
+            same_name && off_map && available && !candidate.equal?(action.hex.tile)
+          end
+          return nil unless supply_tile
+
+          Engine::Action::LayTile.new(
+            action.entity,
+            hex: action.hex,
+            tile: supply_tile,
+            rotation: action.rotation,
+          )
+        rescue StandardError => e
+          `console.warn("[AI Expert] Could not rematerialize tile action: " + #{e.message})`
+          nil
         end
 
         def action_belongs_to_entity?(action, expected_entity)
@@ -368,6 +442,7 @@ module View
 
           when Engine::Action::PlaceToken
             f[:action_type] = 'place_token'
+            f.merge!(@token_eval_cache[action] || {})
 
           when Engine::Action::Choose
             f[:action_type] = 'choose'
@@ -623,7 +698,7 @@ module View
           rescue StandardError
             []
           end
-          candidates = companies.filter_map do |company|
+          companies.filter_map do |company|
             next if company.respond_to?(:closed?) && company.closed?
             next if company.respond_to?(:owner) && company.owner.equal?(entity)
 
@@ -640,7 +715,6 @@ module View
           rescue StandardError
             nil
           end
-          candidates
         end
 
         def collect_dividends(step, entity, actions)
@@ -843,6 +917,7 @@ module View
               rescue ArgumentError => e
                 # Standard 18xx Par actions derive the shares from the corporation.
                 raise unless e.message.to_s.include?('unknown keyword') || e.message.to_s.include?('shares')
+
                 legal << Engine::Action::Par.new(entity, **kwargs)
               end
             end
@@ -1038,11 +1113,13 @@ module View
           nil
         end
 
-        def compute_auto_router_revenue(entity)
-          return 0 unless defined?(Engine::AutoRouter)
-          return 0 unless entity.respond_to?(:trains) && entity.trains&.any?
+        def compute_auto_router_revenue(entity, label: nil)
+          return nil unless defined?(Engine::AutoRouter)
+          return nil unless entity.respond_to?(:trains) && entity.trains&.any?
 
-          best_rev = 0
+          best_rev = nil
+          callback_finished = false
+          started_ms = `Date.now()`.to_f
           clear_entity_graph_cache(entity)
           router = Engine::AutoRouter.new(@game, ->(_msg) {})
           router.compute(
@@ -1051,74 +1128,172 @@ module View
             path_timeout: 250,
             route_timeout: 250,
             callback: lambda do |computed_routes|
-              if computed_routes
-                best_rev = computed_routes.sum do |r|
-                  r.chains.any? ? r.revenue : 0
-                rescue StandardError
-                  0
-                end
-              end
-            end
-          )
-          best_rev
-        rescue StandardError
-          0
-        end
-
-        # Mechanical adapter: expert policy owns the two-build evaluation.
-        def evaluate_horizons_while_mounted(entity, hex, old_tile, new_tile, cost)
-          features = AiExpertRules.two_build_tile_features(
-            entity: entity,
-            hex: hex,
-            old_tile: old_tile,
-            new_tile: new_tile,
-            cost: cost,
-            revenue_for: ->(tile) { printed_hex_revenue(tile) },
-          )
-
-          min_train_price = if @game.respond_to?(:depot) && @game.depot.respond_to?(:min_depot_train)
-                              @game.depot.min_depot_train&.price || 0
-                            else
-                              0
-                            end
-          corp_trains = entity.respond_to?(:trains) ? entity.trains.size : 0
-          corp_cash = entity.respond_to?(:cash) ? entity.cash : 0
-          features[:breaks_train_budget] = corp_trains.zero? && cost.positive? && min_train_price.positive? &&
-                                             corp_cash >= min_train_price && (corp_cash - cost) < min_train_price
-          features[:route_revenue_gain] = 0
-          features
-        end
-
-        # Mounts tile at absolute rotation r in-place, verifies all engine restrictions,
-        # evaluates Horizon 0/1/2 metrics, and strictly restores state in ensure.
-        def trial_and_evaluate_tile(step, entity, hex, tile, r, cost)
-          old_tile = hex.tile
-          return nil unless old_tile
-
-          original_rotation = tile.rotation || 0
-          begin
-            # Keep the two-build intelligence, but never mount a trial tile on the live map.
-            tile.rotate!(r)
-            if step.respond_to?(:legal_tile_rotation?)
-              legal_rotation = begin
-                step.legal_tile_rotation?(entity, hex, tile)
-              rescue ArgumentError
-                begin; step.legal_tile_rotation?(entity, hex, tile, r); rescue StandardError; false; end
+              best_rev = Array(computed_routes).sum do |route|
+                route.respond_to?(:chains) && route.chains&.any? ? route.revenue.to_i : 0
               rescue StandardError
-                false
+                0
               end
-              return nil unless legal_rotation
+              callback_finished = true
+              elapsed = `Date.now()`.to_f - started_ms
+              `console.log("[AI BUILD ROUTER CALLBACK] " + #{label} + " income=" + #{best_rev}.to_s + " elapsed_ms=" + #{elapsed}.to_s)`
             end
-            evaluate_horizons_while_mounted(entity, hex, old_tile, tile, cost)
-          rescue StandardError
-            nil
-          ensure
-            tile.rotate!(original_rotation)
+          )
+
+          unless callback_finished
+            `console.warn("[AI BUILD ROUTER PENDING] " + #{label} + " callback did not finish before compute returned")`
+            return nil
+          end
+
+          best_rev
+        rescue StandardError => e
+          `console.warn("[AI BUILD ROUTER ERROR] " + #{label} + " " + #{e.message})`
+          nil
+        end
+
+        TILE_SEARCH_TIMEOUT_MS = 5000
+
+        def set_hex_tile_for_trial(hex, tile)
+          if hex.respond_to?(:tile=)
+            hex.tile = tile
+          else
+            hex.instance_variable_set(:@tile, tile)
           end
         end
 
-        # AutoRouter trial mounting is disabled because it changes live tile/undo state.
-        # Horizon 1 and Horizon 2 scoring above remain active and non-mutating.
+        # IMPORTANT: look-ahead must never move a real tile object from the
+        # game's tile supply onto the map. Doing that corrupts tile ownership/counts
+        # and the eventual LayTile action is rejected as "tile already on map".
+        # Use a detached clone strictly for AutoRouter evaluation.
+        def clone_tile_for_trial(tile, rotation)
+          trial = begin
+            tile.dup
+          rescue StandardError
+            nil
+          end
+          return nil unless trial
+
+          trial.rotate!(rotation) if trial.respond_to?(:rotate!)
+          trial
+        rescue StandardError
+          nil
+        end
+
+        def with_temporary_tile(entity, hex, source_tile, rotation)
+          old_tile = hex.tile
+          trial_tile = clone_tile_for_trial(source_tile, rotation)
+          return unless trial_tile
+
+          begin
+            set_hex_tile_for_trial(hex, trial_tile)
+            clear_entity_graph_cache(entity)
+            yield trial_tile
+          ensure
+            set_hex_tile_for_trial(hex, old_tile)
+            # Hex#tile= may write a back-reference into the detached trial tile.
+            # Remove it so no search artefact can look like a laid supply tile.
+            trial_tile.instance_variable_set(:@hex, nil) if trial_tile
+            clear_entity_graph_cache(entity)
+          end
+        end
+
+        def legal_tile_candidates(step, entity)
+          connected = begin; step.connected_hexes(entity); rescue StandardError; nil; end if step.respond_to?(:connected_hexes)
+          connected ||= begin; @game.graph.connected_hexes(entity); rescue StandardError; {}; end
+          candidates = []
+          connected.each_key do |hex|
+            next unless hex
+            next if step.respond_to?(:available_hex) && !step.available_hex(entity, hex)
+
+            tiles = if step.respond_to?(:potential_tiles)
+                      begin; step.potential_tiles(entity, hex); rescue StandardError; []; end
+                    elsif step.respond_to?(:upgradeable_tiles)
+                      begin; step.upgradeable_tiles(entity, hex); rescue StandardError; []; end
+                    else
+                      []
+                    end
+            Array(tiles).compact.each do |tile|
+              # Never select a tile object that is already installed on a map hex.
+              next if tile.respond_to?(:hex) && tile.hex
+              next if @game.respond_to?(:tile_available?) && !@game.tile_available?(tile)
+
+              cost = calculate_tile_cost(step, entity, hex, tile)
+              next if cost.nil? || (entity.respond_to?(:cash) && entity.cash.to_i < cost.to_i)
+
+              rotations = if step.respond_to?(:legal_tile_rotations)
+                            begin; step.legal_tile_rotations(entity, hex, tile); rescue StandardError; []; end
+                          else
+                            (0..5).to_a
+                          end
+              Array(rotations).each { |rotation| candidates << [hex, tile, rotation, cost] }
+            end
+          end
+          candidates
+        rescue StandardError
+          []
+        end
+
+        # Synchronous two-build fallback. AutoRouter callbacks are asynchronous in
+        # the browser, so temporary-map AutoRouter evaluation cannot safely be used
+        # inside this synchronous action dispatcher. Score every legal first build
+        # with the expert two-build topology evaluator and log every result.
+        def trial_and_evaluate_tile(step, entity, hex, tile, rotation, cost, deadline_ms)
+          label = "hex=#{hex.id} tile=#{tile.name} rotation=#{rotation}"
+          if `Date.now()`.to_f >= deadline_ms
+            `console.warn("[AI BUILD TIMEOUT] before " + #{label})`
+            return nil
+          end
+          return nil if tile.respond_to?(:hex) && tile.hex
+
+          old_tile = hex.tile
+          return nil unless old_tile
+
+          old_rotation = tile.respond_to?(:rotation) ? (tile.rotation || 0) : 0
+          begin
+            tile.rotate!(rotation) if tile.respond_to?(:rotate!)
+            legal_rotation = if step.respond_to?(:legal_tile_rotation?)
+                               begin; step.legal_tile_rotation?(entity, hex, tile)
+                               rescue ArgumentError
+                                 begin; step.legal_tile_rotation?(entity, hex, tile, rotation); rescue StandardError; false; end
+                               rescue StandardError
+                                 false
+                               end
+                             else
+                               true
+                             end
+            return nil unless legal_rotation
+
+            metrics = AiExpertRules.two_build_tile_features(
+              entity: entity,
+              hex: hex,
+              old_tile: old_tile,
+              new_tile: tile,
+              cost: cost,
+              revenue_for: ->(candidate) { printed_hex_revenue(candidate) },
+            )
+            first_value = metrics[:tile_rev_gain].to_i + metrics[:horizon_1_value].to_i
+            two_build_value = first_value + metrics[:horizon_2_value].to_i
+            metrics[:first_revenue] = first_value
+            metrics[:projected_revenue] = two_build_value
+            metrics[:route_revenue_gain] = two_build_value
+            metrics[:best_second] = "topology horizon 2 value=#{metrics[:horizon_2_value].to_i}"
+            metrics[:search_timed_out] = false
+
+            candidate_message = "[AI BUILD CANDIDATE] #{label} " \
+                                "first_value=#{first_value} two_build_value=#{two_build_value} " \
+                                "immediate=#{metrics[:tile_rev_gain].to_i} " \
+                                "own_token=#{metrics[:has_own_token]} " \
+                                "horizon1=#{metrics[:horizon_1_value].to_i} " \
+                                "horizon2=#{metrics[:horizon_2_value].to_i} " \
+                                "dead_end=#{metrics[:is_dead_end_edge]}"
+            `console.log(#{candidate_message})`
+            metrics
+          rescue StandardError => e
+            `console.warn("[AI BUILD EVALUATION ERROR] " + #{label} + " " + #{e.message})`
+            nil
+          ensure
+            tile.rotate!(old_rotation) if tile.respond_to?(:rotate!)
+          end
+        end
 
         def collect_tiles(step, entity, actions)
           return [] unless actions.include?('lay_tile')
@@ -1130,6 +1305,7 @@ module View
 
           legal = []
           @tile_eval_cache = {}
+          deadline_ms = `Date.now()`.to_f + TILE_SEARCH_TIMEOUT_MS
 
           connected.each_key do |hex|
             next unless hex
@@ -1156,7 +1332,9 @@ module View
               end
             end
 
-            available_tiles.uniq(&:name).each do |tile|
+            available_tiles.each do |tile|
+              next if tile.respond_to?(:hex) && tile.hex
+
               cost = calculate_tile_cost(step, entity, hex, tile)
               next if cost.nil?
               next if entity.respond_to?(:cash) && entity.cash.to_i < cost.to_i
@@ -1168,8 +1346,10 @@ module View
                           end
 
               Array(rotations).each do |r|
-                eval_metrics = trial_and_evaluate_tile(step, entity, hex, tile, r, cost)
+                eval_metrics = trial_and_evaluate_tile(step, entity, hex, tile, r, cost, deadline_ms)
                 next unless eval_metrics
+
+                next if tile.equal?(hex.tile)
 
                 act = Engine::Action::LayTile.new(entity, hex: hex, tile: tile, rotation: r)
                 @tile_eval_cache[act] = eval_metrics
@@ -1181,50 +1361,76 @@ module View
           legal
         end
 
+        def token_revenue_gain(entity, city, token, slot)
+          before = compute_auto_router_revenue(entity)
+          old_tokens = city.tokens.dup
+          old_city = token.respond_to?(:city) ? token.city : nil
+          old_used = token.respond_to?(:used) ? token.used : nil
+          begin
+            city.tokens[slot] = token
+            token.instance_variable_set(:@city, city)
+            token.instance_variable_set(:@used, true)
+            clear_entity_graph_cache(entity)
+            compute_auto_router_revenue(entity) - before
+          ensure
+            city.tokens.replace(old_tokens)
+            token.instance_variable_set(:@city, old_city)
+            token.instance_variable_set(:@used, old_used)
+            clear_entity_graph_cache(entity)
+          end
+        rescue StandardError
+          0
+        end
+
         def collect_tokens(step, entity, actions)
           return [] unless actions.include?('place_token')
           return [] if step.respond_to?(:can_place_token?) && !step.can_place_token?(entity)
 
           tokens = if step.respond_to?(:available_tokens)
-                     (begin; step.available_tokens(entity); rescue StandardError; []; end)
+                     begin; Array(step.available_tokens(entity)); rescue StandardError; []; end
                    else
                      []
                    end
-          tokens = [entity.next_token].compact if (tokens.nil? || tokens.empty?) && entity.respond_to?(:next_token)
-          tok = Array(tokens).first
-          return [] unless tok
+          tokens = [entity.next_token].compact if tokens.empty? && entity.respond_to?(:next_token)
+          token = tokens.first
+          return [] unless token
 
           cost = if step.respond_to?(:token_cost)
-                   begin; step.token_cost(entity, tok); rescue StandardError; tok.price; end
+                   begin; step.token_cost(entity, token); rescue StandardError; token.price; end
                  else
-                   tok.price
+                   token.price
                  end || 0
-          return [] if entity.respond_to?(:cash) && entity.cash < cost
+          return [] if entity.respond_to?(:cash) && entity.cash.to_i < cost.to_i
 
-          connected = (begin; step.connected_hexes(entity); rescue StandardError; nil; end if step.respond_to?(:connected_hexes))
-          connected ||= begin; @game.graph.connected_hexes(entity); rescue StandardError; nil; end
-          return [] unless connected && connected.any?
-
+          connected = begin; step.connected_hexes(entity); rescue StandardError; nil; end if step.respond_to?(:connected_hexes)
+          connected ||= begin; @game.graph.connected_hexes(entity); rescue StandardError; {}; end
+          @token_eval_cache = {}
           legal = []
           connected.each_key do |hex|
             next unless hex&.tile
             next if step.respond_to?(:available_hex) && !step.available_hex(entity, hex)
 
-            hex.tile.cities.each do |city|
-              tokenable = city.respond_to?(:tokenable?) && (begin
-                city.tokenable?(entity, token: tok)
-              rescue StandardError
+            Array(hex.tile.cities).each do |city|
+              tokenable = begin
+                city.tokenable?(entity, token: token)
+              rescue ArgumentError
                 begin; city.tokenable?(entity); rescue StandardError; false; end
-              end)
+              rescue StandardError
+                false
+              end
               next unless tokenable
 
               slot = city.tokens.find_index(&:nil?)
               next if slot.nil?
 
-              legal << Engine::Action::PlaceToken.new(entity, city: city, slot: slot, token: tok)
+              gain = token_revenue_gain(entity, city, token, slot)
+              next unless gain.positive?
+
+              action = Engine::Action::PlaceToken.new(entity, city: city, slot: slot, token: token)
+              @token_eval_cache[action] = { token_revenue_gain: gain }
+              legal << action
             end
           end
-
           legal
         end
       end
