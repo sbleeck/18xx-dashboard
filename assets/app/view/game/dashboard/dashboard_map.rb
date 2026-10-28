@@ -495,57 +495,6 @@ module View
           )
         end
       end
-
-      class LocationName < Base
-        include Lib::Settings
-        needs :game, default: nil, store: true
-        needs :user, default: nil, store: true
-        needs :show_location_names, default: nil, store: true
-
-        unless method_defined?(:orig_render)
-          alias orig_render render
-
-          def render
-            return h(:g) if @show_location_names == false
-
-            begin
-              return h(:g) unless setting_for(:show_location_names, @game)
-            rescue StandardError
-            end
-
-            rendered = orig_render
-            %x{
-              function enlargeLocation(vnode) {
-                if (!vnode) return;
-                if (Array.isArray(vnode)) {
-                  for (var i = 0; i < vnode.length; i++) enlargeLocation(vnode[i]);
-                  return;
-                }
-                var sel = vnode.sel || '';
-                if (typeof sel === 'string' && (sel === 'text' || sel.indexOf('text.') === 0 || sel.indexOf('text#') === 0)) {
-                  if (!vnode.data) vnode.data = {};
-                  if (!vnode.data.attrs) vnode.data.attrs = {};
-                  if (!vnode.data.style) vnode.data.style = {};
-
-                  var cur = parseFloat(vnode.data.style['font-size'] || vnode.data.attrs['font-size']) || 11;
-                  var newSize = (cur * 1.35).toFixed(1) + 'px';
-
-                  vnode.data.attrs['font-size'] = newSize;
-                  vnode.data.style['font-size'] = newSize;
-                  vnode.data.style['font-weight'] = 'bold';
-                }
-                if (vnode.children && Array.isArray(vnode.children)) {
-                  for (var j = 0; j < vnode.children.length; j++) {
-                    enlargeLocation(vnode.children[j]);
-                  }
-                }
-              }
-              enlargeLocation(#{rendered});
-            }
-            rendered
-          end
-        end
-      end
     end
   end
 end
@@ -1640,14 +1589,16 @@ h(:style, {}, %(
 }
 
 ) +
-# // --- START FIX ---
 %(
   #map-axis text,
   #map > g > g:not(#map-hexes) text {
     fill: #000000 !important;
   }
+  #map-hexes g.tile__text text {
+    font-size: 14.85px !important;
+    font-weight: bold !important;
+  }
 ) +
-# // --- END FIX ---
 %(
 
 
