@@ -199,12 +199,8 @@ module View
                      @game.players.find { |p| (u_id && p.id == u_id) || (u_name && p.name == u_name) }
                    end
 
-          hotseat_revealed = Lib::Storage["draft_hand_revealed_#{@game.id}_#{entity.id}"] || false
-
-          can_view_hand = if !is_step_hidden
+          can_view_hand = if !is_step_hidden || is_hotseat
                             true
-                          elsif is_hotseat
-                            hotseat_revealed
                           elsif viewer
                             viewer == entity
                           else
@@ -352,7 +348,6 @@ module View
           can_pass = can_view_hand && !pending_corp && (actions.include?('pass') || has_blank_card)
 
           exec_pass = lambda {
-            Lib::Storage["draft_hand_revealed_#{@game.id}_#{entity.id}"] = false if is_hotseat && is_step_hidden
             if actions.include?('pass')
               process_action(Engine::Action::Pass.new(entity))
             elsif actions.include?('choose') && has_blank_card
@@ -468,7 +463,6 @@ module View
             can_choose_item = !action_mode.nil?
 
             exec_action = lambda {
-              Lib::Storage["draft_hand_revealed_#{@game.id}_#{entity.id}"] = false if is_hotseat && is_step_hidden
               case action_mode
               when :bid
                 bid_args = { price: item_price }
@@ -756,31 +750,9 @@ module View
           end
 
           dialog_style[:maxHeight] = is_minimized ? 'auto' : '88vh'
-          toggle_reveal_hand = lambda do
-            Lib::Storage["draft_hand_revealed_#{@game.id}_#{entity.id}"] = !hotseat_revealed
-            update
-          end
+
           header_controls = [
-           (if is_step_hidden && is_hotseat
-              h(:button, {
-                  attrs: { title: hotseat_revealed ? 'Hide drawn cards' : "Reveal #{entity.name}'s drawn cards" },
-                  style: {
-                    padding: '0 10px',
-                    height: '1.5rem',
-                    fontSize: '0.78rem',
-                    fontWeight: 'bold',
-                    backgroundColor: hotseat_revealed ? '#475569' : '#2563eb',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  },
-                  on: { click: toggle_reveal_hand },
-                }, hotseat_revealed ? 'Hide Hand' : "Reveal #{entity.name}'s Hand")
-            end),
+
            (if can_pass
               h(:button, {
                   attrs: { id: 'draft-overlay-pass-btn', title: has_blank_card ? 'Select a blank pass card' : 'Pass your turn' },
