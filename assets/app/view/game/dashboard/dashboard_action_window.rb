@@ -251,9 +251,24 @@ module View
         end
 
         def actions_for(entity)
-          return [] unless entity && @game.round.respond_to?(:actions_for)
+          return [] unless entity
 
-          @game.round.actions_for(entity) || []
+          step = active_step_for(entity) || (@game.round.respond_to?(:active_step) ? @game.round.active_step : nil)
+          actions = begin
+            step.respond_to?(:actions) ? (step.actions(entity) || []) : []
+          rescue NotImplementedError, StandardError
+            []
+          end
+
+          if actions.empty? && @game.round.respond_to?(:actions_for)
+            actions = begin
+              @game.round.actions_for(entity) || []
+            rescue NotImplementedError, StandardError
+              []
+            end
+          end
+
+          actions
         rescue NotImplementedError, StandardError
           []
         end
@@ -1017,6 +1032,9 @@ module View
             "cmd_par_corporation_#{corporation.id}"
           )
 
+          is_free_par = step.class.name.include?('CompanyPendingPar') ||
+                        (step.respond_to?(:companies_pending_par) && step.companies_pending_par&.any?)
+
           buttons = par_nodes.map do |node|
             price = node.is_a?(Array) ? node[0] : node
             help = node.is_a?(Array) ? node[1] : nil
@@ -1033,7 +1051,7 @@ module View
                            2
                          end
             cost = price_val * multiplier
-            can_afford = (entity.respond_to?(:cash) ? entity.cash : 0) >= cost
+            can_afford = is_free_par || (entity.respond_to?(:cash) ? entity.cash : 0) >= cost
 
             click_handler = lambda {
               slot = (@game.par_chart[price].index(nil) if @game.respond_to?(:par_chart) && @game.par_chart[price])
@@ -1077,6 +1095,61 @@ module View
             }, [
             render_action_row('Select Par Price:', [corp_badge, *buttons]),
           ])
+        end
+
+def resolve_pending_par_corporation(step, _entity = nil)
+          return nil unless step
+
+          # 1. Direct corporation pending on step
+          if step.respond_to?(:corporation_pending_par) && (corp = step.corporation_pending_par)
+            return corp if corp.respond_to?(:corporation?) && corp.corporation?
+          end
+
+          if step.respond_to?(:par_corporation) && (corp = step.par_corporation)
+            return corp if corp.respond_to?(:corporation?) && corp.corporation?
+          end
+
+          if step.respond_to?(:parring) && (corp = step.parring)
+            return corp if corp.respond_to?(:corporation?) && corp.corporation?
+          end
+
+          # 2. Companies specifically pending par on step (e.g. 1830 B&O in CompanyPendingPar)
+          pending_companies = []
+          if step.respond_to?(:companies_pending_par) && (cp = step.companies_pending_par)
+            pending_companies.concat(Array(cp))
+          end
+
+          # If the step is specifically a PendingPar step, also check step.company or step.auctioning
+          if step.class.name.to_s.include?('PendingPar')
+            %i[company last_company auctioning].each do |m|
+              if step.respond_to?(m) && (c = begin; step.send(m); rescue StandardError; nil; end)
+                pending_companies.concat(Array(c))
+              end
+            end
+          end
+
+          pending_companies.compact.each do |c|
+            abilities = []
+            abilities.concat(Array(c.abilities)) if c.respond_to?(:abilities)
+            abilities.concat(Array(c.all_abilities)) if c.respond_to?(:all_abilities)
+
+            abilities.each do |a|
+              next unless a.respond_to?(:shares)
+
+              Array(a.shares).each do |sh|
+                if sh.respond_to?(:corporation) && sh.corporation && !sh.corporation.ipoed
+                  return sh.corporation
+                end
+              end
+            end
+          end
+
+          # 3. Only if in an auction/draft round with a single auctioning corporation
+          if step.respond_to?(:auctioning_corporation) && (corp = step.auctioning_corporation)
+            return corp if corp.respond_to?(:corporation?) && corp.corporation?
+          end
+
+          nil
         end
 
         def render_buyable_companies(step, entity)
@@ -3310,102 +3383,7 @@ module View
           end
 
           if actions.include?('par')
-            pending_corp =
-              if step.respond_to?(:auctioning_corporation) &&
-                 step&.auctioning_corporation
-                step.auctioning_corporation
-
-              elsif step&.current_entity.respond_to?(:companies)
-                charter = step.current_entity.companies.find do |company|
-                  @game.corporations.any? do |corporation|
-                    corporation.id.to_s == company.id.to_s &&
-                      !corporation.ipoed
-                  end
-                end
-
-                @game.corporations.find do |corporation|
-                  charter &&
-                    corporation.id.to_s == charter.id.to_s
-                end
-
-              elsif step.respond_to?(:corporation_pending_par) &&
-                    step&.corporation_pending_par
-                step.corporation_pending_par
-
-              elsif step.respond_to?(:corporation) &&
-                    step&.corporation
-                step.corporation
-
-              elsif step.respond_to?(:par_corporation) &&
-                    step&.par_corporation
-                step.par_corporation
-
-              elsif step.respond_to?(:parring) &&
-                    step&.parring
-                step.parring
-
-              elsif step.respond_to?(:corporations) &&
-                    step.corporations&.one?
-                step.corporations.first
-
-              elsif corporation_or_minor?(
-                step&.current_entity || current_entity
-              )
-                step&.current_entity || current_entity
-              end
-
-            unless pending_corp
-              transacted_company = nil
-              %i[company last_company auctioning].each do |m|
-                if step.respond_to?(m) && (val = step.send(m))
-                  transacted_company = val if val.respond_to?(:abilities) || val.is_a?(Engine::Company)
-                  break if transacted_company
-                end
-              end
-
-              if transacted_company
-                shares_ability = begin
-                  transacted_company.abilities(:shares)
-                rescue StandardError
-                  nil
-                end
-                if shares_ability.respond_to?(:shares)
-                  share = begin
-                    shares_ability.shares.first
-                  rescue StandardError
-                    nil
-                  end
-                  pending_corp = share.corporation if share.respond_to?(:corporation)
-                end
-              end
-
-              unless pending_corp
-                actor = step&.current_entity || current_entity
-                player_actor = actor.respond_to?(:player?) && actor.player? ? actor : actor&.owner
-                if player_actor.respond_to?(:companies)
-                  player_actor.companies.each do |c|
-                    shares_ability = begin
-                      c.abilities(:shares)
-                    rescue StandardError
-                      nil
-                    end
-                    next unless shares_ability.respond_to?(:shares)
-
-                    share = begin
-                      shares_ability.shares.first
-                    rescue StandardError
-                      nil
-                    end
-                    corp = share.corporation if share.respond_to?(:corporation)
-                    if corp && !corp.ipoed
-                      pending_corp = corp
-                      break
-                    end
-                  end
-                end
-              end
-            end
-
+            pending_corp = resolve_pending_par_corporation(step, step&.current_entity || current_entity)
             return render_par_step(step, step&.current_entity || current_entity, pending_corp) if pending_corp
           end
 
@@ -3435,10 +3413,7 @@ module View
                 bidding_row = render_stock_bidding(step, step&.current_entity || current_entity, actions)
                 stock_components << bidding_row if bidding_row
               end
-              # Normal stock actions live on their persistent objects in Status.
-              # The Action Hub only names the available action types; it does not
-              # duplicate Issue/Redeem/Loan controls here. Stateful sub-steps above
-              # (Bid, Par, Choose, Assign) still receive contextual Hub controls.
+
               if stock_components.empty?
                 reminder = render_stock_possibility_reminder(actions)
                 stock_components << reminder if reminder
@@ -3495,8 +3470,6 @@ module View
               components << h(ReassignTrains) if actions.include?('reassign_trains')
               components << h(DoubleHeadTrains) if actions.include?('double_head_trains')
               components << h(CombinedTrains) if actions.include?('combined_trains')
-              # Operating Round possibility reminder: the Action Hub says WHAT is
-              # currently possible while the map shows WHERE the action can happen.
               components << render_buy_tokens(step, step&.current_entity || current_entity) if actions.include?('buy_token')
 
               rendered_issue_entities = []
@@ -4008,14 +3981,9 @@ module View
             phase = :issue_shares
           elsif actions.include?('redeem_shares') || actions.include?('redeem')
             phase = :redeem
-          elsif actions.include?('par') && (
-            (step.respond_to?(:corporation_pending_par) && step&.corporation_pending_par) ||
-            (step.respond_to?(:corporation) && step&.corporation) ||
-            (step.respond_to?(:par_corporation) && step&.par_corporation) ||
-            (step.respond_to?(:corporations) && step.corporations&.one?) ||
-            (step&.current_entity || current_entity)&.corporation?
-          )
+            elsif actions.include?('par') && resolve_pending_par_corporation(step, entity)
             phase = :par
+        
           elsif actions.include?('corporate_buy_shares') || actions.include?('buy_shares')
             phase = :buy_shares
           elsif is_draft
