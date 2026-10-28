@@ -91,6 +91,34 @@ module View
           end
           return false if actions.empty?
 
+          command_types = actions.map do |action|
+            if action.is_a?(Engine::Action::Pass)
+              :pass
+            elsif action.is_a?(Engine::Action::SellShares) &&
+                  entity.respond_to?(:corporation?) &&
+                  entity.corporation?
+              :issue
+            else
+              :other
+            end
+          end
+
+          if command_types.all? { |type| %i[pass issue].include?(type) }
+            action = actions.sample
+
+            return false unless action_belongs_to_entity?(action, entity)
+            return false unless execution_context_unchanged?(round_before, step, entity)
+
+            @process_block.call(action)
+
+            LOGGER.info(
+              "[AI UNIFORM COMMAND] selected=#{action.class.name} " \
+              "candidates=#{actions.size} probability=#{1.0 / actions.size}"
+            )
+
+            return true
+          end
+
           # Draft / auction policy:
           # Buying receives 50% of the total probability when at least one legal
           # BuyCompany action exists. All buy actions share that half equally.
@@ -209,6 +237,52 @@ module View
           @tile_eval_cache.clear if @tile_eval_cache
         end
 
+        # Registry of engine action names to collectors. The registry is deliberately
+        # explicit: strategic collectors only run when the CURRENT blocking step exposes
+        # one of their action names. Unsupported names are logged and safely fall back
+        # to Pass when Pass is available.
+        ACTION_REGISTRY = {
+          'pass' => :collect_pass,
+          'choose' => :collect_choices,
+          'bid' => :collect_draft_and_bids,
+          'buy_company' => :collect_draft_and_bids,
+          'buy_companies' => :collect_draft_and_bids,
+          'dividend' => :collect_dividends,
+          'payout' => :collect_dividends,
+          'withhold' => :collect_dividends,
+          'half' => :collect_dividends,
+          'split' => :collect_dividends,
+          'buy_shares' => :collect_shares,
+          'sell_shares' => :collect_shares,
+          'par' => :collect_par,
+          'buy_train' => :collect_trains,
+          'discard_train' => :collect_trains,
+          'run_routes' => :collect_routes,
+          'lay_tile' => :collect_tiles,
+          'place_token' => :collect_tokens,
+          'issue' => :collect_issue_shares,
+          'issue_shares' => :collect_issue_shares,
+          'reissue' => :collect_issue_shares,
+          'reissue_shares' => :collect_issue_shares,
+          'corporate_sell_shares' => :collect_issue_shares,
+          'redeem' => :collect_redeem_shares,
+          'redeem_shares' => :collect_redeem_shares,
+          'corporate_buy_shares' => :collect_redeem_shares,
+        }.freeze
+
+        # Optional operating-round opportunities are not always advertised by
+        # step.actions(entity). Probe only the CURRENT blocking step, never a future
+        # round step, and let each collector return [] when the opportunity is absent.
+        OR_OPPORTUNITY_COLLECTORS = %i[
+          collect_or_train_opportunities
+          collect_or_company_opportunities
+          collect_or_issue_opportunities
+          collect_or_redeem_opportunities
+        ].freeze
+
+        BACKGROUND_ACTION_PREFIXES = ['program_'].freeze
+        BACKGROUND_ACTIONS = %w[end_game log message undo redo].freeze
+
         def generate_legal_actions(step = nil, entity = nil)
           step ||= @game.round&.active_step
           return [] unless step
@@ -216,23 +290,171 @@ module View
           entity ||= current_acting_entity(step)
           return [] unless entity
 
-          raw = begin; step.actions(entity) || []; rescue StandardError; []; end
-          raw = begin; @game.round.actions_for(entity) || []; rescue StandardError; []; end if raw.empty?
+          raw = begin
+            Array(step.actions(entity))
+          rescue StandardError
+            []
+          end
+          if raw.empty?
+            raw = begin
+              Array(@game.round.actions_for(entity))
+            rescue StandardError
+              []
+            end
+          end
           actions = raw.compact.map(&:to_s).uniq
           return [] if actions.empty?
 
+          collectors = actions.filter_map { |name| ACTION_REGISTRY[name] }.uniq
           legal = []
-          legal.concat(collect_pass(step, entity, actions))
-          legal.concat(collect_choices(step, entity, actions))
-          legal.concat(collect_draft_and_bids(step, entity, actions))
-          legal.concat(collect_dividends(step, entity, actions))
-          legal.concat(collect_shares(step, entity, actions))
-          legal.concat(collect_par(step, entity, actions))
-          legal.concat(collect_trains(step, entity, actions))
-          legal.concat(collect_routes(step, entity, actions))
-          legal.concat(collect_tiles(step, entity, actions))
-          legal.concat(collect_tokens(step, entity, actions))
-          legal.select { |a| action_belongs_to_entity?(a, entity) }
+          collectors.each do |collector_name|
+            legal.concat(Array(public_send(collector_name, step, entity, actions)))
+          rescue StandardError => e
+            LOGGER.warn(
+              "[AI ACTION REGISTRY] collector=#{collector_name} entity=#{entity_label(entity)} " \
+              "failed=#{e.class}: #{e.message}"
+            )
+          end
+
+          if operating_entity?(entity)
+            OR_OPPORTUNITY_COLLECTORS.each do |collector_name|
+              discovered = Array(public_send(collector_name, step, entity, actions))
+              unless discovered.empty?
+                LOGGER.info(
+                  "[AI OR OPPORTUNITY] collector=#{collector_name} " \
+                  "entity=#{entity_label(entity)} candidates=#{discovered.size}"
+                )
+              end
+              legal.concat(discovered)
+            rescue StandardError => e
+              LOGGER.warn(
+                "[AI OR OPPORTUNITY] collector=#{collector_name} " \
+                "entity=#{entity_label(entity)} failed=#{e.class}: #{e.message}"
+              )
+            end
+          end
+
+          unknown = actions.reject do |name|
+            ACTION_REGISTRY.key?(name) || BACKGROUND_ACTIONS.include?(name) ||
+              BACKGROUND_ACTION_PREFIXES.any? { |prefix| name.start_with?(prefix) }
+          end
+          if unknown.any?
+            LOGGER.warn(
+              "[AI UNRECOGNISED ACTION] step=#{step.class.name} entity=#{entity_label(entity)} " \
+              "actions=#{unknown.join(',')}"
+            )
+          end
+
+          legal = legal.compact.uniq.select { |action| action_belongs_to_entity?(action, entity) }
+
+          # Fail-safe: an unsupported/unmaterialisable step must never invent an action.
+          # If the engine offers Pass, return only Pass when no understood candidate exists.
+          if legal.empty? && actions.include?('pass')
+            fallback = collect_pass(step, entity, actions)
+            if fallback.any?
+              LOGGER.info(
+                "[AI FALLBACK PASS] step=#{step.class.name} entity=#{entity_label(entity)} " \
+                "unrecognised=#{unknown.join(',')}"
+              )
+              return fallback
+            end
+          end
+
+          legal
+        end
+
+        def operating_entity?(entity)
+          return false unless @game.round.respond_to?(:operating?) && @game.round.operating?
+
+          (entity.respond_to?(:corporation?) && entity.corporation?) ||
+            (entity.respond_to?(:minor?) && entity.minor?)
+        rescue StandardError
+          false
+        end
+
+        def collect_or_train_opportunities(step, entity, actions)
+          return [] unless step.respond_to?(:buyable_trains)
+
+          collect_trains(step, entity, (actions + ['buy_train']).uniq)
+        end
+
+        def collect_or_company_opportunities(step, entity, _actions)
+          buy_step = private_buy_step_for(step, entity)
+          return [] unless buy_step
+
+          collect_company_purchases(buy_step, entity)
+        end
+
+        # Mirror DashboardActionWindow#render_buyable_companies: private-company
+        # buying may be implemented by a different step in the current operating
+        # round, even while the visible/current step advertises only Pass.
+        def private_buy_step_for(default_step, entity)
+          steps = if @game.round.respond_to?(:steps)
+                    Array(@game.round.steps)
+                  else
+                    []
+                  end
+
+          found = steps.find do |candidate_step|
+            next false unless candidate_step
+            next false unless candidate_step.respond_to?(:buyable_companies) ||
+                              candidate_step.respond_to?(:can_buy_company?)
+
+            private_companies_for(candidate_step, entity).any?
+          rescue StandardError
+            false
+          end
+
+          found ||= default_step if default_step &&
+            (default_step.respond_to?(:buyable_companies) || default_step.respond_to?(:can_buy_company?))
+          found
+        end
+
+        def private_companies_for(step, entity)
+          operating_player = if entity.respond_to?(:player?) && entity.player?
+                               entity
+                             elsif entity.respond_to?(:owner)
+                               entity.owner
+                             end
+          return [] unless operating_player
+
+          companies = if step.respond_to?(:buyable_companies)
+                        begin
+                          Array(step.buyable_companies(entity))
+                        rescue StandardError
+                          []
+                        end
+                      elsif step.respond_to?(:can_buy_company?) && @game.respond_to?(:companies)
+                        Array(@game.companies).select do |company|
+                          step.can_buy_company?(entity, company)
+                        rescue StandardError
+                          false
+                        end
+                      else
+                        []
+                      end
+
+          companies.compact
+            .reject { |company| company.respond_to?(:closed?) && company.closed? }
+            .select do |company|
+              company.respond_to?(:owner) && company.owner == operating_player && company.owner != entity
+            end
+        end
+
+        def collect_or_issue_opportunities(step, entity, actions)
+          supports_issue = step.respond_to?(:issuable_shares) ||
+            step.respond_to?(:issueable_shares) || step.respond_to?(:issuable_bundles)
+          return [] unless supports_issue
+
+          collect_issue_shares(step, entity, (actions + ['issue_shares']).uniq)
+        end
+
+        def collect_or_redeem_opportunities(step, entity, actions)
+          supports_redeem = step.respond_to?(:redeemable_shares) ||
+            step.respond_to?(:redeemable_bundles)
+          return [] unless supports_redeem
+
+          collect_redeem_shares(step, entity, (actions + ['redeem_shares']).uniq)
         end
 
         private
@@ -332,8 +554,27 @@ module View
         def extract_features(action, step, entity, all_actions)
           f = {}
           f[:player_cash] = entity.respond_to?(:cash) ? entity.cash : 0
-          cert_count = @game.respond_to?(:num_certs) ? @game.num_certs(entity) : 0
-          cert_limit = @game.respond_to?(:cert_limit) ? @game.cert_limit(entity) : 999
+          cert_count =
+            if entity.respond_to?(:shares) && @game.respond_to?(:num_certs)
+              begin
+                @game.num_certs(entity)
+              rescue StandardError
+                0
+              end
+            else
+              0
+            end
+
+          cert_limit =
+            if entity.respond_to?(:shares) && @game.respond_to?(:cert_limit)
+              begin
+                @game.cert_limit(entity)
+              rescue StandardError
+                999
+              end
+            else
+              999
+            end
           f[:cert_count] = cert_count
           f[:cert_limit] = cert_limit
           f[:certs_free] = cert_limit - cert_count
@@ -401,7 +642,11 @@ module View
             f[:cheaper_floatable_par_exists] = cheaper_floatable
 
           when Engine::Action::SellShares
-            f[:action_type] = 'sell_shares'
+            f[:action_type] = if entity.respond_to?(:corporation?) && entity.corporation?
+                                'issue_shares'
+                              else
+                                'sell_shares'
+                              end
             bundle = action.bundle
             corp = bundle&.corporation
             if corp
@@ -693,26 +938,43 @@ module View
         def collect_company_purchases(step, entity)
           return [] unless defined?(Engine::Action::BuyCompany)
 
-          companies = begin
-            step.respond_to?(:buyable_companies) ? Array(step.buyable_companies(entity)) : Array(step.companies)
-          rescue StandardError
-            []
-          end
+          companies = private_companies_for(step, entity)
+          cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
+
           companies.filter_map do |company|
-            next if company.respond_to?(:closed?) && company.closed?
-            next if company.respond_to?(:owner) && company.owner.equal?(entity)
+            min_price = if step.respond_to?(:min_price)
+                          begin; step.min_price(company); rescue StandardError; nil; end
+                        elsif company.respond_to?(:min_price)
+                          company.min_price
+                        else
+                          1
+                        end
 
-            price = company.respond_to?(:value) ? company.value.to_i : 0
-            next if entity.respond_to?(:cash) && price > entity.cash.to_i
+            max_price = if step.respond_to?(:max_price)
+                          begin; step.max_price(entity, company); rescue StandardError; nil; end
+                        elsif company.respond_to?(:max_price)
+                          company.max_price
+                        else
+                          cash
+                        end
 
-            if step.respond_to?(:can_buy_company?)
-              legal = begin
- step.can_buy_company?(entity, company, price)
-              rescue ArgumentError; step.can_buy_company?(entity, company); rescue StandardError; false; end
-              next unless legal
-            end
-            Engine::Action::BuyCompany.new(entity, company: company, price: price)
-          rescue StandardError
+            next if min_price.nil? || max_price.nil?
+
+            min_price = min_price.to_i
+            max_price = [max_price.to_i, cash].min
+            next if max_price < min_price
+
+            # User policy: each private gets an independent 30% roll. A successful
+            # purchase pays the maximum legal amount the corporation can afford.
+            next unless AiExpertRules.buy_private_company?
+
+            Engine::Action::BuyCompany.new(
+              entity,
+              company: company,
+              price: max_price,
+            )
+          rescue StandardError => e
+            LOGGER.warn("[AI PRIVATE PURCHASE] #{e.class}: #{e.message}")
             nil
           end
         end
@@ -736,6 +998,8 @@ module View
         end
 
         def collect_shares(step, entity, actions)
+          return [] unless entity.respond_to?(:shares)
+
           legal = []
           player_cash = entity.respond_to?(:cash) ? entity.cash : 0
           cert_limit = @game.respond_to?(:cert_limit) ? @game.cert_limit(entity) : 999
@@ -981,9 +1245,16 @@ module View
             @random_target_train_count[target_key] = target_count
           end
 
-          return [] if current_count >= target_count
+          normal_train_needed = current_count < target_count
+          optional_progression = !normal_train_needed && AiExpertRules.buy_progression_train?
+          return [] unless normal_train_needed || optional_progression
 
-          trains = step.respond_to?(:buyable_trains) ? (begin; step.buyable_trains(entity); rescue StandardError; []; end) : []
+          trains = if step.respond_to?(:buyable_trains)
+                     (begin
+                    step.buyable_trains(entity); rescue StandardError; []; end)
+                   else
+                     []
+                   end
           b_power = if step.respond_to?(:buying_power)
                       begin; step.buying_power(entity); rescue StandardError; entity.cash; end
                     else
@@ -991,11 +1262,41 @@ module View
                     end
 
           legal = []
-          Array(trains).each do |train|
-            next if step.respond_to?(:can_buy_train?) && !step.can_buy_train?(entity, train)
-            next unless train.owner == @game.depot || (train.respond_to?(:from_depot?) && train.from_depot?)
+          train_candidates = Array(trains)
+          train_candidates = train_candidates.first(1) if optional_progression
+          train_candidates.each do |train|
+            depot_train =
+              train.owner == @game.depot ||
+              (train.respond_to?(:from_depot?) && train.from_depot?)
 
-            legal << Engine::Action::BuyTrain.new(entity, train: train, price: train.price) if train.price.to_i <= b_power.to_i
+            next unless depot_train
+
+            can_buy =
+              if step.respond_to?(:can_buy_train?)
+                begin
+                  step.can_buy_train?(entity, train)
+                rescue ArgumentError
+                  begin
+                    step.can_buy_train?(entity, train, train.price)
+                  rescue StandardError
+                    false
+                  end
+                rescue StandardError
+                  false
+                end
+              else
+                train.price.to_i <= b_power.to_i
+              end
+
+            next unless can_buy
+
+            next if optional_progression && !(entity.respond_to?(:cash) && entity.cash.to_i >= train.price.to_i)
+
+            legal << Engine::Action::BuyTrain.new(
+              entity,
+              train: train,
+              price: train.price,
+            )
           end
 
           if actions.include?('discard_train')
@@ -1010,6 +1311,92 @@ module View
           end
 
           legal
+        end
+
+        def collect_issue_shares(step, entity, actions)
+          return [] unless (actions & %w[issue issue_shares reissue reissue_shares corporate_sell_shares sell_shares]).any?
+          return [] unless entity.respond_to?(:corporation?) && entity.corporation?
+          return [] unless defined?(Engine::Action::SellShares)
+
+          issue_step = step
+
+          bundles = []
+
+          %i[issuable_shares issueable_shares issuable_bundles].each do |method_name|
+            next unless issue_step.respond_to?(method_name)
+
+            result =
+              begin
+                issue_step.public_send(method_name, entity)
+              rescue ArgumentError
+                begin
+                  issue_step.public_send(method_name)
+                rescue StandardError
+                  []
+                end
+              rescue StandardError
+                []
+              end
+
+            bundles.concat(Array(result))
+          end
+
+          bundles.compact.uniq.filter_map do |bundle|
+            raw_shares =
+              if bundle.respond_to?(:shares)
+                Array(bundle.shares)
+              elsif bundle.respond_to?(:to_bundle)
+                Array(bundle.to_bundle.shares)
+              else
+                Array(bundle)
+              end
+
+            next if raw_shares.empty?
+
+            Engine::Action::SellShares.new(entity, shares: raw_shares)
+          rescue StandardError => e
+            LOGGER.warn(
+              "[AI ISSUE SHARES] rejected candidate: #{e.class}: #{e.message}"
+            )
+            nil
+          end
+        end
+
+        def collect_redeem_shares(step, entity, actions)
+          return [] unless (actions & %w[redeem redeem_shares corporate_buy_shares buy_shares]).any?
+          return [] unless entity.respond_to?(:corporation?) && entity.corporation?
+
+          raw = if step.respond_to?(:redeemable_shares)
+                  begin; Array(step.redeemable_shares(entity)); rescue ArgumentError; Array(step.redeemable_shares); end
+                elsif step.respond_to?(:redeemable_bundles)
+                  begin; Array(step.redeemable_bundles(entity)); rescue ArgumentError; Array(step.redeemable_bundles); end
+                elsif step.respond_to?(:buyable_shares)
+                  begin; Array(step.buyable_shares(entity)); rescue ArgumentError; Array(step.buyable_shares); end
+                else
+                  []
+                end
+
+          raw.filter_map do |candidate|
+            bundle = candidate.respond_to?(:to_bundle) && !candidate.respond_to?(:shares) ? candidate.to_bundle : candidate
+            shares = bundle.respond_to?(:shares) ? Array(bundle.shares).flatten.compact : Array(bundle).flatten.compact
+            next if shares.empty?
+
+            price = bundle.respond_to?(:price) ? bundle.price.to_i : 0
+            next if entity.respond_to?(:cash) && price > entity.cash.to_i
+
+            if actions.include?('redeem_shares') && defined?(Engine::Action::RedeemShares)
+              Engine::Action::RedeemShares.new(entity, bundle: bundle, shares: shares)
+            elsif actions.include?('redeem') && defined?(Engine::Action::Redeem)
+              Engine::Action::Redeem.new(entity, bundle: bundle, shares: shares)
+            elsif actions.include?('corporate_buy_shares') && defined?(Engine::Action::CorporateBuyShares)
+              Engine::Action::CorporateBuyShares.new(entity, bundle: bundle, shares: shares)
+            else
+              Engine::Action::BuyShares.new(entity, bundle: bundle, shares: shares)
+            end
+          rescue StandardError => e
+            LOGGER.warn("[AI REDEEM] rejected candidate: #{e.class}: #{e.message}")
+            nil
+          end
         end
 
         def collect_routes(_step, entity, actions)
@@ -1037,6 +1424,16 @@ module View
             rescue StandardError => e
               `console.warn("[AI Expert] AutoRouter fallback warning:", #{e.message})`
             end
+          end
+
+          # Reject stale UI/AutoRouter routes using trains owned by another corporation.
+          active_r = Array(active_r).select do |route|
+            train = route.respond_to?(:train) ? route.train : nil
+            owner = train.respond_to?(:owner) ? train.owner : nil
+            next false unless owner
+
+            owner.equal?(entity) ||
+              (owner.respond_to?(:id) && entity.respond_to?(:id) && owner.id.to_s == entity.id.to_s)
           end
 
           [Engine::Action::RunRoutes.new(entity, routes: active_r)]
@@ -1305,7 +1702,6 @@ module View
 
           legal = []
           @tile_eval_cache = {}
-          deadline_ms = `Date.now()`.to_f + TILE_SEARCH_TIMEOUT_MS
 
           connected.each_key do |hex|
             next unless hex
@@ -1346,14 +1742,17 @@ module View
                           end
 
               Array(rotations).each do |r|
-                eval_metrics = trial_and_evaluate_tile(step, entity, hex, tile, r, cost, deadline_ms)
-                next unless eval_metrics
-
                 next if tile.equal?(hex.tile)
 
-                act = Engine::Action::LayTile.new(entity, hex: hex, tile: tile, rotation: r)
-                @tile_eval_cache[act] = eval_metrics
-                legal << act
+                # Candidate generation performs only cheap checks. The asynchronous
+                # engine search validates process_action first and evaluates revenue
+                # only for candidates accepted by the cloned engine.
+                legal << Engine::Action::LayTile.new(
+                  entity,
+                  hex: hex,
+                  tile: tile,
+                  rotation: r,
+                )
               end
             end
           end

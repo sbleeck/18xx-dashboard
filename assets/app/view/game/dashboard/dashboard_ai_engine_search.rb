@@ -63,13 +63,16 @@ module View
           tiles = actions.select { |action| action.is_a?(Engine::Action::LayTile) }
           tokens = actions.select { |action| action.is_a?(Engine::Action::PlaceToken) }
 
-          if tiles.any?
-            start_engine_tile_search(tiles, entity, @game.round, step)
+          # In a combined "Place a Token or Lay Track" step, evaluate markers
+          # first. The token search will continue into tile search when no marker
+          # improves revenue or when the 80% marker policy declines placement.
+          if tokens.any?
+            start_engine_token_search(tokens, tiles, actions, entity, @game.round, step)
             return :async
           end
 
-          if tokens.any?
-            start_engine_token_search(tokens, actions, entity, @game.round, step)
+          if tiles.any?
+            start_engine_tile_search(tiles, actions, entity, @game.round, step)
             return :async
           end
 
@@ -213,14 +216,96 @@ module View
           self.class.complete_engine_search!(@engine_search_key)
         end
 
-        def start_engine_tile_search(actions, entity, round_before, step_before)
+        def start_engine_tile_search(actions, all_actions, entity, round_before, step_before)
           `document.body.style.cursor = 'progress'`
           state = {
-            deadline: engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS,
-            first_actions: actions,
-            first_index: 0,
+            legality_deadline: engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS,
+            all_actions: all_actions,
+            unchecked_actions: actions,
+            verification_index: 0,
+            legal_actions: [],
+            verified_games: {},
+            rejected_count: 0,
             results: [],
           }
+          engine_verify_next_tile(state, entity, round_before, step_before)
+        end
+
+        # Phase 1: engine legality only. No route search or revenue evaluation is
+        # started until every retained candidate has passed process_action on a clone.
+        def engine_verify_next_tile(state, entity, round_before, step_before)
+          if engine_now_ms >= state[:legality_deadline] ||
+             state[:verification_index] >= state[:unchecked_actions].size
+            return engine_begin_legal_tile_search(state, entity, round_before, step_before)
+          end
+
+          action = state[:unchecked_actions][state[:verification_index]]
+          state[:verification_index] += 1
+
+          begin
+            trial = clone_and_process(@game, action)
+            state[:legal_actions] << action
+            state[:verified_games][action.object_id] = trial
+          rescue StandardError
+            # Rejection is normal during candidate filtering. Log only the summary.
+            state[:rejected_count] += 1
+          end
+
+          `setTimeout(function () { #{engine_verify_next_tile(state, entity, round_before, step_before)} }, 0)`
+        end
+
+        def engine_begin_legal_tile_search(state, entity, round_before, step_before)
+          LOGGER.info(
+            "[AI TILE LEGALITY] candidates=#{state[:unchecked_actions].size} " \
+            "engine_legal=#{state[:legal_actions].size} rejected=#{state[:rejected_count]}"
+          )
+
+          if state[:legal_actions].empty?
+            pass = Array(state[:all_actions]).find do |candidate|
+              candidate.is_a?(Engine::Action::Pass)
+            end
+            if pass
+              LOGGER.info('[AI TILE LEGALITY] no legal tile; using Pass')
+              return engine_finish(pass, round_before, step_before, entity)
+            end
+
+            LOGGER.warn('[AI TILE LEGALITY] no legal tile and no Pass available')
+            return engine_finish(nil, round_before, step_before, entity)
+          end
+
+          # Compute topology/revenue hints only after engine legality has been
+          # established. Illegal and unaffordable candidates never reach this work.
+          @tile_eval_cache ||= {}
+          topology_deadline = engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS
+          state[:legal_actions].each do |action|
+            break if engine_now_ms >= topology_deadline
+
+            cost = calculate_tile_cost(
+              step_before,
+              entity,
+              action.hex,
+              action.tile,
+            )
+            metrics = trial_and_evaluate_tile(
+              step_before,
+              entity,
+              action.hex,
+              action.tile,
+              action.rotation,
+              cost,
+              topology_deadline,
+            )
+            @tile_eval_cache[action] = metrics if metrics
+          end
+
+          # Give AutoRouter revenue evaluation its own full budget after legality
+          # and topology filtering.
+          state[:deadline] = engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS
+          state[:first_actions] = state[:legal_actions]
+          state[:first_index] = 0
+          LOGGER.info(
+            "[AI TILE SEARCH] evaluating revenue for #{state[:legal_actions].size} legal candidates"
+          )
           engine_next_first_tile(state, entity, round_before, step_before)
         end
 
@@ -231,12 +316,8 @@ module View
 
           action = state[:first_actions][state[:first_index]]
           state[:first_index] += 1
-          begin
-            first_game = clone_and_process(@game, action)
-          rescue StandardError => e
-            LOGGER.warn("[AI TILE INVALID] #{action.to_h} #{e.message}")
-            return engine_next_first_tile(state, entity, round_before, step_before)
-          end
+          first_game = state[:verified_games][action.object_id]
+          return engine_next_first_tile(state, entity, round_before, step_before) unless first_game
 
           label = "first hex=#{action.hex.id} tile=#{action.tile.id} rotation=#{action.rotation}"
           engine_route_revenue(first_game, entity, state[:deadline], label) do |first_revenue|
@@ -246,12 +327,7 @@ module View
             end
 
             topology_metrics = @tile_eval_cache && @tile_eval_cache[action]
-            topology_revenue = if topology_metrics
-                                 topology_metrics[:projected_revenue].to_i
-                               else
-                                 0
-                               end
-
+            topology_revenue = topology_metrics ? topology_metrics[:projected_revenue].to_i : 0
             result = {
               action: action,
               first_revenue: first_revenue,
@@ -259,27 +335,21 @@ module View
               topology_revenue: topology_revenue,
               best_second: nil,
             }
-
-            # Retain the valid first build immediately. The result hash is
-            # subsequently updated in place if a better second build is found.
             state[:results] << result
 
-            first_player = self.class.allocate
-
-            first_player.send(:initialize, first_game, []) { |_action| }
-            second_actions = first_player.generate_legal_actions.select do |candidate|
-              candidate.is_a?(Engine::Action::LayTile)
-            end
-            engine_next_second_tile(
-              state,
-              result,
-              first_game,
-              second_actions,
-              0,
-              entity,
-              round_before,
-              step_before,
+            LOGGER.info(
+              "[AI TILE RESULT] hex=#{action.hex.id} tile=#{action.tile.id} " \
+              "rotation=#{action.rotation} first=#{first_revenue} " \
+              "engine_two=#{result[:best_revenue]} topology_two=#{topology_revenue} second="
             )
+
+            # The previous implementation called the nonexistent helper
+            # generate_legal_actions_for_game here. That exception aborted the
+            # asynchronous search before engine_finish_tile_search could dispatch
+            # any of the already verified legal tiles. Continue directly to the
+            # next first-tile candidate. The existing topology_two value remains
+            # the game-agnostic second-build lookahead.
+            engine_next_first_tile(state, entity, round_before, step_before)
           end
         end
 
@@ -322,7 +392,16 @@ module View
         def engine_finish_tile_search(state, entity, round_before, step_before)
           completed = state[:results]
           if completed.empty?
-            LOGGER.warn('[AI TILE SEARCH] no candidate completed before deadline')
+            fallback = Array(state[:legal_actions]).sample
+            if fallback
+              LOGGER.warn('[AI TILE SEARCH] scoring timed out; using random engine-verified tile')
+              return engine_finish(fallback, round_before, step_before, entity)
+            end
+
+            pass = Array(state[:all_actions]).find { |candidate| candidate.is_a?(Engine::Action::Pass) }
+            return engine_finish(pass, round_before, step_before, entity) if pass
+
+            LOGGER.warn('[AI TILE SEARCH] no legal tile and no Pass available')
             return engine_finish(nil, round_before, step_before, entity)
           end
 
@@ -367,7 +446,7 @@ module View
           engine_finish(winner[:action], round_before, step_before, entity)
         end
 
-        def start_engine_token_search(actions, all_actions, entity, round_before, step_before)
+        def start_engine_token_search(actions, tile_actions, all_actions, entity, round_before, step_before)
           deadline = engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS
           baseline_game = @game.clone(Array(@game.raw_actions))
           engine_route_revenue(baseline_game, entity, deadline, 'token baseline') do |baseline|
@@ -375,6 +454,7 @@ module View
               deadline: deadline,
               baseline: baseline.to_i,
               actions: actions,
+              tile_actions: tile_actions,
               all_actions: all_actions,
               index: 0,
               results: [],
@@ -407,18 +487,26 @@ module View
           profitable = state[:results].select do |result|
             result[:revenue].to_i > state[:baseline]
           end
-          if profitable.any?
+          if profitable.any? && AiExpertRules.place_profitable_token?
             best = profitable.map { |result| result[:revenue] }.max
             tied = profitable.select { |result| result[:revenue] == best }
             winner = tied.sample
             log = "[AI TOKEN CHOSEN] city=#{winner[:action].city.id} slot=#{winner[:action].slot} " \
-                  "revenue=#{best} baseline=#{state[:baseline]} ties=#{tied.size}"
+                  "revenue=#{best} baseline=#{state[:baseline]} ties=#{tied.size} probability=0.8"
             LOGGER.info(log)
             return engine_finish(winner[:action], round_before, step_before, entity)
           end
 
+          if Array(state[:tile_actions]).any?
+            reason = profitable.any? ? '80% policy declined marker' : 'no marker increases engine revenue'
+            LOGGER.info("[AI TOKEN] #{reason}; continuing to tile search")
+            return start_engine_tile_search(
+              state[:tile_actions], state[:all_actions], entity, round_before, step_before,
+            )
+          end
+
           pass_action = state[:all_actions].find { |action| action.is_a?(Engine::Action::Pass) }
-          LOGGER.info('[AI TOKEN] no placement increases engine revenue')
+          LOGGER.info('[AI TOKEN] no profitable marker and no tile candidate; using Pass')
           engine_finish(pass_action, round_before, step_before, entity)
         end
       end

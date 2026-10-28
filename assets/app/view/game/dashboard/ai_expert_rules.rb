@@ -106,6 +106,24 @@ module View
           [useful_count.to_i + extra_train, train_limit.to_i].min
         end
 
+        # Policy: place the best engine-verified revenue-improving marker
+        # with 80% probability; otherwise continue to track laying.
+        def self.place_profitable_token?
+          rand < 0.80
+        end
+
+        # Policy: after normal train needs are met, independently buy the next
+        # affordable depot train with 20% probability to progress the train deck.
+        def self.buy_progression_train?
+          rand < 0.20
+        end
+
+        # Policy: every legally purchasable player-owned private receives an
+        # independent 30% purchase roll.
+        def self.buy_private_company?
+          rand < 0.30
+        end
+
         # Policy: evaluate a tile lay as the first of two consecutive builds.
         # The callback supplies printed revenue so this policy remains game-agnostic.
         def self.two_build_tile_features(entity:, hex:, old_tile:, new_tile:, cost:, revenue_for:)
