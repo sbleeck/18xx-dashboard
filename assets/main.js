@@ -50652,6 +50652,21 @@ Opal.modules["view/game/dashboard/ai_expert_rules"] = function(Opal) {/* Generat
             extra_train = ($truthy($rb_lt(self.$rand(), 0.2)) ? (1) : (0));
             return [$rb_plus(useful_count.$to_i(), extra_train), train_limit.$to_i()].$min();
           });
+          $defs(self, '$place_profitable_token?', function $AiExpertRules_place_profitable_token$ques$10() {
+            var self = this;
+
+            return $rb_lt(self.$rand(), 0.8)
+          });
+          $defs(self, '$buy_progression_train?', function $AiExpertRules_buy_progression_train$ques$11() {
+            var self = this;
+
+            return $rb_lt(self.$rand(), 0.2)
+          });
+          $defs(self, '$buy_private_company?', function $AiExpertRules_buy_private_company$ques$12() {
+            var self = this;
+
+            return $rb_lt(self.$rand(), 0.3)
+          });
           $defs(self, '$two_build_tile_features', function $$two_build_tile_features($kwargs) {
             var entity, hex, old_tile, new_tile, cost, revenue_for, self = this, old_rev = nil, new_rev = nil, tile_rev_gain = nil, has_own_token = nil, $ret_or_1 = nil, old_exits = nil, new_exits = nil, added_exits = nil, considered_exits = nil, neighbors = nil, all_neighbors = nil, horizon_1_value = nil, horizon_2_value = nil, dead_end_count = nil;
 
@@ -50666,14 +50681,14 @@ Opal.modules["view/game/dashboard/ai_expert_rules"] = function(Opal) {/* Generat
             old_rev = revenue_for.$call(old_tile);
             new_rev = revenue_for.$call(new_tile);
             tile_rev_gain = [$rb_minus(new_rev, old_rev), 0].$max();
-            has_own_token = ($truthy(($ret_or_1 = old_tile['$respond_to?']("cities"))) ? ($send(self.$Array(old_tile.$cities()), 'any?', [], function $$10(city){var self = $$10.$$s == null ? this : $$10.$$s;
+            has_own_token = ($truthy(($ret_or_1 = old_tile['$respond_to?']("cities"))) ? ($send(self.$Array(old_tile.$cities()), 'any?', [], function $$13(city){var self = $$13.$$s == null ? this : $$13.$$s;
 
               
               if (city == null) city = nil;
               if ($truthy(city['$respond_to?']("tokened_by?"))) {
                 return city['$tokened_by?'](entity)
               } else {
-                return $send(self.$Array(city.$tokens()).$compact(), 'any?', [], function $$11(token){
+                return $send(self.$Array(city.$tokens()).$compact(), 'any?', [], function $$14(token){
                   
                   if (token == null) token = nil;
                   return token.$corporation()['$=='](entity);})
@@ -50687,7 +50702,7 @@ Opal.modules["view/game/dashboard/ai_expert_rules"] = function(Opal) {/* Generat
             horizon_1_value = 0;
             horizon_2_value = 0;
             dead_end_count = 0;
-            $send(considered_exits, 'each', [], function $$12(edge){var self = $$12.$$s == null ? this : $$12.$$s, n1 = nil, inv_edge = nil, n1_tile = nil, n1_rev = nil, n1_exits = nil, n1_color = nil, n1_is_buildable = nil, n1_connects_back = nil, n1_neighbors = nil, n1_all = nil, n1_cost = nil, best_second_build = nil;
+            $send(considered_exits, 'each', [], function $$15(edge){var self = $$15.$$s == null ? this : $$15.$$s, n1 = nil, inv_edge = nil, n1_tile = nil, n1_rev = nil, n1_exits = nil, n1_color = nil, n1_is_buildable = nil, n1_connects_back = nil, n1_neighbors = nil, n1_all = nil, n1_cost = nil, best_second_build = nil;
 
               
               if (edge == null) edge = nil;
@@ -50720,7 +50735,7 @@ Opal.modules["view/game/dashboard/ai_expert_rules"] = function(Opal) {/* Generat
               n1_all = (($truthy(n1['$respond_to?']("all_neighbors")) && ($truthy(n1.$all_neighbors()))) ? (n1.$all_neighbors()) : (n1_neighbors));
               n1_cost = ($truthy(n1['$respond_to?']("cost")) ? (($truthy(($ret_or_1 = n1.$cost())) ? ($ret_or_1) : (0)).$to_i()) : (0));
               best_second_build = 0;
-              $send($range(0, 5, false), 'each', [], function $$13(edge2){var self = $$13.$$s == null ? this : $$13.$$s, n2 = nil, n2_tile = nil, n2_rev = nil, n2_exits = nil, n2_color = nil, back_to_n1 = nil, value = nil;
+              $send($range(0, 5, false), 'each', [], function $$16(edge2){var self = $$16.$$s == null ? this : $$16.$$s, n2 = nil, n2_tile = nil, n2_rev = nil, n2_exits = nil, n2_color = nil, back_to_n1 = nil, value = nil;
 
                 
                 if (edge2 == null) edge2 = nil;
@@ -50749,14 +50764,14 @@ Opal.modules["view/game/dashboard/ai_expert_rules"] = function(Opal) {/* Generat
               return (horizon_2_value = [horizon_2_value, best_second_build].$max());}, {$$s: self});
             return (new Map([["tile_rev_gain", tile_rev_gain], ["has_own_token", has_own_token], ["horizon_1_value", horizon_1_value], ["horizon_2_value", horizon_2_value], ["is_dead_end_edge", ($truthy(($ret_or_1 = considered_exits['$any?']())) ? (dead_end_count['$=='](considered_exits.$size())) : ($ret_or_1))], ["tile_cost", cost]]));
           });
-          $defs(self, '$matches_condition?', function $AiExpertRules_matches_condition$ques$14(condition, features) {
+          $defs(self, '$matches_condition?', function $AiExpertRules_matches_condition$ques$17(condition, features) {
             var self = this;
 
             
             if (($truthy(condition['$nil?']()) || ($truthy(condition['$empty?']())))) {
               return true
             };
-            return $send(condition, 'all?', [], function $$15(key, expected){var self = $$15.$$s == null ? this : $$15.$$s, k = nil, feat_k = nil, $ret_or_1 = nil;
+            return $send(condition, 'all?', [], function $$18(key, expected){var self = $$18.$$s == null ? this : $$18.$$s, k = nil, feat_k = nil, $ret_or_1 = nil;
 
               
               if (key == null) key = nil;
@@ -56349,9 +56364,9 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
 };
 
 Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) {/* Generated by Opal 1.8.3 */
-  var $module = Opal.module, $klass = Opal.klass, $truthy = Opal.truthy, $const_set = Opal.const_set, $def = Opal.def, $send = Opal.send, $eqeq = Opal.eqeq, $find_super = Opal.find_super, $send2 = Opal.send2, $rb_times = Opal.rb_times, $rb_divide = Opal.rb_divide, $rb_minus = Opal.rb_minus, $lambda = Opal.lambda, $rb_gt = Opal.rb_gt, $rb_plus = Opal.rb_plus, $rb_ge = Opal.rb_ge, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
+  var $module = Opal.module, $klass = Opal.klass, $truthy = Opal.truthy, $const_set = Opal.const_set, $def = Opal.def, $send = Opal.send, $eqeq = Opal.eqeq, $find_super = Opal.find_super, $send2 = Opal.send2, $rb_times = Opal.rb_times, $rb_divide = Opal.rb_divide, $rb_minus = Opal.rb_minus, $lambda = Opal.lambda, $rb_gt = Opal.rb_gt, $rb_plus = Opal.rb_plus, $rb_ge = Opal.rb_ge, $thrower = Opal.thrower, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('const_defined?,new,to_proc,active_step,round,current_acting_entity,generate_legal_actions,any?,is_a?,play,object_id,[],engine_search_locks,[]=,instance_variable_set,engine_search_play,==,delete,error,message,clear,select,start_engine_tile_search,start_engine_token_search,private,*,to_f,now,clone,Array,raw_actions,action_from_h,to_h,maybe_raise!,process_action,corporation?,respond_to?,corporation_by_id,id,minor?,minor_by_id,company?,company_by_id,player_by_id,current_entity,/,-,engine_now_ms,positive?,matching_entity,empty?,route_trains,min_depot_train,depot,warn,owner,owner=,<<,trains,info,name,lambda,to_i,routes_revenue,sum,chains,revenue,>,nil?,running,compute,class,join,first,backtrace,execution_context_unchanged?,call,complete_engine_search!,+,engine_next_first_tile,>=,size,engine_finish_tile_search,clone_and_process,hex,tile,rotation,engine_route_revenue,allocate,send,engine_next_second_tile,engine_finish,max,map,sample,engine_next_token,engine_finish_token_search,city,slot,find');
+  Opal.add_stubs('const_defined?,new,to_proc,active_step,round,current_acting_entity,generate_legal_actions,any?,is_a?,play,object_id,[],engine_search_locks,[]=,instance_variable_set,engine_search_play,==,delete,error,message,clear,select,start_engine_token_search,start_engine_tile_search,private,*,to_f,now,clone,Array,raw_actions,action_from_h,to_h,maybe_raise!,process_action,corporation?,respond_to?,corporation_by_id,id,minor?,minor_by_id,company?,company_by_id,player_by_id,current_entity,/,-,engine_now_ms,positive?,matching_entity,empty?,route_trains,min_depot_train,depot,warn,owner,owner=,<<,trains,info,name,lambda,to_i,routes_revenue,sum,chains,revenue,>,nil?,running,compute,class,join,first,backtrace,execution_context_unchanged?,call,complete_engine_search!,+,engine_verify_next_tile,>=,size,engine_begin_legal_tile_search,clone_and_process,find,engine_finish,each,calculate_tile_cost,hex,tile,trial_and_evaluate_tile,rotation,engine_next_first_tile,engine_finish_tile_search,engine_route_revenue,engine_next_second_tile,sample,max,map,engine_next_token,engine_finish_token_search,city,slot,place_profitable_token?');
   return (function($base, $parent_nesting) {
     var self = $module($base, 'View');
 
@@ -56372,7 +56387,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
 
           var $nesting = [self].concat($parent_nesting), $$ = Opal.$r($nesting), $proto = self.$$prototype;
 
-          $proto.game = $proto.process_block = $proto.engine_search_key = nil;
+          $proto.game = $proto.process_block = $proto.engine_search_key = $proto.tile_eval_cache = nil;
           
           if (!$truthy(self['$const_defined?']("ENGINE_SEARCH_TIMEOUT_MS"))) {
             $const_set($nesting[0], 'ENGINE_SEARCH_TIMEOUT_MS', 5000)
@@ -56481,14 +56496,14 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
                 
                 if (action == null) action = nil;
                 return action['$is_a?']($$$($$$($$('Engine'), 'Action'), 'PlaceToken'));});
-              if ($truthy(tiles['$any?']())) {
-                
-                self.$start_engine_tile_search(tiles, entity, self.game.$round(), step);
-                return "async";
-              };
               if ($truthy(tokens['$any?']())) {
                 
-                self.$start_engine_token_search(tokens, actions, entity, self.game.$round(), step);
+                self.$start_engine_token_search(tokens, tiles, actions, entity, self.game.$round(), step);
+                return "async";
+              };
+              if ($truthy(tiles['$any?']())) {
+                
+                self.$start_engine_tile_search(tiles, actions, entity, self.game.$round(), step);
                 return "async";
               };
               return false;
@@ -56662,17 +56677,88 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
             }; })()
           });
           
-          $def(self, '$start_engine_tile_search', function $$start_engine_tile_search(actions, entity, round_before, step_before) {
+          $def(self, '$start_engine_tile_search', function $$start_engine_tile_search(actions, all_actions, entity, round_before, step_before) {
             var self = this, state = nil;
 
             
             document.body.style.cursor = 'progress';
-            state = (new Map([["deadline", $rb_plus(self.$engine_now_ms(), $$('ENGINE_SEARCH_TIMEOUT_MS'))], ["first_actions", actions], ["first_index", 0], ["results", []]]));
+            state = (new Map([["legality_deadline", $rb_plus(self.$engine_now_ms(), $$('ENGINE_SEARCH_TIMEOUT_MS'))], ["all_actions", all_actions], ["unchecked_actions", actions], ["verification_index", 0], ["legal_actions", []], ["verified_games", (new Map())], ["rejected_count", 0], ["results", []]]));
+            return self.$engine_verify_next_tile(state, entity, round_before, step_before);
+          });
+          
+          $def(self, '$engine_verify_next_tile', function $$engine_verify_next_tile(state, entity, round_before, step_before) {
+            var self = this, action = nil, trial = nil;
+
+            
+            if (($truthy($rb_ge(self.$engine_now_ms(), state['$[]']("legality_deadline"))) || ($truthy($rb_ge(state['$[]']("verification_index"), state['$[]']("unchecked_actions").$size()))))) {
+              return self.$engine_begin_legal_tile_search(state, entity, round_before, step_before)
+            };
+            action = state['$[]']("unchecked_actions")['$[]'](state['$[]']("verification_index"));
+            state['$[]=']("verification_index", $rb_plus(state['$[]']("verification_index"), 1));
+            
+            try {
+              
+              trial = self.$clone_and_process(self.game, action);
+              state['$[]']("legal_actions")['$<<'](action);
+              state['$[]']("verified_games")['$[]='](action.$object_id(), trial);
+            } catch ($err) {
+              if (Opal.rescue($err, [$$('StandardError')])) {
+                try {
+                  state['$[]=']("rejected_count", $rb_plus(state['$[]']("rejected_count"), 1))
+                } finally { Opal.pop_exception($err); }
+              } else { throw $err; }
+            };;
+            return setTimeout(function () { self.$engine_verify_next_tile(state, entity, round_before, step_before) }, 0);
+          });
+          
+          $def(self, '$engine_begin_legal_tile_search', function $$engine_begin_legal_tile_search(state, entity, round_before, step_before) {
+            var self = this, pass = nil, $ret_or_1 = nil, topology_deadline = nil;
+
+            
+            $$('LOGGER').$info("" + ("[AI TILE LEGALITY] candidates=" + (state['$[]']("unchecked_actions").$size()) + " ") + ("engine_legal=" + (state['$[]']("legal_actions").$size()) + " rejected=" + (state['$[]']("rejected_count"))));
+            if ($truthy(state['$[]']("legal_actions")['$empty?']())) {
+              
+              pass = $send(self.$Array(state['$[]']("all_actions")), 'find', [], function $$9(candidate){
+                
+                if (candidate == null) candidate = nil;
+                return candidate['$is_a?']($$$($$$($$('Engine'), 'Action'), 'Pass'));});
+              if ($truthy(pass)) {
+                
+                $$('LOGGER').$info("[AI TILE LEGALITY] no legal tile; using Pass");
+                return self.$engine_finish(pass, round_before, step_before, entity);
+              };
+              $$('LOGGER').$warn("[AI TILE LEGALITY] no legal tile and no Pass available");
+              return self.$engine_finish(nil, round_before, step_before, entity);
+            };
+            self.tile_eval_cache = ($truthy(($ret_or_1 = self.tile_eval_cache)) ? ($ret_or_1) : ((new Map())));
+            topology_deadline = $rb_plus(self.$engine_now_ms(), $$('ENGINE_SEARCH_TIMEOUT_MS'));
+            (function(){try { var $t_break = $thrower('break'); return $send(state['$[]']("legal_actions"), 'each', [], function $$10(action){var $a, self = $$10.$$s == null ? this : $$10.$$s, cost = nil, metrics = nil;
+              if (self.tile_eval_cache == null) self.tile_eval_cache = nil;
+
+              
+              if (action == null) action = nil;
+              if ($truthy($rb_ge(self.$engine_now_ms(), topology_deadline))) {
+                $t_break.$throw(nil, $$10.$$is_lambda)
+              };
+              cost = self.$calculate_tile_cost(step_before, entity, action.$hex(), action.$tile());
+              metrics = self.$trial_and_evaluate_tile(step_before, entity, action.$hex(), action.$tile(), action.$rotation(), cost, topology_deadline);
+              if ($truthy(metrics)) {
+                return ($a = [action, metrics], $send(self.tile_eval_cache, '[]=', $a), $a[$a.length - 1])
+              } else {
+                return nil
+              };}, {$$s: self})} catch($e) {
+              if ($e === $t_break) return $e.$v;
+              throw $e;
+            } finally {$t_break.is_orphan = true;}})();
+            state['$[]=']("deadline", $rb_plus(self.$engine_now_ms(), $$('ENGINE_SEARCH_TIMEOUT_MS')));
+            state['$[]=']("first_actions", state['$[]']("legal_actions"));
+            state['$[]=']("first_index", 0);
+            $$('LOGGER').$info("[AI TILE SEARCH] evaluating revenue for " + (state['$[]']("legal_actions").$size()) + " legal candidates");
             return self.$engine_next_first_tile(state, entity, round_before, step_before);
           });
           
           $def(self, '$engine_next_first_tile', function $$engine_next_first_tile(state, entity, round_before, step_before) {
-            var self = this, action = nil, first_game = nil, e = nil, label = nil;
+            var self = this, action = nil, first_game = nil, label = nil;
 
             
             if (($truthy($rb_ge(self.$engine_now_ms(), state['$[]']("deadline"))) || ($truthy($rb_ge(state['$[]']("first_index"), state['$[]']("first_actions").$size()))))) {
@@ -56680,20 +56766,12 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
             };
             action = state['$[]']("first_actions")['$[]'](state['$[]']("first_index"));
             state['$[]=']("first_index", $rb_plus(state['$[]']("first_index"), 1));
-            
-            try {
-              first_game = self.$clone_and_process(self.game, action)
-            } catch ($err) {
-              if (Opal.rescue($err, [$$('StandardError')])) {(e = $err)
-                try {
-                  
-                  $$('LOGGER').$warn("[AI TILE INVALID] " + (action.$to_h()) + " " + (e.$message()));
-                  return self.$engine_next_first_tile(state, entity, round_before, step_before);
-                } finally { Opal.pop_exception($err); }
-              } else { throw $err; }
-            };;
+            first_game = state['$[]']("verified_games")['$[]'](action.$object_id());
+            if (!$truthy(first_game)) {
+              return self.$engine_next_first_tile(state, entity, round_before, step_before)
+            };
             label = "first hex=" + (action.$hex().$id()) + " tile=" + (action.$tile().$id()) + " rotation=" + (action.$rotation());
-            return $send(self, 'engine_route_revenue', [first_game, entity, state['$[]']("deadline"), label], function $$9(first_revenue){var self = $$9.$$s == null ? this : $$9.$$s, topology_metrics = nil, $ret_or_1 = nil, topology_revenue = nil, result = nil, first_player = nil, second_actions = nil;
+            return $send(self, 'engine_route_revenue', [first_game, entity, state['$[]']("deadline"), label], function $$11(first_revenue){var self = $$11.$$s == null ? this : $$11.$$s, topology_metrics = nil, $ret_or_1 = nil, topology_revenue = nil, result = nil;
               if (self.tile_eval_cache == null) self.tile_eval_cache = nil;
 
               
@@ -56707,16 +56785,8 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
               topology_revenue = ($truthy(topology_metrics) ? (topology_metrics['$[]']("projected_revenue").$to_i()) : (0));
               result = (new Map([["action", action], ["first_revenue", first_revenue], ["best_revenue", first_revenue], ["topology_revenue", topology_revenue], ["best_second", nil]]));
               state['$[]']("results")['$<<'](result);
-              first_player = self.$class().$allocate();
-              $send(first_player, 'send', ["initialize", first_game, []], function $$10(_action){
-                
-                if (_action == null) _action = nil;
-                return nil;});
-              second_actions = $send(first_player.$generate_legal_actions(), 'select', [], function $$11(candidate){
-                
-                if (candidate == null) candidate = nil;
-                return candidate['$is_a?']($$$($$$($$('Engine'), 'Action'), 'LayTile'));});
-              return self.$engine_next_second_tile(state, result, first_game, second_actions, 0, entity, round_before, step_before);}, {$$s: self});
+              $$('LOGGER').$info("" + ("[AI TILE RESULT] hex=" + (action.$hex().$id()) + " tile=" + (action.$tile().$id()) + " ") + ("rotation=" + (action.$rotation()) + " first=" + (first_revenue) + " ") + ("engine_two=" + (result['$[]']("best_revenue")) + " topology_two=" + (topology_revenue) + " second="));
+              return self.$engine_next_first_tile(state, entity, round_before, step_before);}, {$$s: self});
           });
           
           $def(self, '$engine_next_second_tile', function $$engine_next_second_tile(state, result, first_game, actions, index, entity, round_before, step_before) {
@@ -56757,41 +56827,54 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
           });
           
           $def(self, '$engine_finish_tile_search', function $$engine_finish_tile_search(state, entity, round_before, step_before) {
-            var self = this, completed = nil, best_engine_revenue = nil, engine_tied = nil, best_topology_revenue = nil, tied = nil, selection_source = nil, winner = nil, log = nil;
+            var self = this, completed = nil, fallback = nil, pass = nil, best_engine_revenue = nil, engine_tied = nil, best_topology_revenue = nil, tied = nil, selection_source = nil, winner = nil, log = nil;
 
             
             completed = state['$[]']("results");
             if ($truthy(completed['$empty?']())) {
               
-              $$('LOGGER').$warn("[AI TILE SEARCH] no candidate completed before deadline");
+              fallback = self.$Array(state['$[]']("legal_actions")).$sample();
+              if ($truthy(fallback)) {
+                
+                $$('LOGGER').$warn("[AI TILE SEARCH] scoring timed out; using random engine-verified tile");
+                return self.$engine_finish(fallback, round_before, step_before, entity);
+              };
+              pass = $send(self.$Array(state['$[]']("all_actions")), 'find', [], function $$13(candidate){
+                
+                if (candidate == null) candidate = nil;
+                return candidate['$is_a?']($$$($$$($$('Engine'), 'Action'), 'Pass'));});
+              if ($truthy(pass)) {
+                return self.$engine_finish(pass, round_before, step_before, entity)
+              };
+              $$('LOGGER').$warn("[AI TILE SEARCH] no legal tile and no Pass available");
               return self.$engine_finish(nil, round_before, step_before, entity);
             };
-            best_engine_revenue = $send(completed, 'map', [], function $$13(result){
+            best_engine_revenue = $send(completed, 'map', [], function $$14(result){
               
               if (result == null) result = nil;
               return result['$[]']("best_revenue").$to_i();}).$max();
             if ($truthy(best_engine_revenue['$positive?']())) {
               
-              engine_tied = $send(completed, 'select', [], function $$14(result){
+              engine_tied = $send(completed, 'select', [], function $$15(result){
                 
                 if (result == null) result = nil;
                 return result['$[]']("best_revenue").$to_i()['$=='](best_engine_revenue);});
-              best_topology_revenue = $send(engine_tied, 'map', [], function $$15(result){
+              best_topology_revenue = $send(engine_tied, 'map', [], function $$16(result){
                 
                 if (result == null) result = nil;
                 return result['$[]']("topology_revenue").$to_i();}).$max();
-              tied = $send(engine_tied, 'select', [], function $$16(result){
+              tied = $send(engine_tied, 'select', [], function $$17(result){
                 
                 if (result == null) result = nil;
                 return result['$[]']("topology_revenue").$to_i()['$=='](best_topology_revenue);});
               selection_source = "engine_then_topology";
             } else {
               
-              best_topology_revenue = $send(completed, 'map', [], function $$17(result){
+              best_topology_revenue = $send(completed, 'map', [], function $$18(result){
                 
                 if (result == null) result = nil;
                 return result['$[]']("topology_revenue").$to_i();}).$max();
-              tied = $send(completed, 'select', [], function $$18(result){
+              tied = $send(completed, 'select', [], function $$19(result){
                 
                 if (result == null) result = nil;
                 return result['$[]']("topology_revenue").$to_i()['$=='](best_topology_revenue);});
@@ -56803,17 +56886,17 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
             return self.$engine_finish(winner['$[]']("action"), round_before, step_before, entity);
           });
           
-          $def(self, '$start_engine_token_search', function $$start_engine_token_search(actions, all_actions, entity, round_before, step_before) {
+          $def(self, '$start_engine_token_search', function $$start_engine_token_search(actions, tile_actions, all_actions, entity, round_before, step_before) {
             var self = this, deadline = nil, baseline_game = nil;
 
             
             deadline = $rb_plus(self.$engine_now_ms(), $$('ENGINE_SEARCH_TIMEOUT_MS'));
             baseline_game = self.game.$clone(self.$Array(self.game.$raw_actions()));
-            return $send(self, 'engine_route_revenue', [baseline_game, entity, deadline, "token baseline"], function $$19(baseline){var self = $$19.$$s == null ? this : $$19.$$s, state = nil;
+            return $send(self, 'engine_route_revenue', [baseline_game, entity, deadline, "token baseline"], function $$20(baseline){var self = $$20.$$s == null ? this : $$20.$$s, state = nil;
 
               
               if (baseline == null) baseline = nil;
-              state = (new Map([["deadline", deadline], ["baseline", baseline.$to_i()], ["actions", actions], ["all_actions", all_actions], ["index", 0], ["results", []]]));
+              state = (new Map([["deadline", deadline], ["baseline", baseline.$to_i()], ["actions", actions], ["tile_actions", tile_actions], ["all_actions", all_actions], ["index", 0], ["results", []]]));
               return self.$engine_next_token(state, entity, round_before, step_before);}, {$$s: self});
           });
           
@@ -56837,7 +56920,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
               } else { throw $err; }
             };;
             label = "token city=" + (action.$city().$id()) + " slot=" + (action.$slot());
-            return $send(self, 'engine_route_revenue', [trial_game, entity, state['$[]']("deadline"), label], function $$20(revenue){var self = $$20.$$s == null ? this : $$20.$$s;
+            return $send(self, 'engine_route_revenue', [trial_game, entity, state['$[]']("deadline"), label], function $$21(revenue){var self = $$21.$$s == null ? this : $$21.$$s;
 
               
               if (revenue == null) revenue = nil;
@@ -56847,33 +56930,39 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
               return self.$engine_next_token(state, entity, round_before, step_before);}, {$$s: self});
           });
           return $def(self, '$engine_finish_token_search', function $$engine_finish_token_search(state, entity, round_before, step_before) {
-            var self = this, profitable = nil, best = nil, tied = nil, winner = nil, log = nil, pass_action = nil;
+            var self = this, profitable = nil, best = nil, tied = nil, winner = nil, log = nil, reason = nil, pass_action = nil;
 
             
-            profitable = $send(state['$[]']("results"), 'select', [], function $$21(result){
+            profitable = $send(state['$[]']("results"), 'select', [], function $$22(result){
               
               if (result == null) result = nil;
               return $rb_gt(result['$[]']("revenue").$to_i(), state['$[]']("baseline"));});
-            if ($truthy(profitable['$any?']())) {
+            if (($truthy(profitable['$any?']()) && ($truthy($$('AiExpertRules')['$place_profitable_token?']())))) {
               
-              best = $send(profitable, 'map', [], function $$22(result){
+              best = $send(profitable, 'map', [], function $$23(result){
                 
                 if (result == null) result = nil;
                 return result['$[]']("revenue");}).$max();
-              tied = $send(profitable, 'select', [], function $$23(result){
+              tied = $send(profitable, 'select', [], function $$24(result){
                 
                 if (result == null) result = nil;
                 return result['$[]']("revenue")['$=='](best);});
               winner = tied.$sample();
-              log = "" + ("[AI TOKEN CHOSEN] city=" + (winner['$[]']("action").$city().$id()) + " slot=" + (winner['$[]']("action").$slot()) + " ") + ("revenue=" + (best) + " baseline=" + (state['$[]']("baseline")) + " ties=" + (tied.$size()));
+              log = "" + ("[AI TOKEN CHOSEN] city=" + (winner['$[]']("action").$city().$id()) + " slot=" + (winner['$[]']("action").$slot()) + " ") + ("revenue=" + (best) + " baseline=" + (state['$[]']("baseline")) + " ties=" + (tied.$size()) + " probability=0.8");
               $$('LOGGER').$info(log);
               return self.$engine_finish(winner['$[]']("action"), round_before, step_before, entity);
             };
-            pass_action = $send(state['$[]']("all_actions"), 'find', [], function $$24(action){
+            if ($truthy(self.$Array(state['$[]']("tile_actions"))['$any?']())) {
+              
+              reason = ($truthy(profitable['$any?']()) ? ("80% policy declined marker") : ("no marker increases engine revenue"));
+              $$('LOGGER').$info("[AI TOKEN] " + (reason) + "; continuing to tile search");
+              return self.$start_engine_tile_search(state['$[]']("tile_actions"), state['$[]']("all_actions"), entity, round_before, step_before);
+            };
+            pass_action = $send(state['$[]']("all_actions"), 'find', [], function $$25(action){
               
               if (action == null) action = nil;
               return action['$is_a?']($$$($$$($$('Engine'), 'Action'), 'Pass'));});
-            $$('LOGGER').$info("[AI TOKEN] no placement increases engine revenue");
+            $$('LOGGER').$info("[AI TOKEN] no profitable marker and no tile candidate; using Pass");
             return self.$engine_finish(pass_action, round_before, step_before, entity);
           });
         })($nesting[0], null, $nesting)
@@ -56883,9 +56972,9 @@ Opal.modules["view/game/dashboard/dashboard_ai_engine_search"] = function(Opal) 
 };
 
 Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Generated by Opal 1.8.3 */
-  var $module = Opal.module, $klass = Opal.klass, $truthy = Opal.truthy, $rb_lt = Opal.rb_lt, $rb_minus = Opal.rb_minus, $eqeq = Opal.eqeq, $send = Opal.send, $def = Opal.def, $to_ary = Opal.to_ary, $thrower = Opal.thrower, $eqeqeq = Opal.eqeqeq, $rb_ge = Opal.rb_ge, $rb_divide = Opal.rb_divide, $rb_times = Opal.rb_times, $neqeq = Opal.neqeq, $rb_le = Opal.rb_le, $rb_gt = Opal.rb_gt, $not = Opal.not, $rb_plus = Opal.rb_plus, $lambda = Opal.lambda, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $const_set = Opal.const_set, $range = Opal.range, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
+  var $module = Opal.module, $klass = Opal.klass, $truthy = Opal.truthy, $rb_lt = Opal.rb_lt, $rb_minus = Opal.rb_minus, $eqeq = Opal.eqeq, $send = Opal.send, $def = Opal.def, $rb_divide = Opal.rb_divide, $to_ary = Opal.to_ary, $thrower = Opal.thrower, $const_set = Opal.const_set, $rb_plus = Opal.rb_plus, $eqeqeq = Opal.eqeqeq, $rb_ge = Opal.rb_ge, $rb_times = Opal.rb_times, $neqeq = Opal.neqeq, $rb_le = Opal.rb_le, $rb_gt = Opal.rb_gt, $not = Opal.not, $lambda = Opal.lambda, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $range = Opal.range, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('object_id,[],invocation_fingerprint,to_f,<,-,==,[]=,play,new,to_proc,delete,clear,private,round,active_step,respond_to?,current_entity,size,Array,actions,raw_actions,join,to_s,current_acting_entity,generate_legal_actions,any?,is_a?,reject,empty?,select_draft_action,action_belongs_to_entity?,equal?,call,name,class,select,select_uniform_choice,map,extract_features,score_action,apply_probability_policy,find,each,to_i,max,sample,tile,rotation,id,hex,positive?,sort_by!,-@,select_candidate,materialize_action_for_dispatch,message,actions_for,uniq,compact,concat,collect_pass,collect_choices,collect_draft_and_bids,collect_dividends,collect_shares,collect_par,collect_trains,collect_routes,collect_tiles,collect_tokens,tiles,!,nil?,tile_available?,entity,downcase,gsub,last_revenue,operating_history,last,cash,num_certs,cert_limit,corporations,owner,floated?,===,bundle,corporation,!=,percent_of,trains,price,share_pool,>=,depot,min_depot_train,players,par_price,share_price,/,percent_to_float,*,num_shares,presidents_share,must_sell?,<=,>,kind,sum,revenue,can_buy_permanent_train?,train,from_depot?,merge!,include?,must_buy_train?,must_lay_tile?,can_pass?,choices_for,choices,keys,permanent?,rusts_on,obsolete_on,+,depot_trains,upcoming,permanent_train?,collect_auction_bids,&,collect_company_purchases,auction_bid_companies,filter_map,current_company_bid,bid_increment,opening_bid,maximum_bid,can_bid?,auctioning,<<,available,companies,closed?,highest_bid,current_bid,bids,flatten,values,company,reverse,min_increment,min_bid,min_price,value,max_bid,min,buyable_companies,can_buy_company?,dividend_options,dividend_types,reject!,buyable_shares,buyable_bundles,ipoed,ipo_shares,shares,to_bundle,shares_of,bank,can_buy?,did_sell?,percent,sellable_bundles,bundles_for_corporation,can_sell?,can_par?,get_par_prices,stock_market,par_prices,first,par_chart,index,merge,raise,train_limit,compute,lambda,count,chains,connected_nodes,graph,connected_hexes,drivable_train_capacity,train_target_count,buyable_trains,buying_power,can_buy_train?,discardable_trains,tile_cost,upgrade_cost,cost,zero?,stops,revenue_to_render,clear_graph_for,clear_entity_graph_cache,tile=,instance_variable_set,dup,rotate!,clone_tile_for_trial,set_hex_tile_for_trial,each_key,available_hex,potential_tiles,upgradeable_tiles,calculate_tile_cost,legal_tile_rotations,to_a,legal_tile_rotation?,two_build_tile_features,printed_hex_revenue,can_lay_tile?,unlimited,trial_and_evaluate_tile,compute_auto_router_revenue,tokens,city,used,replace,can_place_token?,available_tokens,next_token,token_cost,cities,tokenable?,find_index,token_revenue_gain');
+  Opal.add_stubs('object_id,[],invocation_fingerprint,to_f,<,-,==,[]=,play,new,to_proc,delete,clear,private,round,active_step,respond_to?,current_entity,size,Array,actions,raw_actions,join,to_s,current_acting_entity,generate_legal_actions,any?,is_a?,reject,empty?,map,corporation?,all?,include?,sample,action_belongs_to_entity?,execution_context_unchanged?,call,info,name,class,/,select_draft_action,equal?,select,select_uniform_choice,extract_features,score_action,apply_probability_policy,find,each,to_i,max,tile,rotation,id,hex,positive?,sort_by!,-@,select_candidate,materialize_action_for_dispatch,message,freeze,actions_for,uniq,compact,filter_map,concat,public_send,warn,entity_label,operating_entity?,key?,start_with?,collect_pass,operating?,minor?,collect_trains,+,private_buy_step_for,collect_company_purchases,steps,private_companies_for,player?,owner,buyable_companies,companies,can_buy_company?,closed?,!=,collect_issue_shares,collect_redeem_shares,tiles,!,nil?,tile_available?,entity,downcase,gsub,last_revenue,operating_history,last,cash,num_certs,cert_limit,corporations,floated?,===,bundle,corporation,percent_of,trains,price,share_pool,>=,depot,min_depot_train,players,par_price,share_price,percent_to_float,*,num_shares,presidents_share,must_sell?,<=,>,kind,sum,revenue,can_buy_permanent_train?,train,from_depot?,merge!,must_buy_train?,must_lay_tile?,can_pass?,choices_for,choices,keys,permanent?,rusts_on,obsolete_on,depot_trains,upcoming,permanent_train?,collect_auction_bids,&,auction_bid_companies,current_company_bid,bid_increment,opening_bid,maximum_bid,can_bid?,auctioning,<<,available,highest_bid,current_bid,bids,flatten,values,company,reverse,min_increment,min_bid,min_price,value,max_bid,min,max_price,buy_private_company?,dividend_options,dividend_types,reject!,buyable_shares,buyable_bundles,ipoed,ipo_shares,shares,to_bundle,shares_of,bank,can_buy?,did_sell?,percent,sellable_bundles,bundles_for_corporation,can_sell?,can_par?,get_par_prices,stock_market,par_prices,first,par_chart,index,merge,raise,train_limit,compute,lambda,count,chains,connected_nodes,graph,connected_hexes,drivable_train_capacity,train_target_count,buy_progression_train?,buyable_trains,buying_power,can_buy_train?,discardable_trains,redeemable_shares,redeemable_bundles,tile_cost,upgrade_cost,cost,zero?,stops,revenue_to_render,clear_graph_for,clear_entity_graph_cache,tile=,instance_variable_set,dup,rotate!,clone_tile_for_trial,set_hex_tile_for_trial,each_key,available_hex,potential_tiles,upgradeable_tiles,calculate_tile_cost,legal_tile_rotations,to_a,legal_tile_rotation?,two_build_tile_features,printed_hex_revenue,can_lay_tile?,unlimited,compute_auto_router_revenue,tokens,city,used,replace,can_place_token?,available_tokens,next_token,token_cost,cities,tokenable?,find_index,token_revenue_gain');
   
   self.$require("view/game/dashboard/dashboard_ai_player.rb"+ '/../' + "ai_expert_rules");
   return (function($base, $parent_nesting) {
@@ -57045,7 +57134,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
           }, -2);
           
           $def(self, '$play', function $$play() {try { var $t_return = $thrower('return'); 
-            var $a, self = this, step = nil, entity = nil, round_before = nil, actions = nil, draft_action = nil, choose_actions = nil, action = nil, scored = nil, choice_items = nil, tile_items = nil, winning = nil, chosen_action = nil, best_key = nil, tied = nil, selected = nil, chosen = nil, chosen_rotation = nil, chosen_message = nil, token_items = nil, profitable = nil, best_gain = nil, non_tokens = nil, e = nil;
+            var $a, self = this, step = nil, entity = nil, round_before = nil, actions = nil, command_types = nil, action = nil, draft_action = nil, choose_actions = nil, scored = nil, choice_items = nil, tile_items = nil, winning = nil, chosen_action = nil, best_key = nil, tied = nil, selected = nil, chosen = nil, chosen_rotation = nil, chosen_message = nil, token_items = nil, profitable = nil, best_gain = nil, non_tokens = nil, e = nil;
 
             return (function() { try {
             try {
@@ -57072,6 +57161,32 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               if ($truthy(actions['$empty?']())) {
                 $t_return.$throw(false, $$play.$$is_lambda)
               };
+              command_types = $send(actions, 'map', [], function $$4(action){
+                
+                if (action == null) action = nil;
+                if ($truthy(action['$is_a?']($$$($$$($$('Engine'), 'Action'), 'Pass')))) {
+                  return "pass"
+                } else if ((($truthy(action['$is_a?']($$$($$$($$('Engine'), 'Action'), 'SellShares'))) && ($truthy(entity['$respond_to?']("corporation?")))) && ($truthy(entity['$corporation?']())))) {
+                  return "issue"
+                } else {
+                  return "other"
+                };});
+              if ($truthy($send(command_types, 'all?', [], function $$5(type){
+                
+                if (type == null) type = nil;
+                return ["pass", "issue"]['$include?'](type);}))) {
+                
+                action = actions.$sample();
+                if (!$truthy(self['$action_belongs_to_entity?'](action, entity))) {
+                  $t_return.$throw(false, $$play.$$is_lambda)
+                };
+                if (!$truthy(self['$execution_context_unchanged?'](round_before, step, entity))) {
+                  $t_return.$throw(false, $$play.$$is_lambda)
+                };
+                self.process_block.$call(action);
+                $$('LOGGER').$info("" + ("[AI UNIFORM COMMAND] selected=" + (action.$class().$name()) + " ") + ("candidates=" + (actions.$size()) + " probability=" + ($rb_divide(1.0, actions.$size()))));
+                $t_return.$throw(true, $$play.$$is_lambda);
+              };
               draft_action = $$('AiExpertRules').$select_draft_action(actions);
               if ($truthy(draft_action)) {
                 
@@ -57091,7 +57206,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 console.log("[AI Expert] Draft/auction action selected:", draft_action.$class().$name());
                 $t_return.$throw(true, $$play.$$is_lambda);
               };
-              choose_actions = $send(actions, 'select', [], function $$4(action){
+              choose_actions = $send(actions, 'select', [], function $$6(action){
                 
                 if (action == null) action = nil;
                 return action['$is_a?']($$$($$$($$('Engine'), 'Action'), 'Choose'));});
@@ -57114,7 +57229,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 console.log("[AI Expert] Draft: uniformly selected one of " + choose_actions.$size().to_s + " choices");
                 $t_return.$throw(true, $$play.$$is_lambda);
               };
-              scored = $send(actions, 'map', [], function $$5(action){var $b, $c, self = $$5.$$s == null ? this : $$5.$$s, features = nil, score = nil, rules = nil;
+              scored = $send(actions, 'map', [], function $$7(action){var $b, $c, self = $$7.$$s == null ? this : $$7.$$s, features = nil, score = nil, rules = nil;
                 if (self.game == null) self.game = nil;
 
                 
@@ -57123,50 +57238,50 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 $c = $$('AiExpertRules').$score_action(action, features, self.game), $b = $to_ary($c), (score = ($b[0] == null ? nil : $b[0])), (rules = ($b[1] == null ? nil : $b[1])), $c;
                 return (new Map([["action", action], ["score", score], ["rules", rules], ["features", features]]));}, {$$s: self});
               scored = $$('AiExpertRules').$apply_probability_policy(scored);
-              choice_items = $send(scored, 'select', [], function $$6(item){
+              choice_items = $send(scored, 'select', [], function $$8(item){
                 
                 if (item == null) item = nil;
                 return item['$[]']("features")['$[]']("action_type")['$==']("choose");});
-              tile_items = $send(scored, 'select', [], function $$7(item){
+              tile_items = $send(scored, 'select', [], function $$9(item){
                 
                 if (item == null) item = nil;
                 return item['$[]']("features")['$[]']("action_type")['$==']("lay_tile");});
-              winning = ($truthy(choice_items['$any?']()) ? (((chosen_action = $$('AiExpertRules').$select_uniform_choice($send(choice_items, 'map', [], function $$8(item){
+              winning = ($truthy(choice_items['$any?']()) ? (((chosen_action = $$('AiExpertRules').$select_uniform_choice($send(choice_items, 'map', [], function $$10(item){
                 
                 if (item == null) item = nil;
-                return item['$[]']("action");}))), $send(choice_items, 'find', [], function $$9(item){
+                return item['$[]']("action");}))), $send(choice_items, 'find', [], function $$11(item){
                 
                 if (item == null) item = nil;
-                return item['$[]']("action")['$equal?'](chosen_action);}))) : ($truthy(tile_items['$any?']()) ? (($send(tile_items, 'each', [], function $$10(item){var $b, features = nil;
+                return item['$[]']("action")['$equal?'](chosen_action);}))) : ($truthy(tile_items['$any?']()) ? (($send(tile_items, 'each', [], function $$12(item){var $b, features = nil;
 
                 
                 if (item == null) item = nil;
                 features = item['$[]']("features");
-                return ($b = ["realized_income_gain", ($truthy(features['$[]']("has_own_token")) ? (features['$[]']("tile_rev_gain").$to_i()) : (0))], $send(features, '[]=', $b), $b[$b.length - 1]);}), (best_key = $send(tile_items, 'map', [], function $$11(item){
+                return ($b = ["realized_income_gain", ($truthy(features['$[]']("has_own_token")) ? (features['$[]']("tile_rev_gain").$to_i()) : (0))], $send(features, '[]=', $b), $b[$b.length - 1]);}), (best_key = $send(tile_items, 'map', [], function $$13(item){
                 
                 if (item == null) item = nil;
-                return [item['$[]']("features")['$[]']("realized_income_gain").$to_i(), item['$[]']("features")['$[]']("projected_revenue").$to_i()];}).$max()), (tied = $send(tile_items, 'select', [], function $$12(item){
+                return [item['$[]']("features")['$[]']("realized_income_gain").$to_i(), item['$[]']("features")['$[]']("projected_revenue").$to_i()];}).$max()), (tied = $send(tile_items, 'select', [], function $$14(item){
                 
                 if (item == null) item = nil;
-                return [item['$[]']("features")['$[]']("realized_income_gain").$to_i(), item['$[]']("features")['$[]']("projected_revenue").$to_i()]['$=='](best_key);})), (selected = tied.$sample()), (chosen = selected['$[]']("action")), (chosen_rotation = ($truthy(chosen.$tile()['$respond_to?']("rotation")) ? (chosen.$tile().$rotation()) : (nil))), (chosen_message = "" + ("[AI BUILD CHOSEN] hex=" + (chosen.$hex().$id()) + " tile=" + (chosen.$tile().$name()) + " ") + ("rotation=" + (chosen_rotation) + " realized_gain=" + (best_key['$[]'](0)) + " ") + ("two_build_value=" + (best_key['$[]'](1)) + " tied_candidates=" + (tied.$size()) + " ") + ("best_second=" + (selected['$[]']("features")['$[]']("best_second")))), console.log(chosen_message), selected)) : (((token_items = $send(scored, 'select', [], function $$13(item){
+                return [item['$[]']("features")['$[]']("realized_income_gain").$to_i(), item['$[]']("features")['$[]']("projected_revenue").$to_i()]['$=='](best_key);})), (selected = tied.$sample()), (chosen = selected['$[]']("action")), (chosen_rotation = ($truthy(chosen.$tile()['$respond_to?']("rotation")) ? (chosen.$tile().$rotation()) : (nil))), (chosen_message = "" + ("[AI BUILD CHOSEN] hex=" + (chosen.$hex().$id()) + " tile=" + (chosen.$tile().$name()) + " ") + ("rotation=" + (chosen_rotation) + " realized_gain=" + (best_key['$[]'](0)) + " ") + ("two_build_value=" + (best_key['$[]'](1)) + " tied_candidates=" + (tied.$size()) + " ") + ("best_second=" + (selected['$[]']("features")['$[]']("best_second")))), console.log(chosen_message), selected)) : (((token_items = $send(scored, 'select', [], function $$15(item){
                 
                 if (item == null) item = nil;
-                return item['$[]']("features")['$[]']("action_type")['$==']("place_token");})), ($truthy(token_items['$any?']()) ? (((profitable = $send(token_items, 'select', [], function $$14(item){
+                return item['$[]']("features")['$[]']("action_type")['$==']("place_token");})), ($truthy(token_items['$any?']()) ? (((profitable = $send(token_items, 'select', [], function $$16(item){
                 
                 if (item == null) item = nil;
-                return item['$[]']("features")['$[]']("token_revenue_gain").$to_i()['$positive?']();})), ($truthy(profitable['$any?']()) ? (((best_gain = $send(profitable, 'map', [], function $$15(item){
+                return item['$[]']("features")['$[]']("token_revenue_gain").$to_i()['$positive?']();})), ($truthy(profitable['$any?']()) ? (((best_gain = $send(profitable, 'map', [], function $$17(item){
                 
                 if (item == null) item = nil;
-                return item['$[]']("features")['$[]']("token_revenue_gain").$to_i();}).$max()), $send(profitable, 'select', [], function $$16(item){
+                return item['$[]']("features")['$[]']("token_revenue_gain").$to_i();}).$max()), $send(profitable, 'select', [], function $$18(item){
                 
                 if (item == null) item = nil;
-                return item['$[]']("features")['$[]']("token_revenue_gain").$to_i()['$=='](best_gain);}).$sample())) : (((non_tokens = $send(scored, 'reject', [], function $$17(item){
+                return item['$[]']("features")['$[]']("token_revenue_gain").$to_i()['$=='](best_gain);}).$sample())) : (((non_tokens = $send(scored, 'reject', [], function $$19(item){
                 
                 if (item == null) item = nil;
-                return item['$[]']("features")['$[]']("action_type")['$==']("place_token");})), $send(non_tokens, 'sort_by!', [], function $$18(item){
+                return item['$[]']("features")['$[]']("action_type")['$==']("place_token");})), $send(non_tokens, 'sort_by!', [], function $$20(item){
                 
                 if (item == null) item = nil;
-                return item['$[]']("score")['$-@']();}), $$('AiExpertRules').$select_candidate(non_tokens)))))) : (($send(scored, 'sort_by!', [], function $$19(item){
+                return item['$[]']("score")['$-@']();}), $$('AiExpertRules').$select_candidate(non_tokens)))))) : (($send(scored, 'sort_by!', [], function $$21(item){
                 
                 if (item == null) item = nil;
                 return item['$[]']("score")['$-@']();}), $$('AiExpertRules').$select_candidate(scored))))))));
@@ -57209,9 +57324,13 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               throw $e;
             } finally {$t_return.is_orphan = true;}
           });
+          $const_set($nesting[0], 'ACTION_REGISTRY', (new Map([["pass", "collect_pass"], ["choose", "collect_choices"], ["bid", "collect_draft_and_bids"], ["buy_company", "collect_draft_and_bids"], ["buy_companies", "collect_draft_and_bids"], ["dividend", "collect_dividends"], ["payout", "collect_dividends"], ["withhold", "collect_dividends"], ["half", "collect_dividends"], ["split", "collect_dividends"], ["buy_shares", "collect_shares"], ["sell_shares", "collect_shares"], ["par", "collect_par"], ["buy_train", "collect_trains"], ["discard_train", "collect_trains"], ["run_routes", "collect_routes"], ["lay_tile", "collect_tiles"], ["place_token", "collect_tokens"], ["issue", "collect_issue_shares"], ["issue_shares", "collect_issue_shares"], ["reissue", "collect_issue_shares"], ["reissue_shares", "collect_issue_shares"], ["corporate_sell_shares", "collect_issue_shares"], ["redeem", "collect_redeem_shares"], ["redeem_shares", "collect_redeem_shares"], ["corporate_buy_shares", "collect_redeem_shares"]])).$freeze());
+          $const_set($nesting[0], 'OR_OPPORTUNITY_COLLECTORS', ["collect_or_train_opportunities", "collect_or_company_opportunities", "collect_or_issue_opportunities", "collect_or_redeem_opportunities"].$freeze());
+          $const_set($nesting[0], 'BACKGROUND_ACTION_PREFIXES', ["program_"].$freeze());
+          $const_set($nesting[0], 'BACKGROUND_ACTIONS', ["end_game", "log", "message", "undo", "redo"].$freeze());
           
           $def(self, '$generate_legal_actions', function $$generate_legal_actions(step, entity) {
-            var $a, self = this, $ret_or_1 = nil, raw = nil, actions = nil, legal = nil;
+            var $a, self = this, $ret_or_1 = nil, raw = nil, actions = nil, collectors = nil, legal = nil, unknown = nil, fallback = nil;
 
             
             if (step == null) step = nil;
@@ -57225,11 +57344,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               return []
             };
             raw = (function() { try {
-              if ($truthy(($ret_or_1 = step.$actions(entity)))) {
-                return $ret_or_1
-              } else {
-                return []
-              }
+              return self.$Array(step.$actions(entity))
             } catch ($err) {
               if (Opal.rescue($err, [$$('StandardError')])) {
                 try {
@@ -57239,11 +57354,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             }})();
             if ($truthy(raw['$empty?']())) {
               raw = (function() { try {
-                if ($truthy(($ret_or_1 = self.game.$round().$actions_for(entity)))) {
-                  return $ret_or_1
-                } else {
-                  return []
-                }
+                return self.$Array(self.game.$round().$actions_for(entity))
               } catch ($err) {
                 if (Opal.rescue($err, [$$('StandardError')])) {
                   try {
@@ -57256,23 +57367,223 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             if ($truthy(actions['$empty?']())) {
               return []
             };
+            collectors = $send(actions, 'filter_map', [], function $$22(name){
+              
+              if (name == null) name = nil;
+              return $$('ACTION_REGISTRY')['$[]'](name);}).$uniq();
             legal = [];
-            legal.$concat(self.$collect_pass(step, entity, actions));
-            legal.$concat(self.$collect_choices(step, entity, actions));
-            legal.$concat(self.$collect_draft_and_bids(step, entity, actions));
-            legal.$concat(self.$collect_dividends(step, entity, actions));
-            legal.$concat(self.$collect_shares(step, entity, actions));
-            legal.$concat(self.$collect_par(step, entity, actions));
-            legal.$concat(self.$collect_trains(step, entity, actions));
-            legal.$concat(self.$collect_routes(step, entity, actions));
-            legal.$concat(self.$collect_tiles(step, entity, actions));
-            legal.$concat(self.$collect_tokens(step, entity, actions));
-            return $send(legal, 'select', [], function $$20(a){var self = $$20.$$s == null ? this : $$20.$$s;
+            $send(collectors, 'each', [], function $$23(collector_name){var self = $$23.$$s == null ? this : $$23.$$s, e = nil;
 
               
-              if (a == null) a = nil;
-              return self['$action_belongs_to_entity?'](a, entity);}, {$$s: self});
+              if (collector_name == null) collector_name = nil;
+              try {
+                return legal.$concat(self.$Array(self.$public_send(collector_name, step, entity, actions)))
+              } catch ($err) {
+                if (Opal.rescue($err, [$$('StandardError')])) {(e = $err)
+                  try {
+                    return $$('LOGGER').$warn("" + ("[AI ACTION REGISTRY] collector=" + (collector_name) + " entity=" + (self.$entity_label(entity)) + " ") + ("failed=" + (e.$class()) + ": " + (e.$message())))
+                  } finally { Opal.pop_exception($err); }
+                } else { throw $err; }
+              };}, {$$s: self});
+            if ($truthy(self['$operating_entity?'](entity))) {
+              $send($$('OR_OPPORTUNITY_COLLECTORS'), 'each', [], function $$24(collector_name){var self = $$24.$$s == null ? this : $$24.$$s, discovered = nil, e = nil;
+
+                
+                if (collector_name == null) collector_name = nil;
+                try {
+                  
+                  discovered = self.$Array(self.$public_send(collector_name, step, entity, actions));
+                  if (!$truthy(discovered['$empty?']())) {
+                    $$('LOGGER').$info("" + ("[AI OR OPPORTUNITY] collector=" + (collector_name) + " ") + ("entity=" + (self.$entity_label(entity)) + " candidates=" + (discovered.$size())))
+                  };
+                  return legal.$concat(discovered);
+                } catch ($err) {
+                  if (Opal.rescue($err, [$$('StandardError')])) {(e = $err)
+                    try {
+                      return $$('LOGGER').$warn("" + ("[AI OR OPPORTUNITY] collector=" + (collector_name) + " ") + ("entity=" + (self.$entity_label(entity)) + " failed=" + (e.$class()) + ": " + (e.$message())))
+                    } finally { Opal.pop_exception($err); }
+                  } else { throw $err; }
+                };}, {$$s: self})
+            };
+            unknown = $send(actions, 'reject', [], function $$25(name){var $ret_or_2 = nil;
+
+              
+              if (name == null) name = nil;
+              if ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = $$('ACTION_REGISTRY')['$key?'](name))) ? ($ret_or_2) : ($$('BACKGROUND_ACTIONS')['$include?'](name)))))) {
+                return $ret_or_1
+              } else {
+                return $send($$('BACKGROUND_ACTION_PREFIXES'), 'any?', [], function $$26(prefix){
+                  
+                  if (prefix == null) prefix = nil;
+                  return name['$start_with?'](prefix);})
+              };});
+            if ($truthy(unknown['$any?']())) {
+              $$('LOGGER').$warn("" + ("[AI UNRECOGNISED ACTION] step=" + (step.$class().$name()) + " entity=" + (self.$entity_label(entity)) + " ") + ("actions=" + (unknown.$join(","))))
+            };
+            legal = $send(legal.$compact().$uniq(), 'select', [], function $$27(action){var self = $$27.$$s == null ? this : $$27.$$s;
+
+              
+              if (action == null) action = nil;
+              return self['$action_belongs_to_entity?'](action, entity);}, {$$s: self});
+            if (($truthy(legal['$empty?']()) && ($truthy(actions['$include?']("pass"))))) {
+              
+              fallback = self.$collect_pass(step, entity, actions);
+              if ($truthy(fallback['$any?']())) {
+                
+                $$('LOGGER').$info("" + ("[AI FALLBACK PASS] step=" + (step.$class().$name()) + " entity=" + (self.$entity_label(entity)) + " ") + ("unrecognised=" + (unknown.$join(","))));
+                return fallback;
+              };
+            };
+            return legal;
           }, -1);
+          
+          $def(self, '$operating_entity?', function $DashboardAiPlayer_operating_entity$ques$28(entity) {
+            var self = this, $ret_or_1 = nil, $ret_or_2 = nil;
+
+            try {
+              
+              if (!($truthy(self.game.$round()['$respond_to?']("operating?")) && ($truthy(self.game.$round()['$operating?']())))) {
+                return false
+              };
+              if ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = entity['$respond_to?']("corporation?"))) ? (entity['$corporation?']()) : ($ret_or_2))))) {
+                return $ret_or_1
+              } else {
+                
+                if ($truthy(($ret_or_2 = entity['$respond_to?']("minor?")))) {
+                  return entity['$minor?']()
+                } else {
+                  return $ret_or_2
+                };
+              };
+            } catch ($err) {
+              if (Opal.rescue($err, [$$('StandardError')])) {
+                try {
+                  return false
+                } finally { Opal.pop_exception($err); }
+              } else { throw $err; }
+            }
+          });
+          
+          $def(self, '$collect_or_train_opportunities', function $$collect_or_train_opportunities(step, entity, actions) {
+            var self = this;
+
+            
+            if (!$truthy(step['$respond_to?']("buyable_trains"))) {
+              return []
+            };
+            return self.$collect_trains(step, entity, $rb_plus(actions, ["buy_train"]).$uniq());
+          });
+          
+          $def(self, '$collect_or_company_opportunities', function $$collect_or_company_opportunities(step, entity, _actions) {
+            var self = this, buy_step = nil;
+
+            
+            buy_step = self.$private_buy_step_for(step, entity);
+            if (!$truthy(buy_step)) {
+              return []
+            };
+            return self.$collect_company_purchases(buy_step, entity);
+          });
+          
+          $def(self, '$private_buy_step_for', function $$private_buy_step_for(default_step, entity) {
+            var self = this, steps = nil, found = nil, $ret_or_1 = nil;
+
+            
+            steps = ($truthy(self.game.$round()['$respond_to?']("steps")) ? (self.$Array(self.game.$round().$steps())) : ([]));
+            found = $send(steps, 'find', [], function $$29(candidate_step){var self = $$29.$$s == null ? this : $$29.$$s;
+
+              
+              if (candidate_step == null) candidate_step = nil;
+              try {
+                
+                if (!$truthy(candidate_step)) {
+                  return false
+                };
+                if (!($truthy(candidate_step['$respond_to?']("buyable_companies")) || ($truthy(candidate_step['$respond_to?']("can_buy_company?"))))) {
+                  return false
+                };
+                return self.$private_companies_for(candidate_step, entity)['$any?']();
+              } catch ($err) {
+                if (Opal.rescue($err, [$$('StandardError')])) {
+                  try {
+                    return false
+                  } finally { Opal.pop_exception($err); }
+                } else { throw $err; }
+              };}, {$$s: self});
+            if (($truthy(default_step) && (($truthy(default_step['$respond_to?']("buyable_companies")) || ($truthy(default_step['$respond_to?']("can_buy_company?"))))))) {
+              found = ($truthy(($ret_or_1 = found)) ? ($ret_or_1) : (default_step))
+            };
+            return found;
+          });
+          
+          $def(self, '$private_companies_for', function $$private_companies_for(step, entity) {
+            var self = this, operating_player = nil, companies = nil;
+
+            
+            operating_player = (($truthy(entity['$respond_to?']("player?")) && ($truthy(entity['$player?']()))) ? (entity) : ($truthy(entity['$respond_to?']("owner")) ? (entity.$owner()) : nil));
+            if (!$truthy(operating_player)) {
+              return []
+            };
+            companies = ($truthy(step['$respond_to?']("buyable_companies")) ? ((function() { try {
+              return self.$Array(step.$buyable_companies(entity))
+            } catch ($err) {
+              if (Opal.rescue($err, [$$('StandardError')])) {
+                try {
+                  return []
+                } finally { Opal.pop_exception($err); }
+              } else { throw $err; }
+            }})()) : (($truthy(step['$respond_to?']("can_buy_company?")) && ($truthy(self.game['$respond_to?']("companies")))) ? ($send(self.$Array(self.game.$companies()), 'select', [], function $$30(company){
+              
+              if (company == null) company = nil;
+              try {
+                return step['$can_buy_company?'](entity, company)
+              } catch ($err) {
+                if (Opal.rescue($err, [$$('StandardError')])) {
+                  try {
+                    return false
+                  } finally { Opal.pop_exception($err); }
+                } else { throw $err; }
+              };})) : ([])));
+            return $send($send(companies.$compact(), 'reject', [], function $$31(company){var $ret_or_1 = nil;
+
+              
+              if (company == null) company = nil;
+              if ($truthy(($ret_or_1 = company['$respond_to?']("closed?")))) {
+                return company['$closed?']()
+              } else {
+                return $ret_or_1
+              };}), 'select', [], function $$32(company){var $ret_or_1 = nil, $ret_or_2 = nil;
+
+              
+              if (company == null) company = nil;
+              if ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = company['$respond_to?']("owner"))) ? (company.$owner()['$=='](operating_player)) : ($ret_or_2))))) {
+                return company.$owner()['$!='](entity)
+              } else {
+                return $ret_or_1
+              };});
+          });
+          
+          $def(self, '$collect_or_issue_opportunities', function $$collect_or_issue_opportunities(step, entity, actions) {
+            var self = this, supports_issue = nil, $ret_or_1 = nil, $ret_or_2 = nil;
+
+            
+            supports_issue = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = step['$respond_to?']("issuable_shares"))) ? ($ret_or_2) : (step['$respond_to?']("issueable_shares"))))) ? ($ret_or_1) : (step['$respond_to?']("issuable_bundles")));
+            if (!$truthy(supports_issue)) {
+              return []
+            };
+            return self.$collect_issue_shares(step, entity, $rb_plus(actions, ["issue_shares"]).$uniq());
+          });
+          
+          $def(self, '$collect_or_redeem_opportunities', function $$collect_or_redeem_opportunities(step, entity, actions) {
+            var self = this, supports_redeem = nil, $ret_or_1 = nil;
+
+            
+            supports_redeem = ($truthy(($ret_or_1 = step['$respond_to?']("redeemable_shares"))) ? ($ret_or_1) : (step['$respond_to?']("redeemable_bundles")));
+            if (!$truthy(supports_redeem)) {
+              return []
+            };
+            return self.$collect_redeem_shares(step, entity, $rb_plus(actions, ["redeem_shares"]).$uniq());
+          });
           self.$private();
           
           $def(self, '$current_acting_entity', function $$current_acting_entity(step) {
@@ -57347,7 +57658,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               wanted = action.$tile();
               wanted_name = ($truthy(wanted['$respond_to?']("name")) ? (wanted.$name()) : (nil));
               candidates = ($truthy(self.game['$respond_to?']("tiles")) ? (self.$Array(self.game.$tiles())) : ([]));
-              supply_tile = $send(candidates, 'find', [], function $$21(candidate){var self = $$21.$$s == null ? this : $$21.$$s, same_name = nil, $ret_or_1 = nil, $ret_or_2 = nil, off_map = nil, available = nil, $ret_or_3 = nil;
+              supply_tile = $send(candidates, 'find', [], function $$33(candidate){var self = $$33.$$s == null ? this : $$33.$$s, same_name = nil, $ret_or_1 = nil, $ret_or_2 = nil, off_map = nil, available = nil, $ret_or_3 = nil;
                 if (self.game == null) self.game = nil;
 
                 
@@ -57375,7 +57686,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             }
           });
           
-          $def(self, '$action_belongs_to_entity?', function $DashboardAiPlayer_action_belongs_to_entity$ques$22(action, expected_entity) {
+          $def(self, '$action_belongs_to_entity?', function $DashboardAiPlayer_action_belongs_to_entity$ques$34(action, expected_entity) {
             
             
             if (!$truthy(action)) {
@@ -57387,7 +57698,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             return action.$entity()['$equal?'](expected_entity);
           });
           
-          $def(self, '$execution_context_unchanged?', function $DashboardAiPlayer_execution_context_unchanged$ques$23(round, step, entity) {
+          $def(self, '$execution_context_unchanged?', function $DashboardAiPlayer_execution_context_unchanged$ques$35(round, step, entity) {
             var self = this;
 
             
@@ -57437,12 +57748,28 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             
             f = (new Map());
             f['$[]=']("player_cash", ($truthy(entity['$respond_to?']("cash")) ? (entity.$cash()) : (0)));
-            cert_count = ($truthy(self.game['$respond_to?']("num_certs")) ? (self.game.$num_certs(entity)) : (0));
-            cert_limit = ($truthy(self.game['$respond_to?']("cert_limit")) ? (self.game.$cert_limit(entity)) : (999));
+            cert_count = (($truthy(entity['$respond_to?']("shares")) && ($truthy(self.game['$respond_to?']("num_certs")))) ? ((function() { try {
+              return self.game.$num_certs(entity)
+            } catch ($err) {
+              if (Opal.rescue($err, [$$('StandardError')])) {
+                try {
+                  return 0
+                } finally { Opal.pop_exception($err); }
+              } else { throw $err; }
+            }})()) : (0));
+            cert_limit = (($truthy(entity['$respond_to?']("shares")) && ($truthy(self.game['$respond_to?']("cert_limit")))) ? ((function() { try {
+              return self.game.$cert_limit(entity)
+            } catch ($err) {
+              if (Opal.rescue($err, [$$('StandardError')])) {
+                try {
+                  return 999
+                } finally { Opal.pop_exception($err); }
+              } else { throw $err; }
+            }})()) : (999));
             f['$[]=']("cert_count", cert_count);
             f['$[]=']("cert_limit", cert_limit);
             f['$[]=']("certs_free", $rb_minus(cert_limit, cert_count));
-            my_unfloated = $send(self.game.$corporations(), 'select', [], function $$24(c){var $ret_or_1 = nil, $ret_or_2 = nil;
+            my_unfloated = $send(self.game.$corporations(), 'select', [], function $$36(c){var $ret_or_1 = nil, $ret_or_2 = nil;
 
               
               if (c == null) c = nil;
@@ -57476,10 +57803,10 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 is_market = ($truthy(($ret_or_2 = self.game['$respond_to?']("share_pool"))) ? (bundle.$owner()['$=='](self.game.$share_pool())) : ($ret_or_2));
                 f['$[]=']("source", ($truthy(is_market) ? ("market") : ("ipo")));
                 f['$[]=']("corp_can_buy_train", $rb_ge(corp.$cash(), (($truthy(self.game['$respond_to?']("depot")) && ($truthy(self.game.$depot()['$respond_to?']("min_depot_train")))) ? (($truthy(($ret_or_2 = ($b = self.game.$depot().$min_depot_train(), ($b === nil || $b == null) ? nil : $b.$price()))) ? ($ret_or_2) : (999))) : (100))));
-                opp_percents = $send($send(self.game.$players(), 'reject', [], function $$25(p){
+                opp_percents = $send($send(self.game.$players(), 'reject', [], function $$37(p){
                   
                   if (p == null) p = nil;
-                  return p['$=='](entity);}), 'map', [], function $$26(p){
+                  return p['$=='](entity);}), 'map', [], function $$38(p){
                   
                   if (p == null) p = nil;
                   return p.$percent_of(corp);});
@@ -57499,7 +57826,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               needed_shares = ($truthy(corp['$respond_to?']("percent_to_float")) ? ($rb_divide(corp.$percent_to_float(), 10).$to_i()) : (6));
               cost_to_self_float = $rb_times(price_val, needed_shares);
               f['$[]=']("can_self_float", $rb_ge(f['$[]']("player_cash"), cost_to_self_float));
-              cheaper_floatable = $send(all_actions, 'any?', [], function $$27(a){var p = nil;
+              cheaper_floatable = $send(all_actions, 'any?', [], function $$39(a){var p = nil;
 
                 
                 if (a == null) a = nil;
@@ -57518,7 +57845,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               f['$[]=']("cheaper_floatable_par_exists", cheaper_floatable);
             } else if ($eqeqeq($$$($$$($$('Engine'), 'Action'), 'SellShares'), $ret_or_1)) {
               
-              f['$[]=']("action_type", "sell_shares");
+              f['$[]=']("action_type", (($truthy(entity['$respond_to?']("corporation?")) && ($truthy(entity['$corporation?']()))) ? ("issue_shares") : ("sell_shares")));
               bundle = action.$bundle();
               corp = ($c = bundle, ($c === nil || $c == null) ? nil : $c.$corporation());
               if ($truthy(corp)) {
@@ -57535,7 +57862,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               f['$[]=']("dividend_kind", action.$kind());
               corp = entity;
               f['$[]=']("corp_trains_count", ($truthy(corp['$respond_to?']("trains")) ? (corp.$trains().$size()) : (0)));
-              f['$[]=']("revenue", ($e = self.routes, ($e === nil || $e == null) ? nil : $send($e, 'sum', [], function $$28(r){
+              f['$[]=']("revenue", ($e = self.routes, ($e === nil || $e == null) ? nil : $send($e, 'sum', [], function $$40(r){
                 
                 if (r == null) r = nil;
                 if ($truthy(r['$respond_to?']("revenue"))) {
@@ -57628,12 +57955,12 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               } else { throw $err; }
             }})()) : nil));
             if ($eqeqeq($$('Hash'), ($ret_or_1 = choices))) {
-              return $send(choices.$keys(), 'map', [], function $$29(k){
+              return $send(choices.$keys(), 'map', [], function $$41(k){
                 
                 if (k == null) k = nil;
                 return $$$($$$($$('Engine'), 'Action'), 'Choose').$new(entity, (new Map([["choice", k]])));})
             } else if ($eqeqeq($$('Array'), $ret_or_1)) {
-              return $send(choices, 'map', [], function $$30(c){
+              return $send(choices, 'map', [], function $$42(c){
                 
                 if (c == null) c = nil;
                 return $$$($$$($$('Engine'), 'Action'), 'Choose').$new(entity, (new Map([["choice", c]])));})
@@ -57642,7 +57969,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             };
           });
           
-          $def(self, '$permanent_train?', function $DashboardAiPlayer_permanent_train$ques$31(train) {
+          $def(self, '$permanent_train?', function $DashboardAiPlayer_permanent_train$ques$43(train) {
             
             try {
               
@@ -57665,7 +57992,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             }
           });
           
-          $def(self, '$can_buy_permanent_train?', function $DashboardAiPlayer_can_buy_permanent_train$ques$32(entity, extra_cash) {
+          $def(self, '$can_buy_permanent_train?', function $DashboardAiPlayer_can_buy_permanent_train$ques$44(entity, extra_cash) {
             var self = this, cash = nil, trains = nil;
 
             
@@ -57674,7 +58001,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               
               cash = $rb_plus(($truthy(entity['$respond_to?']("cash")) ? (entity.$cash().$to_i()) : (0)), extra_cash.$to_i());
               trains = ($truthy(self.game.$depot()['$respond_to?']("depot_trains")) ? (self.game.$depot().$depot_trains()) : (self.game.$depot().$upcoming()));
-              return $send(self.$Array(trains), 'any?', [], function $$33(t){var self = $$33.$$s == null ? this : $$33.$$s, $ret_or_1 = nil;
+              return $send(self.$Array(trains), 'any?', [], function $$45(t){var self = $$45.$$s == null ? this : $$45.$$s, $ret_or_1 = nil;
 
                 
                 if (t == null) t = nil;
@@ -57692,7 +58019,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             };
           }, -2);
           
-          $def(self, '$same_director_train?', function $DashboardAiPlayer_same_director_train$ques$34(buyer, train) {
+          $def(self, '$same_director_train?', function $DashboardAiPlayer_same_director_train$ques$46(buyer, train) {
             var self = this, seller = nil, $ret_or_1 = nil, $ret_or_2 = nil, $ret_or_3 = nil, $ret_or_4 = nil;
 
             try {
@@ -57743,7 +58070,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             if ($truthy(companies['$empty?']())) {
               return []
             };
-            return $send(companies, 'filter_map', [], function $$35(company){var self = $$35.$$s == null ? this : $$35.$$s, current = nil, price = nil, maximum = nil, can_bid = nil;
+            return $send(companies, 'filter_map', [], function $$47(company){var self = $$47.$$s == null ? this : $$47.$$s, current = nil, price = nil, maximum = nil, can_bid = nil;
 
               
               if (company == null) company = nil;
@@ -57844,7 +58171,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               if (($truthy(companies['$empty?']()) && ($truthy(self.game['$respond_to?']("companies"))))) {
                 companies.$concat(self.$Array(self.game.$companies()))
               };
-              return $send(companies.$compact().$uniq(), 'reject', [], function $$36(company){var $ret_or_1 = nil;
+              return $send(companies.$compact().$uniq(), 'reject', [], function $$48(company){var $ret_or_1 = nil;
 
                 
                 if (company == null) company = nil;
@@ -57942,7 +58269,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                   } else { throw $err; }
                 }})();
                 relevant = ($truthy(bids['$is_a?']($$('Hash'))) ? (($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = bids['$[]'](company))) ? ($ret_or_3) : (($truthy(($ret_or_4 = company['$respond_to?']("id"))) ? (bids['$[]'](company.$id())) : ($ret_or_4)))))) ? ($ret_or_2) : (($truthy(($ret_or_3 = company['$respond_to?']("id"))) ? (bids['$[]'](company.$id().$to_s())) : ($ret_or_3)))))) ? ($ret_or_1) : (bids.$values().$flatten()))) : (bids));
-                $send(self.$Array(relevant), 'each', [], function $$37(bid){var numeric = nil;
+                $send(self.$Array(relevant), 'each', [], function $$49(bid){var numeric = nil;
 
                   
                   if (bid == null) bid = nil;
@@ -57955,7 +58282,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                     return values['$<<'](bid.$to_i())
                   } else if ($truthy(bid['$is_a?']($$('Array')))) {
                     
-                    numeric = $send(bid.$reverse(), 'find', [], function $$38(value){
+                    numeric = $send(bid.$reverse(), 'find', [], function $$50(value){
                       
                       if (value == null) value = nil;
                       return value['$is_a?']($$('Numeric'));});
@@ -58074,66 +58401,56 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
           });
           
           $def(self, '$collect_company_purchases', function $$collect_company_purchases(step, entity) {
-            var $a, $b, $c, self = this, companies = nil;
+            var $a, $b, $c, self = this, companies = nil, cash = nil;
 
             
             if (!$truthy((($c = $$('Engine', 'skip_raise')) && ($b = $$$($c, 'Action', 'skip_raise')) && ($a = $$$($b, 'BuyCompany', 'skip_raise')) ? 'constant' : nil))) {
               return []
             };
-            companies = (function() { try {
-              if ($truthy(step['$respond_to?']("buyable_companies"))) {
-                return self.$Array(step.$buyable_companies(entity))
-              } else {
-                return self.$Array(step.$companies())
-              }
-            } catch ($err) {
-              if (Opal.rescue($err, [$$('StandardError')])) {
-                try {
-                  return []
-                } finally { Opal.pop_exception($err); }
-              } else { throw $err; }
-            }})();
-            return $send(companies, 'filter_map', [], function $$39(company){var price = nil, legal = nil;
+            companies = self.$private_companies_for(step, entity);
+            cash = ($truthy(entity['$respond_to?']("cash")) ? (entity.$cash().$to_i()) : (0));
+            return $send(companies, 'filter_map', [], function $$51(company){var min_price = nil, max_price = nil, e = nil;
 
               
               if (company == null) company = nil;
               try {
                 
-                if (($truthy(company['$respond_to?']("closed?")) && ($truthy(company['$closed?']())))) {
+                min_price = ($truthy(step['$respond_to?']("min_price")) ? ((function() { try {
+                  return step.$min_price(company)
+                } catch ($err) {
+                  if (Opal.rescue($err, [$$('StandardError')])) {
+                    try {
+                      return nil
+                    } finally { Opal.pop_exception($err); }
+                  } else { throw $err; }
+                }})()) : ($truthy(company['$respond_to?']("min_price")) ? (company.$min_price()) : (1)));
+                max_price = ($truthy(step['$respond_to?']("max_price")) ? ((function() { try {
+                  return step.$max_price(entity, company)
+                } catch ($err) {
+                  if (Opal.rescue($err, [$$('StandardError')])) {
+                    try {
+                      return nil
+                    } finally { Opal.pop_exception($err); }
+                  } else { throw $err; }
+                }})()) : ($truthy(company['$respond_to?']("max_price")) ? (company.$max_price()) : (cash)));
+                if (($truthy(min_price['$nil?']()) || ($truthy(max_price['$nil?']())))) {
                   return nil
                 };
-                if (($truthy(company['$respond_to?']("owner")) && ($truthy(company.$owner()['$equal?'](entity))))) {
+                min_price = min_price.$to_i();
+                max_price = [max_price.$to_i(), cash].$min();
+                if ($truthy($rb_lt(max_price, min_price))) {
                   return nil
                 };
-                price = ($truthy(company['$respond_to?']("value")) ? (company.$value().$to_i()) : (0));
-                if (($truthy(entity['$respond_to?']("cash")) && ($truthy($rb_gt(price, entity.$cash().$to_i()))))) {
+                if (!$truthy($$('AiExpertRules')['$buy_private_company?']())) {
                   return nil
                 };
-                if ($truthy(step['$respond_to?']("can_buy_company?"))) {
-                  
-                  legal = (function() { try {
-                    return step['$can_buy_company?'](entity, company, price)
-                  } catch ($err) {
-                    if (Opal.rescue($err, [$$('ArgumentError')])) {
-                      try {
-                        return step['$can_buy_company?'](entity, company)
-                      } finally { Opal.pop_exception($err); }
-                    } else 
-                    if (Opal.rescue($err, [$$('StandardError')])) {
-                      try {
-                        return false
-                      } finally { Opal.pop_exception($err); }
-                    } else { throw $err; }
-                  }})();
-                  if (!$truthy(legal)) {
-                    return nil
-                  };
-                };
-                return $$$($$$($$('Engine'), 'Action'), 'BuyCompany').$new(entity, (new Map([["company", company], ["price", price]])));
+                return $$$($$$($$('Engine'), 'Action'), 'BuyCompany').$new(entity, (new Map([["company", company], ["price", max_price]])));
               } catch ($err) {
-                if (Opal.rescue($err, [$$('StandardError')])) {
+                if (Opal.rescue($err, [$$('StandardError')])) {(e = $err)
                   try {
-                    return nil
+                    
+                    $$('LOGGER').$warn("[AI PRIVATE PURCHASE] " + (e.$class()) + ": " + (e.$message()));
+                    return nil;
                   } finally { Opal.pop_exception($err); }
                 } else { throw $err; }
               };});
@@ -58167,11 +58484,11 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             if ($truthy(opts['$empty?']())) {
               opts = actions['$&'](["payout", "withhold", "half", "split"])
             };
-            $send(opts, 'reject!', [], function $$40(o){
+            $send(opts, 'reject!', [], function $$52(o){
               
               if (o == null) o = nil;
               return o['$==']("dividend");});
-            return $send(opts, 'map', [], function $$41(k){
+            return $send(opts, 'map', [], function $$53(k){
               
               if (k == null) k = nil;
               return $$$($$$($$('Engine'), 'Action'), 'Dividend').$new(entity, (new Map([["kind", k]])));});
@@ -58181,6 +58498,9 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             var self = this, legal = nil, player_cash = nil, cert_limit = nil, current_certs = nil, candidate_bundles = nil, corps = nil;
 
             
+            if (!$truthy(entity['$respond_to?']("shares"))) {
+              return []
+            };
             legal = [];
             player_cash = ($truthy(entity['$respond_to?']("cash")) ? (entity.$cash()) : (0));
             cert_limit = ($truthy(self.game['$respond_to?']("cert_limit")) ? (self.game.$cert_limit(entity)) : (999));
@@ -58213,7 +58533,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 };
               };
               if ($truthy(candidate_bundles['$empty?']())) {
-                $send(self.game.$corporations(), 'each', [], function $$42(corp){var $a, self = $$42.$$s == null ? this : $$42.$$s, ipo_shares = nil, $ret_or_1 = nil, unissued = nil, pool = nil, pool_shares = nil;
+                $send(self.game.$corporations(), 'each', [], function $$54(corp){var $a, self = $$54.$$s == null ? this : $$54.$$s, ipo_shares = nil, $ret_or_1 = nil, unissued = nil, pool = nil, pool_shares = nil;
                   if (self.game == null) self.game = nil;
 
                   
@@ -58222,7 +58542,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                     return nil
                   };
                   ipo_shares = ($truthy(($ret_or_1 = (($truthy(corp['$respond_to?']("ipo_shares")) && ($truthy(($a = corp.$ipo_shares(), ($a === nil || $a == null) ? nil : $a['$any?']())))) ? (corp.$ipo_shares()) : ($truthy(corp['$respond_to?']("shares")) ? (corp.$shares()) : nil)))) ? ($ret_or_1) : ([]));
-                  unissued = $send(ipo_shares, 'select', [], function $$43(s){var $ret_or_2 = nil;
+                  unissued = $send(ipo_shares, 'select', [], function $$55(s){var $ret_or_2 = nil;
 
                     
                     if (s == null) s = nil;
@@ -58239,7 +58559,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                   if ($truthy(unissued['$empty?']())) {
                     unissued = ipo_shares
                   };
-                  $send($send(unissued, 'uniq', [], "percent".$to_proc()), 'each', [], function $$44(s){
+                  $send($send(unissued, 'uniq', [], "percent".$to_proc()), 'each', [], function $$56(s){
                     
                     if (s == null) s = nil;
                     return candidate_bundles['$<<'](($truthy(s['$respond_to?']("to_bundle")) ? (s.$to_bundle()) : ($$$($$('Engine'), 'ShareBundle').$new(s))));});
@@ -58248,12 +58568,12 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                   if ((($truthy(pool_shares['$empty?']()) && ($truthy(self.game['$respond_to?']("bank")))) && ($truthy(self.game.$bank()['$respond_to?']("shares_of"))))) {
                     pool_shares = self.game.$bank().$shares_of(corp)
                   };
-                  return $send($send(pool_shares, 'uniq', [], "percent".$to_proc()), 'each', [], function $$45(s){
+                  return $send($send(pool_shares, 'uniq', [], "percent".$to_proc()), 'each', [], function $$57(s){
                     
                     if (s == null) s = nil;
                     return candidate_bundles['$<<'](($truthy(s['$respond_to?']("to_bundle")) ? (s.$to_bundle()) : ($$$($$('Engine'), 'ShareBundle').$new(s))));});}, {$$s: self})
               };
-              $send(candidate_bundles.$compact().$uniq(), 'each', [], function $$46(bnd){var $a, $b, $c, self = $$46.$$s == null ? this : $$46.$$s, b = nil, b_price = nil, $ret_or_1 = nil, shares_count = nil, raw_shares = nil, kwargs = nil;
+              $send(candidate_bundles.$compact().$uniq(), 'each', [], function $$58(bnd){var $a, $b, $c, self = $$58.$$s == null ? this : $$58.$$s, b = nil, b_price = nil, $ret_or_1 = nil, shares_count = nil, raw_shares = nil, kwargs = nil;
 
                 
                 if (bnd == null) bnd = nil;
@@ -58287,7 +58607,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             };
             if ($truthy(actions['$include?']("sell_shares"))) {
               
-              corps = $send(self.game.$corporations(), 'select', [], function $$47(c){
+              corps = $send(self.game.$corporations(), 'select', [], function $$59(c){
                 
                 if (c == null) c = nil;
                 try {
@@ -58299,7 +58619,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                     } finally { Opal.pop_exception($err); }
                   } else { throw $err; }
                 };});
-              $send(corps, 'each', [], function $$48(corp){var self = $$48.$$s == null ? this : $$48.$$s, bundles = nil, $ret_or_1 = nil;
+              $send(corps, 'each', [], function $$60(corp){var self = $$60.$$s == null ? this : $$60.$$s, bundles = nil, $ret_or_1 = nil;
 
                 
                 if (corp == null) corp = nil;
@@ -58326,7 +58646,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                     } else { throw $err; }
                   }})()))
                 };
-                return $send(self.$Array(bundles), 'each', [], function $$49(bundle){var $a, self = $$49.$$s == null ? this : $$49.$$s, raw_shares = nil, kwargs = nil;
+                return $send(self.$Array(bundles), 'each', [], function $$61(bundle){var $a, self = $$61.$$s == null ? this : $$61.$$s, raw_shares = nil, kwargs = nil;
 
                   
                   if (bundle == null) bundle = nil;
@@ -58354,7 +58674,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               return []
             };
             legal = [];
-            unfloated = $send(self.game.$corporations(), 'select', [], function $$50(c){
+            unfloated = $send(self.game.$corporations(), 'select', [], function $$62(c){
               
               if (c == null) c = nil;
               if ($truthy(c['$respond_to?']("ipoed"))) {
@@ -58372,7 +58692,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 };
               };});
             player_cash = ($truthy(entity['$respond_to?']("cash")) ? (entity.$cash()) : (0));
-            $send(unfloated, 'each', [], function $$51(corp){var $a, self = $$51.$$s == null ? this : $$51.$$s, can_p = nil, prices = nil, multiplier = nil, $ret_or_1 = nil;
+            $send(unfloated, 'each', [], function $$63(corp){var $a, self = $$63.$$s == null ? this : $$63.$$s, can_p = nil, prices = nil, multiplier = nil, $ret_or_1 = nil;
               if (self.game == null) self.game = nil;
 
               
@@ -58415,7 +58735,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 } else { throw $err; }
               }})()) : ([])));
               multiplier = ($truthy(($ret_or_1 = ($a = corp.$presidents_share(), ($a === nil || $a == null) ? nil : $a.$num_shares()))) ? ($ret_or_1) : (2));
-              return $send(self.$Array(prices), 'each', [], function $$52(sp){var self = $$52.$$s == null ? this : $$52.$$s, p_obj = nil, price_val = nil, slot = nil, kwargs = nil, president_shares = nil, e = nil;
+              return $send(self.$Array(prices), 'each', [], function $$64(sp){var self = $$64.$$s == null ? this : $$64.$$s, p_obj = nil, price_val = nil, slot = nil, kwargs = nil, president_shares = nil, e = nil;
                 if (self.game == null) self.game = nil;
 
                 
@@ -58474,15 +58794,15 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               if ((($truthy((($c = $$('Engine', 'skip_raise')) && ($b = $$$($c, 'AutoRouter', 'skip_raise')) ? 'constant' : nil)) && ($truthy(entity['$respond_to?']("trains")))) && ($truthy(($a = entity.$trains(), ($a === nil || $a == null) ? nil : $a['$any?']()))))) {
                 
                 routed_count = 0;
-                router = $$$($$('Engine'), 'AutoRouter').$new(self.game, $lambda(function $$53(_msg){
+                router = $$$($$('Engine'), 'AutoRouter').$new(self.game, $lambda(function $$65(_msg){
                   
                   if (_msg == null) _msg = nil;
                   return nil;}));
-                router.$compute(entity, (new Map([["routes", []], ["path_timeout", 1000], ["route_timeout", 1500], ["callback", $send(self, 'lambda', [], function $$54(computed_routes){var self = $$54.$$s == null ? this : $$54.$$s;
+                router.$compute(entity, (new Map([["routes", []], ["path_timeout", 1000], ["route_timeout", 1500], ["callback", $send(self, 'lambda', [], function $$66(computed_routes){var self = $$66.$$s == null ? this : $$66.$$s;
 
                   
                   if (computed_routes == null) computed_routes = nil;
-                  return (routed_count = $send(self.$Array(computed_routes), 'count', [], function $$55(route){var $d, $ret_or_1 = nil;
+                  return (routed_count = $send(self.$Array(computed_routes), 'count', [], function $$67(route){var $d, $ret_or_1 = nil;
 
                     
                     if (route == null) route = nil;
@@ -58530,7 +58850,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
           });
           
           $def(self, '$collect_trains', function $$collect_trains(step, entity, actions) {
-            var self = this, current_count = nil, useful_count = nil, target_key = nil, target_count = nil, limit = nil, trains = nil, b_power = nil, legal = nil, discardable = nil;
+            var self = this, current_count = nil, useful_count = nil, target_key = nil, target_count = nil, limit = nil, normal_train_needed = nil, optional_progression = nil, $ret_or_1 = nil, trains = nil, b_power = nil, legal = nil, train_candidates = nil, discardable = nil;
 
             
             if (!$truthy(actions['$include?']("buy_train"))) {
@@ -58549,7 +58869,9 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               target_count = $$('AiExpertRules').$train_target_count(useful_count, limit);
               self.random_target_train_count['$[]='](target_key, target_count);
             };
-            if ($truthy($rb_ge(current_count, target_count))) {
+            normal_train_needed = $rb_lt(current_count, target_count);
+            optional_progression = ($truthy(($ret_or_1 = normal_train_needed['$!']())) ? ($$('AiExpertRules')['$buy_progression_train?']()) : ($ret_or_1));
+            if (!($truthy(normal_train_needed) || ($truthy(optional_progression)))) {
               return []
             };
             trains = ($truthy(step['$respond_to?']("buyable_trains")) ? ((function() { try {
@@ -58571,22 +58893,49 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               } else { throw $err; }
             }})()) : (($truthy(entity['$respond_to?']("cash")) ? (entity.$cash()) : (0))));
             legal = [];
-            $send(self.$Array(trains), 'each', [], function $$56(train){var self = $$56.$$s == null ? this : $$56.$$s;
+            train_candidates = self.$Array(trains);
+            if ($truthy(optional_progression)) {
+              train_candidates = train_candidates.$first(1)
+            };
+            $send(train_candidates, 'each', [], function $$68(train){var self = $$68.$$s == null ? this : $$68.$$s, depot_train = nil, $ret_or_2 = nil, can_buy = nil;
               if (self.game == null) self.game = nil;
 
               
               if (train == null) train = nil;
-              if (($truthy(step['$respond_to?']("can_buy_train?")) && ($not(step['$can_buy_train?'](entity, train))))) {
+              depot_train = ($truthy(($ret_or_1 = train.$owner()['$=='](self.game.$depot()))) ? ($ret_or_1) : (($truthy(($ret_or_2 = train['$respond_to?']("from_depot?"))) ? (train['$from_depot?']()) : ($ret_or_2))));
+              if (!$truthy(depot_train)) {
                 return nil
               };
-              if (!($eqeq(train.$owner(), self.game.$depot()) || (($truthy(train['$respond_to?']("from_depot?")) && ($truthy(train['$from_depot?']())))))) {
+              can_buy = ($truthy(step['$respond_to?']("can_buy_train?")) ? ((function() { try {
+                return step['$can_buy_train?'](entity, train)
+              } catch ($err) {
+                if (Opal.rescue($err, [$$('ArgumentError')])) {
+                  try {
+                    
+                    try {
+                      return step['$can_buy_train?'](entity, train, train.$price())
+                    } catch ($err) {
+                      if (Opal.rescue($err, [$$('StandardError')])) {
+                        try {
+                          return false
+                        } finally { Opal.pop_exception($err); }
+                      } else { throw $err; }
+                    };
+                  } finally { Opal.pop_exception($err); }
+                } else 
+                if (Opal.rescue($err, [$$('StandardError')])) {
+                  try {
+                    return false
+                  } finally { Opal.pop_exception($err); }
+                } else { throw $err; }
+              }})()) : ($rb_le(train.$price().$to_i(), b_power.$to_i())));
+              if (!$truthy(can_buy)) {
                 return nil
               };
-              if ($truthy($rb_le(train.$price().$to_i(), b_power.$to_i()))) {
-                return legal['$<<']($$$($$$($$('Engine'), 'Action'), 'BuyTrain').$new(entity, (new Map([["train", train], ["price", train.$price()]]))))
-              } else {
+              if (($truthy(optional_progression) && ($not(($truthy(($ret_or_1 = entity['$respond_to?']("cash"))) ? ($rb_ge(entity.$cash().$to_i(), train.$price().$to_i())) : ($ret_or_1)))))) {
                 return nil
-              };}, {$$s: self});
+              };
+              return legal['$<<']($$$($$$($$('Engine'), 'Action'), 'BuyTrain').$new(entity, (new Map([["train", train], ["price", train.$price()]]))));}, {$$s: self});
             if ($truthy(actions['$include?']("discard_train"))) {
               
               discardable = ($truthy(step['$respond_to?']("discardable_trains")) ? ((function() { try {
@@ -58598,12 +58947,150 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                   } finally { Opal.pop_exception($err); }
                 } else { throw $err; }
               }})()) : (($truthy(entity['$respond_to?']("trains")) ? (entity.$trains()) : ([]))));
-              $send(self.$Array(discardable), 'each', [], function $$57(t){
+              $send(self.$Array(discardable), 'each', [], function $$69(t){
                 
                 if (t == null) t = nil;
                 return legal['$<<']($$$($$$($$('Engine'), 'Action'), 'DiscardTrain').$new(entity, (new Map([["train", t]]))));});
             };
             return legal;
+          });
+          
+          $def(self, '$collect_issue_shares', function $$collect_issue_shares(step, entity, actions) {
+            var $a, $b, $c, self = this, issue_step = nil, bundles = nil;
+
+            
+            if (!$truthy(actions['$&'](["issue", "issue_shares", "reissue", "reissue_shares", "corporate_sell_shares", "sell_shares"])['$any?']())) {
+              return []
+            };
+            if (!($truthy(entity['$respond_to?']("corporation?")) && ($truthy(entity['$corporation?']())))) {
+              return []
+            };
+            if (!$truthy((($c = $$('Engine', 'skip_raise')) && ($b = $$$($c, 'Action', 'skip_raise')) && ($a = $$$($b, 'SellShares', 'skip_raise')) ? 'constant' : nil))) {
+              return []
+            };
+            issue_step = step;
+            bundles = [];
+            $send(["issuable_shares", "issueable_shares", "issuable_bundles"], 'each', [], function $$70(method_name){var self = $$70.$$s == null ? this : $$70.$$s, result = nil;
+
+              
+              if (method_name == null) method_name = nil;
+              if (!$truthy(issue_step['$respond_to?'](method_name))) {
+                return nil
+              };
+              result = (function() { try {
+                return issue_step.$public_send(method_name, entity)
+              } catch ($err) {
+                if (Opal.rescue($err, [$$('ArgumentError')])) {
+                  try {
+                    
+                    try {
+                      return issue_step.$public_send(method_name)
+                    } catch ($err) {
+                      if (Opal.rescue($err, [$$('StandardError')])) {
+                        try {
+                          return []
+                        } finally { Opal.pop_exception($err); }
+                      } else { throw $err; }
+                    };
+                  } finally { Opal.pop_exception($err); }
+                } else 
+                if (Opal.rescue($err, [$$('StandardError')])) {
+                  try {
+                    return []
+                  } finally { Opal.pop_exception($err); }
+                } else { throw $err; }
+              }})();
+              return bundles.$concat(self.$Array(result));}, {$$s: self});
+            return $send(bundles.$compact().$uniq(), 'filter_map', [], function $$71(bundle){var self = $$71.$$s == null ? this : $$71.$$s, raw_shares = nil, e = nil;
+
+              
+              if (bundle == null) bundle = nil;
+              try {
+                
+                raw_shares = ($truthy(bundle['$respond_to?']("shares")) ? (self.$Array(bundle.$shares())) : ($truthy(bundle['$respond_to?']("to_bundle")) ? (self.$Array(bundle.$to_bundle().$shares())) : (self.$Array(bundle))));
+                if ($truthy(raw_shares['$empty?']())) {
+                  return nil
+                };
+                return $$$($$$($$('Engine'), 'Action'), 'SellShares').$new(entity, (new Map([["shares", raw_shares]])));
+              } catch ($err) {
+                if (Opal.rescue($err, [$$('StandardError')])) {(e = $err)
+                  try {
+                    
+                    $$('LOGGER').$warn("[AI ISSUE SHARES] rejected candidate: " + (e.$class()) + ": " + (e.$message()));
+                    return nil;
+                  } finally { Opal.pop_exception($err); }
+                } else { throw $err; }
+              };}, {$$s: self});
+          });
+          
+          $def(self, '$collect_redeem_shares', function $$collect_redeem_shares(step, entity, actions) {
+            var self = this, raw = nil;
+
+            
+            if (!$truthy(actions['$&'](["redeem", "redeem_shares", "corporate_buy_shares", "buy_shares"])['$any?']())) {
+              return []
+            };
+            if (!($truthy(entity['$respond_to?']("corporation?")) && ($truthy(entity['$corporation?']())))) {
+              return []
+            };
+            raw = ($truthy(step['$respond_to?']("redeemable_shares")) ? ((function() { try {
+              return self.$Array(step.$redeemable_shares(entity))
+            } catch ($err) {
+              if (Opal.rescue($err, [$$('ArgumentError')])) {
+                try {
+                  return self.$Array(step.$redeemable_shares())
+                } finally { Opal.pop_exception($err); }
+              } else { throw $err; }
+            }})()) : ($truthy(step['$respond_to?']("redeemable_bundles")) ? ((function() { try {
+              return self.$Array(step.$redeemable_bundles(entity))
+            } catch ($err) {
+              if (Opal.rescue($err, [$$('ArgumentError')])) {
+                try {
+                  return self.$Array(step.$redeemable_bundles())
+                } finally { Opal.pop_exception($err); }
+              } else { throw $err; }
+            }})()) : ($truthy(step['$respond_to?']("buyable_shares")) ? ((function() { try {
+              return self.$Array(step.$buyable_shares(entity))
+            } catch ($err) {
+              if (Opal.rescue($err, [$$('ArgumentError')])) {
+                try {
+                  return self.$Array(step.$buyable_shares())
+                } finally { Opal.pop_exception($err); }
+              } else { throw $err; }
+            }})()) : ([]))));
+            return $send(raw, 'filter_map', [], function $$72(candidate){var $a, $b, $c, $d, $e, $f, $g, $h, $i, self = $$72.$$s == null ? this : $$72.$$s, bundle = nil, shares = nil, price = nil, e = nil;
+
+              
+              if (candidate == null) candidate = nil;
+              try {
+                
+                bundle = (($truthy(candidate['$respond_to?']("to_bundle")) && ($not(candidate['$respond_to?']("shares")))) ? (candidate.$to_bundle()) : (candidate));
+                shares = ($truthy(bundle['$respond_to?']("shares")) ? (self.$Array(bundle.$shares()).$flatten().$compact()) : (self.$Array(bundle).$flatten().$compact()));
+                if ($truthy(shares['$empty?']())) {
+                  return nil
+                };
+                price = ($truthy(bundle['$respond_to?']("price")) ? (bundle.$price().$to_i()) : (0));
+                if (($truthy(entity['$respond_to?']("cash")) && ($truthy($rb_gt(price, entity.$cash().$to_i()))))) {
+                  return nil
+                };
+                if (($truthy(actions['$include?']("redeem_shares")) && ($truthy((($c = $$('Engine', 'skip_raise')) && ($b = $$$($c, 'Action', 'skip_raise')) && ($a = $$$($b, 'RedeemShares', 'skip_raise')) ? 'constant' : nil))))) {
+                  return $$$($$$($$('Engine'), 'Action'), 'RedeemShares').$new(entity, (new Map([["bundle", bundle], ["shares", shares]])))
+                } else if (($truthy(actions['$include?']("redeem")) && ($truthy((($f = $$('Engine', 'skip_raise')) && ($e = $$$($f, 'Action', 'skip_raise')) && ($d = $$$($e, 'Redeem', 'skip_raise')) ? 'constant' : nil))))) {
+                  return $$$($$$($$('Engine'), 'Action'), 'Redeem').$new(entity, (new Map([["bundle", bundle], ["shares", shares]])))
+                } else if (($truthy(actions['$include?']("corporate_buy_shares")) && ($truthy((($i = $$('Engine', 'skip_raise')) && ($h = $$$($i, 'Action', 'skip_raise')) && ($g = $$$($h, 'CorporateBuyShares', 'skip_raise')) ? 'constant' : nil))))) {
+                  return $$$($$$($$('Engine'), 'Action'), 'CorporateBuyShares').$new(entity, (new Map([["bundle", bundle], ["shares", shares]])))
+                } else {
+                  return $$$($$$($$('Engine'), 'Action'), 'BuyShares').$new(entity, (new Map([["bundle", bundle], ["shares", shares]])))
+                };
+              } catch ($err) {
+                if (Opal.rescue($err, [$$('StandardError')])) {(e = $err)
+                  try {
+                    
+                    $$('LOGGER').$warn("[AI REDEEM] rejected candidate: " + (e.$class()) + ": " + (e.$message()));
+                    return nil;
+                  } finally { Opal.pop_exception($err); }
+                } else { throw $err; }
+              };}, {$$s: self});
           });
           
           $def(self, '$collect_routes', function $$collect_routes(_step, entity, actions) {
@@ -58613,7 +59100,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             if (!$truthy(actions['$include?']("run_routes"))) {
               return []
             };
-            active_r = ($truthy(($ret_or_1 = ($a = self.routes, ($a === nil || $a == null) ? nil : $send($a, 'select', [], function $$58(r){
+            active_r = ($truthy(($ret_or_1 = ($a = self.routes, ($a === nil || $a == null) ? nil : $send($a, 'select', [], function $$73(r){
               
               if (r == null) r = nil;
               try {
@@ -58629,15 +59116,15 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               
               try {
                 
-                router = $$$($$('Engine'), 'AutoRouter').$new(self.game, $lambda(function $$59(_msg){
+                router = $$$($$('Engine'), 'AutoRouter').$new(self.game, $lambda(function $$74(_msg){
                   
                   if (_msg == null) _msg = nil;
                   return nil;}));
-                router.$compute(entity, (new Map([["routes", []], ["path_timeout", 1500], ["route_timeout", 2000], ["callback", $send(self, 'lambda', [], function $$60(computed){
+                router.$compute(entity, (new Map([["routes", []], ["path_timeout", 1500], ["route_timeout", 2000], ["callback", $send(self, 'lambda', [], function $$75(computed){
                   
                   if (computed == null) computed = nil;
                   if ($truthy(computed)) {
-                    return (active_r = $send(computed, 'select', [], function $$61(r){
+                    return (active_r = $send(computed, 'select', [], function $$76(r){
                       
                       if (r == null) r = nil;
                       return r.$chains()['$any?']();}))
@@ -58652,6 +59139,25 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 } else { throw $err; }
               };
             };
+            active_r = $send(self.$Array(active_r), 'select', [], function $$77(route){var train = nil, owner = nil, $ret_or_2 = nil, $ret_or_3 = nil;
+
+              
+              if (route == null) route = nil;
+              train = ($truthy(route['$respond_to?']("train")) ? (route.$train()) : (nil));
+              owner = ($truthy(train['$respond_to?']("owner")) ? (train.$owner()) : (nil));
+              if (!$truthy(owner)) {
+                return false
+              };
+              if ($truthy(($ret_or_1 = owner['$equal?'](entity)))) {
+                return $ret_or_1
+              } else {
+                
+                if ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = owner['$respond_to?']("id"))) ? (entity['$respond_to?']("id")) : ($ret_or_3))))) {
+                  return owner.$id().$to_s()['$=='](entity.$id().$to_s())
+                } else {
+                  return $ret_or_2
+                };
+              };});
             return [$$$($$$($$('Engine'), 'Action'), 'RunRoutes').$new(entity, (new Map([["routes", active_r]])))];
           });
           
@@ -58724,15 +59230,15 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               };
               rev = 0;
               if (($truthy(tile['$respond_to?']("stops")) && ($truthy(($a = tile.$stops(), ($a === nil || $a == null) ? nil : $a['$any?']()))))) {
-                $send(tile.$stops(), 'each', [], function $$62(stop){var r = nil, val = nil, $ret_or_1 = nil, $ret_or_2 = nil;
+                $send(tile.$stops(), 'each', [], function $$78(stop){var r = nil, val = nil, $ret_or_1 = nil, $ret_or_2 = nil;
 
                   
                   if (stop == null) stop = nil;
                   r = ($truthy(stop['$respond_to?']("revenue_to_render")) ? (stop.$revenue_to_render()) : ($truthy(stop['$respond_to?']("revenue")) ? (stop.$revenue()) : (0)));
-                  val = ($eqeqeq($$('Numeric'), ($ret_or_1 = r)) ? (r) : ($eqeqeq($$('Hash'), $ret_or_1) ? (($truthy(($ret_or_2 = $send(r.$values(), 'select', [], function $$63(v){
+                  val = ($eqeqeq($$('Numeric'), ($ret_or_1 = r)) ? (r) : ($eqeqeq($$('Hash'), $ret_or_1) ? (($truthy(($ret_or_2 = $send(r.$values(), 'select', [], function $$79(v){
                     
                     if (v == null) v = nil;
-                    return v['$is_a?']($$('Numeric'));}).$max())) ? ($ret_or_2) : (0))) : ($eqeqeq($$('Array'), $ret_or_1) ? (($truthy(($ret_or_2 = $send(r.$flatten(), 'select', [], function $$64(v){
+                    return v['$is_a?']($$('Numeric'));}).$max())) ? ($ret_or_2) : (0))) : ($eqeqeq($$('Array'), $ret_or_1) ? (($truthy(($ret_or_2 = $send(r.$flatten(), 'select', [], function $$80(v){
                     
                     if (v == null) v = nil;
                     return v['$is_a?']($$('Numeric'));}).$max())) ? ($ret_or_2) : (0))) : (0))));
@@ -58791,15 +59297,15 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               callback_finished = false;
               started_ms = (Date.now()).$to_f();
               self.$clear_entity_graph_cache(entity);
-              router = $$$($$('Engine'), 'AutoRouter').$new(self.game, $lambda(function $$65(_msg){
+              router = $$$($$('Engine'), 'AutoRouter').$new(self.game, $lambda(function $$81(_msg){
                 
                 if (_msg == null) _msg = nil;
                 return nil;}));
-              router.$compute(entity, (new Map([["routes", []], ["path_timeout", 250], ["route_timeout", 250], ["callback", $send(self, 'lambda', [], function $$66(computed_routes){var self = $$66.$$s == null ? this : $$66.$$s, elapsed = nil;
+              router.$compute(entity, (new Map([["routes", []], ["path_timeout", 250], ["route_timeout", 250], ["callback", $send(self, 'lambda', [], function $$82(computed_routes){var self = $$82.$$s == null ? this : $$82.$$s, elapsed = nil;
 
                 
                 if (computed_routes == null) computed_routes = nil;
-                best_rev = $send(self.$Array(computed_routes), 'sum', [], function $$67(route){var $d;
+                best_rev = $send(self.$Array(computed_routes), 'sum', [], function $$83(route){var $d;
 
                   
                   if (route == null) route = nil;
@@ -58924,7 +59430,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 } else { throw $err; }
               }})()));
               candidates = [];
-              $send(connected, 'each_key', [], function $$68(hex){var self = $$68.$$s == null ? this : $$68.$$s, tiles = nil;
+              $send(connected, 'each_key', [], function $$84(hex){var self = $$84.$$s == null ? this : $$84.$$s, tiles = nil;
 
                 
                 if (hex == null) hex = nil;
@@ -58951,7 +59457,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                     } finally { Opal.pop_exception($err); }
                   } else { throw $err; }
                 }})()) : ([])));
-                return $send(self.$Array(tiles).$compact(), 'each', [], function $$69(tile){var self = $$69.$$s == null ? this : $$69.$$s, cost = nil, rotations = nil;
+                return $send(self.$Array(tiles).$compact(), 'each', [], function $$85(tile){var self = $$85.$$s == null ? this : $$85.$$s, cost = nil, rotations = nil;
                   if (self.game == null) self.game = nil;
 
                   
@@ -58975,7 +59481,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                       } finally { Opal.pop_exception($err); }
                     } else { throw $err; }
                   }})()) : ($range(0, 5, false).$to_a()));
-                  return $send(self.$Array(rotations), 'each', [], function $$70(rotation){
+                  return $send(self.$Array(rotations), 'each', [], function $$86(rotation){
                     
                     if (rotation == null) rotation = nil;
                     return candidates['$<<']([hex, tile, rotation, cost]);});}, {$$s: self});}, {$$s: self});
@@ -59040,7 +59546,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               if (!$truthy(legal_rotation)) {
                 $t_return.$throw(nil, $$trial_and_evaluate_tile.$$is_lambda)
               };
-              metrics = $$('AiExpertRules').$two_build_tile_features((new Map([["entity", entity], ["hex", hex], ["old_tile", old_tile], ["new_tile", tile], ["cost", cost], ["revenue_for", $lambda(function $$71(candidate){var self = $$71.$$s == null ? this : $$71.$$s;
+              metrics = $$('AiExpertRules').$two_build_tile_features((new Map([["entity", entity], ["hex", hex], ["old_tile", old_tile], ["new_tile", tile], ["cost", cost], ["revenue_for", $lambda(function $$87(candidate){var self = $$87.$$s == null ? this : $$87.$$s;
 
                 
                 if (candidate == null) candidate = nil;
@@ -59073,7 +59579,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
           });
           
           $def(self, '$collect_tiles', function $$collect_tiles(step, entity, actions) {
-            var self = this, connected = nil, $ret_or_1 = nil, legal = nil, deadline_ms = nil;
+            var self = this, connected = nil, $ret_or_1 = nil, legal = nil;
 
             
             if (!$truthy(actions['$include?']("lay_tile"))) {
@@ -59105,8 +59611,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             };
             legal = [];
             self.tile_eval_cache = (new Map());
-            deadline_ms = $rb_plus((Date.now()).$to_f(), $$('TILE_SEARCH_TIMEOUT_MS'));
-            $send(connected, 'each_key', [], function $$72(hex){var self = $$72.$$s == null ? this : $$72.$$s, tiles = nil, available_tiles = nil;
+            $send(connected, 'each_key', [], function $$88(hex){var self = $$88.$$s == null ? this : $$88.$$s, tiles = nil, available_tiles = nil;
 
               
               if (hex == null) hex = nil;
@@ -59133,7 +59638,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                   } finally { Opal.pop_exception($err); }
                 } else { throw $err; }
               }})()) : ([])));
-              available_tiles = $send(self.$Array(tiles).$compact(), 'select', [], function $$73(tile){var self = $$73.$$s == null ? this : $$73.$$s, count = nil;
+              available_tiles = $send(self.$Array(tiles).$compact(), 'select', [], function $$89(tile){var self = $$89.$$s == null ? this : $$89.$$s, count = nil;
                 if (self.game == null) self.game = nil;
 
                 
@@ -59149,7 +59654,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                 } else {
                   return true
                 };}, {$$s: self});
-              return $send(available_tiles, 'each', [], function $$74(tile){var self = $$74.$$s == null ? this : $$74.$$s, cost = nil, rotations = nil;
+              return $send(available_tiles, 'each', [], function $$90(tile){var self = $$90.$$s == null ? this : $$90.$$s, cost = nil, rotations = nil;
 
                 
                 if (tile == null) tile = nil;
@@ -59172,21 +59677,13 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
                     } finally { Opal.pop_exception($err); }
                   } else { throw $err; }
                 }})()) : ($range(0, 5, false).$to_a()));
-                return $send(self.$Array(rotations), 'each', [], function $$75(r){var self = $$75.$$s == null ? this : $$75.$$s, eval_metrics = nil, act = nil;
-                  if (self.tile_eval_cache == null) self.tile_eval_cache = nil;
-
+                return $send(self.$Array(rotations), 'each', [], function $$91(r){
                   
                   if (r == null) r = nil;
-                  eval_metrics = self.$trial_and_evaluate_tile(step, entity, hex, tile, r, cost, deadline_ms);
-                  if (!$truthy(eval_metrics)) {
-                    return nil
-                  };
                   if ($truthy(tile['$equal?'](hex.$tile()))) {
                     return nil
                   };
-                  act = $$$($$$($$('Engine'), 'Action'), 'LayTile').$new(entity, (new Map([["hex", hex], ["tile", tile], ["rotation", r]])));
-                  self.tile_eval_cache['$[]='](act, eval_metrics);
-                  return legal['$<<'](act);}, {$$s: self});}, {$$s: self});}, {$$s: self});
+                  return legal['$<<']($$$($$$($$('Engine'), 'Action'), 'LayTile').$new(entity, (new Map([["hex", hex], ["tile", tile], ["rotation", r]]))));});}, {$$s: self});}, {$$s: self});
             return legal;
           });
           
@@ -59278,7 +59775,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
             }})()));
             self.token_eval_cache = (new Map());
             legal = [];
-            $send(connected, 'each_key', [], function $$76(hex){var $a, self = $$76.$$s == null ? this : $$76.$$s;
+            $send(connected, 'each_key', [], function $$92(hex){var $a, self = $$92.$$s == null ? this : $$92.$$s;
 
               
               if (hex == null) hex = nil;
@@ -59288,7 +59785,7 @@ Opal.modules["view/game/dashboard/dashboard_ai_player"] = function(Opal) {/* Gen
               if (($truthy(step['$respond_to?']("available_hex")) && ($not(step.$available_hex(entity, hex))))) {
                 return nil
               };
-              return $send(self.$Array(hex.$tile().$cities()), 'each', [], function $$77(city){var self = $$77.$$s == null ? this : $$77.$$s, tokenable = nil, slot = nil, gain = nil, action = nil;
+              return $send(self.$Array(hex.$tile().$cities()), 'each', [], function $$93(city){var self = $$93.$$s == null ? this : $$93.$$s, tokenable = nil, slot = nil, gain = nil, action = nil;
                 if (self.token_eval_cache == null) self.token_eval_cache = nil;
 
                 
