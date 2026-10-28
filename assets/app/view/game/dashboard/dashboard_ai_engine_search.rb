@@ -108,6 +108,27 @@ module View
           trial_entity = matching_entity(game, entity)
           return yield(nil) unless trial_entity
 
+          borrowed_train = nil
+          borrowed_train_owner = nil
+
+          if game.route_trains(trial_entity).empty?
+            borrowed_train = game.depot.min_depot_train
+
+            unless borrowed_train
+              LOGGER.warn("[AI ENGINE REVENUE] #{label} no trial train available")
+              return yield(nil)
+            end
+
+            borrowed_train_owner = borrowed_train.owner
+            borrowed_train.owner = trial_entity
+            trial_entity.trains << borrowed_train
+
+            LOGGER.info(
+              "[AI ENGINE TRAIN] #{label} temporarily using " \
+              "#{borrowed_train.name}"
+            )
+          end
+
           router = Engine::AutoRouter.new(
             game,
             ->(message) { LOGGER.warn("[AI ROUTER] #{message}") },
@@ -132,6 +153,16 @@ module View
             next if router.running || completed
 
             completed = true
+
+            if borrowed_train
+              trial_entity.trains.delete(borrowed_train)
+              borrowed_train.owner = borrowed_train_owner
+              LOGGER.info(
+                "[AI ENGINE TRAIN] #{label} returned " \
+                "#{borrowed_train.name}"
+              )
+            end
+
             log = "[AI ENGINE REVENUE] #{label} revenue=#{best_revenue.to_i}"
             LOGGER.info(log)
             yield(best_revenue.to_i)
@@ -150,7 +181,20 @@ module View
           rescue StandardError => e
             unless completed
               completed = true
-              LOGGER.warn("[AI ROUTER ERROR] #{label} #{e.message}")
+
+              if borrowed_train
+                trial_entity.trains.delete(borrowed_train)
+                borrowed_train.owner = borrowed_train_owner
+                LOGGER.info(
+                  "[AI ENGINE TRAIN] #{label} returned after error " \
+                  "#{borrowed_train.name}"
+                )
+              end
+
+              LOGGER.warn(
+                "[AI ROUTER ERROR] #{label} #{e.class}: #{e.message}\n" \
+                "#{Array(e.backtrace).first(15).join("\n")}"
+              )
               yield(nil)
             end
           end
@@ -165,10 +209,12 @@ module View
         rescue StandardError => e
           LOGGER.error("[AI ENGINE SEARCH] final action failed: #{e.message}")
         ensure
+          `document.body.style.cursor = ''`
           self.class.complete_engine_search!(@engine_search_key)
         end
 
         def start_engine_tile_search(actions, entity, round_before, step_before)
+          `document.body.style.cursor = 'progress'`
           state = {
             deadline: engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS,
             first_actions: actions,
@@ -199,10 +245,18 @@ module View
               next
             end
 
+            topology_metrics = @tile_eval_cache && @tile_eval_cache[action]
+            topology_revenue = if topology_metrics
+                                 topology_metrics[:projected_revenue].to_i
+                               else
+                                 0
+                               end
+
             result = {
               action: action,
               first_revenue: first_revenue,
               best_revenue: first_revenue,
+              topology_revenue: topology_revenue,
               best_second: nil,
             }
 
@@ -233,7 +287,9 @@ module View
           if engine_now_ms >= state[:deadline] || index >= actions.size
             log = "[AI TILE RESULT] hex=#{result[:action].hex.id} tile=#{result[:action].tile.id} " \
                   "rotation=#{result[:action].rotation} first=#{result[:first_revenue]} " \
-                  "best_two=#{result[:best_revenue]} second=#{result[:best_second]}"
+                  "engine_two=#{result[:best_revenue]} " \
+                  "topology_two=#{result[:topology_revenue]} " \
+                  "second=#{result[:best_second]}"
             LOGGER.info(log)
             engine_next_first_tile(state, entity, round_before, step_before)
             return
@@ -270,11 +326,42 @@ module View
             return engine_finish(nil, round_before, step_before, entity)
           end
 
-          best = completed.map { |result| result[:best_revenue] }.max
-          tied = completed.select { |result| result[:best_revenue] == best }
+          best_engine_revenue = completed.map do |result|
+            result[:best_revenue].to_i
+          end.max
+
+          if best_engine_revenue.positive?
+            engine_tied = completed.select do |result|
+              result[:best_revenue].to_i == best_engine_revenue
+            end
+
+            best_topology_revenue = engine_tied.map do |result|
+              result[:topology_revenue].to_i
+            end.max
+
+            tied = engine_tied.select do |result|
+              result[:topology_revenue].to_i == best_topology_revenue
+            end
+
+            selection_source = 'engine_then_topology'
+          else
+            best_topology_revenue = completed.map do |result|
+              result[:topology_revenue].to_i
+            end.max
+
+            tied = completed.select do |result|
+              result[:topology_revenue].to_i == best_topology_revenue
+            end
+
+            selection_source = 'topology_fallback'
+          end
+
           winner = tied.sample
           log = "[AI TILE CHOSEN] hex=#{winner[:action].hex.id} tile=#{winner[:action].tile.id} " \
-                "rotation=#{winner[:action].rotation} engine_revenue=#{best} " \
+                "rotation=#{winner[:action].rotation} " \
+                "selection_source=#{selection_source} " \
+                "engine_revenue=#{winner[:best_revenue]} " \
+                "topology_revenue=#{winner[:topology_revenue]} " \
                 "ties=#{tied.size} best_second=#{winner[:best_second]}"
           LOGGER.info(log)
           engine_finish(winner[:action], round_before, step_before, entity)
