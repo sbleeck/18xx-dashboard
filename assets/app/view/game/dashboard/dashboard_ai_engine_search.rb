@@ -205,7 +205,13 @@ module View
               best_revenue: first_revenue,
               best_second: nil,
             }
+
+            # Retain the valid first build immediately. The result hash is
+            # subsequently updated in place if a better second build is found.
+            state[:results] << result
+
             first_player = self.class.allocate
+
             first_player.send(:initialize, first_game, []) { |_action| }
             second_actions = first_player.generate_legal_actions.select do |candidate|
               candidate.is_a?(Engine::Action::LayTile)
@@ -225,7 +231,6 @@ module View
 
         def engine_next_second_tile(state, result, first_game, actions, index, entity, round_before, step_before)
           if engine_now_ms >= state[:deadline] || index >= actions.size
-            state[:results] << result
             log = "[AI TILE RESULT] hex=#{result[:action].hex.id} tile=#{result[:action].tile.id} " \
                   "rotation=#{result[:action].rotation} first=#{result[:first_revenue]} " \
                   "best_two=#{result[:best_revenue]} second=#{result[:best_second]}"
