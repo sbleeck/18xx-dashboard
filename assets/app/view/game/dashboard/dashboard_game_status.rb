@@ -144,190 +144,189 @@ module View
         active_player_nth = active_player_index ? active_player_index + 2 : -1
 
         css = <<~CSS
-          #viz-master-frame {
-            --font-money: 'Courier New', monospace;
-            --font-standard: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            --color-money-text: #4c1d95;
-            --accent-action-color: #2563eb;
-            --opacity-unopened-row: 0.45;
-            --bg-active-row: #ffffff;
-            --color-inactive: #e0e0e0;
-            --bg-market-zone: #e6f4ea;
-            --bg-corporate-zone: #f3e8ff;
-            --action-buy-edge: #16a34a;
-            --action-sell-edge: #dc2626;
-            --shadow-card: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-          }
-          #viz-master-frame #spreadsheet table { border-collapse: collapse; border: 3px solid #333333; background-color: #{COLOR_INACTIVE}; }
-          #viz-master-frame #spreadsheet th, #viz-master-frame #spreadsheet td { border: 1px solid #b3b3b3 !important; vertical-align: middle !important; padding: 4px 2px !important; }
-          #viz-master-frame #spreadsheet thead tr:last-child th { border-bottom: 3px solid #333333 !important; }
-          #viz-master-frame #spreadsheet tr.last-player-row th, #viz-master-frame #spreadsheet tr.last-player-row td { border-bottom: 3px solid #333333 !important; }
-          #viz-master-frame #spreadsheet tr.last-minor-row th, #viz-master-frame #spreadsheet tr.last-minor-row td { border-bottom: 3px solid #333333 !important; }
-          #viz-master-frame .thick-right { border-right: 3px solid #333333 !important; }
-          #viz-master-frame .no-border { border: none !important; }
-          #viz-master-frame .money-value, #viz-master-frame .padded_number { text-align: right !important; padding-left: 0.45rem !important; padding-right: 0.45rem !important; box-sizing: border-box !important; }
-          #viz-master-frame .money-value { min-width: 4.35rem !important; width: 4.35rem !important; font-family: var(--font-money) !important; font-weight: bold !important; color: var(--color-money-text) !important; font-variant-numeric: tabular-nums !important; }
-          #viz-master-frame #spreadsheet .market-shares-col, #viz-master-frame #spreadsheet .market-price-col { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; box-sizing: border-box !important; }
-          #viz-master-frame #spreadsheet .market-shares-col { text-align: center !important; }
+                    #viz-master-frame {
+                      --font-money: 'Courier New', monospace;
+                      --font-standard: "Helvetica Neue", Helvetica, Arial, sans-serif;
+                      --color-money-text: #4c1d95;
+                      --accent-action-color: #2563eb;
+                      --opacity-unopened-row: 0.45;
+                      --bg-active-row: #ffffff;
+                      --color-inactive: #e0e0e0;
+                      --bg-market-zone: #e6f4ea;
+                      --bg-corporate-zone: #f3e8ff;
+                      --action-buy-edge: #16a34a;
+                      --action-sell-edge: #dc2626;
+                      --shadow-card: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+                    }
+                    #viz-master-frame #spreadsheet table { border-collapse: collapse; border: 3px solid #333333; background-color: #{COLOR_INACTIVE}; }
+                    #viz-master-frame #spreadsheet th, #viz-master-frame #spreadsheet td { border: 1px solid #b3b3b3 !important; vertical-align: middle !important; padding: 4px 2px !important; }
+                    #viz-master-frame #spreadsheet thead tr:last-child th { border-bottom: 3px solid #333333 !important; }
+                    #viz-master-frame #spreadsheet tr.last-player-row th, #viz-master-frame #spreadsheet tr.last-player-row td { border-bottom: 3px solid #333333 !important; }
+                    #viz-master-frame #spreadsheet tr.last-minor-row th, #viz-master-frame #spreadsheet tr.last-minor-row td { border-bottom: 3px solid #333333 !important; }
+                    #viz-master-frame .thick-right { border-right: 3px solid #333333 !important; }
+                    #viz-master-frame .no-border { border: none !important; }
+                    #viz-master-frame .money-value, #viz-master-frame .padded_number { text-align: right !important; padding-left: 0.45rem !important; padding-right: 0.45rem !important; box-sizing: border-box !important; }
+                    #viz-master-frame .money-value { min-width: 4.35rem !important; width: 4.35rem !important; font-family: var(--font-money) !important; font-weight: bold !important; color: var(--color-money-text) !important; font-variant-numeric: tabular-nums !important; }
+                    #viz-master-frame #spreadsheet .market-shares-col, #viz-master-frame #spreadsheet .market-price-col { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; box-sizing: border-box !important; }
+                    #viz-master-frame #spreadsheet .market-shares-col { text-align: center !important; }
 
-          #viz-master-frame #spreadsheet thead th.header-market { background-color: var(--bg-market-zone) !important; color: #111827 !important; }
-          #viz-master-frame #spreadsheet thead th.header-corporate { background-color: #e9d5ff !important; color: #4c1d95 !important; }
-          #viz-master-frame #spreadsheet thead th.header-player, #viz-master-frame #spreadsheet thead th.header-symbol { background-color: #e5e7eb !important; color: #111827 !important; }
+                    #viz-master-frame #spreadsheet thead th.header-market { background-color: var(--bg-market-zone) !important; color: #111827 !important; }
+                    #viz-master-frame #spreadsheet thead th.header-corporate { background-color: #e9d5ff !important; color: #4c1d95 !important; }
+                    #viz-master-frame #spreadsheet thead th.header-player, #viz-master-frame #spreadsheet thead th.header-symbol { background-color: #e5e7eb !important; color: #111827 !important; }
 
-          #viz-master-frame .game-card { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 3.5rem; height: 1.45rem; font-size: 0.85rem; padding: 0 4px; margin: 2px; border: 1px solid #888888; border-radius: 4px; background-color: #fdfbf7; color: #000000; box-shadow: var(--shadow-card); transition: transform 0.1s ease; font-family: var(--font-standard); }
-          #viz-master-frame .game-card.clickable:hover { cursor: pointer; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-          #viz-master-frame .game-card.action-sell { border: 2px solid var(--action-sell-edge) !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 1px var(--action-sell-edge) !important; }
-          #viz-master-frame .game-card.action-buy { border: 2px solid var(--action-buy-edge) !important; background-color: #e6f4ea !important; box-shadow: 0 0 0 1px var(--action-buy-edge) !important; }
+                    #viz-master-frame .game-card { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 3.5rem; height: 1.45rem; font-size: 0.85rem; padding: 0 4px; margin: 2px; border: 1px solid #888888; border-radius: 4px; background-color: #fdfbf7; color: #000000; box-shadow: var(--shadow-card); transition: transform 0.1s ease; font-family: var(--font-standard); }
+                    #viz-master-frame .game-card.clickable:hover { cursor: pointer; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+                    #viz-master-frame .game-card.action-sell { border: 2px solid var(--action-sell-edge) !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 1px var(--action-sell-edge) !important; }
+                    #viz-master-frame .game-card.action-buy { border: 2px solid var(--action-buy-edge) !important; background-color: #e6f4ea !important; box-shadow: 0 0 0 1px var(--action-buy-edge) !important; }
 
-          #viz-master-frame .sell-restricted { text-decoration: line-through !important; opacity: 0.5 !important; cursor: not-allowed !important; }
-          #viz-master-frame .token-bond { display: inline-block; width: 12px; height: 12px; background-color: #b91c1c; border-radius: 2px; }
-          #viz-master-frame .align-top { vertical-align: top !important; }
+                    #viz-master-frame .sell-restricted { text-decoration: line-through !important; opacity: 0.5 !important; cursor: not-allowed !important; }
+                    #viz-master-frame .token-bond { display: inline-block; width: 12px; height: 12px; background-color: #b91c1c; border-radius: 2px; }
+                    #viz-master-frame .align-top { vertical-align: top !important; }
 
-          /* Normal corporation rows use the same zone colours as the headers. */
-          #viz-master-frame #spreadsheet tbody td.column-zone-market {
-            background-color: var(--bg-market-zone) !important;
-          }
-          #viz-master-frame #spreadsheet tbody td.column-zone-corporate {
-            background-color: var(--bg-corporate-zone) !important;
-          }
+                    /* Normal corporation rows use the same zone colours as the headers. */
+                    #viz-master-frame #spreadsheet tbody td.column-zone-market {
+                      background-color: var(--bg-market-zone) !important;
+                    }
+                    #viz-master-frame #spreadsheet tbody td.column-zone-corporate {
+                      background-color: var(--bg-corporate-zone) !important;
+                    }
 
-          #viz-master-frame tr.active-turn-focus { background-color: var(--bg-active-row) !important; }
-          #viz-master-frame tr.active-turn-focus th, #viz-master-frame tr.active-turn-focus td { box-shadow: inset 0 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
-          #viz-master-frame tr.active-turn-focus th:first-child, #viz-master-frame tr.active-turn-focus td:first-child { box-shadow: inset 3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
-          #viz-master-frame tr.active-turn-focus th:last-child, #viz-master-frame tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
+                    #viz-master-frame tr.active-turn-focus { background-color: var(--bg-active-row) !important; }
+                    #viz-master-frame tr.active-turn-focus th, #viz-master-frame tr.active-turn-focus td { box-shadow: inset 0 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
+                    #viz-master-frame tr.active-turn-focus th:first-child, #viz-master-frame tr.active-turn-focus td:first-child { box-shadow: inset 3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
+                    #viz-master-frame tr.active-turn-focus th:last-child, #viz-master-frame tr.active-turn-focus td:last-child { box-shadow: inset -3px 3px 0 var(--accent-action-color), inset 0 -3px 0 var(--accent-action-color) !important; }
 
-          /* Only corporations that are not open are greyed out, preserving the company column */
-          #viz-master-frame #spreadsheet tbody tr.company-row-unfloated > th:not(.major-corporation-cell),
-          #viz-master-frame #spreadsheet tbody tr.company-row-unfloated > td,
-          #viz-master-frame #spreadsheet tbody tr.company-row-closed > th:not(.major-corporation-cell),
-          #viz-master-frame #spreadsheet tbody tr.company-row-closed > td {
-            background-color: var(--color-inactive) !important;
-            color: #6b7280 !important;
-            opacity: 1 !important;
-            filter: grayscale(100%) !important;
-          }
+                    /* Only corporations that are not open are greyed out, preserving the company column */
+                    #viz-master-frame #spreadsheet tbody tr.company-row-unfloated > th:not(.major-corporation-cell),
+                    #viz-master-frame #spreadsheet tbody tr.company-row-unfloated > td,
+                    #viz-master-frame #spreadsheet tbody tr.company-row-closed > th:not(.major-corporation-cell),
+                    #viz-master-frame #spreadsheet tbody tr.company-row-closed > td {
+                      background-color: var(--color-inactive) !important;
+                      color: #6b7280 !important;
+                      opacity: 1 !important;
+                      filter: grayscale(100%) !important;
+                    }
 
-          /* In unopened rows the IPO remains green because its director share can still be bought. */
-          #viz-master-frame #spreadsheet tbody tr.company-row-unfloated > td.ipo-zone,
-          #viz-master-frame #spreadsheet tbody tr.company-row-closed > td.ipo-zone {
-            background-color: var(--bg-market-zone) !important;
-            color: #111827 !important;
-            filter: none !important;
-          }
+                    /* In unopened rows the IPO remains green because its director share can still be bought. */
+                    #viz-master-frame #spreadsheet tbody tr.company-row-unfloated > td.ipo-zone,
+                    #viz-master-frame #spreadsheet tbody tr.company-row-closed > td.ipo-zone {
+                      background-color: var(--bg-market-zone) !important;
+                      color: #111827 !important;
+                      filter: none !important;
+                    }
 
-          /* The current corporation row is white, but the company cell never loses its color */
-          #viz-master-frame #spreadsheet tbody tr.active-turn-focus > th:not(.major-corporation-cell),
-          #viz-master-frame #spreadsheet tbody tr.active-turn-focus > td {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            opacity: 1 !important;
-            filter: none !important;
-          }
+                    /* The current corporation row is white, but the company cell never loses its color */
+                    #viz-master-frame #spreadsheet tbody tr.active-turn-focus > th:not(.major-corporation-cell),
+                    #viz-master-frame #spreadsheet tbody tr.active-turn-focus > td {
+                      background-color: #ffffff !important;
+                      color: #000000 !important;
+                      opacity: 1 !important;
+                      filter: none !important;
+                    }
 
-          /* The corporation cell strictly retains its corporate identity color */
-          #viz-master-frame #spreadsheet tbody tr th.major-corporation-cell,
-          #viz-master-frame #spreadsheet tbody tr.active-turn-focus th.major-corporation-cell {
-            opacity: 1 !important;
-            filter: none !important;
-          }
+                    /* The corporation cell strictly retains its corporate identity color */
+                    #viz-master-frame #spreadsheet tbody tr th.major-corporation-cell,
+                    #viz-master-frame #spreadsheet tbody tr.active-turn-focus th.major-corporation-cell {
+                      opacity: 1 !important;
+                      filter: none !important;
+                    }
 
-          /* Remove black borders from the first column and its cards */
-          #viz-master-frame #spreadsheet th.major-corporation-cell,
-          #viz-master-frame #spreadsheet th.header-symbol {
-            border-left: none !important;
-            border-right: 1px solid #b3b3b3 !important;
-          }
-          #viz-master-frame #spreadsheet th.major-corporation-cell .major-railcard,
-          #viz-master-frame #spreadsheet th.major-corporation-cell .game-card {
-            border: none !important;
-            box-shadow: none !important;
-          }
+                    /* Remove black borders from the first column and its cards */
+                    #viz-master-frame #spreadsheet th.major-corporation-cell,
+                    #viz-master-frame #spreadsheet th.header-symbol {
+                      border-left: none !important;
+                      border-right: 1px solid #b3b3b3 !important;
+                    }
+                    #viz-master-frame #spreadsheet th.major-corporation-cell .major-railcard,
+                    #viz-master-frame #spreadsheet th.major-corporation-cell .game-card {
+                      border: none !important;
+                      box-shadow: none !important;
+                    }
 
-          #viz-master-frame #spreadsheet thead th.header-player:nth-child(#{active_player_nth}),
-          #viz-master-frame #spreadsheet thead tr > th:nth-child(#{active_player_nth}),
-          #viz-master-frame #spreadsheet tbody tr.company-row-unfloated > *:nth-child(#{active_player_nth}),
-          #viz-master-frame #spreadsheet tbody tr.company-row-closed > *:nth-child(#{active_player_nth}),
-          #viz-master-frame #spreadsheet tbody tr > *:nth-child(#{active_player_nth}) {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            opacity: 1 !important;
-            filter: none !important;
-          }
-          #viz-master-frame #spreadsheet thead th { font-weight: 700 !important; }
-          #viz-master-frame #spreadsheet th.header-cash, #viz-master-frame #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }
-          #viz-master-frame #spreadsheet th.header-trains, #viz-master-frame #spreadsheet td.corporation-trains { min-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; white-space: nowrap !important; }
+                    #viz-master-frame #spreadsheet thead th.header-player:nth-child(#{active_player_nth}),
+                    #viz-master-frame #spreadsheet thead tr > th:nth-child(#{active_player_nth}),
+                    #viz-master-frame #spreadsheet tbody tr.company-row-unfloated > *:nth-child(#{active_player_nth}),
+                    #viz-master-frame #spreadsheet tbody tr.company-row-closed > *:nth-child(#{active_player_nth}),
+                    #viz-master-frame #spreadsheet tbody tr > *:nth-child(#{active_player_nth}) {
+                      background-color: #ffffff !important;
+                      color: #000000 !important;
+                      opacity: 1 !important;
+                      filter: none !important;
+                    }
+                    #viz-master-frame #spreadsheet thead th { font-weight: 700 !important; }
+                    #viz-master-frame #spreadsheet th.header-cash, #viz-master-frame #spreadsheet td.corporation-cash { width: 4.35rem !important; min-width: 4.35rem !important; max-width: 4.35rem !important; }
+                    #viz-master-frame #spreadsheet th.header-trains, #viz-master-frame #spreadsheet td.corporation-trains { min-width: 14.4rem !important; padding-left: 0 !important; padding-right: 0 !important; white-space: nowrap !important; }
 
 
-          /* Suppress all floating hover portal overlays across the entire DOM */
-          #railcard-portal,
-          #railcard-portal *,
+                    /* Suppress all floating hover portal overlays across the entire DOM */
+
           #hover,
-          #hover *,
-          #entity_hover,
-          #entity_hover *,
-          .status-corp-tooltip,
-          .status-company-tooltip,
-          .cmd-corp-tooltip,
-          .cmd-company-tooltip,
-          .hover_card,
-          .hover-card,
-          [class*="hover_card"],
-          [class*="corp-tooltip"],
-          [class*="company-tooltip"] {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-          }
+                    #hover *,
+                    #entity_hover,
+                    #entity_hover *,
+                    .status-corp-tooltip,
+                    .status-company-tooltip,
+                    .cmd-corp-tooltip,
+                    .cmd-company-tooltip,
+                    .hover_card,
+                    .hover-card,
+                    [class*="hover_card"],
+                    [class*="corp-tooltip"],
+                    [class*="company-tooltip"] {
+                      display: none !important;
+                      visibility: hidden !important;
+                      opacity: 0 !important;
+                      pointer-events: none !important;
+                    }
 
-          /* Ensure major corporation elements capture mouse events for selection and breathing */
-          #viz-master-frame .major-corporation-cell,
-          #viz-master-frame .status-corp-wrapper,
-          #viz-master-frame .major-railcard {
-            pointer-events: auto !important;
-            cursor: pointer !important;
-          }
-
-
-
-
-
-          #viz-master-frame .share-card-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; }
-
-          #viz-master-frame #spreadsheet tbody tr:has(.choice-menu-popup) {
-            position: relative !important;
-            z-index: 99990 !important;
-          }
+                    /* Ensure major corporation elements capture mouse events for selection and breathing */
+                    #viz-master-frame .major-corporation-cell,
+                    #viz-master-frame .status-corp-wrapper,
+                    #viz-master-frame .major-railcard {
+                      pointer-events: auto !important;
+                      cursor: pointer !important;
+                    }
 
 
 
 
-          #viz-master-frame #spreadsheet tbody td:has(.choice-menu-popup),
-          #viz-master-frame #spreadsheet tbody th:has(.choice-menu-popup) {
-            position: relative !important;
-            z-index: 99995 !important;
-            filter: none !important;
-          }
 
-          #viz-master-frame .share-card-wrapper:has(.choice-menu-popup),
-          #viz-master-frame .game-card:has(.choice-menu-popup) {
-            z-index: 99999 !important;
-            transform: none !important;
-          }
+                    #viz-master-frame .share-card-wrapper { position: relative; display: inline-flex; align-items: center; justify-content: center; }
 
-          #viz-master-frame .game-card.president-card {
-            font-weight: bold !important;
-          }
+                    #viz-master-frame #spreadsheet tbody tr:has(.choice-menu-popup) {
+                      position: relative !important;
+                      z-index: 99990 !important;
+                    }
 
-          #viz-master-frame .game-card.card-private {
-            border-radius: 9px 0 9px 0 !important;
-            letter-spacing: 0.03em;
-            border: 1px solid #666666 !important;
-          }
 
-          #viz-master-frame .game-card.card-private.clickable:hover {
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-          }
+
+
+                    #viz-master-frame #spreadsheet tbody td:has(.choice-menu-popup),
+                    #viz-master-frame #spreadsheet tbody th:has(.choice-menu-popup) {
+                      position: relative !important;
+                      z-index: 99995 !important;
+                      filter: none !important;
+                    }
+
+                    #viz-master-frame .share-card-wrapper:has(.choice-menu-popup),
+                    #viz-master-frame .game-card:has(.choice-menu-popup) {
+                      z-index: 99999 !important;
+                      transform: none !important;
+                    }
+
+                    #viz-master-frame .game-card.president-card {
+                      font-weight: bold !important;
+                    }
+
+                    #viz-master-frame .game-card.card-private {
+                      border-radius: 9px 0 9px 0 !important;
+                      letter-spacing: 0.03em;
+                      border: 1px solid #666666 !important;
+                    }
+
+                    #viz-master-frame .game-card.card-private.clickable:hover {
+                      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+                    }
 
         CSS
         Lib::CardAnimation.check_and_animate(@game, has_treasury_column?)
@@ -994,7 +993,10 @@ module View
         tr_props[:attrs][:class] = row_classes.join(' ') unless row_classes.empty?
 
         name_props = {
-          attrs: { class: 'major-corporation-cell' },
+          attrs: {
+            class: 'major-corporation-cell status-corp-wrapper cmd-corp-wrapper',
+            'data-corp': corporation.id,
+          },
           style: {
             backgroundColor: corp_bg,
             border: 'none !important',
@@ -2634,16 +2636,15 @@ module View
               })
             }
           end
-          tooltip_card = if active_ent
-                           begin
-                             build_company_tooltip(c)
-                           rescue StandardError
-                             nil
-                           end
-                         end
+          tooltip_card = begin
+            build_company_tooltip(c)
+          rescue StandardError
+            nil
+          end
+
           wrapper_id = "company_wrapper_#{entity.id}_#{c.id}"
           wrapper_classes = ['status-company-wrapper']
-          render_railcard(c.sym, card_classes, company_click_handler, tooltip_card, menu_dropdown, wrapper_id, wrapper_classes)
+          render_railcard(c.sym, card_classes, company_click_handler, tooltip_card, menu_dropdown, wrapper_id, wrapper_classes, entity: c)
         end
         h(:td, props, company_cards)
       end

@@ -146,6 +146,84 @@ module View
             bottom_row << h(:span, ['Price: ', h(:span, { style: { fontFamily: FONT_MONEY, fontWeight: 'bold', color: COLOR_MONEY } }, price)])
           end
           bottom_row << h(:span, ['Revenue: ', h(:span, { style: { fontFamily: FONT_MONEY, fontWeight: 'bold', color: COLOR_MONEY } }, rev)])
+          clean_desc = desc.to_s.gsub(%r{<br\s*/?>}i, ' ').gsub(%r{</?[^>]+>}, '').strip
+
+          card_container = h(:div, {
+                               style: {
+                                 width: '300px',
+                                 maxWidth: '90vw',
+                                 backgroundColor: '#ffffff',
+                                 border: '2px solid #333333',
+                                 borderRadius: '8px',
+                                 boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                                 overflow: 'hidden',
+                                 textAlign: 'left',
+                                 boxSizing: 'border-box',
+                                 fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                                 pointerEvents: 'none',
+                               },
+                             }, [
+            h(:div, {
+                style: {
+                  backgroundColor: '#ffff00',
+                  borderBottom: '2px solid #333333',
+                  fontWeight: 'bold',
+                  fontSize: '0.8rem',
+                  textAlign: 'center',
+                  padding: '5px 8px',
+                  textTransform: 'uppercase',
+                  color: '#000000',
+                  letterSpacing: '0.04em',
+                },
+              }, title),
+            h(:div, {
+                style: {
+                  padding: '10px 12px',
+                  backgroundColor: '#ffffff',
+                },
+              }, [
+              h(:div, {
+                  style: {
+                    fontWeight: 'bold',
+                    fontSize: '0.95rem',
+                    textAlign: 'center',
+                    marginBottom: '6px',
+                    color: '#111827',
+                    lineHeight: '1.25',
+                  },
+                }, subtitle),
+              h(:div, {
+                  style: {
+                    fontSize: '0.8rem',
+                    lineHeight: '1.35',
+                    marginBottom: '10px',
+                    color: '#222222',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word',
+                  },
+                }, clean_desc),
+              h(:div, {
+                  style: {
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '0.78rem',
+                    fontWeight: 'bold',
+                    borderTop: '1px solid #e5e7eb',
+                    paddingTop: '6px',
+                    marginBottom: '4px',
+                    color: '#111827',
+                  },
+                }, bottom_row),
+              h(:div, {
+                  style: {
+                    fontSize: '0.78rem',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    color: '#4b5563',
+                  },
+                }, "Owner: #{owner}"),
+            ]),
+          ])
 
           h(:div, {
               attrs: {
@@ -154,43 +232,8 @@ module View
               },
               style: {
                 display: 'none',
-                position: 'fixed',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '300px',
-                backgroundColor: '#ffffff',
-                border: '2px solid #333333',
-                borderRadius: '6px',
-                padding: '8px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-                zIndex: '99999',
-                pointerEvents: 'none',
-                color: '#000000',
-                textAlign: 'left',
-                boxSizing: 'border-box',
-                whiteSpace: 'normal',
-                wordBreak: 'break-word',
               },
-            }, [
-            h(:div, {
-                style: {
-                  backgroundColor: '#ffff00',
-                  border: '1px solid #000000',
-                  fontWeight: 'bold',
-                  fontSize: '0.8rem',
-                  textAlign: 'center',
-                  padding: '2px 4px',
-                  marginBottom: '4px',
-                  textTransform: 'uppercase',
-                  borderRadius: '3px',
-                },
-              }, title),
-            h(:div, { style: { fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center', marginBottom: '4px' } }, subtitle),
-            h(:div, { style: { fontSize: '0.78rem', lineHeight: '1.25', marginBottom: '6px', color: '#222222', whiteSpace: 'normal', wordBreak: 'break-word' } }, desc),
-            h(:div, { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', fontWeight: 'bold', borderTop: '1px solid #ddd', paddingTop: '4px', marginBottom: '2px' } }, bottom_row),
-            h(:div, { style: { fontSize: '0.78rem', fontWeight: 'bold', textAlign: 'center', color: '#555555' } }, "Owner: #{owner}"),
-          ])
+            }, [card_container])
         end
 
         def build_company_tooltip(c, price: nil)
@@ -234,6 +277,59 @@ module View
                       end
 
           render_company_tooltip('Private Company', c.name, desc_text, value_str, revenue_str, owner_name, target_hexes, price_str)
+        end
+
+        def company_hover_text(c, price: nil)
+          return nil unless c
+
+          owner_name = c.owner&.name || 'Bank'
+          raw_desc = if c.respond_to?(:desc) && c.desc && !c.desc.to_s.strip.empty?
+                       c.desc
+                     elsif c.respond_to?(:abilities) && c.abilities&.any?
+                       ability_descs = c.abilities.map do |a|
+                         desc = nil
+                         if a.respond_to?(:description)
+                           begin
+                             desc = a.description
+                           rescue ScriptError, StandardError
+                             desc = nil
+                           end
+                         end
+                         desc ||= a.type.to_s.tr('_', ' ').capitalize if a.respond_to?(:type) && a.type
+                         desc
+                       end.compact
+                       ability_descs.any? ? ability_descs.join(' ') : 'No special abilities.'
+                     else
+                       'No special abilities.'
+                     end
+
+          clean_desc = raw_desc.to_s.gsub(%r{<br\s*/?>}i, "\n").gsub(%r{</?[^>]+>}, '').strip
+
+          value_str = @game.format_currency(c.value || 0)
+          revenue_str = @game.format_currency(c.revenue || 0)
+
+          price_val = price
+          if price_val.nil?
+            if c.respond_to?(:discount) && c.discount && !c.discount.zero?
+              price_val = c.respond_to?(:min_bid) ? c.min_bid : (c.value - c.discount)
+            elsif c.respond_to?(:min_bid) && c.min_bid && c.respond_to?(:value) && c.min_bid != c.value
+              price_val = c.min_bid
+            elsif c.respond_to?(:min_price) && c.min_price && c.respond_to?(:value) && c.min_price != c.value
+              price_val = c.min_price
+            end
+          end
+          price_str = if price_val
+                        price_val.is_a?(Numeric) ? @game.format_currency(price_val) : price_val.to_s
+                      end
+
+          lines = [c.name.to_s]
+          lines << clean_desc unless clean_desc.empty?
+          finance = ["Value: #{value_str}"]
+          finance << "Price: #{price_str}" if price_str && !price_str.strip.empty?
+          finance << "Revenue: #{revenue_str}"
+          lines << finance.join(' | ')
+          lines << "Owner: #{owner_name}"
+          lines.join("\n")
         end
 
         def render_price_dialog(title, storage_key, min_price, max_price, on_confirm, on_cancel)
@@ -512,6 +608,180 @@ module View
 
           target_hexes = resolve_target_hexes(entity)
 
+          corp_name = if entity.respond_to?(:full_name) && entity.full_name && !entity.full_name.to_s.empty?
+                        entity.full_name.to_s
+                      elsif entity.respond_to?(:name) && entity.name && !entity.name.to_s.empty?
+                        entity.name.to_s
+                      else
+                        entity.id.to_s
+                      end
+
+          corp_bg = entity.respond_to?(:color) && entity.color ? entity.color : '#4169e1'
+          corp_text = entity.respond_to?(:text_color) && entity.text_color ? entity.text_color : '#ffffff'
+
+          logo_src = if entity.respond_to?(:logo) && entity.logo && !entity.logo.to_s.empty?
+                       entity.logo
+                     elsif entity.respond_to?(:simple_logo) && entity.simple_logo && !entity.simple_logo.to_s.empty?
+                       entity.simple_logo
+                     end
+
+          logo_node = if logo_src
+                        h(:img, {
+                            attrs: { src: logo_src, alt: corp_name },
+                            style: {
+                              width: '34px',
+                              height: '34px',
+                              minWidth: '34px',
+                              objectFit: 'contain',
+                              display: 'block',
+                              borderRadius: '4px',
+                            },
+                          })
+                      else
+                        sym_text = (entity.respond_to?(:sym) ? entity.sym : entity.id).to_s
+                        h(:div, {
+                            style: {
+                              width: '32px',
+                              height: '32px',
+                              minWidth: '32px',
+                              borderRadius: '4px',
+                              backgroundColor: '#ffffff',
+                              color: corp_bg,
+                              fontSize: '0.9rem',
+                              fontWeight: 'bold',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                            },
+                          }, sym_text)
+                      end
+
+          header_node = h(:div, {
+                            style: {
+                              backgroundColor: corp_bg,
+                              color: corp_text,
+                              padding: '8px 12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              borderTopLeftRadius: '6px',
+                              borderTopRightRadius: '6px',
+                            },
+                          }, [
+                            logo_node,
+                            h(:div, {
+                                style: {
+                                  fontSize: '0.95rem',
+                                  fontWeight: 'bold',
+                                  lineHeight: '1.25',
+                                  color: corp_text,
+                                  wordBreak: 'break-word',
+                                },
+                              }, corp_name),
+                          ])
+
+          director_name = if entity.respond_to?(:owner) && entity.owner
+                            entity.owner.name.to_s
+                          elsif entity.respond_to?(:closed?) && entity.closed?
+                            'Closed'
+                          else
+                            'None (Unfloated)'
+                          end
+
+          director_row = h(:div, {
+                             style: {
+                               fontSize: '0.82rem',
+                               marginBottom: '8px',
+                               display: 'flex',
+                               alignItems: 'center',
+                               gap: '4px',
+                             },
+                           }, [
+                             h(:span, { style: { fontWeight: 'bold', color: '#111827' } }, 'Director: '),
+                             h(:span, { style: { color: '#374151' } }, director_name),
+                           ])
+
+          abilities = []
+          abilities.concat(entity.all_abilities) if entity.respond_to?(:all_abilities) && entity.all_abilities
+          abilities.concat(Array(entity.abilities)) if entity.respond_to?(:abilities) && entity.abilities
+
+          if @game.respond_to?(:abilities)
+            %i[blocks_hexes teleport tile_lay hex_bonus assign_hexes reservation close base description borrow_train train_limit].each do |type|
+              ab = begin; @game.abilities(entity, type); rescue StandardError; nil; end
+              abilities.concat(Array(ab)) if ab
+            end
+          end
+
+          ability_descs = abilities.compact.uniq.map do |a|
+            desc = nil
+            begin; desc = a.description; rescue StandardError; nil; end if a.respond_to?(:description)
+            begin; desc = a.desc; rescue StandardError; nil; end if !desc && a.respond_to?(:desc)
+            desc ||= a.type.to_s.tr('_', ' ').capitalize if a.respond_to?(:type) && a.type
+            desc ? desc.to_s.gsub(%r{<br\s*/?>}i, ' ').gsub(%r{</?[^>]+>}, '').strip : nil
+          end.compact.reject(&:empty?).uniq
+
+          abilities_content = [
+            h(:div, {
+                style: {
+                  fontSize: '0.82rem',
+                  fontWeight: 'bold',
+                  color: '#111827',
+                  marginBottom: '4px',
+                },
+              }, 'Abilities:'),
+          ]
+
+          if ability_descs.any?
+            ability_descs.each do |desc|
+              abilities_content << h(:div, {
+                                       style: {
+                                         fontSize: '0.78rem',
+                                         lineHeight: '1.35',
+                                         color: '#374151',
+                                         paddingLeft: '8px',
+                                         borderLeft: "3px solid #{corp_bg}",
+                                         marginBottom: '4px',
+                                       },
+                                     }, desc)
+            end
+          else
+            abilities_content << h(:div, {
+                                     style: {
+                                       fontSize: '0.78rem',
+                                       fontStyle: 'italic',
+                                       color: '#6b7280',
+                                       paddingLeft: '8px',
+                                     },
+                                   }, 'None')
+          end
+
+          body_node = h(:div, {
+                          style: {
+                            padding: '10px 12px',
+                            backgroundColor: '#ffffff',
+                          },
+                        }, [
+                          director_row,
+                          *abilities_content,
+                        ])
+
+          card_container = h(:div, {
+                               style: {
+                                 width: '280px',
+                                 maxWidth: '90vw',
+                                 backgroundColor: '#ffffff',
+                                 border: '2px solid #333333',
+                                 borderRadius: '8px',
+                                 boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                                 overflow: 'hidden',
+                                 textAlign: 'left',
+                                 boxSizing: 'border-box',
+                                 fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                                 pointerEvents: 'none',
+                               },
+                             }, [header_node, body_node])
+
           h(:div, {
               attrs: {
                 class: 'status-corp-tooltip cmd-corp-tooltip',
@@ -520,14 +790,7 @@ module View
               style: {
                 display: 'none',
               },
-            }, [
-              h(Corporation,
-                corporation: entity,
-                game: @game,
-                display: 'block',
-                selectable: false,
-                interactive: false),
-            ])
+            }, [card_container])
         end
 
         TRAIN_QUIRKS = {
@@ -818,7 +1081,6 @@ module View
           card_props = {
             attrs: {
               class: classes.join(' '),
-              title: corporation.respond_to?(:name) ? corporation.name.to_s : text,
               'data-corp': corporation.id,
             },
             style: {
@@ -1152,7 +1414,7 @@ module View
             if (dashboardRoot && !dashboardRoot.querySelector('#railcard-portal')) {
               var portal = document.createElement('div');
               portal.id = 'railcard-portal';
-              portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
+              portal.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;background:transparent;border:none;padding:0;box-shadow:none;box-sizing:border-box;';
               dashboardRoot.appendChild(portal);
             }
 
@@ -1170,9 +1432,16 @@ module View
                   if (root) {
                     p = document.createElement('div');
                     p.id = 'railcard-portal';
-                    p.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;width:320px;max-width:90vw;background:#ffffff;border:2px solid #333333;border-radius:6px;padding:8px;box-shadow:0 12px 36px rgba(0,0,0,0.5);color:#000000;text-align:left;box-sizing:border-box;white-space:normal;word-break:break-word;';
+                    p.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none !important;z-index:2147483647;display:none;background:transparent;border:none;padding:0;box-shadow:none;box-sizing:border-box;';
                     root.appendChild(p);
                   }
+                }
+                if (p) {
+                  p.style.background = 'transparent';
+                  p.style.border = 'none';
+                  p.style.padding = '0';
+                  p.style.boxShadow = 'none';
+                  p.style.pointerEvents = 'none';
                 }
                 return p;
               };
@@ -1190,10 +1459,10 @@ module View
 
               var positionPortal = function(e, p) {
                 if (!p || p.style.display === 'none') return;
-                var marginX = 14;
-                var marginY = 14;
+                var marginX = 24;
+                var marginY = 28;
                 var rect = p.getBoundingClientRect();
-                var w = rect.width || 320;
+                var w = rect.width || 300;
                 var h = rect.height || 180;
                 var vw = window.innerWidth;
                 var vh = window.innerHeight;
@@ -1201,24 +1470,25 @@ module View
                 var x = e.clientX + marginX;
                 var y = e.clientY + marginY;
 
-                if (x + w > vw - 10) {
-                  x = e.clientX - w - marginX;
+                if (x + w > vw - 12) {
+                  x = e.clientX - w - 12;
                 }
-                if (x < 10) {
-                  x = Math.max(10, vw - w - 10);
+                if (x < 12) {
+                  x = Math.max(12, vw - w - 12);
                 }
 
-                if (y + h > vh - 10) {
-                  y = e.clientY - h - marginY;
+                if (y + h > vh - 12) {
+                  y = e.clientY - h - 12;
                 }
-                if (y < 10) {
-                  y = Math.max(10, vh - h - 10);
+                if (y < 12) {
+                  y = Math.max(12, vh - h - 12);
                 }
 
                 p.style.left = x + 'px';
                 p.style.top = y + 'px';
                 p.style.transform = 'none';
               };
+// --- END FIX ---
 
               document.addEventListener('mouseover', function(e) {
                 if (!e.target || !e.target.closest || !e.target.closest('#viz-master-frame')) return;
@@ -1479,6 +1749,21 @@ module View
             train_title = train_hover_text(train_target)
           end
 
+          # Only compute plain-text title fallback if no rich HTML tooltip is attached
+          company_title = nil
+          if is_private && !has_tooltip
+            comp_target = if entity && entity.respond_to?(:company?) && entity.company?
+                            entity
+                          elsif resolved_entity && resolved_entity.respond_to?(:company?) && resolved_entity.company?
+                            resolved_entity
+                          end
+            company_title = company_hover_text(comp_target) if comp_target
+          end
+
+          hover_title = train_title || (company_title unless has_tooltip)
+          hover_title = nil if has_tooltip
+          needs_wrapper = has_tooltip || has_dropdown || (!is_train && has_wrapper_id) || has_wrapper_classes
+
           style_props = {
             minWidth: '3.2rem',
             height: '1.45rem',
@@ -1503,7 +1788,7 @@ module View
             style: style_props,
           }
           card_props[:attrs][:id] = clean_wrapper_id if has_wrapper_id
-          card_props[:attrs][:title] = train_title if train_title
+          card_props[:attrs][:title] = hover_title if hover_title && !needs_wrapper
           if is_train
             t_slug = (entity.respond_to?(:name) ? entity.name : text).to_s.tr('()', '').strip.downcase.tr('+', 'p').gsub(/[^a-z0-9_]/, '')
             card_props[:attrs]['data-train'] = t_slug unless t_slug.empty?
@@ -1516,14 +1801,12 @@ module View
             card_props[:attrs]['data-corp'] = corp_id_str
           end
 
-          needs_wrapper = has_tooltip || has_dropdown || (!is_train && has_wrapper_id) || has_wrapper_classes
-
           if needs_wrapper
             w_attrs = {}
             w_attrs[:id] = clean_wrapper_id if has_wrapper_id && !is_train
             w_attrs[:class] = clean_wrapper_classes if has_wrapper_classes
             w_attrs['data-corp'] = corp_id_str if corp_id_str
-            w_attrs[:title] = train_title if is_train && train_title
+            w_attrs[:title] = hover_title if hover_title && !has_tooltip
 
             children = []
             children << tooltip if has_tooltip
