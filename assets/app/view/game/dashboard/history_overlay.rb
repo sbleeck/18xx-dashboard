@@ -7,10 +7,11 @@ require 'lib/params'
 require 'lib/settings'
 require 'lib/storage'
 
-# Robust SVG numeric-attribute safety shield.
+# History navigation deliberately uses full-page navigation when changing actions.
+# This avoids reconciling VDOM trees belonging to different reconstructed game states.
+
+# 2. Robust SVG numeric-attribute safety shield.
 # Snabbdom may attempt to write an empty cx/cy/r while changing historical states.
-# These names are SVG geometry attributes, so sanitize them by attribute name before
-# Safari receives the value. Do not depend on tagName detection during a VDOM patch.
 %x{
   (function() {
     if (window.__history_svg_numeric_shield_v2) return;
@@ -46,10 +47,113 @@ require 'lib/storage'
   })();
 }
 
+# 3. Continuously shield dynamically loaded games (like G1873) against unparred corporations
+%x{
+  (function() {
+    function patchGame(proto) {
+      if (!proto || proto.__sellable_bundles_shielded) return;
+      proto.__sellable_bundles_shielded = true;
+
+      var origSellable = proto.$sellable_bundles;
+      if (typeof origSellable === 'function') {
+        proto.$sellable_bundles = function(player, corporation) {
+          if (corporation && typeof corporation.$share_price === 'function') {
+            var sp = corporation.$share_price();
+            if (sp === Opal.nil || sp == null) {
+              return typeof Opal.Array !== 'undefined' ? Opal.Array.$new() : [];
+            }
+          }
+          try {
+            return origSellable.call(this, player, corporation);
+          } catch (e) {
+            return typeof Opal.Array !== 'undefined' ? Opal.Array.$new() : [];
+          }
+        };
+      }
+    }
+
+    function checkAndPatchAllGames() {
+      if (typeof Opal === 'undefined' || !Opal.Engine || !Opal.Engine.Game) return;
+      if (Opal.Engine.Game.Base) patchGame(Opal.Engine.Game.Base.$$proto);
+
+      for (var key in Opal.Engine.Game) {
+        if (Opal.Engine.Game[key] && Opal.Engine.Game[key].Game) {
+          patchGame(Opal.Engine.Game[key].Game.$$proto);
+        }
+      }
+    }
+
+    checkAndPatchAllGames();
+    if (!window.__history_game_patch_interval) {
+      window.__history_game_patch_interval = setInterval(checkAndPatchAllGames, 250);
+    }
+  })();
+}
+
+# Guard against unplaced or uninitialized entities during historical state replays
+class NilClass
+  def coordinates
+    nil
+  end
+
+  def price
+    nil
+  end
+end
+
 # Defensively handle raw action entity strings like "GT_7" during animate_last_action
 class String
   def dig(*_args)
     nil
+  end
+end
+
+# Guard StockMarket against nil coordinates or unparred corporations during history scrub
+module Engine
+  class StockMarket
+    alias _orig_share_price share_price unless method_defined?(:_orig_share_price)
+    alias _orig_find_share_price find_share_price unless method_defined?(:_orig_find_share_price)
+    alias _orig_find_relative_share_price find_relative_share_price unless method_defined?(:_orig_find_relative_share_price)
+
+    def share_price(coordinates)
+      return nil if coordinates.nil? || !coordinates.is_a?(Array) || coordinates[0].nil? || coordinates[1].nil?
+
+      _orig_share_price(coordinates)
+    rescue StandardError, TypeError
+      nil
+    end
+
+    def find_share_price(corporation, *args)
+      sp = corporation.respond_to?(:share_price) ? corporation.share_price : corporation
+      return nil if sp.nil?
+
+      _orig_find_share_price(corporation, *args)
+    rescue StandardError, TypeError
+      nil
+    end
+
+    def find_relative_share_price(corporation, *args)
+      sp = corporation.respond_to?(:share_price) ? corporation.share_price : corporation
+      return nil if sp.nil?
+
+      _orig_find_relative_share_price(corporation, *args)
+    rescue StandardError, TypeError
+      nil
+    end
+  end
+
+  module Game
+    class Base
+      alias _orig_sellable_bundles sellable_bundles unless method_defined?(:_orig_sellable_bundles)
+
+      def sellable_bundles(player, corporation = nil)
+        return [] if corporation && !corporation.share_price
+
+        _orig_sellable_bundles(player, corporation)
+      rescue StandardError, TypeError
+        []
+      end
+    end
   end
 end
 
@@ -130,7 +234,6 @@ module View
                    0
                  end
 
-          # Maintain maximum seen action id so navigating to Action 1 does not collapse total_actions
           @max_seen_action = [@max_seen_action || 0, acts.to_i].max
           @max_seen_action
         end
@@ -147,6 +250,9 @@ module View
 
         def close_overlay
           Lib::Storage['cmd_history_overlay'] = nil
+          %x{
+            try { sessionStorage.removeItem('history_overlay_reload_open'); } catch (e) {}
+          }
           begin
             store(:show_history_overlay, false)
           rescue StandardError
@@ -187,6 +293,32 @@ module View
                       'current'
                     end
           "history_round_ids_#{game_id}"
+        end
+
+        def shield_active_game!
+          return unless @game
+
+          %x{
+            if (#{@game} && !#{@game}._history_instance_shielded) {
+              #{@game}._history_instance_shielded = true;
+              var orig = #{@game}.$sellable_bundles;
+              if (typeof orig === 'function') {
+                #{@game}.$sellable_bundles = function(player, corporation) {
+                  if (corporation && typeof corporation.$share_price === 'function') {
+                    var sp = corporation.$share_price();
+                    if (sp === Opal.nil || sp == null) {
+                      return typeof Opal.Array !== 'undefined' ? Opal.Array.$new() : [];
+                    }
+                  }
+                  try {
+                    return orig.call(this, player, corporation);
+                  } catch(e) {
+                    return typeof Opal.Array !== 'undefined' ? Opal.Array.$new() : [];
+                  }
+                };
+              }
+            }
+          }
         end
 
         def round_action_ids
@@ -343,8 +475,6 @@ module View
 
         def prev_company_action
           curr = current_cursor.to_i
-          # Clicking left jumps to the beginning of the current company's turn,
-          # or if already at the beginning of a company's turn, to the previous company's turn.
           company_action_ids.reverse.find { |id| id < curr }
         end
 
@@ -428,25 +558,33 @@ module View
           max_id = [total_actions.to_i, 1].max
           target = [[target_id.to_i, 1].max, max_id].min
           new_cursor = target >= max_id ? nil : target
-          target_val = new_cursor || max_id
 
-          Lib::Params['action'] = new_cursor ? new_cursor.to_s : nil
-
-          curr_route = @app_route
-          if !curr_route || curr_route.empty?
-            curr_route = `window.location.pathname + window.location.search + window.location.hash`
-          end
-          new_route = Lib::Params.add(curr_route, 'action', new_cursor)
-
+          current_url = `window.location.href`
           %x{
-            if (window.history && window.history.replaceState) {
-              window.history.replaceState(null, '', #{new_route});
-            }
-          }
+            (function() {
+              var url = new URL(#{current_url});
+              var cursor = #{new_cursor.nil? ? 'null' : new_cursor.to_i};
 
-          store(:app_route, new_route)
-          update if respond_to?(:update)
-          sync_slider(target_val, max_id)
+              if (cursor === null) {
+                url.searchParams.delete('action');
+              } else {
+                url.searchParams.set('action', String(cursor));
+              }
+
+              // A history step deliberately reloads the reconstructed game state to
+              // avoid Snabbdom reconciling incompatible trees. Persist ONLY the fact
+              // that this HUD is open. Escape/the close button clear this flag.
+              try {
+                sessionStorage.setItem('history_overlay_reload_open', '1');
+              } catch (e) {}
+
+              window.location.replace(
+                url.pathname +
+                (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') +
+                url.hash
+              );
+            })();
+          }
         end
 
         def step_action(delta)
@@ -539,6 +677,7 @@ module View
 
           h(:button, {
               attrs: btn_attrs,
+              key: "btn_#{label.to_s.gsub(/\s+/, '_')}",
               style: {
                 padding: '0 8px',
                 height: '1.65rem',
@@ -563,6 +702,23 @@ module View
         end
 
         def render
+          # History steps use a page reload for VDOM safety. Restore the HUD after
+          # that reload without turning it into a permanently remembered preference.
+          reopen_after_history_reload = %x{
+            (function() {
+              try { return sessionStorage.getItem('history_overlay_reload_open') === '1'; }
+              catch (e) { return false; }
+            })()
+          }
+          if reopen_after_history_reload && !@show_history_overlay
+            begin
+              store(:show_history_overlay, true)
+            rescue StandardError
+              nil
+            end
+          end
+
+          shield_active_game!
           total = total_actions
           curr = current_cursor
           is_hist = viewing_history?
@@ -657,19 +813,12 @@ module View
           end
 
           reset_pos = lambda do
-            %x(
-            try {
-              sessionStorage.removeItem('history_overlay_left');
-              sessionStorage.removeItem('history_overlay_top');
-            } catch(e) {}
-            var modal = document.getElementById('history_floating_hud');
-            if (modal) {
-              modal.style.left = '50%';
-              modal.style.top = '80px';
-              modal.style.transform = 'translateX(-50%)';
-              modal.style.margin = '0';
+            %x{
+              try {
+                sessionStorage.removeItem('history_overlay_left');
+                sessionStorage.removeItem('history_overlay_top');
+              } catch(e) {}
             }
-            )
             update
           end
 
@@ -701,142 +850,172 @@ module View
 
           dialog_box = h(:div, {
                            attrs: { id: 'history_floating_hud' },
+                           key: 'history_floating_hud',
                            style: hud_style,
                          }, [
-h(:div, {
-    attrs: { id: 'history_hud_handle' },
-    style: {
-      padding: '0.55rem 0.9rem',
-      borderBottom: is_minimized ? 'none' : '1px solid #e2e8f0',
-      backgroundColor: '#f1f5f9',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      cursor: 'grab',
-      userSelect: 'none',
-    },
-    on: {
-      mousedown: on_header_mousedown,
-      dblclick: reset_pos,
-    },
-  }, [
-                        h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' } }, [
-                          h(:span, { style: { fontSize: '1rem', color: '#64748b' } }, '⠿'),
-                          h(:h3, { style: { margin: '0', fontSize: '1rem', color: '#0f172a', fontWeight: 'bold' } },
-                            'Game History Navigation'),
-                        ]),
-                        h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.2rem' } }, [
-                          h(:button, {
-                              attrs: { type: 'button', title: is_minimized ? 'Expand' : 'Minimize' },
-                              style: {
-                                background: 'none',
-                                border: 'none',
-                                fontSize: '1.1rem',
-                                color: '#64748b',
-                                cursor: 'pointer',
-                                padding: '2px 7px',
-                                lineHeight: '1',
-                              },
-                              on: { click: -> { toggle_history_minimized } },
-                            }, is_minimized ? '□' : '−'),
-                          h(:button, {
-                              attrs: { id: 'btn_close_history_overlay', type: 'button', title: 'Close Navigation HUD' },
-                              style: {
-                                background: 'none',
-                                border: 'none',
-                                fontSize: '1.25rem',
-                                color: '#64748b',
-                                cursor: 'pointer',
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                lineHeight: '1',
-                                pointerEvents: 'auto',
-                                zIndex: '10',
-                              },
-                              on: {
-                                click: lambda { |e|
-                                  %x{
-                          if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
-                        }
-                                  close_overlay
-                                },
-                              },
-                            }, '✕'),
-                        ]),
-                      ]),
-
-h(:div, { style: { padding: '0.85rem 1rem', display: is_minimized ? 'none' : 'flex', flexDirection: 'column', gap: '0.65rem' } }, [
-  h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem' } }, [
-    h(:input, {
-        attrs: {
-          id: 'hist_slider_input',
-          type: 'range',
-          min: 1,
-          max: [total, 1].max,
-          value: curr,
-        },
-        style: { width: '100%', cursor: 'pointer', accentColor: '#2563eb' },
-        on: {
-          input: lambda { |e|
-            val = `#{e} && #{e}.target ? #{e}.target.value : null`
-            schedule_scrub(val) if val
-          },
-          change: lambda { |e|
-            %x{
-                          if (window.__hist_scrub_timer) {
-                            clearTimeout(window.__hist_scrub_timer);
-                            window.__hist_scrub_timer = null;
+            h(:div, {
+                attrs: { id: 'history_hud_handle' },
+                key: 'history_hud_handle',
+                style: {
+                  padding: '0.55rem 0.9rem',
+                  borderBottom: is_minimized ? 'none' : '1px solid #e2e8f0',
+                  backgroundColor: '#f1f5f9',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'grab',
+                  userSelect: 'none',
+                },
+                on: {
+                  mousedown: on_header_mousedown,
+                  dblclick: reset_pos,
+                },
+              }, [
+                h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' } }, [
+                  h(:span, { style: { fontSize: '1rem', color: '#64748b' } }, '⠿'),
+                  h(:h3, { style: { margin: '0', fontSize: '1rem', color: '#0f172a', fontWeight: 'bold' } },
+                    'Game History Navigation'),
+                ]),
+                h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.2rem' } }, [
+                  h(:button, {
+                      attrs: { type: 'button', title: is_minimized ? 'Expand' : 'Minimize' },
+                      key: 'btn_minimize_toggle',
+                      style: {
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '1.1rem',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        padding: '2px 7px',
+                        lineHeight: '1',
+                      },
+                      on: { click: -> { toggle_history_minimized } },
+                    }, is_minimized ? '□' : '−'),
+                  h(:button, {
+                      attrs: { id: 'btn_close_history_overlay', type: 'button', title: 'Close Navigation HUD' },
+                      key: 'btn_close_modal',
+                      style: {
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '1.25rem',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        lineHeight: '1',
+                        pointerEvents: 'auto',
+                        zIndex: '10',
+                      },
+                      on: {
+                        click: lambda { |e|
+                          %x{
+                            if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
                           }
-                        }
-            val = `#{e} && #{e}.target ? #{e}.target.value : null`
-            set_action(val) if val
-          },
-        },
-      }),
-    h(:div, { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b' } }, [
-      h(:span, 'Action 1 (Start)'),
-      h(:span, { attrs: { id: 'hist_viewing_text' }, style: { fontWeight: 'bold', color: '#0f172a' } },
-        "Viewing: Action ##{curr} of #{total}"),
-      h(:span, "Action #{total} (Live)"),
-    ]),
-  ]),
+                          close_overlay
+                        },
+                      },
+                    }, '✕'),
+                ]),
+              ]),
 
-  h(:div, { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', flexWrap: 'nowrap' } }, [
-    nav_btn('|◀', -> { set_action(1) }, disabled: curr <= 1, title: 'Beginning of Game (Action #1)'),
-    nav_btn('◀|', -> { jump_prev_round }, disabled: prev_round_action.nil?, title: 'Beginning of Round / Previous Round'),
-    nav_btn('◀ ●', lambda {
-      jump_prev_company
-    }, disabled: prev_company_action.nil?, title: 'Beginning of Company Turn / Previous Company'),
-    nav_btn('◀', -> { step_action(-1) }, disabled: curr <= 1, title: 'Step Back 1 Action'),
-    nav_btn('▶', -> { step_action(1) }, disabled: curr >= total, title: 'Step Forward 1 Action'),
-    nav_btn('● ▶', -> { jump_next_company }, disabled: next_company_action.nil?, title: 'Next Company Turn'),
-    nav_btn('|▶', -> { jump_next_round }, disabled: next_round_action.nil?, title: 'Next Round'),
-    nav_btn('▶|', -> { set_action(total) }, disabled: !is_hist, title: 'End of Game (Live)'),
-  ]),
+            h(:div, {
+                key: 'history_hud_body',
+                style: {
+                  padding: '0.85rem 1rem',
+                  display: is_minimized ? 'none' : 'flex',
+                  flexDirection: 'column',
+                  gap: '0.65rem',
+                },
+              }, [
+                h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem' } }, [
+                  h(:input, {
+                      attrs: {
+                        id: 'hist_slider_input',
+                        type: 'range',
+                        min: 1,
+                        max: [total, 1].max,
+                        value: curr,
+                      },
+                      key: 'hist_range_slider',
+                      style: { width: '100%', cursor: 'pointer', accentColor: '#2563eb' },
+                      on: {
+                        input: lambda { |e|
+                          val = `#{e} && #{e}.target ? #{e}.target.value : null`
+                          schedule_scrub(val) if val
+                        },
+                        change: lambda { |e|
+                          %x{
+                            if (window.__hist_scrub_timer) {
+                              clearTimeout(window.__hist_scrub_timer);
+                              window.__hist_scrub_timer = null;
+                            }
+                          }
+                          val = `#{e} && #{e}.target ? #{e}.target.value : null`
+                          set_action(val) if val
+                        },
+                      },
+                    }),
+                  h(:div, { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b' } }, [
+                    h(:span, 'Action 1 (Start)'),
+                    h(:span, { attrs: { id: 'hist_viewing_text' }, style: { fontWeight: 'bold', color: '#0f172a' } },
+                      "Viewing: Action ##{curr} of #{total}"),
+                    h(:span, "Action #{total} (Live)"),
+                  ]),
+                ]),
 
-  h(:div, {
-      style: {
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderTop: '1px solid #e2e8f0',
-        paddingTop: '0.65rem',
-        marginTop: '0.2rem',
-      },
-    }, [
-    h(:div, { style: { fontSize: '0.76rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
-      current_move_text),
-    h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.4rem' } }, [
-      (nav_btn('Return to Live', -> { set_action(total) }, primary: true) if is_hist),
-      nav_btn('⚡ Play From Here', -> { play_from_here }, disabled: !is_hist, danger: is_hist),
-    ].compact),
-  ]),
-]),
-                    ])
+                h(:div, {
+                    key: 'history_nav_buttons',
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.3rem',
+                      flexWrap: 'nowrap',
+                    },
+                  }, [
+                    nav_btn('|◀', -> { set_action(1) }, disabled: curr <= 1, title: 'Beginning of Game (Action #1)'),
+                    nav_btn('◀|', lambda {
+                                    jump_prev_round
+                                  }, disabled: prev_round_action.nil?, title: 'Beginning of Round / Previous Round'),
+                    nav_btn('◀ ●', lambda {
+                                     jump_prev_company
+                                   }, disabled: prev_company_action.nil?, title: 'Beginning of Company Turn / Previous Company'),
+                    nav_btn('◀', -> { step_action(-1) }, disabled: curr <= 1, title: 'Step Back 1 Action'),
+                    nav_btn('▶', -> { step_action(1) }, disabled: curr >= total, title: 'Step Forward 1 Action'),
+                    nav_btn('● ▶', -> { jump_next_company }, disabled: next_company_action.nil?, title: 'Next Company Turn'),
+                    nav_btn('|▶', -> { jump_next_round }, disabled: next_round_action.nil?, title: 'Next Round'),
+                    nav_btn('▶|', -> { set_action(total) }, disabled: !is_hist, title: 'End of Game (Live)'),
+                  ]),
+
+                h(:div, {
+                    key: 'history_footer_row',
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      borderTop: '1px solid #e2e8f0',
+                      paddingTop: '0.65rem',
+                      marginTop: '0.2rem',
+                    },
+                  }, [
+                    h(:div, { style: { fontSize: '0.76rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+                      current_move_text),
+                    h(:div, {
+                        key: 'history_footer_actions_container',
+                        style: { display: 'flex', alignItems: 'center', gap: '0.4rem' },
+                      }, [
+                        (is_hist ? nav_btn('Return to Live', -> { set_action(total) }, primary: true) : nil),
+                        nav_btn('⚡ Play From Here', -> { play_from_here }, disabled: !is_hist, danger: is_hist),
+                      ].compact),
+                  ]),
+              ]),
+          ])
 
           h(:div, {
               attrs: { id: 'history-overlay-container' },
+              key: 'history_overlay_container',
               style: {
                 position: 'fixed',
                 top: '0',

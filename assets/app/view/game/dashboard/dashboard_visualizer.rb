@@ -425,7 +425,17 @@ module View
       end
 
       def render_history_button
-        is_open = @show_history_overlay == true
+        reload_open = %x{
+    (function() {
+      try {
+        return sessionStorage.getItem('history_overlay_reload_open') === '1';
+      } catch (e) {
+        return false;
+      }
+    })()
+  }
+
+        is_open = @show_history_overlay == true || reload_open
 
         h(:button, {
             attrs: {
@@ -455,11 +465,25 @@ module View
             },
             on: {
               click: lambda {
-                new_val = @show_history_overlay != true
+                new_val = !is_open
+
                 Lib::Storage['cmd_history_overlay'] = nil
+
+                %x{
+    try {
+      if (#{new_val}) {
+        sessionStorage.setItem('history_overlay_reload_open', '1');
+      } else {
+        sessionStorage.removeItem('history_overlay_reload_open');
+      }
+    } catch (e) {}
+  }
+
+                @show_history_overlay = new_val
                 store(:show_history_overlay, new_val)
                 update
               },
+
             },
           }, [
             h(:span, { style: { fontSize: '1.8rem', lineHeight: '1' } }, '📜'),
@@ -947,7 +971,8 @@ module View
         end
         if defined?(::View::Game::Dashboard::HistoryOverlay)
           klass = ::View::Game::Dashboard::HistoryOverlay
-          klass.define_method(:is_chat) { |*_args| false } unless klass.method_defined?(:is_chat)
+          klass.define_method(:is_cha
+          t) { |*_args| false } unless klass.method_defined?(:is_chat)
           klass.define_method(:is_chat?) { |*_args| false } unless klass.method_defined?(:is_chat?)
         end
       rescue StandardError
@@ -955,12 +980,36 @@ module View
       end
 
       def render_history_overlay
-        return nil unless @show_history_overlay == true
+        reopen_after_history_reload = %x{
+    (function() {
+      try {
+        return sessionStorage.getItem('history_overlay_reload_open') === '1';
+      } catch (e) {
+        return false;
+      }
+    })()
+  }
+
+        history_open = @show_history_overlay == true || reopen_after_history_reload
+
+        return nil unless history_open
+
+        # Keep the parent visualizer's state consistent with the persisted
+        # reload flag. Do not call update here because we are already rendering.
+        @show_history_overlay = true if reopen_after_history_reload
 
         ensure_overlay_safety!
 
         close_handler = lambda {
           Lib::Storage['cmd_history_overlay'] = nil
+
+          %x{
+      try {
+        sessionStorage.removeItem('history_overlay_reload_open');
+      } catch (e) {}
+    }
+
+          @show_history_overlay = false
           store(:show_history_overlay, false)
           update
         }
@@ -972,6 +1021,7 @@ module View
       rescue StandardError => e
         `console.error("HistoryOverlay failed to render:", #{e.message})`
         Lib::Storage['cmd_history_overlay'] = nil
+        @show_history_overlay = false
         store(:show_history_overlay, false, skip: true)
         nil
       end
@@ -2056,13 +2106,33 @@ badge_el,
         end
 
         active_gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
+
         if Lib::Storage['last_active_dashboard_gid'] != active_gid
           Lib::Storage['last_active_dashboard_gid'] = active_gid
           Lib::Storage['show_other_games_overlay'] = nil
           Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
           Lib::Storage['cmd_history_overlay'] = nil
+
           store(:show_move_history, false, skip: true)
-          store(:show_history_overlay, false, skip: true)
+
+          reopen_history = %x{
+    (function() {
+      try {
+        return sessionStorage.getItem('history_overlay_reload_open') === '1';
+      } catch (e) {
+        return false;
+      }
+    })()
+  }
+
+          if reopen_history
+            @show_history_overlay = true
+            store(:show_history_overlay, true, skip: true)
+          else
+            @show_history_overlay = false
+            store(:show_history_overlay, false, skip: true)
+          end
+
           `try { localStorage.removeItem('show_other_games_overlay'); } catch(e) {}`
         end
 
