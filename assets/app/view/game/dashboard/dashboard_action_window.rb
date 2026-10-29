@@ -1097,20 +1097,20 @@ module View
           ])
         end
 
-def resolve_pending_par_corporation(step, _entity = nil)
+        def resolve_pending_par_corporation(step, _entity = nil)
           return nil unless step
 
           # 1. Direct corporation pending on step
-          if step.respond_to?(:corporation_pending_par) && (corp = step.corporation_pending_par)
-            return corp if corp.respond_to?(:corporation?) && corp.corporation?
+          if step.respond_to?(:corporation_pending_par) && (corp = step.corporation_pending_par) && (corp.respond_to?(:corporation?) && corp.corporation?)
+            return corp
           end
 
-          if step.respond_to?(:par_corporation) && (corp = step.par_corporation)
-            return corp if corp.respond_to?(:corporation?) && corp.corporation?
+          if step.respond_to?(:par_corporation) && (corp = step.par_corporation) && (corp.respond_to?(:corporation?) && corp.corporation?)
+            return corp
           end
 
-          if step.respond_to?(:parring) && (corp = step.parring)
-            return corp if corp.respond_to?(:corporation?) && corp.corporation?
+          if step.respond_to?(:parring) && (corp = step.parring) && (corp.respond_to?(:corporation?) && corp.corporation?)
+            return corp
           end
 
           # 2. Companies specifically pending par on step (e.g. 1830 B&O in CompanyPendingPar)
@@ -1137,16 +1137,14 @@ def resolve_pending_par_corporation(step, _entity = nil)
               next unless a.respond_to?(:shares)
 
               Array(a.shares).each do |sh|
-                if sh.respond_to?(:corporation) && sh.corporation && !sh.corporation.ipoed
-                  return sh.corporation
-                end
+                return sh.corporation if sh.respond_to?(:corporation) && sh.corporation && !sh.corporation.ipoed
               end
             end
           end
 
           # 3. Only if in an auction/draft round with a single auctioning corporation
-          if step.respond_to?(:auctioning_corporation) && (corp = step.auctioning_corporation)
-            return corp if corp.respond_to?(:corporation?) && corp.corporation?
+          if step.respond_to?(:auctioning_corporation) && (corp = step.auctioning_corporation) && (corp.respond_to?(:corporation?) && corp.corporation?)
+            return corp
           end
 
           nil
@@ -2604,11 +2602,56 @@ def resolve_pending_par_corporation(step, _entity = nil)
                     fontWeight: 'bold',
                     flexShrink: '0',
                     cursor: 'grab',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
                   },
                   on: {
                     mousedown: ->(e) { start_drag(e) },
                   },
-                }, '⚡ Actions Hub'),
+                }, [
+                  h(:span, '⚡ Actions Hub'),
+                  h(:button, {
+                      attrs: {
+                        id: 'btn-action-hub-assist',
+                        title: 'Play one computer-assisted action (R)',
+                        type: 'button',
+                      },
+                      style: {
+                        marginLeft: 'auto',
+                        height: '1.7rem',
+                        padding: '0 0.55rem',
+                        fontSize: '0.76rem',
+                        fontWeight: '700',
+                        letterSpacing: '0.01em',
+                        color: '#e2e8f0',
+                        backgroundColor: 'rgba(255,255,255,0.06)',
+                        border: '1px solid #64748b',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        lineHeight: '1',
+                        flexShrink: '0',
+                      },
+                      on: {
+                        click: lambda do |e|
+                          `#{e}.preventDefault()`
+                          `#{e}.stopPropagation()`
+                          %x{
+                            var ev = new KeyboardEvent('keydown', {
+                              key: 'r', code: 'KeyR', bubbles: true, cancelable: true
+                            });
+                            window.dispatchEvent(ev);
+                          }
+                        end,
+                        mousedown: lambda do |e|
+                          `#{e}.stopPropagation()`
+                        end,
+                      },
+                    }, 'Assist'),
+                ]),
 
               h(:div, {
                   style: {
@@ -3981,9 +4024,9 @@ def resolve_pending_par_corporation(step, _entity = nil)
             phase = :issue_shares
           elsif actions.include?('redeem_shares') || actions.include?('redeem')
             phase = :redeem
-            elsif actions.include?('par') && resolve_pending_par_corporation(step, entity)
+          elsif actions.include?('par') && resolve_pending_par_corporation(step, entity)
             phase = :par
-        
+
           elsif actions.include?('corporate_buy_shares') || actions.include?('buy_shares')
             phase = :buy_shares
           elsif is_draft
