@@ -111,11 +111,6 @@ module View
 
             @process_block.call(action)
 
-            LOGGER.info(
-              "[AI UNIFORM COMMAND] selected=#{action.class.name} " \
-              "candidates=#{actions.size} probability=#{1.0 / actions.size}"
-            )
-
             return true
           end
 
@@ -132,7 +127,6 @@ module View
             return false unless current_acting_entity(step).equal?(entity)
 
             @process_block.call(draft_action)
-            `console.log("[AI Expert] Draft/auction action selected:", #{draft_action.class.name})`
             return true
           end
 
@@ -148,7 +142,6 @@ module View
             return false unless current_acting_entity(step).equal?(entity)
 
             @process_block.call(action)
-            `console.log("[AI Expert] Draft: uniformly selected one of " + #{choose_actions.size}.to_s + " choices")`
             return true
           end
 
@@ -196,7 +189,6 @@ module View
                                        "rotation=#{chosen_rotation} realized_gain=#{best_key[0]} " \
                                        "two_build_value=#{best_key[1]} tied_candidates=#{tied.size} " \
                                        "best_second=#{selected[:features][:best_second]}"
-                      `console.log(#{chosen_message})`
                       selected
                     else
                       token_items = scored.select { |item| item[:features][:action_type] == 'place_token' }
@@ -225,7 +217,6 @@ module View
           end
 
           @process_block.call(action)
-          `console.log("[AI Expert] Executed exactly one action:", #{action.class.name})`
           true
         rescue Engine::GameError => e
           `console.warn("[AI Expert] Engine rejected selected action: " + #{e.message})`
@@ -320,10 +311,6 @@ module View
             OR_OPPORTUNITY_COLLECTORS.each do |collector_name|
               discovered = Array(public_send(collector_name, step, entity, actions))
               unless discovered.empty?
-                LOGGER.info(
-                  "[AI OR OPPORTUNITY] collector=#{collector_name} " \
-                  "entity=#{entity_label(entity)} candidates=#{discovered.size}"
-                )
               end
               legal.concat(discovered)
             rescue StandardError => e
@@ -351,13 +338,7 @@ module View
           # If the engine offers Pass, return only Pass when no understood candidate exists.
           if legal.empty? && actions.include?('pass')
             fallback = collect_pass(step, entity, actions)
-            if fallback.any?
-              LOGGER.info(
-                "[AI FALLBACK PASS] step=#{step.class.name} entity=#{entity_label(entity)} " \
-                "unrecognised=#{unknown.join(',')}"
-              )
-              return fallback
-            end
+            return fallback if fallback.any?
           end
 
           legal
@@ -457,8 +438,6 @@ module View
           collect_redeem_shares(step, entity, (actions + ['redeem_shares']).uniq)
         end
 
-        private
-
         def current_acting_entity(step)
           entity = begin
             step.current_entity if step.respond_to?(:current_entity)
@@ -480,6 +459,8 @@ module View
 
           entity
         end
+
+        private
 
         def entity_label(entity)
           return 'unknown' unless entity
@@ -1532,14 +1513,10 @@ module View
               end
               callback_finished = true
               elapsed = `Date.now()`.to_f - started_ms
-              `console.log("[AI BUILD ROUTER CALLBACK] " + #{label} + " income=" + #{best_rev}.to_s + " elapsed_ms=" + #{elapsed}.to_s)`
             end
           )
 
-          unless callback_finished
-            `console.warn("[AI BUILD ROUTER PENDING] " + #{label} + " callback did not finish before compute returned")`
-            return nil
-          end
+          return nil unless callback_finished
 
           best_rev
         rescue StandardError => e
@@ -1635,10 +1612,7 @@ module View
         # with the expert two-build topology evaluator and log every result.
         def trial_and_evaluate_tile(step, entity, hex, tile, rotation, cost, deadline_ms)
           label = "hex=#{hex.id} tile=#{tile.name} rotation=#{rotation}"
-          if `Date.now()`.to_f >= deadline_ms
-            `console.warn("[AI BUILD TIMEOUT] before " + #{label})`
-            return nil
-          end
+          return nil if `Date.now()`.to_f >= deadline_ms
           return nil if tile.respond_to?(:hex) && tile.hex
 
           old_tile = hex.tile
@@ -1675,14 +1649,6 @@ module View
             metrics[:best_second] = "topology horizon 2 value=#{metrics[:horizon_2_value].to_i}"
             metrics[:search_timed_out] = false
 
-            candidate_message = "[AI BUILD CANDIDATE] #{label} " \
-                                "first_value=#{first_value} two_build_value=#{two_build_value} " \
-                                "immediate=#{metrics[:tile_rev_gain].to_i} " \
-                                "own_token=#{metrics[:has_own_token]} " \
-                                "horizon1=#{metrics[:horizon_1_value].to_i} " \
-                                "horizon2=#{metrics[:horizon_2_value].to_i} " \
-                                "dead_end=#{metrics[:is_dead_end_edge]}"
-            `console.log(#{candidate_message})`
             metrics
           rescue StandardError => e
             `console.warn("[AI BUILD EVALUATION ERROR] " + #{label} + " " + #{e.message})`
@@ -1729,13 +1695,9 @@ module View
             next if tiles.empty?
 
             approved_hexes << hex.id.to_s
-            LOGGER.info("[AI TILE ENGINE LIST] #{hex.id}")
 
             tiles.each do |tile|
               rotations = Array(tile.legal_rotations).compact.map(&:to_i).uniq.sort
-              LOGGER.info(
-                "[AI TILE ENGINE LIST]   tile #{tile.name}: rotations #{rotations.join(',')}"
-              )
 
               rotations.each do |rotation|
                 legal << Engine::Action::LayTile.new(
@@ -1755,11 +1717,6 @@ module View
           legal.sort_by! do |action|
             [action.hex.id.to_s, action.tile.name.to_s, action.rotation.to_i]
           end
-
-          LOGGER.info(
-            "[AI TILE ENGINE LIST] entity=#{entity.id} hexes=#{approved_hexes.sort.join(',')} " \
-            "actions=#{legal.size} source=step.upgradeable_tiles"
-          )
 
           legal
         end

@@ -409,7 +409,6 @@ module Engine
             // impacted by each other
             this.router.$real_revenue(best_routes)
             this.router.running = false
-            Opal.LOGGER.$info("routing phase took " + (performance.now() - this.start_of_all) + "ms")
             this.update_callback(best_routes);
           }).catch((e) => {
             let best_routes = this.best_routes;

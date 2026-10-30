@@ -21,7 +21,23 @@ module View
           def engine_play(game, routes = [], &process_block)
             player = new(game, routes, &process_block)
             step = game.round&.active_step
-            entity = step ? player.current_acting_entity(step) : nil
+            entity = if step
+                       begin
+                         step.current_entity if step.respond_to?(:current_entity)
+                       rescue StandardError
+                         nil
+                       end
+                     end
+            entity ||= begin
+              game.round.current_entity if game.round.respond_to?(:current_entity)
+            rescue StandardError
+              nil
+            end
+            entity ||= begin
+              game.current_entity if game.respond_to?(:current_entity)
+            rescue StandardError
+              nil
+            end
             actions = step && entity ? player.generate_legal_actions(step, entity) : []
             use_engine_search = actions.any? do |action|
               action.is_a?(Engine::Action::LayTile) || action.is_a?(Engine::Action::PlaceToken)
@@ -56,7 +72,21 @@ module View
           step = @game.round&.active_step
           return false unless step
 
-          entity = current_acting_entity(step)
+          entity = begin
+            step.current_entity if step.respond_to?(:current_entity)
+          rescue StandardError
+            nil
+          end
+          entity ||= begin
+            @game.round.current_entity if @game.round.respond_to?(:current_entity)
+          rescue StandardError
+            nil
+          end
+          entity ||= begin
+            @game.current_entity if @game.respond_to?(:current_entity)
+          rescue StandardError
+            nil
+          end
           return false unless entity
 
           actions = generate_legal_actions(step, entity)
@@ -126,15 +156,11 @@ module View
             borrowed_train.owner = trial_entity
             trial_entity.trains << borrowed_train
 
-            LOGGER.info(
-              "[AI ENGINE TRAIN] #{label} temporarily using " \
-              "#{borrowed_train.name}"
-            )
           end
 
           router = Engine::AutoRouter.new(
             game,
-            ->(message) { LOGGER.warn("[AI ROUTER] #{message}") },
+            ->(_message) {},
           )
           best_revenue = nil
           completed = false
@@ -160,14 +186,8 @@ module View
             if borrowed_train
               trial_entity.trains.delete(borrowed_train)
               borrowed_train.owner = borrowed_train_owner
-              LOGGER.info(
-                "[AI ENGINE TRAIN] #{label} returned " \
-                "#{borrowed_train.name}"
-              )
             end
 
-            log = "[AI ENGINE REVENUE] #{label} revenue=#{best_revenue.to_i}"
-            LOGGER.info(log)
             yield(best_revenue.to_i)
           end
 
@@ -188,10 +208,6 @@ module View
               if borrowed_train
                 trial_entity.trains.delete(borrowed_train)
                 borrowed_train.owner = borrowed_train_owner
-                LOGGER.info(
-                  "[AI ENGINE TRAIN] #{label} returned after error " \
-                  "#{borrowed_train.name}"
-                )
               end
 
               LOGGER.warn(
@@ -225,41 +241,8 @@ module View
           [action.hex.id.to_s, tile_name, action.rotation.to_i]
         end
 
-        def engine_log_tile_candidate_list(label, actions)
-          list = Array(actions).select { |action| action.is_a?(Engine::Action::LayTile) }
-          grouped = {}
-          list.each do |action|
-            hex_id, tile_name, rotation = engine_tile_candidate_key(action)
-            grouped[hex_id] ||= {}
-            grouped[hex_id][tile_name] ||= []
-            grouped[hex_id][tile_name] << rotation
-          end
-
-          unique_keys = list.map { |action| engine_tile_candidate_key(action) }.uniq
-          LOGGER.info("========== #{label} ==========")
-          grouped.keys.sort.each do |hex_id|
-            LOGGER.info(hex_id.to_s)
-            hex_total = 0
-            grouped[hex_id].keys.sort.each do |tile_name|
-              rotations = grouped[hex_id][tile_name].sort
-              unique_rotations = rotations.uniq
-              duplicates = rotations.size - unique_rotations.size
-              suffix = duplicates.positive? ? " duplicates=#{duplicates}" : ''
-              LOGGER.info(
-                "  tile #{tile_name}: rotations #{unique_rotations.join(',')}" \
-                " raw=#{rotations.size} unique=#{unique_rotations.size}#{suffix}"
-              )
-              hex_total += unique_rotations.size
-            end
-            LOGGER.info("  total unique: #{hex_total}")
-          end
-          LOGGER.info(
-            "SUMMARY raw=#{list.size} unique_hex_tile_rotation=#{unique_keys.size} " \
-            "duplicates=#{list.size - unique_keys.size}"
-          )
-          LOGGER.info("========== END #{label} ==========")
-        rescue StandardError => e
-          LOGGER.warn("[AI TILE DIAGNOSTIC] #{label} failed: #{e.class}: #{e.message}")
+        def engine_log_tile_candidate_list(_label, _actions)
+          # Production quiet mode.
         end
 
         def start_engine_tile_search(actions, all_actions, entity, round_before, step_before)
@@ -313,18 +296,12 @@ module View
           )
           engine_log_tile_candidate_list('AI TILE ENGINE-VERIFIED CANDIDATES', state[:legal_actions])
           unless state[:rejected_actions].empty?
-            LOGGER.info('========== AI TILE REJECTED CANDIDATES ==========')
             state[:rejected_actions].sort_by do |item|
               engine_tile_candidate_key(item[:action])
             end.each do |item|
               action = item[:action]
               hex_id, tile_name, rotation = engine_tile_candidate_key(action)
-              LOGGER.info(
-                "#{hex_id} tile #{tile_name} rotation #{rotation}: " \
-                "#{item[:error_class]}: #{item[:error_message]}"
-              )
             end
-            LOGGER.info('========== END AI TILE REJECTED CANDIDATES ==========')
           end
 
           if state[:legal_actions].empty?
@@ -370,9 +347,6 @@ module View
           state[:deadline] = engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS
           state[:first_actions] = state[:legal_actions]
           state[:first_index] = 0
-          LOGGER.info(
-            "[AI TILE SEARCH] evaluating revenue for #{state[:legal_actions].size} legal candidates"
-          )
           engine_next_first_tile(state, entity, round_before, step_before)
         end
 
@@ -404,12 +378,6 @@ module View
             }
             state[:results] << result
 
-            LOGGER.info(
-              "[AI TILE RESULT] hex=#{action.hex.id} tile=#{action.tile.id} " \
-              "rotation=#{action.rotation} first=#{first_revenue} " \
-              "engine_two=#{result[:best_revenue]} topology_two=#{topology_revenue} second="
-            )
-
             # Do NOT recursively clone the game for second-tile engine verification.
             # Doing so causes a combinatorial explosion that exhausts the 5-second
             # search budget on the very first candidate, forcing a premature fallback.
@@ -438,12 +406,6 @@ module View
 
         def engine_next_second_tile(state, result, first_game, actions, index, entity, round_before, step_before)
           if engine_now_ms >= state[:deadline] || index >= actions.size
-            log = "[AI TILE RESULT] hex=#{result[:action].hex.id} tile=#{result[:action].tile.id} " \
-                  "rotation=#{result[:action].rotation} first=#{result[:first_revenue]} " \
-                  "engine_two=#{result[:best_revenue]} " \
-                  "topology_two=#{result[:topology_revenue]} " \
-                  "second=#{result[:best_second]}"
-            LOGGER.info(log)
             engine_next_first_tile(state, entity, round_before, step_before)
             return
           end
@@ -477,13 +439,7 @@ module View
         def engine_shadow_track_step(game)
           steps = Array(game.round&.steps)
 
-          LOGGER.info('[AI 2PLY SHADOW STEPS]')
           steps.each do |candidate|
-            LOGGER.info(
-              "[AI 2PLY SHADOW STEP] class=#{candidate.class.name} " \
-              "upgradeable_tiles=#{candidate.respond_to?(:upgradeable_tiles)} " \
-              "potential_tiles=#{candidate.respond_to?(:potential_tiles)}"
-            )
           end
 
           track_step = steps.find do |candidate|
@@ -492,11 +448,7 @@ module View
             candidate.is_a?(Engine::Step::Track)
           end
 
-          if track_step
-            LOGGER.info("[AI 2PLY SHADOW TRACK STEP] class=#{track_step.class.name}")
-          else
-            LOGGER.warn('[AI 2PLY SHADOW TRACK STEP] normal Engine::Step::Track not found')
-          end
+          LOGGER.warn('[AI 2PLY SHADOW TRACK STEP] normal Engine::Step::Track not found') unless track_step
 
           track_step
         rescue StandardError => e
@@ -504,7 +456,50 @@ module View
           nil
         end
 
-        def engine_shadow_second_candidates(first_game, original_entity, first_action = nil)
+        def engine_local_endpoint_key(endpoint)
+          return ['nil'] unless endpoint
+
+          klass = endpoint.class.name.to_s
+          return [klass, endpoint.num.to_i] if endpoint.respond_to?(:num)
+          return [klass, endpoint.index.to_i] if endpoint.respond_to?(:index)
+
+          [klass]
+        end
+
+        # Cheap signature of only the proposed second tile. This runs before any
+        # game clone or graph rebuild. It is deliberately scoped to one first
+        # branch, so equivalent second-tile rotations can be collapsed safely
+        # without assuming equivalence across different first positions.
+        def engine_local_second_signature(tile, hex_id, rotation)
+          trial_tile = clone_tile_for_trial(tile, rotation)
+          return nil unless trial_tile
+
+          paths = Array(trial_tile.paths).map do |path|
+            a = path.respond_to?(:a) ? path.a : nil
+            b = path.respond_to?(:b) ? path.b : nil
+            [engine_local_endpoint_key(a), engine_local_endpoint_key(b)].sort_by(&:to_s)
+          end.sort_by(&:to_s)
+
+          nodes = Array(trial_tile.nodes).map do |node|
+            revenue = (node.instance_variable_get(:@revenue) if node.instance_variable_defined?(:@revenue))
+            revenue_key = case revenue
+                          when Numeric, String, Symbol, NilClass then revenue.to_s
+                          when Hash then revenue.keys.map(&:to_s).sort.join(',')
+                          else revenue.class.name.to_s
+                          end
+            [node.class.name.to_s, revenue_key]
+          end.sort_by(&:to_s)
+
+          [hex_id.to_s, paths, nodes]
+        rescue StandardError => e
+          LOGGER.warn(
+            "[AI 2PLY LOCAL SIGNATURE] hex=#{hex_id} tile=#{tile&.name} " \
+            "rotation=#{rotation} failed: #{e.class}: #{e.message}"
+          )
+          nil
+        end
+
+        def engine_shadow_second_candidates(first_game, original_entity, _first_action = nil)
           entity = matching_entity(first_game, original_entity)
           return [] unless entity
 
@@ -512,111 +507,69 @@ module View
           return [] unless step
 
           candidates = []
-          first_label = if first_action
-                          "#{first_action.hex.id}/#{first_action.tile.name}/#{first_action.rotation}"
-                        else
-                          'unknown'
-                        end
-
-          LOGGER.info(
-            "[AI 2PLY SHADOW SECOND LIST] after=#{first_label} entity=#{entity.id}"
-          )
-
           Array(first_game.hexes).each do |hex|
             next unless hex
 
-            # Future planning must retain network connectivity and private-company
-            # blocking, but bypass get_tile_lay(entity), which is exhausted after
-            # the processed first lay. These are the two relevant lower-level
-            # checks from Tracker#tracker_available_hex.
             connected = begin
               step.hex_neighbors(entity, hex)
-            rescue StandardError => e
-              LOGGER.warn(
-                '[AI 2PLY SHADOW SECOND] hex_neighbors failed ' \
-                "hex=#{hex.id}: #{e.class}: #{e.message}"
-              )
+            rescue StandardError
               nil
             end
             next unless connected
 
             blocker = begin
               step.ability_blocking_hex(entity, hex)
-            rescue StandardError => e
-              LOGGER.warn(
-                '[AI 2PLY SHADOW SECOND] ability_blocking_hex failed ' \
-                "hex=#{hex.id}: #{e.class}: #{e.message}"
-              )
+            rescue StandardError
               :unknown
             end
             next if blocker
 
             tiles = begin
               Array(step.upgradeable_tiles(entity, hex)).compact
-            rescue StandardError => e
-              LOGGER.warn(
-                '[AI 2PLY SHADOW SECOND] upgradeable_tiles failed ' \
-                "hex=#{hex.id}: #{e.class}: #{e.message}"
-              )
+            rescue StandardError
               []
             end
-            next if tiles.empty?
 
-            hex_candidates = []
             tiles.each do |tile|
-              rotations = Array(tile.legal_rotations).compact.map(&:to_i).uniq.sort
-              next if rotations.empty?
-
-              rotations.each do |rotation|
-                candidate = {
+              Array(tile.legal_rotations).compact.map(&:to_i).uniq.sort.each do |rotation|
+                candidates << {
                   hex_id: hex.id.to_s,
                   tile_name: tile.name.to_s,
                   rotation: rotation.to_i,
+                  local_signature: engine_local_second_signature(tile, hex.id, rotation),
                 }
-                candidates << candidate
-                hex_candidates << candidate
               end
             end
-            next if hex_candidates.empty?
-
-            LOGGER.info("[AI 2PLY SHADOW SECOND HEX] #{hex.id}")
-            hex_candidates.group_by { |candidate| candidate[:tile_name] }
-                          .sort_by { |tile_name, _| tile_name }
-                          .each do |tile_name, tile_candidates|
-              rotations = tile_candidates.map { |candidate| candidate[:rotation] }.uniq.sort
-              LOGGER.info(
-                "[AI 2PLY SHADOW SECOND TILE] hex=#{hex.id} tile=#{tile_name} " \
-                "rotations=#{rotations.join(',')}"
-              )
-            end
           end
 
-          candidates.uniq! do |candidate|
+          candidates.uniq do |candidate|
+            [candidate[:hex_id], candidate[:tile_name], candidate[:rotation]]
+          end.sort_by do |candidate|
             [candidate[:hex_id], candidate[:tile_name], candidate[:rotation]]
           end
-          candidates.sort_by! do |candidate|
-            [candidate[:hex_id], candidate[:tile_name], candidate[:rotation]]
-          end
-
-          LOGGER.info(
-            "[AI 2PLY SHADOW SECOND SUMMARY] after=#{first_label} " \
-            "entity=#{entity.id} candidates=#{candidates.size}"
-          )
-          candidates
         rescue StandardError => e
-          LOGGER.warn("[AI 2PLY SHADOW SECOND] failed: #{e.class}: #{e.message}")
+          LOGGER.warn("[AI 2PLY SECOND] failed: #{e.class}: #{e.message}")
           []
         end
 
-        def engine_shadow_game_with_second_tile(first_game, original_entity, candidate)
+        def engine_shadow_game_with_second_tile(first_game, original_entity, candidate, timings)
+          t = engine_now_ms
           trial_game = first_game.clone(Array(first_game.raw_actions))
+          timings[:clone_ms] += engine_now_ms - t
+
+          t = engine_now_ms
           trial_entity = matching_entity(trial_game, original_entity)
+          timings[:entity_lookup_ms] += engine_now_ms - t
           return nil unless trial_entity
 
+          t = engine_now_ms
           trial_hex = Array(trial_game.hexes).find do |hex|
             hex.id.to_s == candidate[:hex_id].to_s
           end
-          return nil unless trial_hex
+          unless trial_hex
+            timings[:tile_lookup_ms] += engine_now_ms - t
+            return nil
+          end
 
           supply_tile = Array(trial_game.tiles).find do |tile|
             next false unless tile.name.to_s == candidate[:tile_name].to_s
@@ -625,19 +578,26 @@ module View
 
             true
           end
+          timings[:tile_lookup_ms] += engine_now_ms - t
           return nil unless supply_tile
 
+          t = engine_now_ms
           trial_tile = clone_tile_for_trial(supply_tile, candidate[:rotation])
+          timings[:clone_tile_ms] += engine_now_ms - t
           return nil unless trial_tile
 
           trial_tile.hex = trial_hex if trial_tile.respond_to?(:hex=)
+          t = engine_now_ms
           set_hex_tile_for_trial(trial_hex, trial_tile)
+          timings[:set_tile_ms] += engine_now_ms - t
 
+          t = engine_now_ms
           if trial_game.graph.respond_to?(:clear_graph_for)
             trial_game.graph.clear_graph_for(trial_entity)
           elsif trial_game.graph.respond_to?(:clear)
             trial_game.graph.clear
           end
+          timings[:graph_clear_ms] += engine_now_ms - t
 
           trial_game
         rescue StandardError => e
@@ -649,19 +609,157 @@ module View
           nil
         end
 
+        # Build one reusable clone for all second-tile candidates belonging to
+        # the same verified first-tile branch.
+        def engine_shadow_prepare_branch(shadow, job)
+          branch_key = job[:first_game].object_id
+          return true if shadow[:branch_key] == branch_key && shadow[:branch_game]
+
+          t = engine_now_ms
+          branch_game = job[:first_game].clone(Array(job[:first_game].raw_actions))
+          shadow[:timings][:clone_ms] += engine_now_ms - t
+          shadow[:branch_clones] += 1
+
+          t = engine_now_ms
+          branch_entity = matching_entity(branch_game, shadow[:entity])
+          shadow[:timings][:entity_lookup_ms] += engine_now_ms - t
+          return false unless branch_entity
+
+          shadow[:branch_key] = branch_key
+          shadow[:branch_game] = branch_game
+          shadow[:branch_entity] = branch_entity
+          true
+        rescue StandardError => e
+          LOGGER.warn("[AI 2PLY BRANCH CLONE] failed: #{e.class}: #{e.message}")
+          shadow[:branch_key] = nil
+          shadow[:branch_game] = nil
+          shadow[:branch_entity] = nil
+          false
+        end
+
+        # Temporarily install a detached second tile on the reusable branch clone.
+        # The returned context contains everything required for unconditional restore.
+        def engine_shadow_apply_second_tile(shadow, candidate)
+          trial_hex = nil
+          old_tile = nil
+          trial_tile = nil
+          trial_game = shadow[:branch_game]
+          trial_entity = shadow[:branch_entity]
+          return nil unless trial_game && trial_entity
+
+          t = engine_now_ms
+          trial_hex = Array(trial_game.hexes).find do |hex|
+            hex.id.to_s == candidate[:hex_id].to_s
+          end
+          unless trial_hex
+            shadow[:timings][:tile_lookup_ms] += engine_now_ms - t
+            return nil
+          end
+
+          supply_tile = Array(trial_game.tiles).find do |tile|
+            next false unless tile.name.to_s == candidate[:tile_name].to_s
+            next false if tile.respond_to?(:hex) && tile.hex
+            next false if trial_game.respond_to?(:tile_available?) && !trial_game.tile_available?(tile)
+
+            true
+          end
+          shadow[:timings][:tile_lookup_ms] += engine_now_ms - t
+          return nil unless supply_tile
+
+          old_tile = trial_hex.tile
+          return nil unless old_tile
+
+          t = engine_now_ms
+          trial_tile = clone_tile_for_trial(supply_tile, candidate[:rotation])
+          shadow[:timings][:clone_tile_ms] += engine_now_ms - t
+          return nil unless trial_tile
+
+          trial_tile.hex = trial_hex if trial_tile.respond_to?(:hex=)
+          t = engine_now_ms
+          set_hex_tile_for_trial(trial_hex, trial_tile)
+          shadow[:timings][:set_tile_ms] += engine_now_ms - t
+
+          t = engine_now_ms
+          if trial_game.graph.respond_to?(:clear_graph_for)
+            trial_game.graph.clear_graph_for(trial_entity)
+          elsif trial_game.graph.respond_to?(:clear)
+            trial_game.graph.clear
+          end
+          shadow[:timings][:graph_clear_ms] += engine_now_ms - t
+
+          { game: trial_game, entity: trial_entity, hex: trial_hex, old_tile: old_tile, trial_tile: trial_tile }
+        rescue StandardError => e
+          begin
+            set_hex_tile_for_trial(trial_hex, old_tile) if trial_hex && old_tile
+            trial_tile.instance_variable_set(:@hex, nil) if trial_tile
+            graph = trial_game&.graph
+            if graph&.respond_to?(:clear_graph_for) && trial_entity
+              graph.clear_graph_for(trial_entity)
+            elsif graph&.respond_to?(:clear)
+              graph.clear
+            end
+          rescue StandardError
+            # The branch is discarded below; never reuse uncertain state.
+          end
+          shadow[:branch_key] = nil
+          shadow[:branch_game] = nil
+          shadow[:branch_entity] = nil
+          LOGGER.warn(
+            "[AI 2PLY SHADOW APPLY] second=#{candidate[:hex_id]}/" \
+            "#{candidate[:tile_name]}/#{candidate[:rotation]} " \
+            "failed: #{e.class}: #{e.message}"
+          )
+          nil
+        end
+
+        def engine_shadow_restore_second_tile(shadow, context)
+          return unless context
+
+          t = engine_now_ms
+          set_hex_tile_for_trial(context[:hex], context[:old_tile])
+          context[:trial_tile].instance_variable_set(:@hex, nil) if context[:trial_tile]
+          shadow[:timings][:restore_tile_ms] += engine_now_ms - t
+
+          t = engine_now_ms
+          graph = context[:game].graph
+          if graph.respond_to?(:clear_graph_for)
+            graph.clear_graph_for(context[:entity])
+          elsif graph.respond_to?(:clear)
+            graph.clear
+          end
+          shadow[:timings][:restore_graph_ms] += engine_now_ms - t
+          true
+        rescue StandardError => e
+          LOGGER.warn("[AI 2PLY RESTORE] failed: #{e.class}: #{e.message}")
+          shadow[:complete] = false
+          shadow[:branch_key] = nil
+          shadow[:branch_game] = nil
+          shadow[:branch_entity] = nil
+          false
+        end
+
         def engine_shadow_evaluate_next(shadow)
+          if engine_now_ms >= shadow[:deadline]
+            shadow[:complete] = false
+            LOGGER.warn(
+              "[AI 2PLY TIMEOUT] evaluated=#{shadow[:pairs].size}/#{shadow[:jobs].size} " \
+              "router_calls=#{shadow[:router_calls]}"
+            )
+            return engine_shadow_finish_revenue(shadow)
+          end
+
           return engine_shadow_finish_revenue(shadow) if shadow[:index] >= shadow[:jobs].size
 
           job = shadow[:jobs][shadow[:index]]
           shadow[:index] += 1
 
-          trial_game = engine_shadow_game_with_second_tile(
-            job[:first_game],
-            shadow[:entity],
-            job[:second],
-          )
+          unless engine_shadow_prepare_branch(shadow, job)
+            shadow[:complete] = false
+            return engine_shadow_evaluate_next(shadow)
+          end
 
-          unless trial_game
+          context = engine_shadow_apply_second_tile(shadow, job[:second])
+          unless context
             shadow[:complete] = false
             return engine_shadow_evaluate_next(shadow)
           end
@@ -670,36 +768,30 @@ module View
           second = job[:second]
           label = "shadow first=#{first.hex.id}/#{first.tile.name}/#{first.rotation} " \
                   "second=#{second[:hex_id]}/#{second[:tile_name]}/#{second[:rotation]}"
+          shadow[:router_calls] += 1
+          router_started_at = engine_now_ms
 
-          engine_route_revenue(
-            trial_game,
-            shadow[:entity],
-            shadow[:deadline],
-            label,
-          ) do |revenue|
+          engine_route_revenue(context[:game], shadow[:entity], shadow[:deadline], label) do |revenue|
+            shadow[:timings][:router_ms] += engine_now_ms - router_started_at
+            restored = engine_shadow_restore_second_tile(shadow, context)
+            unless restored
+              shadow[:complete] = false
+              return engine_shadow_finish_revenue(shadow)
+            end
+
             if revenue.nil?
               shadow[:complete] = false
             else
-              pair = {
+              shadow[:pairs] << {
                 first_result: job[:first_result],
                 second: second,
                 final_revenue: revenue.to_i,
               }
-              shadow[:pairs] << pair
-              LOGGER.info(
-                "[AI 2PLY SHADOW PAIR] first=#{first.hex.id}/#{first.tile.name}/" \
-                "#{first.rotation} second=#{second[:hex_id]}/#{second[:tile_name]}/" \
-                "#{second[:rotation]} immediate=#{job[:first_result][:best_revenue].to_i} " \
-                "final=#{revenue.to_i}"
-              )
             end
-
             engine_shadow_evaluate_next(shadow)
           end
         end
 
-        # T1 diagnostic only: project optional depot-train value on the best
-        # post-first and post-second maps. This never changes the buy-train action.
         def engine_train_projection_candidates(game, original_entity)
           entity = matching_entity(game, original_entity)
           return [] unless entity && game.respond_to?(:depot)
@@ -750,7 +842,6 @@ module View
 
         def engine_train_projection_next(state)
           if state[:index] >= state[:jobs].size
-            LOGGER.info('========== AI TRAIN PROJECTION ==========')
             LOGGER.info(
               "[AI TRAIN PROJECTION BASE] first=#{state[:first_label]} " \
               "post_first=#{state[:first_baseline]} second=#{state[:second_label]} " \
@@ -769,7 +860,6 @@ module View
                 "payback_ors=#{payback || 'none'}"
               )
             end
-            LOGGER.info('========== END AI TRAIN PROJECTION ==========')
             return engine_finish(
               state[:chosen_action], state[:round_before], state[:step_before], state[:entity],
             )
@@ -808,7 +898,7 @@ module View
           end
 
           second_game = engine_shadow_game_with_second_tile(
-            first_game, shadow[:entity], best[:second],
+            first_game, shadow[:entity], best[:second], shadow[:timings],
           )
           unless second_game
             return engine_finish(
@@ -896,7 +986,30 @@ module View
               selection_source = 'deterministic_two_ply'
             end
 
-            LOGGER.info('========== AI 2PLY REVENUE RESULT ==========')
+            elapsed_ms = engine_now_ms - shadow[:started_at]
+            LOGGER.info(
+              "[AI 2PLY OPTIMISATION] structural_pairs=#{shadow[:structural_pairs]} " "unique_pairs=#{shadow[:jobs].size} deduplicated=#{shadow[:deduplicated]} " "router_calls=#{shadow[:router_calls]} elapsed_ms=#{elapsed_ms}"
+            )
+            timings = shadow[:timings]
+            measured_ms = timings.values.sum
+            total_ms = shadow[:generation_ms].to_i + elapsed_ms
+            overhead_ms = [total_ms - shadow[:generation_ms].to_i - measured_ms, 0].max
+            LOGGER.info(
+              "[AI 2PLY PERFORMANCE] generation_ms=#{shadow[:generation_ms].to_i} " \
+              "clone_ms=#{timings[:clone_ms].to_i} " \
+              "entity_lookup_ms=#{timings[:entity_lookup_ms].to_i} " \
+              "tile_lookup_ms=#{timings[:tile_lookup_ms].to_i} " \
+              "clone_tile_ms=#{timings[:clone_tile_ms].to_i} " \
+              "set_tile_ms=#{timings[:set_tile_ms].to_i} " \
+              "graph_clear_ms=#{timings[:graph_clear_ms].to_i} " \
+              "restore_tile_ms=#{timings[:restore_tile_ms].to_i} " \
+              "restore_graph_ms=#{timings[:restore_graph_ms].to_i} " \
+              "router_ms=#{timings[:router_ms].to_i} overhead_ms=#{overhead_ms.to_i} " \
+              "total_ms=#{total_ms.to_i} branch_clones=#{shadow[:branch_clones]} " \
+              "structural_pairs=#{shadow[:structural_pairs]} " \
+              "unique_pairs=#{shadow[:jobs].size} evaluated_pairs=#{shadow[:pairs].size} " \
+              "router_calls=#{shadow[:router_calls]}"
+            )
             LOGGER.info(
               "[AI 2PLY BEST] first=#{first.hex.id}/#{first.tile.name}/" \
               "#{first.rotation} second=#{second[:hex_id]}/#{second[:tile_name]}/" \
@@ -910,10 +1023,9 @@ module View
               "#{chosen_action.tile.name}/#{chosen_action.rotation} " \
               "selection_source=#{selection_source}"
             )
-            LOGGER.info('========== END AI 2PLY REVENUE RESULT ==========')
           end
 
-          if best
+          if best && shadow[:complete]
             engine_start_train_projection(shadow, best, chosen_action)
           else
             engine_finish(
@@ -964,28 +1076,36 @@ module View
           LOGGER.info(
             "[AI TILE CHOSEN] hex=#{action.hex.id} tile=#{action.tile.id} " "rotation=#{action.rotation} selection_source=deterministic_immediate_revenue " "engine_revenue=#{winner[:best_revenue].to_i} " "topology_revenue=#{winner[:topology_revenue].to_i} " "horizon2=#{topology[:horizon_2_value].to_i} " "horizon1=#{topology[:horizon_1_value].to_i} cost_penalty=disabled"
           )
-          # Build and brute-force the complete two-ply shadow queue. This remains
-          # diagnostic only: engine_shadow_finish_revenue always executes +action+,
-          # the production single-ply winner.
+          generation_started_at = engine_now_ms
           jobs = []
-          first_branches = 0
-          LOGGER.info('========== AI 2PLY SHADOW TREE ==========')
+          structural_pairs = 0
+          deduplicated = 0
+
           completed.sort_by do |result|
             first = result[:action]
-            [first.hex.id.to_s, first.tile.name.to_s, first.rotation.to_i]
+            [
+              -result[:best_revenue].to_i,
+              -result[:topology_revenue].to_i,
+              first.hex.id.to_s,
+              first.tile.name.to_s,
+              first.rotation.to_i,
+            ]
           end.each do |result|
             first = result[:action]
             first_game = state[:verified_games][first.object_id]
             next unless first_game
 
-            second_candidates = engine_shadow_second_candidates(first_game, entity, first)
-            first_branches += 1
-            LOGGER.info(
-              "[AI 2PLY SHADOW BRANCH] first=#{first.hex.id}/#{first.tile.name}/" \
-              "#{first.rotation} immediate=#{result[:best_revenue].to_i} " \
-              "second_candidates=#{second_candidates.size}"
-            )
-            second_candidates.each do |second|
+            candidates = engine_shadow_second_candidates(first_game, entity, first)
+            structural_pairs += candidates.size
+            seen = {}
+            candidates.each do |second|
+              key = second[:local_signature]
+              key ||= [second[:hex_id], second[:tile_name], second[:rotation]]
+              if seen.key?(key)
+                deduplicated += 1
+                next
+              end
+              seen[key] = true
               jobs << {
                 first_result: result,
                 first_game: first_game,
@@ -994,26 +1114,49 @@ module View
             end
           end
 
+          generation_ms = engine_now_ms - generation_started_at
+
           LOGGER.info(
-            "[AI 2PLY SHADOW TREE SUMMARY] first_branches=#{first_branches} " \
-            "structural_pairs=#{jobs.size} production_choice=" \
+            "[AI 2PLY TREE] first_branches=#{completed.size} " \
+            "structural_pairs=#{structural_pairs} unique_pairs=#{jobs.size} " \
+            "deduplicated=#{deduplicated} production=" \
             "#{action.hex.id}/#{action.tile.name}/#{action.rotation}"
           )
-          LOGGER.info('========== END AI 2PLY SHADOW TREE ==========')
 
           return engine_finish(action, round_before, step_before, entity) if jobs.empty?
 
+          started_at = engine_now_ms
           shadow = {
             jobs: jobs,
             index: 0,
             pairs: [],
             complete: true,
-            deadline: engine_now_ms + 30_000,
+            router_calls: 0,
+            structural_pairs: structural_pairs,
+            deduplicated: deduplicated,
+            started_at: started_at,
+            deadline: started_at + 5_000,
             production_action: action,
             production_revenue: winner[:best_revenue].to_i,
             entity: entity,
             round_before: round_before,
             step_before: step_before,
+            generation_ms: generation_ms,
+            branch_key: nil,
+            branch_game: nil,
+            branch_clones: 0,
+            branch_entity: nil,
+            timings: {
+              clone_ms: 0,
+              entity_lookup_ms: 0,
+              tile_lookup_ms: 0,
+              clone_tile_ms: 0,
+              set_tile_ms: 0,
+              graph_clear_ms: 0,
+              restore_tile_ms: 0,
+              restore_graph_ms: 0,
+              router_ms: 0,
+            },
           }
           engine_shadow_evaluate_next(shadow)
         end
@@ -1079,21 +1222,13 @@ module View
           end
 
           if Array(state[:tile_actions]).any?
-            LOGGER.info(
-              '[AI TOKEN] no legal affordable marker strictly increases revenue ' "above baseline=#{state[:baseline].to_i}; continuing to tile search"
-            )
             return start_engine_tile_search(
               state[:tile_actions], state[:all_actions], entity, round_before, step_before,
             )
           end
 
           pass_action = state[:all_actions].find { |action| action.is_a?(Engine::Action::Pass) }
-          if pass_action
-            LOGGER.info(
-              '[AI TOKEN] no legal affordable marker strictly increases revenue ' "above baseline=#{state[:baseline].to_i}; using Pass"
-            )
-            return engine_finish(pass_action, round_before, step_before, entity)
-          end
+          return engine_finish(pass_action, round_before, step_before, entity) if pass_action
 
           # Mandatory token placement, such as a home token: choose the highest
           # revenue legal processed result deterministically even without a gain.
