@@ -971,8 +971,7 @@ module View
         end
         if defined?(::View::Game::Dashboard::HistoryOverlay)
           klass = ::View::Game::Dashboard::HistoryOverlay
-          klass.define_method(:is_cha
-          t) { |*_args| false } unless klass.method_defined?(:is_chat)
+          klass.define_method(:is_chat) { |*_args| false } unless klass.method_defined?(:is_chat)
           klass.define_method(:is_chat?) { |*_args| false } unless klass.method_defined?(:is_chat?)
         end
       rescue StandardError

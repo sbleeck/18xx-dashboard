@@ -558,33 +558,31 @@ module View
           max_id = [total_actions.to_i, 1].max
           target = [[target_id.to_i, 1].max, max_id].min
           new_cursor = target >= max_id ? nil : target
+          target_val = new_cursor || max_id
 
-          current_url = `window.location.href`
+          # Change the action parameter used by the reconstructed game.
+          Lib::Params['action'] = new_cursor ? new_cursor.to_s : nil
+
+          # Build the new route without reloading the browser.
+          curr_route = @app_route
+          if !curr_route || curr_route.empty?
+            curr_route = `window.location.pathname + window.location.search + window.location.hash`
+          end
+
+          new_route = Lib::Params.add(curr_route, 'action', new_cursor)
+
+          # Keep the address bar in sync, but do NOT navigate/reload.
           %x{
-            (function() {
-              var url = new URL(#{current_url});
-              var cursor = #{new_cursor.nil? ? 'null' : new_cursor.to_i};
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', #{new_route});
+    }
+  }
 
-              if (cursor === null) {
-                url.searchParams.delete('action');
-              } else {
-                url.searchParams.set('action', String(cursor));
-              }
+          # Tell the application to reconstruct the requested game state.
+          store(:app_route, new_route)
 
-              // A history step deliberately reloads the reconstructed game state to
-              // avoid Snabbdom reconciling incompatible trees. Persist ONLY the fact
-              // that this HUD is open. Escape/the close button clear this flag.
-              try {
-                sessionStorage.setItem('history_overlay_reload_open', '1');
-              } catch (e) {}
-
-              window.location.replace(
-                url.pathname +
-                (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') +
-                url.hash
-              );
-            })();
-          }
+          # Keep the history HUD visually synchronized.
+          sync_slider(target_val, max_id)
         end
 
         def step_action(delta)
