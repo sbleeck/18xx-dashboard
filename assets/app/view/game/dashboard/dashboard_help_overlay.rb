@@ -10,8 +10,8 @@ module View
         needs :on_close, default: nil
 
         # --- VERSION & BUILD METADATA ---
-        VERSION = '1.0.0'
-        BUILD_TIME = '2026-10-23 20:45 BST'
+        VERSION = '1.3.0'
+        BUILD_TIME = '2026-10-30 10:20 CET'
 
         SECTIONS = [
           {
@@ -57,6 +57,20 @@ module View
               'Auto-Stow: Automatically retracts when your turn passes, maximizing active board real estate.',
             ],
           },
+          # // --- START FIX ---
+          {
+            id: 'sparring_engine',
+            title: 'Autonomous Sparring Companion',
+            icon: '♟️',
+            content: [
+              'Contextual & Deliberate: Sits unobtrusively in the Action Hub header and acts only when invited. Never takes unsolicited turns or overrides player decisions.',
+              'Exhaustive Candidate Discovery: Dynamically materializes the complete legal action set permitted by the rules engine—from share bidding and par values to revenue allocation and train purchases.',
+              'Isolated Speculative Search: Complex tile layouts and station placements are evaluated on detached game clones, assessing immediate route yields and two-build expansions without mutating live game state.',
+              'Single Atomic Dispatch: Each invocation (via the Action Hub button or R keystroke) commits exactly one validated engine action, ideal for solo study, sandbox analysis, and filled hotseat sessions.',
+              'Progressive Rationale: Inspect concise decision rationale on demand ("Why this move?"), reviewing candidate scores and closest alternatives without visual clutter.',
+            ],
+          },
+          # // --- END FIX ---
           {
             id: 'utility_buttons',
             title: 'Utility Cluster & Tools',
@@ -78,7 +92,10 @@ module View
               'Alt + Drag: Smooth pan across any viewport canvas.',
               'Ret: Execute the current Default (blue) action',
               'Esc: Dismiss active overlays, close menus, or exit this help screen.',
-              'R: Trigger automated test action (sandbox and hotseat modes only).',
+              # // --- START FIX ---
+              # // --- DELETE --- 'R: Trigger automated test action (sandbox and hotseat modes only).',
+              'R: Advance one move via the autonomous sparring engine (sandbox and hotseat modes).',
+              # // --- END FIX ---
             ],
           },
         ].freeze
@@ -103,7 +120,7 @@ module View
 
           open_youtube = lambda do
             %x{
-              window.open('https://www.youtube.com/@18xxGamesAndRules', '_blank');
+              window.open('https://www.youtube.com/@Rails-Evolution-18xx', '_blank');
             }
           end
 
@@ -360,7 +377,7 @@ module View
                     ]),
                     h(:div, { style: { fontSize: '0.78rem', color: '#94a3b8', marginTop: '3px' } }, [
                       h(:span, { style: { color: '#38bdf8', fontWeight: '600' } }, "Build: #{BUILD_TIME}"),
-                      h(:span, { style: { margin: '0 6px', color: '#64748b' } }, '•'),
+                      h(:span, { margin: '0 6px', color: '#64748b' } }, '•'),
                       h(:span, 'By Stefan Bleeck'),
                     ]),
                   ]),
@@ -389,7 +406,6 @@ module View
                       h(:span, '☕'),
                       h(:span, 'Support on Ko-fi'),
                     ]),
-                    # // --- START FIX ---
                     h(:button, {
                         attrs: {
                           type: 'button',
@@ -414,7 +430,6 @@ module View
                       h(:span, '📺'),
                       h(:span, 'YouTube Channel'),
                     ]),
-                    # // --- END FIX ---
                     h(:button, {
                         attrs: {
                           type: 'button',
@@ -541,7 +556,6 @@ module View
                   h(:span, '☕'),
                   h(:span, 'Ko-fi Tip Jar'),
                 ]),
-                # // --- START FIX ---
                 h(:button, {
                     attrs: {
                       type: 'button',
@@ -565,7 +579,6 @@ module View
                   h(:span, '📺'),
                   h(:span, 'YouTube Channel'),
                 ]),
-                # // --- END FIX ---
                 h(:button, {
                     attrs: {
                       type: 'button',
