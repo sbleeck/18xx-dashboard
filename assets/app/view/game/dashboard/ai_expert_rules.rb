@@ -160,7 +160,21 @@ module View
 
             inv_edge = hex.respond_to?(:invert) ? hex.invert(edge) : ((edge + 3) % 6)
             n1_tile = n1.tile
-            n1_rev = revenue_for.call(n1_tile)
+
+            # Helper to find the maximum printed revenue among the cities/towns on a tile
+            max_revenue_on_tile = lambda do |t|
+              return 0 unless t
+
+              revs = []
+              revs.concat(t.cities.map(&:revenue)) if t.respond_to?(:cities) && t.cities
+              revs.concat(t.towns.map(&:revenue)) if t.respond_to?(:towns) && t.towns
+              # Flatten arrays and sum hashes (phase-dependent revenue) to get the max possible
+              revs.flatten.compact.map do |r|
+                r.is_a?(Hash) ? (r.values.compact.max || 0) : r
+              end.max || 0
+            end
+
+            n1_rev = max_revenue_on_tile.call(n1_tile)
 
             n1_exits = if n1_tile.respond_to?(:exits) && n1_tile.exits&.any?
                          Array(n1_tile.exits).uniq
@@ -462,28 +476,28 @@ module View
             id: 'OR_TL05_horizon1_direct_neighbor_target',
             description: '1-Tile Horizon: New exit connects directly to an adjacent city, town, or offboard',
             when: { action_type: 'lay_tile', horizon_1_value_gt: 0 },
-            score_add: 140,
-            score_per_unit: { field: 'horizon_1_value', multiplier: 12.0 },
+            score_add: 200,
+            score_per_unit: { field: 'horizon_1_value', multiplier: 18.0 },
           },
           {
             id: 'OR_TL06_horizon2_two_tile_bridge',
             description: '2-Tile Horizon: New exit points across an open neighbor toward a city/offboard 2 hexes away',
             when: { action_type: 'lay_tile', horizon_2_value_gt: 0 },
-            score_add: 70,
-            score_per_unit: { field: 'horizon_2_value', multiplier: 8.0 },
+            score_add: 50,
+            score_per_unit: { field: 'horizon_2_value', multiplier: 5.0 },
           },
           {
             id: 'OR_TL07_penalize_map_border_dead_end',
             description: 'Penalize pointing new exits off the board edge or into impassable hexes',
             when: { action_type: 'lay_tile', is_dead_end_edge: true },
-            score_add: -250,
+            score_add: -400,
           },
           {
             id: 'OR_TL08_half_cost_value_penalty',
-            description: 'Penalize terrain cost proportional to expense, especially before owning a train',
+            description: 'Penalize terrain cost proportionally, but allow profitable connections to override it',
             when: { action_type: 'lay_tile', tile_cost_gt: 0 },
-            score_add: -20,
-            score_per_unit: { field: 'tile_cost', multiplier: -1.5 },
+            score_add: -10,
+            score_per_unit: { field: 'tile_cost', multiplier: -0.5 },
           },
           {
             id: 'OR_TL09_veto_expensive_tile_if_breaks_train_budget',

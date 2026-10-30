@@ -1694,68 +1694,72 @@ module View
 
         def collect_tiles(step, entity, actions)
           return [] unless actions.include?('lay_tile')
-          return [] if step.respond_to?(:can_lay_tile?) && !step.can_lay_tile?(entity)
-
-          connected = (begin; step.connected_hexes(entity); rescue StandardError; nil; end if step.respond_to?(:connected_hexes))
-          connected ||= begin; @game.graph.connected_hexes(entity); rescue StandardError; nil; end
-          return [] unless connected && connected.any?
+          return [] unless step.respond_to?(:upgradeable_tiles)
 
           legal = []
           @tile_eval_cache = {}
+          approved_hexes = []
 
-          connected.each_key do |hex|
+          # Use exactly the same engine API as the normal map UI:
+          #   step.available_hex -> step.upgradeable_tiles -> tile.legal_rotations
+          # Tracker#upgradeable_tiles already applies potential_tiles,
+          # tile_valid_for_phase?, upgrades_to?, blocks_lay,
+          # legal_tile_rotations, and max-exit restrictions.
+          Array(@game.hexes).each do |hex|
             next unless hex
-            next if step.respond_to?(:available_hex) && !step.available_hex(entity, hex)
 
-            tiles = if step.respond_to?(:potential_tiles)
-                      begin; step.potential_tiles(entity, hex); rescue StandardError; []; end
-                    elsif step.respond_to?(:upgradeable_tiles)
-                      begin; step.upgradeable_tiles(entity, hex); rescue StandardError; []; end
-                    else
-                      []
-                    end
-
-            available_tiles = Array(tiles).compact.select do |tile|
-              count = tile.respond_to?(:count) ? tile.count : nil
-              next false if count && count <= 0 && (!tile.respond_to?(:unlimited) || !tile.unlimited)
-
-              if @game.respond_to?(:tile_available?)
-                @game.tile_available?(tile)
-              elsif @game.respond_to?(:tiles)
-                @game.tiles.include?(tile)
-              else
-                true
-              end
+            available = begin
+              step.available_hex(entity, hex)
+            rescue StandardError => e
+              LOGGER.warn(
+                "[AI TILE ENGINE LIST] available_hex failed hex=#{hex.id}: #{e.class}: #{e.message}"
+              )
+              false
             end
+            next unless available
 
-            available_tiles.each do |tile|
-              next if tile.respond_to?(:hex) && tile.hex
+            tiles = begin
+              Array(step.upgradeable_tiles(entity, hex)).compact
+            rescue StandardError => e
+              LOGGER.warn(
+                "[AI TILE ENGINE LIST] upgradeable_tiles failed hex=#{hex.id}: #{e.class}: #{e.message}"
+              )
+              []
+            end
+            next if tiles.empty?
 
-              cost = calculate_tile_cost(step, entity, hex, tile)
-              next if cost.nil?
-              next if entity.respond_to?(:cash) && entity.cash.to_i < cost.to_i
+            approved_hexes << hex.id.to_s
+            LOGGER.info("[AI TILE ENGINE LIST] #{hex.id}")
 
-              rotations = if step.respond_to?(:legal_tile_rotations)
-                            begin; step.legal_tile_rotations(entity, hex, tile); rescue StandardError; []; end
-                          else
-                            (0..5).to_a
-                          end
+            tiles.each do |tile|
+              rotations = Array(tile.legal_rotations).compact.map(&:to_i).uniq.sort
+              LOGGER.info(
+                "[AI TILE ENGINE LIST]   tile #{tile.name}: rotations #{rotations.join(',')}"
+              )
 
-              Array(rotations).each do |r|
-                next if tile.equal?(hex.tile)
-
-                # Candidate generation performs only cheap checks. The asynchronous
-                # engine search validates process_action first and evaluates revenue
-                # only for candidates accepted by the cloned engine.
+              rotations.each do |rotation|
                 legal << Engine::Action::LayTile.new(
                   entity,
                   hex: hex,
                   tile: tile,
-                  rotation: r,
+                  rotation: rotation,
                 )
               end
             end
           end
+
+          legal.uniq! do |action|
+            [action.hex.id.to_s, action.tile.name.to_s, action.rotation.to_i]
+          end
+
+          legal.sort_by! do |action|
+            [action.hex.id.to_s, action.tile.name.to_s, action.rotation.to_i]
+          end
+
+          LOGGER.info(
+            "[AI TILE ENGINE LIST] entity=#{entity.id} hexes=#{approved_hexes.sort.join(',')} " \
+            "actions=#{legal.size} source=step.upgradeable_tiles"
+          )
 
           legal
         end
@@ -1782,54 +1786,87 @@ module View
         end
 
         def collect_tokens(step, entity, actions)
-          return [] unless actions.include?('place_token')
-          return [] if step.respond_to?(:can_place_token?) && !step.can_place_token?(entity)
+          return [] unless actions.include?('place_token') || actions.include?('hex_token')
 
-          tokens = if step.respond_to?(:available_tokens)
-                     begin; Array(step.available_tokens(entity)); rescue StandardError; []; end
-                   else
-                     []
-                   end
-          tokens = [entity.next_token].compact if tokens.empty? && entity.respond_to?(:next_token)
-          token = tokens.first
-          return [] unless token
+          unplaced = if step.respond_to?(:available_tokens)
+                       begin
+                         Array(step.available_tokens(entity))
+                       rescue StandardError
+                         []
+                       end
+                     elsif entity.respond_to?(:tokens_by_type)
+                       entity.tokens_by_type.reject(&:used)
+                     elsif entity.respond_to?(:unplaced_tokens)
+                       entity.unplaced_tokens
+                     elsif entity.respond_to?(:tokens)
+                       entity.tokens.reject(&:used)
+                     else
+                       []
+                     end
+          return [] if unplaced.empty?
 
-          cost = if step.respond_to?(:token_cost)
-                   begin; step.token_cost(entity, token); rescue StandardError; token.price; end
-                 else
-                   token.price
-                 end || 0
-          return [] if entity.respond_to?(:cash) && entity.cash.to_i < cost.to_i
-
-          connected = begin; step.connected_hexes(entity); rescue StandardError; nil; end if step.respond_to?(:connected_hexes)
-          connected ||= begin; @game.graph.connected_hexes(entity); rescue StandardError; {}; end
-          @token_eval_cache = {}
+          token_to_place = unplaced.first
           legal = []
-          connected.each_key do |hex|
-            next unless hex&.tile
-            next if step.respond_to?(:available_hex) && !step.available_hex(entity, hex)
 
-            Array(hex.tile.cities).each do |city|
-              tokenable = begin
-                city.tokenable?(entity, token: token)
-              rescue ArgumentError
-                begin; city.tokenable?(entity); rescue StandardError; false; end
-              rescue StandardError
-                false
-              end
-              next unless tokenable
+          # Mirror CitySlot#flash_token_slot? from dashboard_map.rb
+          breathing_hexes = @game.hexes.select do |hex|
+            next false unless hex && hex.tile
 
-              slot = city.tokens.find_index(&:nil?)
-              next if slot.nil?
-
-              gain = token_revenue_gain(entity, city, token, slot)
-              next unless gain.positive?
-
-              action = Engine::Action::PlaceToken.new(entity, city: city, slot: slot, token: token)
-              @token_eval_cache[action] = { token_revenue_gain: gain }
-              legal << action
+            begin
+              step.available_hex(entity, hex)
+            rescue StandardError
+              false
             end
           end
+
+          breathing_hexes.each do |hex|
+            cities = hex.tile.cities || []
+            cities.each do |city|
+              already_tokened = (city.respond_to?(:tokened_by?) && city.tokened_by?(entity)) ||
+                                (city.respond_to?(:tokens) && city.tokens.compact.any? { |t| t.corporation == entity })
+              next if already_tokened
+
+              open_slot = city.respond_to?(:open_slot?) ? city.open_slot?(entity) : city.tokens.any?(&:nil?)
+              next unless open_slot
+
+              # Check reservation compatibility
+              if city.respond_to?(:reservations) && city.reservations
+                res_matching = city.reservations.any? do |r|
+                  res_corp = r.respond_to?(:corporation) ? r.corporation : r
+                  res_corp.nil? || res_corp == entity || (res_corp.respond_to?(:id) && res_corp.id == entity.id)
+                end
+                next if !res_matching && city.reservations.compact.size >= city.slots
+              end
+
+              slot_index = nil
+              if city.respond_to?(:reservations) && city.reservations
+                slot_index = city.reservations.index { |r| r == entity || (r.respond_to?(:owner) && r.owner == entity) }
+              end
+              slot_index = city.tokens.find_index(&:nil?) if slot_index.nil? && city.respond_to?(:tokens) && city.tokens
+              next if slot_index.nil?
+
+              if step.respond_to?(:can_place_token?)
+                can_place = begin
+                  step.can_place_token?(entity, city, token_to_place)
+                rescue ArgumentError
+                  begin
+                    step.can_place_token?(entity, city)
+                  rescue StandardError
+                    true
+                  end
+                rescue StandardError
+                  true
+                end
+                next unless can_place
+              end
+
+              action_args = { city: city, slot: slot_index, token: token_to_place }
+              action_args[:token_type] = token_to_place.type if token_to_place.respond_to?(:type)
+
+              legal << Engine::Action::PlaceToken.new(entity, **action_args)
+            end
+          end
+
           legal
         end
       end
