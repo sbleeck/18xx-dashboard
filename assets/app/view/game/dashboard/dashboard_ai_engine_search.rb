@@ -1080,6 +1080,7 @@ module View
           jobs = []
           structural_pairs = 0
           deduplicated = 0
+          same_hex_rejected = 0
 
           completed.sort_by do |result|
             first = result[:action]
@@ -1099,6 +1100,14 @@ module View
             structural_pairs += candidates.size
             seen = {}
             candidates.each do |second|
+              # A two-ply continuation must build a different hex. Re-laying or
+              # upgrading the first-build hex produced impossible branches such as
+              # E13/7/1 -> E13/29/1 and false projected revenue.
+              if second[:hex_id].to_s == first.hex.id.to_s
+                same_hex_rejected += 1
+                next
+              end
+
               key = second[:local_signature]
               key ||= [second[:hex_id], second[:tile_name], second[:rotation]]
               if seen.key?(key)
@@ -1119,7 +1128,7 @@ module View
           LOGGER.info(
             "[AI 2PLY TREE] first_branches=#{completed.size} " \
             "structural_pairs=#{structural_pairs} unique_pairs=#{jobs.size} " \
-            "deduplicated=#{deduplicated} production=" \
+            "deduplicated=#{deduplicated} same_hex_rejected=#{same_hex_rejected} production=" \
             "#{action.hex.id}/#{action.tile.name}/#{action.rotation}"
           )
 
@@ -1134,6 +1143,7 @@ module View
             router_calls: 0,
             structural_pairs: structural_pairs,
             deduplicated: deduplicated,
+            same_hex_rejected: same_hex_rejected,
             started_at: started_at,
             deadline: started_at + 5_000,
             production_action: action,
