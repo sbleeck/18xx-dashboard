@@ -377,7 +377,7 @@ module View
                     ]),
                     h(:div, { style: { fontSize: '0.78rem', color: '#94a3b8', marginTop: '3px' } }, [
                       h(:span, { style: { color: '#38bdf8', fontWeight: '600' } }, "Build: #{BUILD_TIME}"),
-                      h(:span, { margin: '0 6px', color: '#64748b' } }, '•'),
+                      h(:span, { style: { margin: '0 6px', color: '#64748b' } }, '•'),
                       h(:span, 'By Stefan Bleeck'),
                     ]),
                   ]),
