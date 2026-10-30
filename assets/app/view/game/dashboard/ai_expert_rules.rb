@@ -161,9 +161,17 @@ module View
             inv_edge = hex.respond_to?(:invert) ? hex.invert(edge) : ((edge + 3) % 6)
             n1_tile = n1.tile
             n1_rev = revenue_for.call(n1_tile)
-            n1_exits = n1_tile.respond_to?(:exits) ? Array(n1_tile.exits).uniq : []
+
+            n1_exits = if n1_tile.respond_to?(:exits) && n1_tile.exits&.any?
+                         Array(n1_tile.exits).uniq
+                       elsif n1_tile.respond_to?(:paths) && n1_tile.paths&.any?
+                         Array(n1_tile.paths).flat_map(&:exits).flatten.compact.uniq
+                       else
+                         []
+                       end
+
             n1_color = n1_tile.respond_to?(:color) ? n1_tile.color : nil
-            n1_is_buildable = n1_color == :white
+            n1_unbuilt = [:white, 'white'].include?(n1_color) || n1_color.nil?
             n1_connects_back = n1_exits.include?(inv_edge)
 
             # One-build lookahead. A printed revenue centre immediately next to the
@@ -171,7 +179,7 @@ module View
             if n1_rev.positive?
               if n1_connects_back
                 horizon_1_value = [horizon_1_value, n1_rev].max
-              elsif n1_is_buildable
+              elsif n1_unbuilt
                 # This is a future build, not an immediate connection. Give a modest
                 # first-horizon signal; horizon 2 below determines whether it leads on.
                 horizon_1_value = [horizon_1_value, [n1_rev, 20].max].max
@@ -180,35 +188,55 @@ module View
               horizon_1_value = [horizon_1_value, 10].max
             end
 
-            # A genuine second build can only happen by laying track on a WHITE hex.
-            # The old version incorrectly treated existing yellow track as freely
-            # redirectable and merely inspected arbitrary n2 neighbours.
-            next unless n1_is_buildable
+            # Two-build lookahead. We can reach n2 if n1 is an empty white hex
+            # (we build on it next), OR if n1 is an existing tile and connects back to us.
+            n2_edges = []
+            if n1_unbuilt
+              n2_edges = (0..5).to_a - [inv_edge]
+            elsif n1_connects_back
+              if n1_tile.respond_to?(:paths) && n1_tile.paths&.any?
+                Array(n1_tile.paths).each do |path|
+                  path_exits = path.exits
+                  n2_edges.concat(path_exits - [inv_edge]) if path_exits.include?(inv_edge)
+                end
+              else
+                n2_edges = n1_exits - [inv_edge]
+              end
+            end
+            n2_edges.uniq!
+            next if n2_edges.empty?
 
             n1_neighbors = n1.respond_to?(:neighbors) && n1.neighbors ? n1.neighbors : {}
             n1_all = n1.respond_to?(:all_neighbors) && n1.all_neighbors ? n1.all_neighbors : n1_neighbors
             n1_cost = n1.respond_to?(:cost) ? (n1.cost || 0).to_i : 0
             best_second_build = 0
 
-            (0..5).each do |edge2|
-              next if edge2 == inv_edge
-
+            n2_edges.each do |edge2|
               n2 = n1_neighbors[edge2] || n1_all[edge2]
               next unless n2 && n2 != hex && n2.respond_to?(:tile) && n2.tile
 
               n2_tile = n2.tile
               n2_rev = revenue_for.call(n2_tile)
-              n2_exits = n2_tile.respond_to?(:exits) ? Array(n2_tile.exits).uniq : []
+
+              n2_exits = if n2_tile.respond_to?(:exits) && n2_tile.exits&.any?
+                           Array(n2_tile.exits).uniq
+                         elsif n2_tile.respond_to?(:paths) && n2_tile.paths&.any?
+                           Array(n2_tile.paths).flat_map(&:exits).flatten.compact.uniq
+                         else
+                           []
+                         end
+
               n2_color = n2_tile.respond_to?(:color) ? n2_tile.color : nil
+              n2_unbuilt = [:white, 'white'].include?(n2_color) || n2_color.nil?
               back_to_n1 = n1.respond_to?(:invert) ? n1.invert(edge2) : ((edge2 + 3) % 6)
 
-              # For a coloured destination, the second build must enter an existing
-              # matching edge. A white destination is a possible later extension but
-              # has no current revenue target, so it gets no two-build reward.
-              if n2_color != :white
+              if !n2_unbuilt
+                # For a coloured destination, the second build must enter an existing matching edge.
                 next unless n2_exits.include?(back_to_n1)
               else
-                next
+                # A white destination is a possible later extension, but we only score it
+                # if it holds a pre-printed revenue target (like a white town/city).
+                next unless n2_rev.positive?
               end
 
               value = if n2_rev.positive?
@@ -216,7 +244,7 @@ module View
                       else
                         (n2_exits.any? ? 10 : 0)
                       end
-              value -= n1_cost / 3
+              value -= n1_cost / 3 if n1_unbuilt
               best_second_build = [best_second_build, value].max
             end
             horizon_2_value = [horizon_2_value, best_second_build].max

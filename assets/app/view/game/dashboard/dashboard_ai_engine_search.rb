@@ -343,13 +343,22 @@ module View
               "engine_two=#{result[:best_revenue]} topology_two=#{topology_revenue} second="
             )
 
-            # The previous implementation called the nonexistent helper
-            # generate_legal_actions_for_game here. That exception aborted the
-            # asynchronous search before engine_finish_tile_search could dispatch
-            # any of the already verified legal tiles. Continue directly to the
-            # next first-tile candidate. The existing topology_two value remains
-            # the game-agnostic second-build lookahead.
-            engine_next_first_tile(state, entity, round_before, step_before)
+            begin
+              # Safely instantiate a new AI player against the cloned game state
+              # to materialise all legal follow-up tile lays.
+              first_player = self.class.new(first_game, []) { |_a| }
+              second_actions = first_player.generate_legal_actions.select do |candidate|
+                candidate.is_a?(Engine::Action::LayTile)
+              end
+
+              engine_next_second_tile(
+                state, result, first_game, second_actions, 0,
+                entity, round_before, step_before
+              )
+            rescue StandardError => e
+              LOGGER.warn("[AI TILE SEARCH] Second-tile generation failed: #{e.message}")
+              engine_next_first_tile(state, entity, round_before, step_before)
+            end
           end
         end
 
