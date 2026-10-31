@@ -26,9 +26,177 @@ module Engine
     end
 
     def route(trains_to_routes, callback)
+      return route_cruby(trains_to_routes, callback) unless RUBY_ENGINE == 'opal'
+
       %x{
-        (new Autorouter(#{self}, #{trains_to_routes}, #{callback})).autoroute();
-      }
+    (new Autorouter(#{self}, #{trains_to_routes}, #{callback})).autoroute();
+  }
+    end
+
+    def route_cruby(trains_to_routes, callback)
+      deadline =
+        Process.clock_gettime(Process::CLOCK_MONOTONIC) +
+        @route_timeout.to_f
+
+      train_entries = trains_to_routes.map do |train, routes|
+        sorted_routes =
+          Array(routes)
+            .sort_by { |route| -route.revenue.to_i }
+
+        [train, sorted_routes]
+      end
+
+      if train_entries.empty?
+        @running = false
+        callback&.call([])
+        return []
+      end
+
+      best_routes = []
+      best_revenue = 0
+
+      groups = {}
+      next_separate_group = 0
+
+      train_entries.each do |train, _routes|
+        groups[train] =
+          case @train_autoroute_group
+          when :each_train_separate
+            group = next_separate_group
+            next_separate_group += 1
+            group
+          when Array
+            index = @train_autoroute_group.find_index do |names|
+              Array(names).map(&:to_s).include?(train.name.to_s)
+            end
+
+            index ? index + 1 : 0
+          else
+            0
+          end
+      end
+
+      max_group =
+        groups.values.max || 0
+
+      empty_bitfields =
+        Array.new(max_group + 1) { [] }
+
+      max_remaining = Array.new(train_entries.size + 1, 0)
+
+      (train_entries.size - 1).downto(0) do |index|
+        routes = train_entries[index][1]
+
+        maximum =
+          routes.empty? ? 0 : routes.first.revenue.to_i
+
+        max_remaining[index] =
+          max_remaining[index + 1] + maximum
+      end
+
+      search = nil
+
+      search = lambda do |index, chosen, bitfields, estimated_revenue|
+        now =
+          Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+        return if now >= deadline
+
+        if index >= train_entries.size
+          revenue = real_revenue(chosen)
+
+          if revenue > best_revenue
+            best_revenue = revenue
+            best_routes = chosen.map(&:clone)
+          end
+
+          return
+        end
+
+        # Even under the optimistic assumption that every remaining train earns
+        # its individually best revenue, this branch cannot beat the incumbent.
+        return if estimated_revenue + max_remaining[index] <= best_revenue
+
+        train, routes = train_entries[index]
+        group = groups[train]
+
+        # Try actual routes first, in descending individual revenue order.
+        routes.each do |candidate|
+          break if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+
+          existing = bitfields[group]
+
+          next if route_bitfields_conflict?(
+            candidate.bitfield,
+            existing,
+          )
+
+          merged = route_bitfields_merge(
+            candidate.bitfield,
+            existing,
+          )
+
+          next_bitfields = bitfields.dup
+          next_bitfields[group] = merged
+
+          chosen << candidate
+
+          search.call(
+            index + 1,
+            chosen,
+            next_bitfields,
+            estimated_revenue + candidate.revenue.to_i,
+          )
+
+          chosen.pop
+        end
+
+        # A train is allowed to run no route.
+        search.call(
+          index + 1,
+          chosen,
+          bitfields,
+          estimated_revenue,
+        )
+      end
+
+      search.call(
+        0,
+        [],
+        empty_bitfields,
+        0,
+      )
+
+      real_revenue(best_routes) unless best_routes.empty?
+
+      @running = false
+      callback&.call(best_routes)
+
+      best_routes
+    ensure
+      @running = false
+    end
+
+    def route_bitfields_conflict?(a, b)
+      a = Array(a)
+      b = Array(b)
+
+      limit = [a.size, b.size].min
+
+      (0...limit).any? do |index|
+        (a[index].to_i & b[index].to_i) != 0
+      end
+    end
+
+    def route_bitfields_merge(a, b)
+      a = Array(a)
+      b = Array(b)
+
+      length = [a.size, b.size].max
+
+      Array.new(length) do |index|
+        a[index].to_i | b[index].to_i
+      end
     end
 
     def real_revenue(routes)
@@ -286,7 +454,8 @@ module Engine
       bitfield[entry] |= mask
     end
 
-    %x{
+    if RUBY_ENGINE == 'opal'
+      %x{
       class Autorouter {
         constructor(router, trains_to_routes_map, update_callback) {
           this.router = router;
@@ -489,7 +658,9 @@ module Engine
             return false;
           }
         }
+
       }
+
 
       function js_route_bitfield_conflicts(a, b) {
         "use strict";
@@ -511,10 +682,13 @@ module Engine
         return result;
       }
 
+
       function next_frame() {
         "use strict";
         return new Promise(resolve => requestAnimationFrame(resolve));
-      }
+
+        }
     }
+    end
   end
 end
