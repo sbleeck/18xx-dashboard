@@ -2,8 +2,8 @@
 
 require 'fileutils'
 require 'optparse'
-
 require_relative 'game_factory'
+require_relative 'auto_router_patch'
 require_relative 'runner'
 require_relative 'checkpoint'
 require_relative 'diagnostics'
