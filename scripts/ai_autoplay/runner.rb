@@ -107,30 +107,43 @@ module AiAutoplay
         File.dirname(file)
       )
 
-      players = @game.players.map do |player|
-        {
-          'id' => player.id,
-          'name' => player.name,
-        }
-      end
+      checkpoint_data =
+        if @checkpoint_file && File.file?(@checkpoint_file)
+          begin
+            JSON.parse(File.read(@checkpoint_file))
+          rescue StandardError
+            {}
+          end
+        else
+          {}
+        end
 
-      settings = {
-        'seed' => @game.seed,
-        'optional_rules' =>
-          if @game.respond_to?(:optional_rules)
-            Array(@game.optional_rules)
-          else
-            []
-          end,
-      }
+      # IMPORTANT:
+      # Never reconstruct these fields from the live game object.
+      # Player order can change during play, but replay must start from the
+      # ORIGINAL player order and ORIGINAL settings.
+      players =
+        Array(checkpoint_data['players'])
+
+      settings =
+        checkpoint_data.fetch(
+          'settings',
+          {
+            'seed' => @game.seed,
+            'optional_rules' => [],
+          }
+        )
+
+      actions =
+        Array(
+          checkpoint_data['actions'] ||
+          @game.raw_actions
+        )
 
       now = Time.now.to_i
 
       data = {
-        'id' =>
-          File.basename(
-            File.dirname(file)
-          ),
+        'id' => "autoplay_#{File.basename(File.dirname(file))}",
 
         'description' =>
           "AI autoplay #{@game.class.title}",
@@ -163,8 +176,7 @@ module AiAutoplay
 
         'result' => {},
 
-        'actions' =>
-          Array(@game.raw_actions),
+        'actions' => actions,
 
         'loaded' => true,
 
