@@ -4,6 +4,7 @@ require 'fileutils'
 require 'json'
 
 require_relative '../../assets/app/view/game/dashboard/dashboard_ai_player'
+require_relative '../../assets/app/view/game/dashboard/dashboard_ai_engine_search'
 require_relative 'checkpoint'
 
 module AiAutoplay
@@ -26,15 +27,21 @@ module AiAutoplay
       before = @game.raw_actions.size
       selected_action = nil
 
-      ai = View::Game::Dashboard::DashboardAiPlayer.new(@game, []) do |action|
-        selected_action = action
+      result =
+        View::Game::Dashboard::DashboardAiPlayer.engine_play(
+          @game,
+          [],
+        ) do |action|
+          selected_action = action
 
-        @game
-          .process_action(action, add_auto_actions: true)
-          .maybe_raise!
-      end
+          @game
+            .process_action(
+              action,
+              add_auto_actions: true,
+            )
+            .maybe_raise!
+        end
 
-      result = ai.play
       after = @game.raw_actions.size
 
       raise 'AI did not select an action' unless result
@@ -45,7 +52,7 @@ module AiAutoplay
       if @checkpoint_file
         Checkpoint.write(
           @game,
-          @checkpoint_file
+          @checkpoint_file,
         )
       end
 

@@ -753,18 +753,36 @@ module View
         def engine_verify_next_tile(state, entity, round_before, step_before)
           if engine_now_ms >= state[:legality_deadline] ||
              state[:verification_index] >= state[:unchecked_actions].size
-            return engine_begin_legal_tile_search(state, entity, round_before, step_before)
+            return engine_begin_legal_tile_search(
+              state,
+              entity,
+              round_before,
+              step_before,
+            )
           end
 
-          action = state[:unchecked_actions][state[:verification_index]]
+          action =
+            state[:unchecked_actions][
+              state[:verification_index]
+            ]
+
           state[:verification_index] += 1
 
           begin
-            trial = clone_and_process(@game, action)
+            trial =
+              clone_and_process(
+                @game,
+                action,
+              )
+
             state[:legal_actions] << action
-            state[:verified_games][action.object_id] = trial
+
+            state[:verified_games][
+              action.object_id
+            ] = trial
           rescue StandardError => e
             state[:rejected_count] += 1
+
             state[:rejected_actions] << {
               action: action,
               error_class: e.class.name.to_s,
@@ -772,7 +790,21 @@ module View
             }
           end
 
-          `setTimeout(function () { #{engine_verify_next_tile(state, entity, round_before, step_before)} }, 0)`
+          if RUBY_ENGINE == 'opal'
+            %x(setTimeout(function () { #{engine_verify_next_tile(
+      state,
+      entity,
+      round_before,
+      step_before
+    )} }, 0))
+          else
+            engine_verify_next_tile(
+              state,
+              entity,
+              round_before,
+              step_before,
+            )
+          end
         end
 
         def engine_begin_legal_tile_search(state, entity, round_before, step_before)

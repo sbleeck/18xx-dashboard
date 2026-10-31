@@ -247,12 +247,26 @@ module View
 
           @process_block.call(action)
           true
-        rescue Engine::GameError => e
-          `console.warn("[AI Expert] Engine rejected selected action: " + #{e.message})`
-          false
-        rescue StandardError => e
-          `console.error("[AI Expert] Error during single-action dispatch: " + #{e.message})`
-          false
+       rescue Engine::GameError => e
+  if RUBY_ENGINE == 'opal'
+    `console.warn("[AI Expert] Engine rejected selected action: " + #{e.message})`
+  else
+    LOGGER.warn(
+      "[AI Expert] Engine rejected selected action: #{e.message}"
+    )
+  end
+
+  false
+rescue StandardError => e
+  if RUBY_ENGINE == 'opal'
+    `console.error("[AI Expert] Error during single-action dispatch: " + #{e.message})`
+  else
+    LOGGER.error(
+      "[AI Expert] Error during single-action dispatch: #{e.class}: #{e.message}"
+    )
+  end
+
+  false
         ensure
           @tile_eval_cache.clear if @tile_eval_cache
         end
@@ -269,6 +283,7 @@ module View
           'buy_company' => :collect_draft_and_bids,
           'buy_companies' => :collect_draft_and_bids,
           'dividend' => :collect_dividends,
+          'destination_connection' => :collect_destination_connections,
           'payout' => :collect_dividends,
           'withhold' => :collect_dividends,
           'half' => :collect_dividends,
@@ -288,6 +303,7 @@ module View
           'corporate_sell_shares' => :collect_issue_shares,
           'redeem' => :collect_redeem_shares,
           'redeem_shares' => :collect_redeem_shares,
+          'select_multiple_companies' => :collect_multiple_companies,
           'corporate_buy_shares' => :collect_redeem_shares,
         }.freeze
 
@@ -374,6 +390,99 @@ module View
           end
 
           legal
+        end
+
+        def collect_multiple_companies(step, entity, actions)
+          return [] unless actions.include?('select_multiple_companies')
+          return [] unless defined?(Engine::Action::SelectMultipleCompanies)
+
+          available =
+            begin
+              Array(step.available)
+            rescue StandardError
+              []
+            end
+
+          return [] if available.empty?
+
+          # Try to discover the required selection size from the step's own
+          # public state first.
+          required_count =
+            begin
+              if step.respond_to?(:cards_to_keep)
+                step.cards_to_keep.to_i
+              elsif step.respond_to?(:selection_count)
+                step.selection_count.to_i
+              else
+                0
+              end
+            rescue StandardError
+              0
+            end
+
+          # Some steps, including CertificateSelection, keep the value internally
+          # rather than exposing a public reader.
+          if required_count <= 0
+            begin
+              required_count =
+                step.instance_variable_get(:@cards_to_keep).to_i
+            rescue StandardError
+              required_count = 0
+            end
+          end
+
+          selection_sizes =
+            if required_count.positive?
+              [required_count]
+            else
+              (1..available.size).to_a
+            end
+
+          candidates = []
+
+          selection_sizes.each do |size|
+            next if size <= 0
+            next if size > available.size
+
+            # Randomise before combination generation so we do not systematically
+            # favour the first certificates returned by a game.
+            available.shuffle.combination(size).each do |companies|
+              candidates << Engine::Action::SelectMultipleCompanies.new(
+                entity,
+                companies: companies,
+              )
+
+              # We only need a usable legal candidate, not every combinatorial
+              # possibility. Keep this bounded for games with large pools.
+              break if candidates.size >= 50
+            end
+
+            break if candidates.size >= 50
+          end
+
+          return candidates if RUBY_ENGINE == 'opal'
+
+          candidates.select do |action|
+            trial =
+              @game.clone(
+                Array(@game.raw_actions)
+              )
+
+            mapped =
+              Engine::Action::Base.action_from_h(
+                action.to_h,
+                trial,
+              )
+
+            trial.process_action(
+              mapped,
+              add_auto_actions: true,
+            )
+
+            trial.exception.nil?
+          rescue StandardError
+            false
+          end
         end
 
         def operating_entity?(entity)
@@ -471,25 +580,92 @@ module View
         end
 
         def current_acting_entity(step)
-          entity = begin
-            step.current_entity if step.respond_to?(:current_entity)
-          rescue StandardError
-            nil
-          end
+          entity =
+            begin
+              step.current_entity if step.respond_to?(:current_entity)
+            rescue StandardError
+              nil
+            end
 
-          entity ||= begin
-            @game.round.current_entity if @game.round.respond_to?(:current_entity)
-          rescue StandardError
-            nil
-          end
+          entity ||=
+            begin
+              @game.round.current_entity if @game.round.respond_to?(:current_entity)
+            rescue StandardError
+              nil
+            end
 
-          entity ||= begin
-            @game.current_entity if @game.respond_to?(:current_entity)
-          rescue StandardError
-            nil
-          end
+          entity ||=
+            begin
+              @game.current_entity if @game.respond_to?(:current_entity)
+            rescue StandardError
+              nil
+            end
 
-          entity
+          return nil unless entity
+
+          return entity unless entity.respond_to?(:corporation?) &&
+                               entity.corporation? &&
+                               entity.respond_to?(:owner) &&
+                               entity.owner
+
+          forced_train_purchase =
+            begin
+              step.respond_to?(:must_buy_train?) &&
+                step.must_buy_train?(entity)
+            rescue StandardError
+              false
+            end
+
+          return entity unless forced_train_purchase
+
+          owner = entity.owner
+
+          owner_actions =
+            begin
+              Array(@game.round.actions_for(owner)).map(&:to_s)
+            rescue StandardError
+              []
+            end
+
+          return entity unless owner_actions.include?('sell_shares')
+          return entity unless owner.respond_to?(:shares_of)
+
+          has_legal_owner_sale =
+            Array(@game.corporations).any? do |corporation|
+              owns_shares =
+                begin
+                  owner.shares_of(corporation).any?
+                rescue StandardError
+                  false
+                end
+
+              next false unless owns_shares
+
+              bundles =
+                begin
+                  if @game.respond_to?(:bundles_for_corporation)
+                    Array(
+                      @game.bundles_for_corporation(
+                        owner,
+                        corporation,
+                      )
+                    )
+                  else
+                    []
+                  end
+                rescue StandardError
+                  []
+                end
+
+              bundles.any? do |bundle|
+                step.respond_to?(:can_sell?) &&
+                  step.can_sell?(owner, bundle)
+              rescue StandardError
+                false
+              end
+            end
+
+          has_legal_owner_sale ? owner : entity
         end
 
         private
@@ -530,7 +706,13 @@ module View
             rotation: action.rotation,
           )
         rescue StandardError => e
-          `console.warn("[AI Expert] Could not rematerialize tile action: " + #{e.message})`
+if RUBY_ENGINE == 'opal'
+  `console.warn("[AI Expert] Could not rematerialize tile action: " + #{e.message})`
+else
+  LOGGER.warn(
+    "[AI Expert] Could not rematerialize tile action: #{e.message}"
+  )
+end
           nil
         end
 
@@ -761,7 +943,7 @@ module View
           when Hash
             choices.keys.map { |k| Engine::Action::Choose.new(entity, choice: k) }
           when Array
-            choices.map { |c| Engine::Action::Choose.new(entity, choice: c) }
+            choices.map { |c| Engine::Action::Choose.new(entity, choice: c.is_a?(Array) && c.size == 2 ? c.first : c) }
           else
             []
           end
@@ -1147,27 +1329,76 @@ module View
         def apply_player_share_focus(actions, entity)
           return actions unless entity.respond_to?(:player?) && entity.player?
 
-          buy_actions = actions.select do |action|
-            action.is_a?(Engine::Action::BuyShares)
+          buy_actions =
+            actions.select do |action|
+              action.is_a?(Engine::Action::BuyShares)
+            end
+
+          sell_actions =
+            actions.select do |action|
+              action.is_a?(Engine::Action::SellShares)
+            end
+
+          # Forced selling always has priority.
+          forced_sale =
+            sell_actions.any? do |action|
+              features =
+                extract_features(
+                  action,
+                  @game.round.active_step,
+                  entity,
+                  actions,
+                )
+
+              features[:must_sell]
+            rescue StandardError
+              false
+            end
+
+          return sell_actions if forced_sale
+
+          # STOCK POLICY:
+          # Never leave purchasing power unused while a legal share purchase exists.
+          return buy_actions if buy_actions.any?
+
+          # Optional sales must be small. Do not use multi-share bundles for
+          # speculative/portfolio sales.
+          single_share_sales =
+            sell_actions.select do |action|
+              bundle = action.bundle
+
+              bundle &&
+                bundle.respond_to?(:num_shares) &&
+                bundle.num_shares == 1
+            end
+
+          own_company_sales =
+            single_share_sales.select do |action|
+              corporation = share_action_corporation(action)
+
+              corporation &&
+                corporation.respond_to?(:owner) &&
+                corporation.owner == entity
+            end
+
+          other_company_sales =
+            single_share_sales.reject do |action|
+              own_company_sales.include?(action)
+            end
+
+          if own_company_sales.any? &&
+             AiExpertRules.sell_own_company_shares?(@game, entity)
+            return [own_company_sales.sample]
           end
 
-          return actions if buy_actions.empty?
-
-          controlled_buys = buy_actions.select do |action|
-            corporation = share_action_corporation(action)
-            corporation && corporation.owner == entity
+          if other_company_sales.any? &&
+             AiExpertRules.sell_other_company_shares?(@game, entity)
+            return [other_company_sales.sample]
           end
 
-          return actions if controlled_buys.empty?
-
-          # Once the player controls a corporation and can legally afford another
-          # share in it, continue buying that corporation rather than parring another.
-          non_share_actions = actions.reject do |action|
-            action.is_a?(Engine::Action::BuyShares) ||
-              action.is_a?(Engine::Action::Par)
+          actions.reject do |action|
+            action.is_a?(Engine::Action::SellShares)
           end
-
-          controlled_buys + non_share_actions
         end
 
         def apply_corporate_share_strategy(actions, entity)
@@ -1238,122 +1469,231 @@ module View
 
             if step.respond_to?(:buyable_shares)
               begin
-                candidate_bundles.concat(Array(step.buyable_shares(entity)))
+                candidate_bundles.concat(
+                  Array(step.buyable_shares(entity))
+                )
               rescue StandardError
               end
             end
+
             if step.respond_to?(:buyable_bundles)
               begin
-                candidate_bundles.concat(Array(step.buyable_bundles(entity)))
+                candidate_bundles.concat(
+                  Array(step.buyable_bundles(entity))
+                )
               rescue StandardError
               end
             end
 
             if candidate_bundles.empty?
-              @game.corporations.each do |corp|
-                next unless corp.ipoed || corp.share_price
+              @game.corporations.each do |corporation|
+                next unless corporation.ipoed || corporation.share_price
 
-                ipo_shares = if corp.respond_to?(:ipo_shares) && corp.ipo_shares&.any?
-                               corp.ipo_shares
-                             elsif corp.respond_to?(:shares)
-                               corp.shares
-                             end || []
+                ipo_shares =
+                  if corporation.respond_to?(:ipo_shares) &&
+                     corporation.ipo_shares&.any?
+                    corporation.ipo_shares
+                  elsif corporation.respond_to?(:shares)
+                    corporation.shares
+                  else
+                    []
+                  end
 
-                unissued = ipo_shares.select do |s|
-                  s.owner == corp || (s.respond_to?(:from_depot?) && s.from_depot?)
-                end
+                unissued =
+                  ipo_shares.select do |share|
+                    share.owner == corporation ||
+                      (
+                        share.respond_to?(:from_depot?) &&
+                        share.from_depot?
+                      )
+                  end
+
                 unissued = ipo_shares if unissued.empty?
-                unissued.uniq(&:percent).each do |s|
-                  candidate_bundles << (s.respond_to?(:to_bundle) ? s.to_bundle : Engine::ShareBundle.new(s))
+
+                unissued.uniq(&:percent).each do |share|
+                  candidate_bundles <<
+                    if share.respond_to?(:to_bundle)
+                      share.to_bundle
+                    else
+                      Engine::ShareBundle.new(share)
+                    end
                 end
 
-                pool = @game.respond_to?(:share_pool) ? @game.share_pool : nil
-                pool_shares = pool.respond_to?(:shares_of) ? pool.shares_of(corp) : []
-                if pool_shares.empty? && @game.respond_to?(:bank) && @game.bank.respond_to?(:shares_of)
-                  pool_shares = @game.bank.shares_of(corp)
+                pool =
+                  (@game.share_pool if @game.respond_to?(:share_pool))
+
+                pool_shares =
+                  if pool.respond_to?(:shares_of)
+                    pool.shares_of(corporation)
+                  else
+                    []
+                  end
+
+                if pool_shares.empty? &&
+                   @game.respond_to?(:bank) &&
+                   @game.bank.respond_to?(:shares_of)
+                  pool_shares =
+                    @game.bank.shares_of(corporation)
                 end
-                pool_shares.uniq(&:percent).each do |s|
-                  candidate_bundles << (s.respond_to?(:to_bundle) ? s.to_bundle : Engine::ShareBundle.new(s))
+
+                pool_shares.uniq(&:percent).each do |share|
+                  candidate_bundles <<
+                    if share.respond_to?(:to_bundle)
+                      share.to_bundle
+                    else
+                      Engine::ShareBundle.new(share)
+                    end
                 end
               end
             end
 
-            candidate_bundles.compact.uniq.each do |bnd|
-              b = if bnd.respond_to?(:num_shares)
-                    bnd
-                  elsif bnd.respond_to?(:to_bundle)
-                    bnd.to_bundle
-                  elsif defined?(Engine::ShareBundle)
-                    Engine::ShareBundle.new(bnd)
-                  else
-                    bnd
-                  end
-              next unless b
-              next if step.respond_to?(:can_buy?) && !step.can_buy?(entity, b)
+            candidate_bundles.compact.uniq.each do |candidate|
+              bundle =
+                if candidate.respond_to?(:num_shares)
+                  candidate
+                elsif candidate.respond_to?(:to_bundle)
+                  candidate.to_bundle
+                elsif defined?(Engine::ShareBundle)
+                  Engine::ShareBundle.new(candidate)
+                else
+                  candidate
+                end
 
-              b_price = b.respond_to?(:price) ? (b.price || 0) : 0
-              next if b_price > player_cash
+              next unless bundle
 
-              shares_count = if b.respond_to?(:num_shares)
-                               b.num_shares
-                             else
-                               (b.respond_to?(:shares) ? b.shares.size : 1)
-                             end
+              if step.respond_to?(:can_buy?)
+                begin
+                  next unless step.can_buy?(entity, bundle)
+                rescue StandardError
+                  next
+                end
+              end
+
+              price =
+                if bundle.respond_to?(:price)
+                  bundle.price.to_i
+                else
+                  0
+                end
+
+              next if price > player_cash
+
+              shares_count =
+                if bundle.respond_to?(:num_shares)
+                  bundle.num_shares
+                elsif bundle.respond_to?(:shares)
+                  bundle.shares.size
+                else
+                  1
+                end
+
               next if current_certs + shares_count > cert_limit
-              next if step.respond_to?(:did_sell?) && step.did_sell?(b.corporation, entity)
 
-              raw_shares = if b.respond_to?(:shares) && b.shares&.any?
-                             b.shares
-                           else
-                             Array(b)
-                           end
+              if step.respond_to?(:did_sell?)
+                begin
+                  next if step.did_sell?(
+                    bundle.corporation,
+                    entity,
+                  )
+                rescue StandardError
+                end
+              end
 
-              kwargs = { shares: raw_shares }
-              kwargs[:percent] = b.percent if b.respond_to?(:percent) && b.percent
-              kwargs[:share_price] = b.share_price if b.respond_to?(:share_price) && b.share_price
+              shares =
+                if bundle.respond_to?(:shares) &&
+                   bundle.shares&.any?
+                  bundle.shares
+                else
+                  Array(bundle)
+                end
 
-              legal << Engine::Action::BuyShares.new(entity, **kwargs)
+              kwargs = {
+                shares: shares,
+              }
+
+              if bundle.respond_to?(:percent) &&
+                 bundle.percent
+                kwargs[:percent] = bundle.percent
+              end
+
+              if bundle.respond_to?(:share_price) &&
+                 bundle.share_price
+                kwargs[:share_price] = bundle.share_price
+              end
+
+              legal <<
+                Engine::Action::BuyShares.new(
+                  entity,
+                  **kwargs,
+                )
             end
           end
-
           if actions.include?('sell_shares')
-            corps = @game.corporations.select do |corp|
-              entity.shares_of(corp).any?
-            rescue StandardError
-              false
-            end
+            corporations =
+              @game.corporations.select do |corporation|
+                entity.shares_of(corporation).any?
+              rescue StandardError
+                false
+              end
 
-            corps.each do |corp|
+            corporations.each do |corporation|
               bundles = []
 
               if step.respond_to?(:sellable_bundles)
                 begin
                   bundles.concat(
-                    Array(step.sellable_bundles(entity, corp))
+                    Array(
+                      step.sellable_bundles(
+                        entity,
+                        corporation,
+                      )
+                    )
                   )
                 rescue StandardError
-                  # Fall through to the generic game-level source.
                 end
               end
 
               if step.respond_to?(:bundles_for_corporation)
                 begin
                   bundles.concat(
-                    Array(step.bundles_for_corporation(entity, corp))
+                    Array(
+                      step.bundles_for_corporation(
+                        entity,
+                        corporation,
+                      )
+                    )
                   )
                 rescue StandardError
-                  # Fall through to the generic game-level source.
                 end
               end
 
-              if bundles.empty? &&
-                 @game.respond_to?(:sellable_bundles)
+              # Generic engine-level source used when the current step does not
+              # expose player sale bundles itself.
+              if @game.respond_to?(:bundles_for_corporation)
                 begin
                   bundles.concat(
-                    Array(@game.sellable_bundles(entity, corp))
+                    Array(
+                      @game.bundles_for_corporation(
+                        entity,
+                        corporation,
+                      )
+                    )
                   )
                 rescue StandardError
-                  # No sellable bundles from this corporation.
+                end
+              end
+
+              if @game.respond_to?(:sellable_bundles)
+                begin
+                  bundles.concat(
+                    Array(
+                      @game.sellable_bundles(
+                        entity,
+                        corporation,
+                      )
+                    )
+                  )
+                rescue StandardError
                 end
               end
 
@@ -1361,7 +1701,10 @@ module View
                 if step.respond_to?(:can_sell?)
                   can_sell =
                     begin
-                      step.can_sell?(entity, bundle)
+                      step.can_sell?(
+                        entity,
+                        bundle,
+                      )
                     rescue StandardError
                       false
                     end
@@ -1369,7 +1712,7 @@ module View
                   next unless can_sell
                 end
 
-                raw_shares =
+                shares =
                   if bundle.respond_to?(:shares) &&
                      bundle.shares&.any?
                     bundle.shares
@@ -1377,10 +1720,10 @@ module View
                     Array(bundle)
                   end
 
-                next if raw_shares.empty?
+                next if shares.empty?
 
                 kwargs = {
-                  shares: raw_shares,
+                  shares: shares,
                 }
 
                 if bundle.respond_to?(:percent) &&
@@ -1393,36 +1736,35 @@ module View
                   kwargs[:share_price] = bundle.share_price
                 end
 
-                legal << Engine::Action::SellShares.new(
-                  entity,
-                  **kwargs
-                )
+                legal <<
+                  Engine::Action::SellShares.new(
+                    entity,
+                    **kwargs,
+                  )
               end
             end
           end
 
-          if RUBY_ENGINE != 'opal'
-            legal.select! do |action|
-              trial = @game.clone(Array(@game.raw_actions))
+          return legal if RUBY_ENGINE == 'opal'
 
-              mapped =
-                Engine::Action::Base.action_from_h(
-                  action.to_h,
-                  trial,
-                )
+          legal.select do |action|
+            trial = @game.clone(Array(@game.raw_actions))
 
-              trial.process_action(
-                mapped,
-                add_auto_actions: true,
+            mapped =
+              Engine::Action::Base.action_from_h(
+                action.to_h,
+                trial,
               )
 
-              trial.exception.nil?
-            rescue StandardError
-              false
-            end
-          end
+            trial.process_action(
+              mapped,
+              add_auto_actions: true,
+            )
 
-          legal
+            trial.exception.nil?
+          rescue StandardError
+            false
+          end
         end
 
         def collect_par(step, entity, actions)
@@ -1684,320 +2026,460 @@ module View
           1
         end
 
-        def collect_bankruptcy(step, entity, actions)
-          return [] unless actions.include?('bankrupt')
-          return [] unless defined?(Engine::Action::Bankrupt)
-          return [] unless entity.respond_to?(:corporation?) && entity.corporation?
+def collect_bankruptcy(step, entity, actions)
+  return [] unless actions.include?('bankrupt')
+  return [] unless defined?(Engine::Action::Bankrupt)
+  return [] unless entity.respond_to?(:corporation?) && entity.corporation?
 
-          step_actions =
-            begin
-              Array(step.actions(entity)).map(&:to_s)
-            rescue StandardError
-              []
-            end
+  step_actions =
+    begin
+      Array(step.actions(entity)).map(&:to_s)
+    rescue StandardError
+      []
+    end
 
-          # Bankruptcy is relevant only during the corporation's train-buying step.
-          return [] unless step_actions.include?('buy_train')
+  # Bankruptcy is considered only in a train-buying step.
+  return [] unless step_actions.include?('buy_train')
 
-          must_buy =
-            begin
-              step.send(:must_buy_train?, entity)
-            rescue StandardError
-              begin
-                @game.must_buy_train?(entity)
-              rescue StandardError
-                false
-              end
-            end
+  must_buy =
+    begin
+      step.respond_to?(:must_buy_train?) &&
+        step.must_buy_train?(entity)
+    rescue StandardError
+      begin
+        @game.must_buy_train?(entity)
+      rescue StandardError
+        false
+      end
+    end
 
-          return [] unless must_buy
+  return [] unless must_buy
 
-          # If ANY legal train purchase exists, bankruptcy is not forced.
-          buyable_trains =
-            begin
-              Array(step.buyable_trains(entity))
-            rescue StandardError
-              []
-            end
+  buyable_trains =
+    begin
+      Array(step.buyable_trains(entity))
+    rescue StandardError
+      []
+    end
 
-          buyable_trains.each do |train|
-            action = Engine::Action::BuyTrain.new(
+  # Bankruptcy is forbidden if ANY engine-valid train purchase exists.
+  # Test all variants/prices exposed by the active train-buying step.
+  buyable_trains.each do |train|
+    variants =
+      begin
+        if step.respond_to?(:buyable_train_variants)
+          Array(
+            step.buyable_train_variants(
+              train,
               entity,
-              train: train,
-              price: train.price,
+            )
+          )
+        else
+          []
+        end
+      rescue StandardError
+        []
+      end
+
+    if variants.empty?
+      variants = [
+        {
+          name: train.name,
+          price: train.price,
+        },
+      ]
+    end
+
+    variants.each do |variant|
+      price =
+        if variant.is_a?(Hash)
+          variant[:price] ||
+            variant['price'] ||
+            train.price
+        else
+          train.price
+        end
+
+      variant_name =
+        if variant.is_a?(Hash)
+          variant[:name] ||
+            variant['name']
+        end
+
+      kwargs = {
+        train: train,
+        price: price,
+      }
+
+      kwargs[:variant] = variant_name if variant_name
+
+      begin
+        buy_action =
+          Engine::Action::BuyTrain.new(
+            entity,
+            **kwargs,
+          )
+
+        trial =
+          @game.clone(
+            Array(@game.raw_actions)
+          )
+
+        mapped =
+          Engine::Action::Base.action_from_h(
+            buy_action.to_h,
+            trial,
+          )
+
+        trial.process_action(
+          mapped,
+          add_auto_actions: true,
+        )
+
+        # A train can be bought. Bankruptcy is therefore not forced.
+        return [] if trial.exception.nil?
+      rescue StandardError
+        # Try the next variant/train.
+      end
+    end
+  end
+
+  # No train purchase survived engine validation.
+  # Bankruptcy itself must still be accepted by the engine.
+  action =
+    Engine::Action::Bankrupt.new(entity)
+
+  if RUBY_ENGINE != 'opal'
+    begin
+      trial =
+        @game.clone(
+          Array(@game.raw_actions)
+        )
+
+      mapped =
+        Engine::Action::Base.action_from_h(
+          action.to_h,
+          trial,
+        )
+
+      trial.process_action(
+        mapped,
+        add_auto_actions: true,
+      )
+
+      return [] if trial.exception
+    rescue StandardError
+      return []
+    end
+  end
+
+  [action]
+end
+
+        def collect_destination_connections(step, entity, actions)
+          return [] unless actions.include?('destination_connection')
+          return [] unless step.respond_to?(:auto_actions)
+
+          candidates =
+            begin
+              Array(step.auto_actions(entity))
+            rescue StandardError
+              []
+            end
+
+          candidates.select! do |action|
+            action.is_a?(Engine::Action::DestinationConnection) &&
+              action_belongs_to_entity?(action, entity)
+          end
+
+          return candidates if RUBY_ENGINE == 'opal'
+
+          candidates.select do |action|
+            trial = @game.clone(Array(@game.raw_actions))
+
+            mapped =
+              Engine::Action::Base.action_from_h(
+                action.to_h,
+                trial,
+              )
+
+            trial.process_action(
+              mapped,
+              add_auto_actions: true,
             )
 
-            begin
-              trial = @game.clone(Array(@game.raw_actions))
-              mapped = Engine::Action::Base.action_from_h(
-                action.to_h,
-                trial,
-              )
-
-              trial.process_action(
-                mapped,
-                add_auto_actions: true,
-              )
-
-              # The corporation can escape bankruptcy by buying this train,
-              # including any engine-supported president contribution.
-              return [] unless trial.exception
-            rescue StandardError
-              # Try the next possible train.
-            end
+            trial.exception.nil?
+          rescue StandardError
+            false
           end
-
-          # Only now test whether bankruptcy itself is legal.
-          action = Engine::Action::Bankrupt.new(entity)
-
-          if RUBY_ENGINE != 'opal'
-            begin
-              trial = @game.clone(Array(@game.raw_actions))
-              mapped = Engine::Action::Base.action_from_h(
-                action.to_h,
-                trial,
-              )
-
-              trial.process_action(
-                mapped,
-                add_auto_actions: true,
-              )
-
-              return [] if trial.exception
-            rescue StandardError
-              return []
-            end
-          end
-
-          [action]
         end
 
         def collect_trains(step, entity, actions)
-          return [] unless actions.include?('buy_train')
-
-          if entity.respond_to?(:trains) && @game.respond_to?(:train_limit) && (entity.trains.size >= @game.train_limit(entity))
-            return []
-          end
-
-          current_count = entity.respond_to?(:trains) ? entity.trains.size : 0
-          useful_count = drivable_train_capacity(entity)
-
-          # Buy enough trains to reach the number the network can drive next OR.
-          # Decide the optional +1 exactly once for this corporation while it is in
-          # the train-buying step, so repeated AI presses cannot reroll the 20% chance.
-          target_key = [@game.round.object_id, step.object_id, entity.object_id].join(':')
-          target_count = @random_target_train_count[target_key]
-          unless target_count
-            limit = @game.respond_to?(:train_limit) ? @game.train_limit(entity).to_i : useful_count + 1
-            target_count = AiExpertRules.train_target_count(useful_count, limit)
-            @random_target_train_count[target_key] = target_count
-          end
-
-          normal_train_needed =
-            current_count < target_count
-
-          has_permanent_train =
-            Array(entity.trains).any? do |train|
-              train.rusts_on.nil? &&
-                train.obsolete_on.nil? &&
-                !train.rusted
-            end
-
-          next_depot_train =
-            begin
-              @game.depot.min_depot_train
-            rescue StandardError
-              nil
-            end
-
-          can_afford_next_train =
-            next_depot_train &&
-            entity.respond_to?(:cash) &&
-            entity.cash.to_i >= next_depot_train.price.to_i
-
-          # A corporation may own one more train than its presently drivable network
-          # requires while it is still exposed to rusting.
-          #
-          # This advances the train deck but prevents the repeated purchases that
-          # previously drained a corporation's treasury.
-          progression_train_needed =
-            !normal_train_needed &&
-            !has_permanent_train &&
-            next_depot_train &&
-            can_afford_next_train &&
-
-                     current_count =
-                       entity.respond_to?(:trains) ? entity.trains.size : 0
-
-          useful_count = drivable_train_capacity(entity)
-
-          limit =
-            if @game.respond_to?(:train_limit)
-              @game.train_limit(entity).to_i
-            else
-              useful_count + 1
-            end
-
-          limit = 1 unless limit.positive?
-
-          # Browser AI keeps the existing probabilistic train-target behaviour.
-          #
-          # CLI autoplay uses the actual currently drivable number of trains as
-          # its normal target. Progression beyond this target is handled
-          # separately below so repeated DashboardAiPlayer construction cannot
-          # continuously reroll the old +1 decision.
-          target_count =
-            if RUBY_ENGINE == 'opal'
-              target_key = [
-                @game.round.object_id,
-                step.object_id,
-                entity.object_id,
-              ].join(':')
-
-              @random_target_train_count[target_key] ||=
-                AiExpertRules.train_target_count(
-                  useful_count,
-                  limit,
-                )
-            else
-              [useful_count.to_i, limit].min
-            end
-
-          normal_train_needed =
-            current_count < target_count
-
-          has_permanent_train =
-            Array(entity.trains).any? do |train|
-              train.rusts_on.nil? &&
-                train.obsolete_on.nil? &&
-                !train.rusted
-            end
-
-          next_depot_train =
-            begin
-              @game.depot.min_depot_train
-            rescue StandardError
-              nil
-            end
-
-          can_afford_next_train =
-            next_depot_train &&
-            entity.respond_to?(:cash) &&
-            entity.cash.to_i >= next_depot_train.price.to_i
-
-          # Train-deck progression:
-          #
-          # Until the corporation owns a permanent train, allow it to own
-          # exactly one train beyond what its present network can use, provided
-          # it can afford the next depot train from its own treasury.
-          #
-          # Example:
-          #
-          #   network can use 1
-          #   owns 0 -> buy
-          #   owns 1 -> buy one progression train
-          #   owns 2 -> stop
-          #
-          # If a train later rusts, the corporation may again fall below this
-          # reserve and buy another train. Once it owns a permanent train,
-          # progression buying stops.
-          progression_train_needed =
-            !normal_train_needed &&
-            !has_permanent_train &&
-            next_depot_train &&
-            can_afford_next_train &&
-            current_count < [target_count + 1, limit].min
-
-          return [] unless normal_train_needed || progression_train_needed
-
-          progression_purchase =
-            progression_train_needed && !normal_train_needed
-
-          trains = if step.respond_to?(:buyable_trains)
-                     (begin
-                    step.buyable_trains(entity); rescue StandardError; []; end)
-                   else
-                     []
-                   end
-          b_power = if step.respond_to?(:buying_power)
-                      begin; step.buying_power(entity); rescue StandardError; entity.cash; end
-                    else
-                      (entity.respond_to?(:cash) ? entity.cash : 0)
-                    end
-
           legal = []
-          train_candidates = Array(trains)
 
-          # A progression purchase advances the train deck by only one train
-          # at this decision point.
-          if progression_purchase
-            train_candidates =
-              train_candidates.first(1)
-          end
-          train_candidates.each do |train|
-            depot_train =
-              train.owner == @game.depot ||
-              (train.respond_to?(:from_depot?) && train.from_depot?)
-
-            next unless depot_train
-
-            can_buy =
-              if step.respond_to?(:can_buy_train?)
-                begin
-                  step.can_buy_train?(entity, train)
-                rescue ArgumentError
-                  begin
-                    step.can_buy_train?(entity, train, train.price)
-                  rescue StandardError
-                    false
-                  end
-                rescue StandardError
-                  false
-                end
-              else
-                train.price.to_i <= b_power.to_i
+          if actions.include?('buy_train')
+            forced =
+              begin
+                step.respond_to?(:must_buy_train?) &&
+                  step.must_buy_train?(entity)
+              rescue StandardError
+                false
               end
 
-            # Under Opal, retain the lightweight preliminary check.
-            #
-            # Under CRuby, can_buy_train? may return false for a valid emergency
-            # purchase requiring president contribution. Let authoritative clone
-            # processing determine legality below.
-            next if RUBY_ENGINE == 'opal' && !can_buy
+            current_count =
+              entity.respond_to?(:trains) ? entity.trains.size : 0
 
-            if progression_purchase
-              next unless entity.respond_to?(:cash)
-              next unless entity.cash.to_i >= train.price.to_i
-            end
+            useful_count = drivable_train_capacity(entity)
 
-            legal << Engine::Action::BuyTrain.new(
-              entity,
-              train: train,
-              price: train.price,
-            )
-          end
+            limit =
+              if @game.respond_to?(:train_limit)
+                @game.train_limit(entity).to_i
+              else
+                useful_count + 1
+              end
 
-          if RUBY_ENGINE != 'opal'
-            legal.select! do |action|
-              trial = @game.clone(Array(@game.raw_actions))
-              mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
+            limit = 1 unless limit.positive?
 
-              trial.process_action(mapped, add_auto_actions: true)
+            target_count =
+              if RUBY_ENGINE == 'opal'
+                target_key = [
+                  @game.round.object_id,
+                  step.object_id,
+                  entity.object_id,
+                ].join(':')
 
-              trial.exception.nil?
-            rescue StandardError
-              false
+                @random_target_train_count[target_key] ||=
+                  AiExpertRules.train_target_count(
+                    useful_count,
+                    limit,
+                  )
+              else
+                [useful_count.to_i, limit].min
+              end
+
+            normal_train_needed =
+              current_count < target_count
+
+            has_permanent_train =
+              Array(entity.trains).any? do |train|
+                permanent_train?(train)
+              end
+
+            next_depot_train =
+              begin
+                @game.depot.min_depot_train
+              rescue StandardError
+                nil
+              end
+
+            corporation_cash =
+              entity.respond_to?(:cash) ? entity.cash.to_i : 0
+
+            next_depot_price =
+              next_depot_train ? next_depot_train.price.to_i : 0
+
+            can_afford_next_train =
+              next_depot_train &&
+              corporation_cash >= next_depot_price
+
+            progression_train_needed =
+              !normal_train_needed &&
+              !has_permanent_train &&
+              next_depot_train &&
+              can_afford_next_train &&
+              current_count < [target_count + 1, limit].min
+
+            cash_rich_train_needed =
+              next_depot_train &&
+              AiExpertRules.buy_train_when_cash_rich?(
+                corporation_cash,
+                next_depot_price,
+              )
+
+            trains =
+              begin
+                if step.respond_to?(:buyable_trains)
+                  Array(step.buyable_trains(entity))
+                else
+                  []
+                end
+              rescue StandardError
+                []
+              end
+
+            affordable_permanent_depot_trains =
+              trains.select do |train|
+                from_depot =
+                  train.owner == @game.depot ||
+                  (
+                    train.respond_to?(:from_depot?) &&
+                    train.from_depot?
+                  )
+
+                from_depot &&
+                  permanent_train?(train) &&
+                  corporation_cash >= train.price.to_i
+              end
+
+            permanent_train_needed =
+              affordable_permanent_depot_trains.any? &&
+              AiExpertRules.buy_affordable_permanent_train?
+
+            should_buy =
+              forced ||
+              permanent_train_needed ||
+              cash_rich_train_needed ||
+              normal_train_needed ||
+              progression_train_needed
+
+            if should_buy
+              trains.each do |train|
+                variants =
+                  begin
+                    if step.respond_to?(:buyable_train_variants)
+                      Array(
+                        step.buyable_train_variants(
+                          train,
+                          entity,
+                        )
+                      )
+                    else
+                      []
+                    end
+                  rescue StandardError
+                    []
+                  end
+
+                if variants.empty?
+                  variants = [
+                    {
+                      name: train.name,
+                      price: train.price,
+                    },
+                  ]
+                end
+
+                variants.each do |variant|
+                  price =
+                    if variant.is_a?(Hash)
+                      variant[:price] ||
+                        variant['price'] ||
+                        train.price
+                    else
+                      train.price
+                    end
+
+                  variant_name =
+                    if variant.is_a?(Hash)
+                      variant[:name] ||
+                        variant['name']
+                    end
+
+                  kwargs = {
+                    train: train,
+                    price: price,
+                  }
+
+                  kwargs[:variant] = variant_name if variant_name
+
+                  action =
+                    Engine::Action::BuyTrain.new(
+                      entity,
+                      **kwargs,
+                    )
+
+                  if RUBY_ENGINE == 'opal'
+                    legal << action
+                    next
+                  end
+
+                  begin
+                    trial =
+                      @game.clone(
+                        Array(@game.raw_actions)
+                      )
+
+                    mapped =
+                      Engine::Action::Base.action_from_h(
+                        action.to_h,
+                        trial,
+                      )
+
+                    trial.process_action(
+                      mapped,
+                      add_auto_actions: true,
+                    )
+
+                    legal << action if trial.exception.nil?
+                  rescue StandardError
+                    next
+                  end
+                end
+              end
+
+              if permanent_train_needed
+                permanent_actions =
+                  legal.select do |action|
+                    train = action.train
+
+                    from_depot =
+                      train.owner == @game.depot ||
+                      (
+                        train.respond_to?(:from_depot?) &&
+                        train.from_depot?
+                      )
+
+                    from_depot &&
+                      permanent_train?(train) &&
+                      corporation_cash >= action.price.to_i
+                  end
+
+                legal = permanent_actions if permanent_actions.any?
+
+              else
+                same_director_actions =
+                  legal.select do |action|
+                    same_director_train?(
+                      entity,
+                      action.train,
+                    )
+                  end
+
+                if same_director_actions.any? &&
+                   AiExpertRules.buy_same_director_train?(@game, entity)
+
+                  legal = same_director_actions
+
+                elsif same_director_actions.any?
+                  alternatives =
+                    legal.reject do |action|
+                      same_director_actions.include?(action)
+                    end
+
+                  legal = alternatives if alternatives.any?
+                end
+              end
             end
           end
 
           if actions.include?('discard_train')
-            discardable = if step.respond_to?(:discardable_trains)
-                            begin; step.discardable_trains(entity); rescue StandardError; []; end
-                          else
-                            (entity.respond_to?(:trains) ? entity.trains : [])
-                          end
-            Array(discardable).each do |t|
-              legal << Engine::Action::DiscardTrain.new(entity, train: t)
+            discardable =
+              if step.respond_to?(:discardable_trains)
+                begin
+                  step.discardable_trains(entity)
+                rescue StandardError
+                  []
+                end
+              else
+                entity.respond_to?(:trains) ? entity.trains : []
+              end
+
+            Array(discardable).each do |train|
+              legal <<
+                Engine::Action::DiscardTrain.new(
+                  entity,
+                  train: train,
+                )
             end
           end
 
@@ -2005,23 +2487,38 @@ module View
         end
 
         def collect_issue_shares(step, entity, actions)
-          return [] unless (actions & %w[issue issue_shares reissue reissue_shares corporate_sell_shares sell_shares]).any?
+          return [] unless (
+            actions &
+              %w[
+                issue
+                issue_shares
+                reissue
+                reissue_shares
+                corporate_sell_shares
+                sell_shares
+              ]
+          ).any?
+
           return [] unless entity.respond_to?(:corporation?) && entity.corporation?
           return [] unless defined?(Engine::Action::SellShares)
 
-          issue_step = step
-
           bundles = []
 
-          %i[issuable_shares issueable_shares issuable_bundles].each do |method_name|
-            next unless issue_step.respond_to?(method_name)
+          # First ask the current step. This is authoritative when the step
+          # implements special emergency-money or issue rules.
+          %i[
+            issuable_shares
+            issueable_shares
+            issuable_bundles
+          ].each do |method_name|
+            next unless step.respond_to?(method_name)
 
             result =
               begin
-                issue_step.public_send(method_name, entity)
+                step.public_send(method_name, entity)
               rescue ArgumentError
                 begin
-                  issue_step.public_send(method_name)
+                  step.public_send(method_name)
                 rescue StandardError
                   []
                 end
@@ -2032,67 +2529,224 @@ module View
             bundles.concat(Array(result))
           end
 
-          bundles.compact.uniq.filter_map do |bundle|
-            raw_shares =
-              if bundle.respond_to?(:shares)
-                Array(bundle.shares)
-              elsif bundle.respond_to?(:to_bundle)
-                Array(bundle.to_bundle.shares)
-              else
-                Array(bundle)
+          # Some games expose their legal corporate issue bundles on the game
+          # rather than through the currently active step.
+          %i[
+            issuable_shares
+            issueable_shares
+            emergency_issuable_bundles
+          ].each do |method_name|
+            next unless @game.respond_to?(method_name)
+
+            result =
+              begin
+                @game.public_send(method_name, entity)
+              rescue StandardError
+                []
               end
 
-            next if raw_shares.empty?
-
-            kwargs = { shares: raw_shares }
-            kwargs[:percent] = bundle.percent if bundle.respond_to?(:percent) && bundle.percent
-            kwargs[:share_price] = bundle.share_price if bundle.respond_to?(:share_price) && bundle.share_price
-
-            Engine::Action::SellShares.new(entity, **kwargs)
-          rescue StandardError => e
-            LOGGER.warn(
-              "[AI ISSUE SHARES] rejected candidate: #{e.class}: #{e.message}"
-            )
-            nil
+            bundles.concat(Array(result))
           end
-        end
 
-        def collect_redeem_shares(step, entity, actions)
-          return [] unless (actions & %w[redeem redeem_shares corporate_buy_shares buy_shares]).any?
-          return [] unless entity.respond_to?(:corporation?) && entity.corporation?
-
-          raw = if step.respond_to?(:redeemable_shares)
-                  begin; Array(step.redeemable_shares(entity)); rescue ArgumentError; Array(step.redeemable_shares); end
-                elsif step.respond_to?(:redeemable_bundles)
-                  begin; Array(step.redeemable_bundles(entity)); rescue ArgumentError; Array(step.redeemable_bundles); end
-                elsif step.respond_to?(:buyable_shares)
-                  begin; Array(step.buyable_shares(entity)); rescue ArgumentError; Array(step.buyable_shares); end
+          legal =
+            bundles.compact.uniq.filter_map do |candidate|
+              bundle =
+                if candidate.respond_to?(:to_bundle)
+                  candidate.to_bundle
                 else
-                  []
+                  candidate
                 end
 
-          raw.filter_map do |candidate|
-            bundle = candidate.respond_to?(:to_bundle) && !candidate.respond_to?(:shares) ? candidate.to_bundle : candidate
-            shares = bundle.respond_to?(:shares) ? Array(bundle.shares).flatten.compact : Array(bundle).flatten.compact
-            next if shares.empty?
+              shares =
+                if bundle.respond_to?(:shares)
+                  Array(bundle.shares)
+                else
+                  Array(bundle)
+                end
 
-            price = bundle.respond_to?(:price) ? bundle.price.to_i : 0
-            next if entity.respond_to?(:cash) && price > entity.cash.to_i
+              next if shares.empty?
 
-            if actions.include?('redeem_shares') && defined?(Engine::Action::RedeemShares)
-              Engine::Action::RedeemShares.new(entity, bundle: bundle, shares: shares)
-            elsif actions.include?('redeem') && defined?(Engine::Action::Redeem)
-              Engine::Action::Redeem.new(entity, bundle: bundle, shares: shares)
-            elsif actions.include?('corporate_buy_shares') && defined?(Engine::Action::CorporateBuyShares)
-              Engine::Action::CorporateBuyShares.new(entity, bundle: bundle, shares: shares)
-            else
-              Engine::Action::BuyShares.new(entity, bundle: bundle, shares: shares)
+              kwargs = {
+                shares: shares,
+              }
+
+              kwargs[:percent] = bundle.percent if bundle.respond_to?(:percent) && bundle.percent
+
+              kwargs[:share_price] = bundle.share_price if bundle.respond_to?(:share_price) && bundle.share_price
+
+              Engine::Action::SellShares.new(
+                entity,
+                **kwargs,
+              )
+            rescue StandardError
+              nil
             end
-          rescue StandardError => e
-            LOGGER.warn("[AI REDEEM] rejected candidate: #{e.class}: #{e.message}")
-            nil
+
+          return legal if RUBY_ENGINE == 'opal'
+
+          # The engine, not the AI, has final authority over whether an issue
+          # bundle is actually legal in the current game state.
+          legal.select do |action|
+            trial = @game.clone(Array(@game.raw_actions))
+
+            mapped =
+              Engine::Action::Base.action_from_h(
+                action.to_h,
+                trial,
+              )
+
+            trial.process_action(
+              mapped,
+              add_auto_actions: true,
+            )
+
+            trial.exception.nil?
+          rescue StandardError
+            false
           end
         end
+
+def collect_redeem_shares(step, entity, actions)
+  return [] unless (
+    actions &
+      %w[
+        redeem
+        redeem_shares
+        corporate_buy_shares
+        buy_shares
+      ]
+  ).any?
+
+  return [] unless entity.respond_to?(:corporation?) &&
+                   entity.corporation?
+
+  raw =
+    if step.respond_to?(:redeemable_shares)
+      begin
+        Array(step.redeemable_shares(entity))
+      rescue ArgumentError
+        begin
+          Array(step.redeemable_shares)
+        rescue StandardError
+          []
+        end
+      rescue StandardError
+        []
+      end
+    elsif step.respond_to?(:redeemable_bundles)
+      begin
+        Array(step.redeemable_bundles(entity))
+      rescue ArgumentError
+        begin
+          Array(step.redeemable_bundles)
+        rescue StandardError
+          []
+        end
+      rescue StandardError
+        []
+      end
+    elsif step.respond_to?(:buyable_shares)
+      begin
+        Array(step.buyable_shares(entity))
+      rescue ArgumentError
+        begin
+          Array(step.buyable_shares)
+        rescue StandardError
+          []
+        end
+      rescue StandardError
+        []
+      end
+    else
+      []
+    end
+
+  legal =
+    raw.filter_map do |candidate|
+      bundle =
+        if candidate.respond_to?(:to_bundle)
+          candidate.to_bundle
+        else
+          candidate
+        end
+
+      shares =
+        if bundle.respond_to?(:shares)
+          Array(bundle.shares).flatten.compact
+        else
+          Array(bundle).flatten.compact
+        end
+
+      next if shares.empty?
+
+      price =
+        bundle.respond_to?(:price) ?
+          bundle.price.to_i :
+          0
+
+      next if entity.respond_to?(:cash) &&
+              price > entity.cash.to_i
+
+      kwargs = {
+        shares: shares,
+      }
+
+      if bundle.respond_to?(:percent) &&
+         bundle.percent
+        kwargs[:percent] = bundle.percent
+      end
+
+      if bundle.respond_to?(:share_price) &&
+         bundle.share_price
+        kwargs[:share_price] = bundle.share_price
+      end
+
+      if actions.include?('corporate_buy_shares') &&
+         defined?(Engine::Action::CorporateBuyShares)
+
+        Engine::Action::CorporateBuyShares.new(
+          entity,
+          **kwargs,
+        )
+      else
+    **  Engine::Action::BuyShares.new(
+**        entity,
+          **kwarg**
+        )
+      end
+    rescue S**ndardError => e
+      LOGGER.warn(
+        "[AI REDEEM] rejected candidate: " \
+        "#{e.class}: #{e.message}"
+      )
+      nil
+    end
+
+  return legal if RUBY_ENGINE == 'opal'
+
+  legal.select do |action|
+    trial = @game.clone(Array(@game.raw_actions))
+
+    mapped =
+      Engine::Action::Base.action_from_h(
+        action.to_h,
+        trial,
+      )
+
+    trial.process_action(
+      mapped,
+      add_auto_actions: true,
+    )
+
+    trial.exception.nil?
+  rescue StandardError => e
+    LOGGER.warn(
+      "[AI REDEEM] engine rejected candidate: " \
+      "#{e.class}: #{e.message}"
+    )
+    false
+  end
+end
 
         def collect_routes(_step, entity, actions)
           return [] unless actions.include?('run_routes')
@@ -2117,7 +2771,14 @@ module View
                 end
               )
             rescue StandardError => e
-              `console.warn("[AI Expert] AutoRouter fallback warning:", #{e.message})`
+              if RUBY_ENGINE == 'opal'
+  `console.warn("[AI Expert] AutoRouter fallback warning:", #{e.message})`
+else
+  LOGGER.warn(
+    "[AI Expert] AutoRouter fallback warning: #{e.class}: #{e.message}"
+  )
+end
+
             end
           end
 
@@ -2234,7 +2895,13 @@ module View
 
           best_rev
         rescue StandardError => e
-          `console.warn("[AI BUILD ROUTER ERROR] " + #{label} + " " + #{e.message})`
+if RUBY_ENGINE == 'opal'
+  `console.warn("[AI BUILD ROUTER ERROR] " + #{label} + " " + #{e.message})`
+else
+  LOGGER.warn(
+    "[AI BUILD ROUTER ERROR] #{label} #{e.class}: #{e.message}"
+  )
+end
           nil
         end
 
@@ -2320,52 +2987,106 @@ module View
           []
         end
 
-        # Synchronous two-build fallback. AutoRouter callbacks are asynchronous in
-        # the browser, so temporary-map AutoRouter evaluation cannot safely be used
-        # inside this synchronous action dispatcher. Score every legal first build
-        # with the expert two-build topology evaluator and log every result.
-        def trial_and_evaluate_tile(step, entity, hex, tile, rotation, cost, deadline_ms)
-          label = "hex=#{hex.id} tile=#{tile.name} rotation=#{rotation}"
-          return nil if `Date.now()`.to_f >= deadline_ms
+        def trial_and_evaluate_tile(
+          step,
+          entity,
+          hex,
+          tile,
+          rotation,
+          cost,
+          deadline_ms
+        )
+          now_ms =
+            if RUBY_ENGINE == 'opal'
+              `Date.now()`.to_f
+            else
+              Process.clock_gettime(
+                Process::CLOCK_MONOTONIC
+              ) * 1000.0
+            end
+
+          return nil if now_ms >= deadline_ms
           return nil if tile.respond_to?(:hex) && tile.hex
 
           old_tile = hex.tile
           return nil unless old_tile
 
-          old_rotation = tile.respond_to?(:rotation) ? (tile.rotation || 0) : 0
+          old_rotation =
+            if tile.respond_to?(:rotation)
+              (tile.rotation || 0)
+            else
+              0
+            end
+
           begin
             tile.rotate!(rotation) if tile.respond_to?(:rotate!)
-            legal_rotation = if step.respond_to?(:legal_tile_rotation?)
-                               begin; step.legal_tile_rotation?(entity, hex, tile)
-                               rescue ArgumentError
-                                 begin; step.legal_tile_rotation?(entity, hex, tile, rotation); rescue StandardError; false; end
-                               rescue StandardError
-                                 false
-                               end
-                             else
-                               true
-                             end
+
+            legal_rotation =
+              if step.respond_to?(:legal_tile_rotation?)
+                begin
+                  step.legal_tile_rotation?(
+                    entity,
+                    hex,
+                    tile,
+                  )
+                rescue ArgumentError
+                  begin
+                    step.legal_tile_rotation?(
+                      entity,
+                      hex,
+                      tile,
+                      rotation,
+                    )
+                  rescue StandardError
+                    false
+                  end
+                rescue StandardError
+                  false
+                end
+              else
+                true
+              end
+
             return nil unless legal_rotation
 
-            metrics = AiExpertRules.two_build_tile_features(
-              entity: entity,
-              hex: hex,
-              old_tile: old_tile,
-              new_tile: tile,
-              cost: cost,
-              revenue_for: ->(candidate) { printed_hex_revenue(candidate) },
-            )
-            first_value = metrics[:tile_rev_gain].to_i + metrics[:horizon_1_value].to_i
-            two_build_value = first_value + metrics[:horizon_2_value].to_i
+            metrics =
+              AiExpertRules.two_build_tile_features(
+                entity: entity,
+                hex: hex,
+                old_tile: old_tile,
+                new_tile: tile,
+                cost: cost,
+                revenue_for: lambda do |candidate|
+                  printed_hex_revenue(candidate)
+                end,
+              )
+
+            first_value =
+              metrics[:tile_rev_gain].to_i +
+              metrics[:horizon_1_value].to_i
+
+            two_build_value =
+              first_value +
+              metrics[:horizon_2_value].to_i
+
             metrics[:first_revenue] = first_value
             metrics[:projected_revenue] = two_build_value
             metrics[:route_revenue_gain] = two_build_value
-            metrics[:best_second] = "topology horizon 2 value=#{metrics[:horizon_2_value].to_i}"
+
+            metrics[:best_second] =
+              'topology horizon 2 value=' \
+              "#{metrics[:horizon_2_value].to_i}"
+
             metrics[:search_timed_out] = false
 
             metrics
           rescue StandardError => e
-            `console.warn("[AI BUILD EVALUATION ERROR] " + #{label} + " " + #{e.message})`
+            LOGGER.warn(
+              '[AI BUILD EVALUATION ERROR] ' \
+              "hex=#{hex.id} tile=#{tile.name} " \
+              "rotation=#{rotation}: #{e.class}: #{e.message}"
+            )
+
             nil
           ensure
             tile.rotate!(old_rotation) if tile.respond_to?(:rotate!)
@@ -2378,48 +3099,76 @@ module View
 
           legal = []
           @tile_eval_cache = {}
-          approved_hexes = []
 
-          # Use exactly the same engine API as the normal map UI:
-          #   step.available_hex -> step.upgradeable_tiles -> tile.legal_rotations
-          # Tracker#upgradeable_tiles already applies potential_tiles,
-          # tile_valid_for_phase?, upgrades_to?, blocks_lay,
-          # legal_tile_rotations, and max-exit restrictions.
+          deadline_ms =
+            if RUBY_ENGINE == 'opal'
+              `Date.now()`.to_f + TILE_SEARCH_TIMEOUT_MS
+            else
+              (
+                Process.clock_gettime(
+                  Process::CLOCK_MONOTONIC
+                ) * 1000.0
+              ) + TILE_SEARCH_TIMEOUT_MS
+            end
+
           Array(@game.hexes).each do |hex|
             next unless hex
 
-            available = begin
-              step.available_hex(entity, hex)
-            rescue StandardError => e
-              LOGGER.warn(
-                "[AI TILE ENGINE LIST] available_hex failed hex=#{hex.id}: #{e.class}: #{e.message}"
-              )
-              false
-            end
+            available =
+              begin
+                step.available_hex(entity, hex)
+              rescue StandardError => e
+                LOGGER.warn(
+                  '[AI TILE ENGINE LIST] ' \
+                  "available_hex failed hex=#{hex.id}: " \
+                  "#{e.class}: #{e.message}"
+                )
+
+                false
+              end
+
             next unless available
 
-            tiles = begin
-              Array(step.upgradeable_tiles(entity, hex)).compact
-            rescue StandardError => e
-              LOGGER.warn(
-                "[AI TILE ENGINE LIST] upgradeable_tiles failed hex=#{hex.id}: #{e.class}: #{e.message}"
-              )
-              []
-            end
+            tiles =
+              begin
+                Array(
+                  step.upgradeable_tiles(
+                    entity,
+                    hex,
+                  )
+                ).compact
+              rescue StandardError => e
+                LOGGER.warn(
+                  '[AI TILE ENGINE LIST] ' \
+                  "upgradeable_tiles failed hex=#{hex.id}: " \
+                  "#{e.class}: #{e.message}"
+                )
+
+                []
+              end
+
             next if tiles.empty?
 
-            approved_hexes << hex.id.to_s
-
             tiles.each do |tile|
-              rotations = Array(tile.legal_rotations).compact.map(&:to_i).uniq.sort
+              next if tile.respond_to?(:hex) && tile.hex
+
+              rotations =
+                Array(tile.legal_rotations)
+                  .compact
+                  .map(&:to_i)
+                  .uniq
+                  .sort
 
               rotations.each do |rotation|
-                legal << Engine::Action::LayTile.new(
-                  entity,
-                  hex: hex,
-                  tile: tile,
-                  rotation: rotation,
-                )
+                action =
+                  Engine::Action::LayTile.new(
+                    entity,
+                    hex: hex,
+                    tile: tile,
+                    rotation: rotation,
+                  )
+
+                legal << action
               end
             end
           end
@@ -2427,9 +3176,17 @@ module View
           if RUBY_ENGINE != 'opal'
             legal.select! do |action|
               trial = @game.clone(Array(@game.raw_actions))
-              mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
 
-              trial.process_action(mapped, add_auto_actions: true)
+              mapped =
+                Engine::Action::Base.action_from_h(
+                  action.to_h,
+                  trial,
+                )
+
+              trial.process_action(
+                mapped,
+                add_auto_actions: true,
+              )
 
               trial.exception.nil?
             rescue StandardError
@@ -2438,11 +3195,81 @@ module View
           end
 
           legal.uniq! do |action|
-            [action.hex.id.to_s, action.tile.name.to_s, action.rotation.to_i]
+            [
+              action.hex.id.to_s,
+              action.tile.name.to_s,
+              action.rotation.to_i,
+            ]
           end
 
           legal.sort_by! do |action|
-            [action.hex.id.to_s, action.tile.name.to_s, action.rotation.to_i]
+            [
+              action.hex.id.to_s,
+              action.tile.name.to_s,
+              action.rotation.to_i,
+            ]
+          end
+
+          # This was previously missing. Evaluate every verified legal tile
+          # action and attach its revenue-centre and two-build features to the
+          # exact action object later consumed by extract_features.
+          legal.each do |action|
+            now_ms =
+              if RUBY_ENGINE == 'opal'
+                `Date.now()`.to_f
+              else
+                Process.clock_gettime(
+                  Process::CLOCK_MONOTONIC
+                ) * 1000.0
+              end
+
+            if now_ms >= deadline_ms
+              @tile_eval_cache[action] = {
+                tile_rev_gain: 0,
+                has_own_token: false,
+                horizon_1_value: 0,
+                horizon_2_value: 0,
+                projected_revenue: 0,
+                route_revenue_gain: 0,
+                tile_cost: 0,
+                search_timed_out: true,
+                best_second: 'search timeout',
+              }
+
+              next
+            end
+
+            cost =
+              calculate_tile_cost(
+                step,
+                entity,
+                action.hex,
+                action.tile,
+              )
+
+            metrics =
+              trial_and_evaluate_tile(
+                step,
+                entity,
+                action.hex,
+                action.tile,
+                action.rotation,
+                cost,
+                deadline_ms,
+              )
+
+            @tile_eval_cache[action] =
+              metrics || {
+                tile_rev_gain: 0,
+                has_own_token: false,
+                horizon_1_value: 0,
+                horizon_2_value: 0,
+                projected_revenue: 0,
+                route_revenue_gain: 0,
+                tile_cost: cost.to_i,
+                search_timed_out: false,
+                best_second: 'no evaluated continuation',
+              }
           end
 
           legal

@@ -44,13 +44,17 @@ module View
         def self.select_candidate(scored_items, top_window: nil)
           return nil if scored_items.empty?
 
-          # Only an explicit hard veto removes an action.
+          # Strategic hard vetoes normally remove undesirable actions.
           valid = scored_items.reject { |item| item[:score] <= -5000 }
-          return nil if valid.empty?
 
-          # Start from ALL non-vetoed legal actions.
+          # Stabilisation rule:
+          # strategy must never turn a non-empty set of engine-validated
+          # actions into "AI cannot act".
           #
-          # Equal scores => exactly equal probability.
+          # If every legal candidate was vetoed, retain them all and choose
+          # among them according to their relative scores.
+          valid = scored_items if valid.empty?
+
           min_score = valid.map { |item| item[:score] }.min
 
           weights = valid.map do |item|
@@ -114,6 +118,28 @@ module View
           )
         end
 
+        # Policy: sell shares in a corporation controlled by this player
+# with 5% probability at each eligible game position.
+def self.sell_own_company_shares?(game, entity)
+  stable_probability?(
+    game,
+    entity,
+    :sell_own_company_shares,
+    0.05,
+  )
+end
+
+# Policy: sell shares in a corporation controlled by another player
+# with 10% probability at each eligible game position.
+def self.sell_other_company_shares?(game, entity)
+  stable_probability?(
+    game,
+    entity,
+    :sell_other_company_shares,
+    0.10,
+  )
+end
+
         # Policy: generic choices are intentionally uniform.
         def self.select_uniform_choice(actions)
           choices = actions.select { |action| action.is_a?(Engine::Action::Choose) }
@@ -145,6 +171,32 @@ module View
           extra_train = rand < 0.20 ? 1 : 0
           [useful_count.to_i + extra_train, train_limit.to_i].min
         end
+
+        # Policy: if the corporation has at least twice the price of the
+# next depot train in cash, buy another train.
+def self.buy_train_when_cash_rich?(corporation_cash, next_train_price)
+  price = next_train_price.to_i
+  return false unless price.positive?
+
+  corporation_cash.to_i >= (2 * price)
+end
+
+# Policy: buy an engine-legal train from another corporation controlled
+# by the same director with 10% probability.
+def self.buy_same_director_train?(game, entity)
+  stable_probability?(
+    game,
+    entity,
+    :buy_same_director_train,
+    0.10,
+  )
+end
+
+# Policy: if an affordable permanent train is available from the depot,
+# buy it now.
+def self.buy_affordable_permanent_train?
+  true
+end
 
         # Policy: place the best engine-verified revenue-improving marker
         # with 80% probability; otherwise continue to track laying.
@@ -388,6 +440,8 @@ module View
             },
             score_add: -180,
           },
+
+          
 
           # --- SHARE ROUND: GENERAL INVESTING ---
           {
