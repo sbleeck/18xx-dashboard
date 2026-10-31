@@ -829,6 +829,32 @@ titles =
 existing_rows =
   read_rows
 
+# Unsupported player-count results are retryable. Remove them from the
+# persisted result set so a resumed sweep can try those titles again with
+# the three-player fallback instead of skipping them forever.
+retryable_rows,
+completed_rows =
+  existing_rows.partition do |row|
+    row['status'] == 'unsupported_player_count'
+  end
+
+if retryable_rows.any?
+  CSV.open(
+    CSV_FILE,
+    'wb'
+  ) do |csv|
+    csv << CSV_HEADERS
+
+    completed_rows.each do |row|
+      csv << CSV_HEADERS.map do |header|
+        row[header]
+      end
+    end
+  end
+
+  existing_rows = completed_rows
+end
+
 completed_titles =
   existing_rows
     .map do |row|
@@ -944,75 +970,130 @@ titles.each_with_index do |title, index|
     title
   )
 
-  command = [
-    'bundle',
-    'exec',
-    RbConfig.ruby,
-    AUTOPLAY_SCRIPT,
-    '--new',
-    title,
-    '--players',
-    options[:players].to_s,
-    '--seed',
-    options[:seed].to_s,
-    '--max-moves',
-    options[:max_moves].to_s,
-    '--output',
-    output_dir,
-    '--live-fixture',
-    live_fixture_file,
-  ]
+  player_counts = [options[:players]]
+  player_counts << 3 unless player_counts.include?(3)
 
   stdout = +''
   stderr = +''
   exit_code = nil
   timed_out = false
+  players_used = options[:players]
 
   started_at =
     Process.clock_gettime(
       Process::CLOCK_MONOTONIC
     )
 
-  begin
-    Timeout.timeout(
-      options[:timeout_seconds]
-    ) do
-      stdout,
-      stderr,
-      status =
-        Open3.capture3(
-          *command,
-          chdir: ROOT,
-        )
+  player_counts.each_with_index do |player_count, attempt_index|
+    players_used = player_count
 
-      exit_code =
-        status.exitstatus
+    if attempt_index.positive?
+      puts(
+        "          #{options[:players]} players unsupported; " \
+        "retrying with #{player_count} players"
+      )
+
+      FileUtils.rm_rf(
+        output_dir
+      )
+
+      FileUtils.mkdir_p(
+        output_dir
+      )
     end
-  rescue Timeout::Error
-    timed_out = true
 
-    stderr <<
-      "\nSWEEP TIMEOUT after " \
-      "#{options[:timeout_seconds]} seconds\n"
-  rescue Interrupt
-    warn
-    warn 'Sweep interrupted by user.'
-    warn 'Completed games remain recorded in results.csv.'
-    warn 'Run the same command again to continue.'
-    warn
+    command = [
+      'bundle',
+      'exec',
+      RbConfig.ruby,
+      AUTOPLAY_SCRIPT,
+      '--new',
+      title,
+      '--players',
+      player_count.to_s,
+      '--seed',
+      options[:seed].to_s,
+      '--max-moves',
+      options[:max_moves].to_s,
+      '--output',
+      output_dir,
+      '--live-fixture',
+      live_fixture_file,
+    ]
 
-    rows =
-      read_rows
+    attempt_stdout = +''
+    attempt_stderr = +''
+    attempt_exit_code = nil
+    attempt_timed_out = false
 
-    write_html(
-      rows
-    )
+    begin
+      Timeout.timeout(
+        options[:timeout_seconds]
+      ) do
+        attempt_stdout,
+        attempt_stderr,
+        status =
+          Open3.capture3(
+            *command,
+            chdir: ROOT,
+          )
 
-    exit 130
-  rescue StandardError => e
-    stderr <<
-      "\nSWEEP PROCESS ERROR: " \
-      "#{e.class}: #{e.message}\n"
+        attempt_exit_code =
+          status.exitstatus
+      end
+    rescue Timeout::Error
+      attempt_timed_out = true
+
+      attempt_stderr <<
+        "\nSWEEP TIMEOUT after " \
+        "#{options[:timeout_seconds]} seconds\n"
+    rescue Interrupt
+      warn
+      warn 'Sweep interrupted by user.'
+      warn 'Completed games remain recorded in results.csv.'
+      warn 'Run the same command again to continue.'
+      warn
+
+      rows =
+        read_rows
+
+      write_html(
+        rows
+      )
+
+      exit 130
+    rescue StandardError => e
+      attempt_stderr <<
+        "\nSWEEP PROCESS ERROR: " \
+        "#{e.class}: #{e.message}\n"
+    end
+
+    stdout = attempt_stdout
+    stderr = attempt_stderr
+    exit_code = attempt_exit_code
+    timed_out = attempt_timed_out
+
+    checkpoint =
+      read_json(
+        checkpoint_file
+      )
+
+    unsupported_players =
+      checkpoint.nil? &&
+      (
+        stderr.match?(/player/i) &&
+        stderr.match?(
+          /min|max|support|number|required/i
+        )
+      )
+
+    has_three_player_retry =
+      player_count != 3 &&
+      player_counts.include?(3)
+
+    next if unsupported_players && has_three_player_retry
+
+    break
   end
 
   elapsed =
@@ -1207,8 +1288,9 @@ titles.each_with_index do |title, index|
   )
 
   puts format(
-    '          %-25s actions=%-5d seconds=%7.2f speed=%6.2f',
+    '          %-25s players=%-2d actions=%-5d seconds=%7.2f speed=%6.2f',
     status,
+    players_used,
     action_count,
     elapsed,
     speed
