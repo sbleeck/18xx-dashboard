@@ -25,7 +25,12 @@ module View
             return false if @execution_locks[key]
 
             fingerprint = invocation_fingerprint(game)
-            now = `Date.now()`.to_f
+            now =
+              if RUBY_ENGINE == 'opal'
+                `Date.now()`.to_f
+              else
+                Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000.0
+              end
             previous = @last_invocations[key]
             if previous && previous[:fingerprint] == fingerprint && (now - previous[:time]) < 300
               `console.warn("[AI Expert] Duplicate invocation suppressed.")`
@@ -291,6 +296,10 @@ module View
           'buy_shares' => :collect_shares,
           'sell_shares' => :collect_shares,
           'par' => :collect_par,
+          'merge' => :collect_merges,
+          'assign' => :collect_assignments,
+          'acquire_company' => :collect_acquire_companies,
+          'special_buy' => :collect_special_buys,
           'buy_train' => :collect_trains,
           'discard_train' => :collect_trains,
           'run_routes' => :collect_routes,
@@ -390,6 +399,232 @@ module View
           end
 
           legal
+        end
+
+        def collect_merges(step, entity, actions)
+          return [] unless actions.include?('merge')
+          return [] unless defined?(Engine::Action::Merge)
+
+          targets = []
+
+          if step.respond_to?(:mergeable)
+            begin
+              targets.concat(Array(step.mergeable(entity)))
+            rescue ArgumentError
+              begin
+                targets.concat(Array(step.mergeable))
+              rescue StandardError
+              end
+            rescue StandardError
+            end
+          end
+
+          if step.respond_to?(:mergeable_entities)
+            begin
+              targets.concat(Array(step.mergeable_entities))
+            rescue ArgumentError
+              begin
+                targets.concat(Array(step.mergeable_entities(entity)))
+              rescue StandardError
+              end
+            rescue StandardError
+            end
+          end
+
+          targets.compact!
+          targets.uniq!
+          return [] if targets.empty?
+
+          candidates = targets.flat_map do |target|
+            [
+              Engine::Action::Merge.new(
+                entity,
+                corporation: target,
+              ),
+              Engine::Action::Merge.new(
+                entity,
+                minor: target,
+              ),
+            ]
+          rescue StandardError
+            []
+          end
+
+          if RUBY_ENGINE != 'opal'
+            candidates.select! do |action|
+              trial = @game.clone(Array(@game.raw_actions))
+
+              mapped =
+                Engine::Action::Base.action_from_h(
+                  action.to_h,
+                  trial,
+                )
+
+              trial.process_action(
+                mapped,
+                add_auto_actions: true,
+              ).maybe_raise!
+
+              true
+            rescue StandardError
+              false
+            end
+          end
+
+          candidates.uniq do |action|
+            [
+              action.entity&.id.to_s,
+              action.corporation&.id.to_s,
+              action.minor&.id.to_s,
+            ]
+          end
+        end
+
+        def collect_assignments(step, entity, actions)
+          return [] unless actions.include?('assign')
+          return [] unless defined?(Engine::Action::Assign)
+
+          targets = []
+
+          if step.respond_to?(:available_hex)
+            Array(@game.hexes).each do |hex|
+              begin
+                targets << hex if step.available_hex(entity, hex)
+              rescue StandardError
+              end
+            end
+          end
+
+          if step.respond_to?(:assignable_corporations)
+            begin
+              targets.concat(Array(step.assignable_corporations(entity)))
+            rescue ArgumentError
+              begin
+                targets.concat(Array(step.assignable_corporations))
+              rescue StandardError
+              end
+            rescue StandardError
+            end
+          end
+
+          targets.compact!
+          targets.uniq!
+
+          candidates = targets.map do |target|
+            Engine::Action::Assign.new(
+              entity,
+              target: target,
+            )
+          end
+
+          return candidates if RUBY_ENGINE == 'opal'
+
+          candidates.select do |action|
+            trial = @game.clone(Array(@game.raw_actions))
+            mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
+
+            trial.process_action(
+              mapped,
+              add_auto_actions: true,
+            ).maybe_raise!
+
+            true
+          rescue StandardError
+            false
+          end
+        end
+
+        def collect_acquire_companies(_step, entity, actions)
+          return [] unless actions.include?('acquire_company')
+          return [] unless defined?(Engine::Action::AcquireCompany)
+          return [] unless @game.respond_to?(:purchasable_companies)
+
+          companies =
+            begin
+              Array(@game.purchasable_companies(entity))
+            rescue StandardError
+              []
+            end
+
+          candidates = companies.map do |company|
+            Engine::Action::AcquireCompany.new(
+              entity,
+              company: company,
+            )
+          end
+
+          return candidates if RUBY_ENGINE == 'opal'
+
+          candidates.select do |action|
+            trial = @game.clone(Array(@game.raw_actions))
+            mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
+            trial.process_action(mapped, add_auto_actions: true).maybe_raise!
+            true
+          rescue StandardError
+            false
+          end
+        end
+
+        def collect_special_buys(step, entity, actions)
+          return [] unless actions.include?('special_buy')
+          return [] unless defined?(Engine::Action::SpecialBuy)
+          return [] unless step.respond_to?(:buyable_items)
+
+          items =
+            begin
+              Array(step.buyable_items(entity))
+            rescue StandardError
+              []
+            end
+
+          candidates = items.map do |item|
+            Engine::Action::SpecialBuy.new(
+              entity,
+              item: item,
+            )
+          end
+
+          return candidates if RUBY_ENGINE == 'opal'
+
+          candidates.select do |action|
+            trial = @game.clone(Array(@game.raw_actions))
+            mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
+            trial.process_action(mapped, add_auto_actions: true).maybe_raise!
+            true
+          rescue StandardError
+            false
+          end
+        end
+
+        def collect_special_buys(step, entity, actions)
+          return [] unless actions.include?('special_buy')
+          return [] unless defined?(Engine::Action::SpecialBuy)
+          return [] unless step.respond_to?(:buyable_items)
+
+          items =
+            begin
+              Array(step.buyable_items(entity))
+            rescue StandardError
+              []
+            end
+
+          candidates = items.map do |item|
+            Engine::Action::SpecialBuy.new(
+              entity,
+              item: item,
+            )
+          end
+
+          return candidates if RUBY_ENGINE == 'opal'
+
+          candidates.select do |action|
+            trial = @game.clone(Array(@game.raw_actions))
+            mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
+            trial.process_action(mapped, add_auto_actions: true).maybe_raise!
+            true
+          rescue StandardError
+            false
+          end
         end
 
         def collect_multiple_companies(step, entity, actions)
@@ -1024,42 +1259,78 @@ module View
           return [] unless defined?(Engine::Action::Bid)
 
           cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
-          return [] unless cash.positive?
+          candidates = auction_bid_companies(step)
+          return [] if candidates.empty?
 
-          companies = auction_bid_companies(step)
-          return [] if companies.empty?
+          candidates.filter_map do |candidate|
+            is_minor =
+              candidate.respond_to?(:minor?) &&
+              candidate.minor?
 
-          companies.filter_map do |company|
-            current = current_company_bid(step, company)
-            price = current.positive? ? current + bid_increment(step, company) : opening_bid(step, company)
-            maximum = maximum_bid(step, entity, company, cash)
+            is_corporation =
+              candidate.respond_to?(:corporation?) &&
+              candidate.corporation?
 
-            next unless price.positive?
+            current = current_company_bid(step, candidate)
+
+            price =
+              if is_minor
+                0
+              elsif current.positive?
+                current + bid_increment(step, candidate)
+              else
+                opening_bid(step, candidate)
+              end
+
+            maximum =
+              maximum_bid(
+                step,
+                entity,
+                candidate,
+                cash,
+              )
+
+            next if price.negative?
             next if price > cash
-            next if maximum.positive? && price > maximum
+            next if price > maximum
 
             if step.respond_to?(:can_bid?)
-              can_bid = begin
-                step.can_bid?(entity, company, price)
-              rescue ArgumentError
+              can_bid =
                 begin
-                  step.can_bid?(entity, price)
+                  step.can_bid?(entity, candidate, price)
                 rescue ArgumentError
                   begin
-                    step.can_bid?(entity, company)
+                    step.can_bid?(entity, price)
+                  rescue ArgumentError
+                    begin
+                      step.can_bid?(entity, candidate)
+                    rescue StandardError
+                      false
+                    end
                   rescue StandardError
                     false
                   end
                 rescue StandardError
                   false
                 end
-              rescue StandardError
-                false
-              end
+
               next unless can_bid
             end
 
-            Engine::Action::Bid.new(entity, company: company, price: price)
+            kwargs = { price: price }
+
+            if is_minor
+              kwargs[:minor] = candidate
+            elsif is_corporation
+              kwargs[:corporation] = candidate
+            else
+              kwargs[:company] = candidate
+            end
+
+            Engine::Action::Bid.new(
+              entity,
+              **kwargs,
+            )
           rescue StandardError
             nil
           end
@@ -1339,13 +1610,38 @@ module View
               action.is_a?(Engine::Action::SellShares)
             end
 
-          # Forced selling always has priority.
+          step = @game.round.active_step
+
+          # Emergency train financing:
+          # if the corporation is forced to buy a train and the engine has
+          # switched action availability to its president for share sales,
+          # those sales are mandatory financing candidates, not voluntary
+          # stock-round sales. Never apply the 5%/10% sale policy here.
+          emergency_train_sale =
+            begin
+              corporation = step.current_entity
+
+              corporation &&
+                corporation.respond_to?(:corporation?) &&
+                corporation.corporation? &&
+                corporation.respond_to?(:owner) &&
+                corporation.owner == entity &&
+                step.respond_to?(:must_buy_train?) &&
+                step.must_buy_train?(corporation) &&
+                Array(@game.round.actions_for(entity)).map(&:to_s).include?('sell_shares')
+            rescue StandardError
+              false
+            end
+
+          return sell_actions if emergency_train_sale && sell_actions.any?
+
+          # Other engine-forced selling also has priority.
           forced_sale =
             sell_actions.any? do |action|
               features =
                 extract_features(
                   action,
-                  @game.round.active_step,
+                  step,
                   entity,
                   actions,
                 )
@@ -1921,11 +2217,26 @@ module View
                     end
 
                   if best_price
+                    slot =
+                      begin
+                        if @game.respond_to?(:par_chart) &&
+                           @game.par_chart[best_price]
+                          @game.par_chart[best_price].index(nil)
+                        end
+                      rescue StandardError
+                        nil
+                      end
+
+                    kwargs = {
+                      corporation: corporation,
+                      share_price: best_price,
+                    }
+                    kwargs[:slot] = slot unless slot.nil?
+
                     return [
                       Engine::Action::Par.new(
                         entity,
-                        corporation: corporation,
-                        share_price: best_price,
+                        **kwargs,
                       ),
                     ]
                   end
@@ -2873,7 +3184,12 @@ module View
 
           best_rev = nil
           callback_finished = false
-          started_ms = `Date.now()`.to_f
+          started_ms =
+            if RUBY_ENGINE == 'opal'
+              `Date.now()`.to_f
+            else
+              Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000.0
+            end
           clear_entity_graph_cache(entity)
           router = Engine::AutoRouter.new(@game, ->(_msg) {})
           router.compute(
@@ -2888,7 +3204,12 @@ module View
                 0
               end
               callback_finished = true
-              elapsed = `Date.now()`.to_f - started_ms
+              elapsed =
+                if RUBY_ENGINE == 'opal'
+                  `Date.now()`.to_f - started_ms
+                else
+                  (Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000.0) - started_ms
+                end
             end
           )
 
@@ -3101,17 +3422,6 @@ module View
           legal = []
           @tile_eval_cache = {}
 
-          deadline_ms =
-            if RUBY_ENGINE == 'opal'
-              `Date.now()`.to_f + TILE_SEARCH_TIMEOUT_MS
-            else
-              (
-                Process.clock_gettime(
-                  Process::CLOCK_MONOTONIC
-                ) * 1000.0
-              ) + TILE_SEARCH_TIMEOUT_MS
-            end
-
           Array(@game.hexes).each do |hex|
             next unless hex
 
@@ -3120,11 +3430,8 @@ module View
                 step.available_hex(entity, hex)
               rescue StandardError => e
                 LOGGER.warn(
-                  '[AI TILE ENGINE LIST] ' \
-                  "available_hex failed hex=#{hex.id}: " \
-                  "#{e.class}: #{e.message}"
+                  '[AI TILE ENGINE LIST] '                   "available_hex failed hex=#{hex.id}: "                   "#{e.class}: #{e.message}"
                 )
-
                 false
               end
 
@@ -3140,11 +3447,8 @@ module View
                 ).compact
               rescue StandardError => e
                 LOGGER.warn(
-                  '[AI TILE ENGINE LIST] ' \
-                  "upgradeable_tiles failed hex=#{hex.id}: " \
-                  "#{e.class}: #{e.message}"
+                  '[AI TILE ENGINE LIST] '                   "upgradeable_tiles failed hex=#{hex.id}: "                   "#{e.class}: #{e.message}"
                 )
-
                 []
               end
 
@@ -3161,37 +3465,13 @@ module View
                   .sort
 
               rotations.each do |rotation|
-                action =
-                  Engine::Action::LayTile.new(
-                    entity,
-                    hex: hex,
-                    tile: tile,
-                    rotation: rotation,
-                  )
-
-                legal << action
-              end
-            end
-          end
-
-          if RUBY_ENGINE != 'opal'
-            legal.select! do |action|
-              trial = @game.clone(Array(@game.raw_actions))
-
-              mapped =
-                Engine::Action::Base.action_from_h(
-                  action.to_h,
-                  trial,
+                legal << Engine::Action::LayTile.new(
+                  entity,
+                  hex: hex,
+                  tile: tile,
+                  rotation: rotation,
                 )
-
-              trial.process_action(
-                mapped,
-                add_auto_actions: true,
-              )
-
-              trial.exception.nil?
-            rescue StandardError
-              false
+              end
             end
           end
 
@@ -3209,68 +3489,6 @@ module View
               action.tile.name.to_s,
               action.rotation.to_i,
             ]
-          end
-
-          # This was previously missing. Evaluate every verified legal tile
-          # action and attach its revenue-centre and two-build features to the
-          # exact action object later consumed by extract_features.
-          legal.each do |action|
-            now_ms =
-              if RUBY_ENGINE == 'opal'
-                `Date.now()`.to_f
-              else
-                Process.clock_gettime(
-                  Process::CLOCK_MONOTONIC
-                ) * 1000.0
-              end
-
-            if now_ms >= deadline_ms
-              @tile_eval_cache[action] = {
-                tile_rev_gain: 0,
-                has_own_token: false,
-                horizon_1_value: 0,
-                horizon_2_value: 0,
-                projected_revenue: 0,
-                route_revenue_gain: 0,
-                tile_cost: 0,
-                search_timed_out: true,
-                best_second: 'search timeout',
-              }
-
-              next
-            end
-
-            cost =
-              calculate_tile_cost(
-                step,
-                entity,
-                action.hex,
-                action.tile,
-              )
-
-            metrics =
-              trial_and_evaluate_tile(
-                step,
-                entity,
-                action.hex,
-                action.tile,
-                action.rotation,
-                cost,
-                deadline_ms,
-              )
-
-            @tile_eval_cache[action] =
-              metrics || {
-                tile_rev_gain: 0,
-                has_own_token: false,
-                horizon_1_value: 0,
-                horizon_2_value: 0,
-                projected_revenue: 0,
-                route_revenue_gain: 0,
-                tile_cost: cost.to_i,
-                search_timed_out: false,
-                best_second: 'no evaluated continuation',
-              }
           end
 
           legal

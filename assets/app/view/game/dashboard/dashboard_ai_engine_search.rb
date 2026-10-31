@@ -507,23 +507,7 @@ module View
           def engine_play(game, routes = [], &process_block)
             player = new(game, routes, &process_block)
             step = game.round&.active_step
-            entity = if step
-                       begin
-                         step.current_entity if step.respond_to?(:current_entity)
-                       rescue StandardError
-                         nil
-                       end
-                     end
-            entity ||= begin
-              game.round.current_entity if game.round.respond_to?(:current_entity)
-            rescue StandardError
-              nil
-            end
-            entity ||= begin
-              game.current_entity if game.respond_to?(:current_entity)
-            rescue StandardError
-              nil
-            end
+            entity = step ? player.current_acting_entity(step) : nil
             actions = step && entity ? player.generate_legal_actions(step, entity) : []
             use_engine_search = actions.any? do |action|
               action.is_a?(Engine::Action::LayTile) || action.is_a?(Engine::Action::PlaceToken)
@@ -558,21 +542,7 @@ module View
           step = @game.round&.active_step
           return false unless step
 
-          entity = begin
-            step.current_entity if step.respond_to?(:current_entity)
-          rescue StandardError
-            nil
-          end
-          entity ||= begin
-            @game.round.current_entity if @game.round.respond_to?(:current_entity)
-          rescue StandardError
-            nil
-          end
-          entity ||= begin
-            @game.current_entity if @game.respond_to?(:current_entity)
-          rescue StandardError
-            nil
-          end
+          entity = current_acting_entity(step)
           return false unless entity
 
           actions = generate_legal_actions(step, entity)
@@ -714,7 +684,7 @@ module View
         rescue StandardError => e
           LOGGER.error("[AI ENGINE SEARCH] final action failed: #{e.message}")
         ensure
-          `document.body.style.cursor = ''`
+          `document.body.style.cursor = ''` if RUBY_ENGINE == 'opal'
           self.class.complete_engine_search!(@engine_search_key)
         end
 
@@ -732,7 +702,7 @@ module View
         end
 
         def start_engine_tile_search(actions, all_actions, entity, round_before, step_before)
-          `document.body.style.cursor = 'progress'`
+          `document.body.style.cursor = 'progress'` if RUBY_ENGINE == 'opal'
           engine_log_tile_candidate_list('AI TILE RAW CANDIDATES', actions)
           state = {
             legality_deadline: engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS,
@@ -751,8 +721,11 @@ module View
         # Phase 1: engine legality only. No route search or revenue evaluation is
         # started until every retained candidate has passed process_action on a clone.
         def engine_verify_next_tile(state, entity, round_before, step_before)
-          if engine_now_ms >= state[:legality_deadline] ||
-             state[:verification_index] >= state[:unchecked_actions].size
+          if state[:verification_index] >= state[:unchecked_actions].size ||
+             (
+               engine_now_ms >= state[:legality_deadline] &&
+               state[:legal_actions].any?
+             )
             return engine_begin_legal_tile_search(
               state,
               entity,
@@ -966,7 +939,6 @@ module View
             candidate.is_a?(Engine::Step::Track)
           end
 
-          LOGGER.warn('[AI 2PLY SHADOW TRACK STEP] normal Engine::Step::Track not found') unless track_step
 
           track_step
         rescue StandardError => e

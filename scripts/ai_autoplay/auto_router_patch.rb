@@ -354,3 +354,30 @@ unless Engine::AutoRouter.ancestors.include?(
     AiAutoplay::AutoRouterPatch
   )
 end
+
+# CRuby compatibility for 1822CA.
+#
+# G1822CA#check_distance accepts an optional third +train+ argument, but its
+# bare super forwards all three arguments to G1822#check_distance, whose
+# signature accepts only (route, visits). Opal tolerates this path differently;
+# CRuby raises ArgumentError.
+#
+# Keep this autoplay-only rather than modifying shared engine files.
+if defined?(Engine::Game::G1822CA::Game)
+  module AiAutoplay
+    module G1822CACheckDistancePatch
+      def check_distance(route, visits, train = nil)
+        raise Engine::GameError, 'Cannot run Grain train' if grain_train?(train || route.train)
+
+        Engine::Game::G1822::Game.instance_method(:check_distance).bind(self).call(
+          route,
+          visits,
+        )
+      end
+    end
+  end
+
+  Engine::Game::G1822CA::Game.prepend(
+    AiAutoplay::G1822CACheckDistancePatch
+  )
+end
