@@ -709,14 +709,39 @@ module View
           f
         end
 
-        def collect_pass(step, entity, actions)
+        def collect_pass(_step, entity, actions)
           return [] unless actions.include?('pass')
-          return [] if step.respond_to?(:must_buy_train?) && step.must_buy_train?(entity)
-          return [] if step.respond_to?(:must_lay_tile?) && step.must_lay_tile?(entity)
-          return [] if step.respond_to?(:must_sell?) && step.must_sell?(entity)
-          return [] if step.respond_to?(:can_pass?) && !step.can_pass?(entity)
+          return [] unless defined?(Engine::Action::Pass)
 
-          [Engine::Action::Pass.new(entity)]
+          action = Engine::Action::Pass.new(entity)
+
+          # The engine explicitly advertised "pass".
+          #
+          # Under CRuby, additionally verify the complete action against a cloned
+          # game position. Do not try to duplicate game-specific pass restrictions
+          # here with must_buy_train?, must_sell?, can_pass?, etc.
+          if RUBY_ENGINE != 'opal'
+            begin
+              trial = @game.clone(Array(@game.raw_actions))
+
+              mapped =
+                Engine::Action::Base.action_from_h(
+                  action.to_h,
+                  trial,
+                )
+
+              trial.process_action(
+                mapped,
+                add_auto_actions: true,
+              )
+
+              return [] if trial.exception
+            rescue StandardError
+              return []
+            end
+          end
+
+          [action]
         end
 
         def collect_choices(step, entity, actions)
@@ -771,11 +796,44 @@ module View
           legal = []
 
           if actions.include?('bid')
-            bids = collect_auction_bids(step, entity)
-            legal.concat(bids)
+            legal.concat(
+              collect_auction_bids(step, entity)
+            )
           end
 
-          legal.concat(collect_company_purchases(step, entity)) if (actions & %w[buy_company buy_companies]).any?
+          if (actions & %w[buy_company buy_companies]).any?
+            legal.concat(
+              collect_company_purchases(step, entity)
+            )
+          end
+
+          # Auction APIs differ considerably between games. Methods such as can_bid?
+          # may approve a structurally plausible bid without considering all current
+          # auction commitments, reserved cash, or game-specific maximum-bid rules.
+          #
+          # Under CRuby, process every candidate on a cloned position and retain only
+          # actions accepted by the authoritative engine.
+          if RUBY_ENGINE != 'opal'
+            legal.select! do |action|
+              trial =
+                @game.clone(Array(@game.raw_actions))
+
+              mapped =
+                Engine::Action::Base.action_from_h(
+                  action.to_h,
+                  trial,
+                )
+
+              trial.process_action(
+                mapped,
+                add_auto_actions: true,
+              )
+
+              trial.exception.nil?
+            rescue StandardError
+              false
+            end
+          end
 
           legal
         end
@@ -1259,37 +1317,108 @@ module View
           end
 
           if actions.include?('sell_shares')
-            corps = @game.corporations.select do |c|
-              entity.shares_of(c).any?
+            corps = @game.corporations.select do |corp|
+              entity.shares_of(corp).any?
             rescue StandardError
               false
             end
+
             corps.each do |corp|
-              bundles = nil
+              bundles = []
+
               if step.respond_to?(:sellable_bundles)
-                bundles = begin; step.sellable_bundles(entity, corp); rescue StandardError; []; end
+                begin
+                  bundles.concat(
+                    Array(step.sellable_bundles(entity, corp))
+                  )
+                rescue StandardError
+                  # Fall through to the generic game-level source.
+                end
               end
+
               if step.respond_to?(:bundles_for_corporation)
-                bundles ||= begin; step.bundles_for_corporation(entity, corp); rescue StandardError; []; end
+                begin
+                  bundles.concat(
+                    Array(step.bundles_for_corporation(entity, corp))
+                  )
+                rescue StandardError
+                  # Fall through to the generic game-level source.
+                end
               end
-              Array(bundles).each do |bundle|
-                next if step.respond_to?(:can_sell?) && !step.can_sell?(entity, bundle)
 
-                raw_shares = if bundle.respond_to?(:shares) && bundle.shares&.any?
-                               bundle.shares
-                             else
-                               Array(bundle)
-                             end
+              if bundles.empty? &&
+                 @game.respond_to?(:sellable_bundles)
+                begin
+                  bundles.concat(
+                    Array(@game.sellable_bundles(entity, corp))
+                  )
+                rescue StandardError
+                  # No sellable bundles from this corporation.
+                end
+              end
 
-                kwargs = { shares: raw_shares }
-                kwargs[:percent] = bundle.percent if bundle.respond_to?(:percent) && bundle.percent
-                if bundle.respond_to?(:share_price) && bundle.share_price
-                  kwargs[:share_price] =
-                    bundle.share_price
+              bundles.compact.uniq.each do |bundle|
+                if step.respond_to?(:can_sell?)
+                  can_sell =
+                    begin
+                      step.can_sell?(entity, bundle)
+                    rescue StandardError
+                      false
+                    end
+
+                  next unless can_sell
                 end
 
-                legal << Engine::Action::SellShares.new(entity, **kwargs)
+                raw_shares =
+                  if bundle.respond_to?(:shares) &&
+                     bundle.shares&.any?
+                    bundle.shares
+                  else
+                    Array(bundle)
+                  end
+
+                next if raw_shares.empty?
+
+                kwargs = {
+                  shares: raw_shares,
+                }
+
+                if bundle.respond_to?(:percent) &&
+                   bundle.percent
+                  kwargs[:percent] = bundle.percent
+                end
+
+                if bundle.respond_to?(:share_price) &&
+                   bundle.share_price
+                  kwargs[:share_price] = bundle.share_price
+                end
+
+                legal << Engine::Action::SellShares.new(
+                  entity,
+                  **kwargs
+                )
               end
+            end
+          end
+
+          if RUBY_ENGINE != 'opal'
+            legal.select! do |action|
+              trial = @game.clone(Array(@game.raw_actions))
+
+              mapped =
+                Engine::Action::Base.action_from_h(
+                  action.to_h,
+                  trial,
+                )
+
+              trial.process_action(
+                mapped,
+                add_auto_actions: true,
+              )
+
+              trial.exception.nil?
+            rescue StandardError
+              false
             end
           end
 
@@ -1664,16 +1793,125 @@ module View
             @random_target_train_count[target_key] = target_count
           end
 
-          normal_train_needed = current_count < target_count
+          normal_train_needed =
+            current_count < target_count
 
-          optional_progression =
-            if RUBY_ENGINE == 'opal'
-              !normal_train_needed && AiExpertRules.buy_progression_train?
-            else
-              false
+          has_permanent_train =
+            Array(entity.trains).any? do |train|
+              train.rusts_on.nil? &&
+                train.obsolete_on.nil? &&
+                !train.rusted
             end
 
-          return [] unless normal_train_needed || optional_progression
+          next_depot_train =
+            begin
+              @game.depot.min_depot_train
+            rescue StandardError
+              nil
+            end
+
+          can_afford_next_train =
+            next_depot_train &&
+            entity.respond_to?(:cash) &&
+            entity.cash.to_i >= next_depot_train.price.to_i
+
+          # A corporation may own one more train than its presently drivable network
+          # requires while it is still exposed to rusting.
+          #
+          # This advances the train deck but prevents the repeated purchases that
+          # previously drained a corporation's treasury.
+          progression_train_needed =
+            !normal_train_needed &&
+            !has_permanent_train &&
+            next_depot_train &&
+            can_afford_next_train &&
+
+                     current_count =
+                       entity.respond_to?(:trains) ? entity.trains.size : 0
+
+          useful_count = drivable_train_capacity(entity)
+
+          limit =
+            if @game.respond_to?(:train_limit)
+              @game.train_limit(entity).to_i
+            else
+              useful_count + 1
+            end
+
+          limit = 1 unless limit.positive?
+
+          # Browser AI keeps the existing probabilistic train-target behaviour.
+          #
+          # CLI autoplay uses the actual currently drivable number of trains as
+          # its normal target. Progression beyond this target is handled
+          # separately below so repeated DashboardAiPlayer construction cannot
+          # continuously reroll the old +1 decision.
+          target_count =
+            if RUBY_ENGINE == 'opal'
+              target_key = [
+                @game.round.object_id,
+                step.object_id,
+                entity.object_id,
+              ].join(':')
+
+              @random_target_train_count[target_key] ||=
+                AiExpertRules.train_target_count(
+                  useful_count,
+                  limit,
+                )
+            else
+              [useful_count.to_i, limit].min
+            end
+
+          normal_train_needed =
+            current_count < target_count
+
+          has_permanent_train =
+            Array(entity.trains).any? do |train|
+              train.rusts_on.nil? &&
+                train.obsolete_on.nil? &&
+                !train.rusted
+            end
+
+          next_depot_train =
+            begin
+              @game.depot.min_depot_train
+            rescue StandardError
+              nil
+            end
+
+          can_afford_next_train =
+            next_depot_train &&
+            entity.respond_to?(:cash) &&
+            entity.cash.to_i >= next_depot_train.price.to_i
+
+          # Train-deck progression:
+          #
+          # Until the corporation owns a permanent train, allow it to own
+          # exactly one train beyond what its present network can use, provided
+          # it can afford the next depot train from its own treasury.
+          #
+          # Example:
+          #
+          #   network can use 1
+          #   owns 0 -> buy
+          #   owns 1 -> buy one progression train
+          #   owns 2 -> stop
+          #
+          # If a train later rusts, the corporation may again fall below this
+          # reserve and buy another train. Once it owns a permanent train,
+          # progression buying stops.
+          progression_train_needed =
+            !normal_train_needed &&
+            !has_permanent_train &&
+            next_depot_train &&
+            can_afford_next_train &&
+            current_count < [target_count + 1, limit].min
+
+          return [] unless normal_train_needed || progression_train_needed
+
+          progression_purchase =
+            progression_train_needed && !normal_train_needed
 
           trains = if step.respond_to?(:buyable_trains)
                      (begin
@@ -1689,7 +1927,13 @@ module View
 
           legal = []
           train_candidates = Array(trains)
-          train_candidates = train_candidates.first(1) if optional_progression
+
+          # A progression purchase advances the train deck by only one train
+          # at this decision point.
+          if progression_purchase
+            train_candidates =
+              train_candidates.first(1)
+          end
           train_candidates.each do |train|
             depot_train =
               train.owner == @game.depot ||
@@ -1721,7 +1965,10 @@ module View
             # processing determine legality below.
             next if RUBY_ENGINE == 'opal' && !can_buy
 
-            next if optional_progression && !(entity.respond_to?(:cash) && entity.cash.to_i >= train.price.to_i)
+            if progression_purchase
+              next unless entity.respond_to?(:cash)
+              next unless entity.cash.to_i >= train.price.to_i
+            end
 
             legal << Engine::Action::BuyTrain.new(
               entity,
