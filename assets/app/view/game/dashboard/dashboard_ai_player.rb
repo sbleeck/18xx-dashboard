@@ -86,6 +86,7 @@ module View
 
           round_before = @game.round
           actions = generate_legal_actions(step, entity)
+          actions = apply_share_strategy(actions, entity)
           if actions.any? { |action| action.is_a?(Engine::Action::LayTile) }
             actions = actions.reject { |action| action.is_a?(Engine::Action::Pass) }
           end
@@ -233,6 +234,7 @@ module View
         # one of their action names. Unsupported names are logged and safely fall back
         # to Pass when Pass is available.
         ACTION_REGISTRY = {
+          'bankrupt' => :collect_bankruptcy,
           'pass' => :collect_pass,
           'choose' => :collect_choices,
           'bid' => :collect_draft_and_bids,
@@ -281,25 +283,27 @@ module View
           entity ||= current_acting_entity(step)
           return [] unless entity
 
-          raw = begin
+          step_actions = begin
             Array(step.actions(entity))
           rescue StandardError
             []
           end
-          if raw.empty?
-            raw = begin
-              Array(@game.round.actions_for(entity))
-            rescue StandardError
-              []
-            end
+
+          round_actions = begin
+            Array(@game.round.actions_for(entity))
+          rescue StandardError
+            []
           end
+
+          raw = step_actions + round_actions
+
           actions = raw.compact.map(&:to_s).uniq
           return [] if actions.empty?
 
           collectors = actions.filter_map { |name| ACTION_REGISTRY[name] }.uniq
           legal = []
           collectors.each do |collector_name|
-            legal.concat(Array(public_send(collector_name, step, entity, actions)))
+            legal.concat(Array(send(collector_name, step, entity, actions)))
           rescue StandardError => e
             LOGGER.warn(
               "[AI ACTION REGISTRY] collector=#{collector_name} entity=#{entity_label(entity)} " \
@@ -309,7 +313,7 @@ module View
 
           if operating_entity?(entity)
             OR_OPPORTUNITY_COLLECTORS.each do |collector_name|
-              discovered = Array(public_send(collector_name, step, entity, actions))
+              discovered = Array(send(collector_name, step, entity, actions))
               unless discovered.empty?
               end
               legal.concat(discovered)
@@ -978,7 +982,97 @@ module View
           opts.map { |k| Engine::Action::Dividend.new(entity, kind: k) }
         end
 
+        def apply_share_strategy(actions, entity)
+          actions = Array(actions)
+          return actions if actions.empty?
+
+          return apply_corporate_share_strategy(actions, entity) if entity.respond_to?(:corporation?) && entity.corporation?
+
+          apply_player_share_focus(actions, entity)
+        end
+
+        def apply_player_share_focus(actions, entity)
+          return actions unless entity.respond_to?(:player?) && entity.player?
+
+          buy_actions = actions.select do |action|
+            action.is_a?(Engine::Action::BuyShares)
+          end
+
+          return actions if buy_actions.empty?
+
+          controlled_buys = buy_actions.select do |action|
+            corporation = share_action_corporation(action)
+            corporation && corporation.owner == entity
+          end
+
+          return actions if controlled_buys.empty?
+
+          # Once the player controls a corporation and can legally afford another
+          # share in it, continue buying that corporation rather than parring another.
+          non_share_actions = actions.reject do |action|
+            action.is_a?(Engine::Action::BuyShares) ||
+              action.is_a?(Engine::Action::Par)
+          end
+
+          controlled_buys + non_share_actions
+        end
+
+        def apply_corporate_share_strategy(actions, entity)
+          issue_actions = actions.select do |action|
+            action.is_a?(Engine::Action::SellShares)
+          end
+
+          redeem_actions = actions.select do |action|
+            corporate_redeem_action?(action)
+          end
+
+          if redeem_actions.any? &&
+             AiExpertRules.redeem_shares?(@game, entity)
+            return redeem_actions
+          end
+
+          if issue_actions.any? &&
+             AiExpertRules.issue_shares?(@game, entity)
+            return issue_actions
+          end
+
+          alternatives = actions.reject do |action|
+            issue_actions.include?(action) ||
+              redeem_actions.include?(action)
+          end
+
+          alternatives.empty? ? actions : alternatives
+        end
+
+        def corporate_redeem_action?(action)
+          classes = []
+
+          classes << Engine::Action::Redeem if defined?(Engine::Action::Redeem)
+          classes << Engine::Action::RedeemShares if defined?(Engine::Action::RedeemShares)
+          classes << Engine::Action::CorporateBuyShares if defined?(Engine::Action::CorporateBuyShares)
+
+          # Some games represent treasury redemption using BuyShares with the
+          # corporation itself as the acting entity.
+          classes << Engine::Action::BuyShares if defined?(Engine::Action::BuyShares)
+
+          classes.any? { |klass| action.is_a?(klass) }
+        end
+
+        def share_action_corporation(action)
+          return action.bundle.corporation if action.respond_to?(:bundle) && action.bundle
+
+          if action.respond_to?(:shares)
+            share = Array(action.shares).first
+            return share.corporation if share&.respond_to?(:corporation)
+          end
+
+          nil
+        rescue StandardError
+          nil
+        end
+
         def collect_shares(step, entity, actions)
+          return [] if entity.respond_to?(:corporation?) && entity.corporation?
           return [] unless entity.respond_to?(:shares)
 
           legal = []
@@ -1012,7 +1106,9 @@ module View
                                corp.shares
                              end || []
 
-                unissued = ipo_shares.select { |s| s.owner == corp || (s.respond_to?(:from_depot?) && s.from_depot?) }
+                unissued = ipo_shares.select do |s|
+                  s.owner == corp || (s.respond_to?(:from_depot?) && s.from_depot?)
+                end
                 unissued = ipo_shares if unissued.empty?
                 unissued.uniq(&:percent).each do |s|
                   candidate_bundles << (s.respond_to?(:to_bundle) ? s.to_bundle : Engine::ShareBundle.new(s))
@@ -1092,7 +1188,10 @@ module View
 
                 kwargs = { shares: raw_shares }
                 kwargs[:percent] = bundle.percent if bundle.respond_to?(:percent) && bundle.percent
-                kwargs[:share_price] = bundle.share_price if bundle.respond_to?(:share_price) && bundle.share_price
+                if bundle.respond_to?(:share_price) && bundle.share_price
+                  kwargs[:share_price] =
+                    bundle.share_price
+                end
 
                 legal << Engine::Action::SellShares.new(entity, **kwargs)
               end
@@ -1205,6 +1304,28 @@ module View
           1
         end
 
+        def collect_bankruptcy(_step, entity, actions)
+          return [] unless actions.include?('bankrupt')
+          return [] unless defined?(Engine::Action::Bankrupt)
+
+          action = Engine::Action::Bankrupt.new(entity)
+
+          if RUBY_ENGINE != 'opal'
+            begin
+              trial = @game.clone(Array(@game.raw_actions))
+              mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
+
+              trial.process_action(mapped, add_auto_actions: true)
+
+              return [] if trial.exception
+            rescue StandardError
+              return []
+            end
+          end
+
+          [action]
+        end
+
         def collect_trains(step, entity, actions)
           return [] unless actions.include?('buy_train')
 
@@ -1280,6 +1401,19 @@ module View
             )
           end
 
+          if RUBY_ENGINE != 'opal'
+            legal.select! do |action|
+              trial = @game.clone(Array(@game.raw_actions))
+              mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
+
+              trial.process_action(mapped, add_auto_actions: true)
+
+              trial.exception.nil?
+            rescue StandardError
+              false
+            end
+          end
+
           if actions.include?('discard_train')
             discardable = if step.respond_to?(:discardable_trains)
                             begin; step.discardable_trains(entity); rescue StandardError; []; end
@@ -1334,7 +1468,11 @@ module View
 
             next if raw_shares.empty?
 
-            Engine::Action::SellShares.new(entity, shares: raw_shares)
+            kwargs = { shares: raw_shares }
+            kwargs[:percent] = bundle.percent if bundle.respond_to?(:percent) && bundle.percent
+            kwargs[:share_price] = bundle.share_price if bundle.respond_to?(:share_price) && bundle.share_price
+
+            Engine::Action::SellShares.new(entity, **kwargs)
           rescue StandardError => e
             LOGGER.warn(
               "[AI ISSUE SHARES] rejected candidate: #{e.class}: #{e.message}"
@@ -1710,6 +1848,19 @@ module View
             end
           end
 
+          if RUBY_ENGINE != 'opal'
+            legal.select! do |action|
+              trial = @game.clone(Array(@game.raw_actions))
+              mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
+
+              trial.process_action(mapped, add_auto_actions: true)
+
+              trial.exception.nil?
+            rescue StandardError
+              false
+            end
+          end
+
           legal.uniq! do |action|
             [action.hex.id.to_s, action.tile.name.to_s, action.rotation.to_i]
           end
@@ -1817,7 +1968,7 @@ module View
                 next unless can_place
               end
 
-              action_args = { city: city, slot: slot_index, token: token_to_place }
+              action_args = { city: city, slot: slot_index }
               action_args[:token_type] = token_to_place.type if token_to_place.respond_to?(:type)
 
               legal << Engine::Action::PlaceToken.new(entity, **action_args)

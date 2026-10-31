@@ -11,6 +11,492 @@ module View
       class DashboardAiPlayer
         ENGINE_SEARCH_TIMEOUT_MS = 5_000 unless const_defined?(:ENGINE_SEARCH_TIMEOUT_MS)
 
+        # Compact, corporation-specific topology snapshot used to rank tile lays
+        # without cloning the complete Engine::Game. Engine legality and the
+        # existing AutoRouter remain authoritative for shortlisted candidates.
+        class CompactShadowNetwork
+          MAX_ENDPOINTS_PER_HEX = 16
+          EDGE_COUNT = 6
+          EDGE_BITS = [1, 2, 4, 8, 16, 32].freeze
+
+          class TileState
+            attr_reader :name, :rotation, :exit_mask, :connections,
+                        :connections_by_endpoint, :stops, :printed_revenue,
+                        :city_count, :town_count, :offboard_count, :signature
+
+            def initialize(name, rotation, exit_mask, connections, stops,
+                           printed_revenue, city_count, town_count,
+                           offboard_count, signature)
+              @name = name.to_s
+              @rotation = rotation.to_i
+              @exit_mask = exit_mask.to_i
+              @connections = connections
+              @stops = stops
+              @printed_revenue = printed_revenue.to_i
+              @city_count = city_count.to_i
+              @town_count = town_count.to_i
+              @offboard_count = offboard_count.to_i
+              @signature = signature.to_s
+              @connections_by_endpoint = Array.new(MAX_ENDPOINTS_PER_HEX) { [] }
+              @connections.each do |pair|
+                a = pair[0].to_i
+                b = pair[1].to_i
+                @connections_by_endpoint[a] << b unless @connections_by_endpoint[a].include?(b)
+                @connections_by_endpoint[b] << a unless @connections_by_endpoint[b].include?(a)
+              end
+            end
+
+            def exits_at?(edge)
+              (@exit_mask & EDGE_BITS[edge.to_i]).positive?
+            end
+          end
+
+          class Stop
+            attr_reader :id, :hex_index, :endpoint, :kind, :revenue,
+                        :visit_cost, :slot_count, :tokened, :blocked
+
+            def initialize(id, hex_index, endpoint, kind, revenue, visit_cost,
+                           slot_count, tokened, blocked)
+              @id = id.to_i
+              @hex_index = hex_index.to_i
+              @endpoint = endpoint.to_i
+              @kind = kind.to_sym
+              @revenue = revenue.to_i
+              @visit_cost = visit_cost.to_i
+              @slot_count = slot_count.to_i
+              @tokened = !!tokened
+              @blocked = !!blocked
+            end
+          end
+
+          # Preserves the Engine train-distance structure rather than flattening
+          # every train to one integer. A 3+3 train therefore remains two groups,
+          # for example three paying city/offboard visits plus three paying town
+          # visits, subject to the exact distance data supplied by the game.
+          class TrainRule
+            attr_reader :name, :raw_distance, :groups, :multiplier, :supported
+
+            def initialize(train)
+              @name = train.respond_to?(:name) ? train.name.to_s : ''
+              @raw_distance = train.respond_to?(:distance) ? train.distance : nil
+              @multiplier = if train.respond_to?(:multiplier)
+                              train.multiplier.to_i
+                            else
+                              1
+                            end
+              @multiplier = 1 unless @multiplier.positive?
+              @groups = normalize_distance(@raw_distance)
+              @supported = !@groups.empty?
+            end
+
+            def grouped?
+              @groups.size > 1
+            end
+
+            private
+
+            def normalize_distance(distance)
+              if distance.is_a?(Numeric)
+                return [{
+                  nodes: %w[city offboard town],
+                  pay: distance.to_i,
+                  visit: distance.to_i,
+                }]
+              end
+
+              collections = if distance.is_a?(Array)
+                              distance
+                            elsif distance.is_a?(Hash)
+                              [distance]
+                            else
+                              []
+                            end
+
+              collections.map do |part|
+                next unless part.respond_to?(:[])
+
+                nodes = part[:nodes] || part['nodes'] || part[:node] || part['node']
+                pay = part[:pay] || part['pay']
+                visit = part[:visit] || part['visit'] || pay
+                nodes = Array(nodes).map(&:to_s)
+                next if nodes.empty? || pay.nil?
+
+                { nodes: nodes.sort, pay: pay.to_i, visit: visit.to_i }
+              end.compact
+            end
+          end
+
+          Change = Struct.new(:hex_index, :old_tile_state_id, :old_hash)
+
+          attr_reader :hex_ids, :hex_index, :neighbors, :neighbor_edges,
+                      :tile_state_ids, :tile_states, :stops, :stops_by_hex,
+                      :train_rules, :position_hash, :reachable_stops,
+                      :reachable_hexes
+
+          def self.from_game(game, entity, revenue_for = nil)
+            network = new
+            network.send(:extract_board, game, entity, revenue_for)
+            network
+          rescue StandardError => e
+            LOGGER.warn("[AI COMPACT SHADOW] build failed: #{e.class}: #{e.message}")
+            nil
+          end
+
+          def initialize
+            @hex_ids = []
+            @hex_index = {}
+            @neighbors = []
+            @neighbor_edges = []
+            @tile_state_ids = []
+            @tile_states = []
+            @tile_state_lookup = {}
+            @stops = []
+            @stops_by_hex = []
+            @train_rules = []
+            @changes = []
+            @reachable_stops = []
+            @reachable_hexes = []
+            @token_endpoints = []
+            @position_hash = 0
+            @visited = []
+            @queue = []
+          end
+
+          def translate_candidate(action, tile_state_id = nil)
+            index = @hex_index[action.hex.id.to_s]
+            return nil unless index
+
+            state_id = tile_state_id || register_tile_state(action.tile, action.rotation)
+            {
+              action: action,
+              hex_index: index,
+              tile_state_id: state_id,
+              hex_id: action.hex.id.to_s,
+              tile_name: action.tile.name.to_s,
+              rotation: action.rotation.to_i,
+            }
+          rescue StandardError
+            nil
+          end
+
+          def translate_parts(hex_id, tile, rotation, action = nil)
+            index = @hex_index[hex_id.to_s]
+            return nil if index.nil? || tile.nil?
+
+            state_id = register_tile_state(tile, rotation)
+            {
+              action: action,
+              hex_index: index,
+              tile_state_id: state_id,
+              hex_id: hex_id.to_s,
+              tile_name: tile.name.to_s,
+              rotation: rotation.to_i,
+            }
+          rescue StandardError => e
+            LOGGER.warn("[AI COMPACT SHADOW] candidate failed: #{e.class}: #{e.message}")
+            nil
+          end
+
+          def estimated_total_revenue
+            values = @train_rules.map { |rule| estimated_revenue(rule) }
+            return nil if values.empty? || values.any?(&:nil?)
+
+            values.sum
+          end
+
+          def apply(candidate)
+            hex = candidate[:hex_index].to_i
+            new_state = candidate[:tile_state_id].to_i
+            old_state = @tile_state_ids[hex]
+            @changes << Change.new(hex, old_state, @position_hash)
+            @position_hash ^= zobrist(hex, old_state)
+            @tile_state_ids[hex] = new_state
+            @position_hash ^= zobrist(hex, new_state)
+            recompute_reachability
+            true
+          end
+
+          def undo
+            change = @changes.pop
+            return false unless change
+
+            @tile_state_ids[change.hex_index] = change.old_tile_state_id
+            @position_hash = change.old_hash
+            recompute_reachability
+            true
+          end
+
+          def structural_score(before_stop_ids)
+            before = {}
+            Array(before_stop_ids).each { |id| before[id.to_i] = true }
+            new_stops = @reachable_stops.reject { |id| before[id.to_i] }
+            new_objects = new_stops.map { |id| @stops[id] }.compact
+            new_cities = new_objects.select { |stop| stop.kind == :city || stop.kind == :offboard }
+            new_towns = new_objects.select { |stop| stop.kind == :town }
+            rank = if new_cities.any?
+                     1
+                   elsif new_towns.any?
+                     4
+                   else
+                     7
+                   end
+            {
+              rank: rank,
+              new_revenue: new_objects.map(&:revenue).sum,
+              new_center_count: new_objects.size,
+              new_city_revenue: new_cities.map(&:revenue).sum,
+              new_town_revenue: new_towns.map(&:revenue).sum,
+            }
+          end
+
+          def estimated_revenue(train_rule)
+            return nil unless train_rule && train_rule.supported
+
+            available = @reachable_stops.map { |id| @stops[id] }.compact.reject(&:blocked)
+            total = 0
+            train_rule.groups.each do |group|
+              permitted = available.select { |stop| group[:nodes].include?(stop.kind.to_s) }
+              values = permitted.map(&:revenue).sort.reverse
+              total += values.first(group[:pay]).sum
+            end
+            total * train_rule.multiplier
+          end
+
+          # This is deliberately conservative. Game-specific route bonuses,
+          # doubled towns, token rules, pullman rules, hex re-use restrictions,
+          # and title overrides remain exact only in the Engine AutoRouter.
+          def exact_engine_verification_required?
+            true
+          end
+
+          def recompute_reachability
+            endpoint_capacity = @hex_ids.size * MAX_ENDPOINTS_PER_HEX
+            @visited = Array.new(endpoint_capacity, false) if @visited.size != endpoint_capacity
+            @visited.fill(false)
+            @queue.clear
+
+            @token_endpoints.each do |endpoint|
+              next if @visited[endpoint]
+
+              @visited[endpoint] = true
+              @queue << endpoint
+            end
+
+            cursor = 0
+            while cursor < @queue.size
+              endpoint = @queue[cursor]
+              cursor += 1
+              each_neighbor(endpoint) do |neighbor|
+                next if @visited[neighbor]
+
+                @visited[neighbor] = true
+                @queue << neighbor
+              end
+            end
+
+            stop_ids = []
+            hex_seen = {}
+            @stops.each do |stop|
+              endpoint = global_endpoint(stop.hex_index, stop.endpoint)
+              next unless @visited[endpoint]
+
+              stop_ids << stop.id
+              hex_seen[stop.hex_index] = true
+            end
+            @reachable_stops = stop_ids
+            @reachable_hexes = hex_seen.keys
+            self
+          end
+
+          private
+
+          def extract_board(game, entity, revenue_for)
+            hexes = Array(game.hexes).compact
+            hexes.each_with_index do |hex, index|
+              @hex_ids << hex.id.to_s
+              @hex_index[hex.id.to_s] = index
+            end
+            @neighbors = Array.new(hexes.size) { Array.new(EDGE_COUNT, -1) }
+            @neighbor_edges = Array.new(hexes.size) { Array.new(EDGE_COUNT, -1) }
+            @stops_by_hex = Array.new(hexes.size) { [] }
+
+            hexes.each_with_index do |hex, index|
+              extract_neighbors(hex, index)
+              state_id = register_tile_state(hex.tile, tile_rotation(hex.tile), revenue_for)
+              @tile_state_ids[index] = state_id
+              @position_hash ^= zobrist(index, state_id)
+              extract_stops(hex.tile, index, entity, revenue_for)
+            end
+
+            trains = entity.respond_to?(:trains) ? Array(entity.trains) : []
+            @train_rules = trains.map { |train| TrainRule.new(train) }
+            recompute_reachability
+          end
+
+          def extract_neighbors(hex, index)
+            raw = hex.respond_to?(:neighbors) ? hex.neighbors : {}
+            raw.each do |edge, neighbor|
+              edge_number = edge.to_i
+              next unless edge_number.between?(0, EDGE_COUNT - 1)
+              next unless neighbor
+
+              neighbor_index = @hex_index[neighbor.id.to_s]
+              next unless neighbor_index
+
+              @neighbors[index][edge_number] = neighbor_index
+              @neighbor_edges[index][edge_number] = (edge_number + 3) % EDGE_COUNT
+            end
+          end
+
+          def register_tile_state(tile, rotation, revenue_for = nil)
+            key = [tile.object_id, rotation.to_i]
+            existing = @tile_state_lookup[key]
+            return existing unless existing.nil?
+
+            old_rotation = tile_rotation(tile)
+            tile.rotate!(rotation.to_i) if tile.respond_to?(:rotate!)
+            connections = extract_connections(tile)
+            exit_mask = extract_exit_mask(tile)
+            city_count = tile.respond_to?(:cities) ? Array(tile.cities).size : 0
+            town_count = tile.respond_to?(:towns) ? Array(tile.towns).size : 0
+            offboard_count = tile.respond_to?(:offboards) ? Array(tile.offboards).size : 0
+            revenue = tile_revenue(tile, revenue_for)
+            signature = [tile.name.to_s, rotation.to_i, exit_mask,
+                         connections.map { |pair| pair.join('-') }.sort.join(',')].join(':')
+            state = TileState.new(tile.name, rotation, exit_mask, connections, [],
+                                  revenue, city_count, town_count,
+                                  offboard_count, signature)
+            state_id = @tile_states.size
+            @tile_states << state
+            @tile_state_lookup[key] = state_id
+            state_id
+          ensure
+            tile.rotate!(old_rotation) if tile && tile.respond_to?(:rotate!) && !old_rotation.nil?
+          end
+
+          def extract_connections(tile)
+            pairs = []
+            endpoint_ids = {}
+            next_endpoint = EDGE_COUNT
+            Array(tile.respond_to?(:paths) ? tile.paths : []).each do |path|
+              endpoints = path.respond_to?(:endpoints) ? Array(path.endpoints) : []
+              ids = endpoints.map do |endpoint|
+                edge = endpoint.respond_to?(:num) ? endpoint.num : nil
+                if !edge.nil? && edge.to_i.between?(0, EDGE_COUNT - 1)
+                  edge.to_i
+                else
+                  key = endpoint.object_id
+                  endpoint_ids[key] ||= begin
+                    value = next_endpoint
+                    next_endpoint += 1
+                    value
+                  end
+                end
+              end.uniq
+              ids.combination(2) { |a, b| pairs << [a, b] }
+            end
+            pairs.uniq
+          end
+
+          def extract_exit_mask(tile)
+            mask = 0
+            Array(tile.respond_to?(:exits) ? tile.exits : []).each do |edge|
+              number = edge.to_i
+              mask |= EDGE_BITS[number] if number.between?(0, EDGE_COUNT - 1)
+            end
+            mask
+          end
+
+          def extract_stops(tile, hex_index, entity, revenue_for)
+            groups = [
+              [:city, tile.respond_to?(:cities) ? Array(tile.cities) : []],
+              [:town, tile.respond_to?(:towns) ? Array(tile.towns) : []],
+              [:offboard, tile.respond_to?(:offboards) ? Array(tile.offboards) : []],
+            ]
+            endpoint = EDGE_COUNT
+            groups.each do |kind, nodes|
+              nodes.each do |node|
+                stop_id = @stops.size
+                revenue = node_revenue(node, revenue_for)
+                tokened = node_tokened_by?(node, entity)
+                slots = node.respond_to?(:slots) ? node.slots.to_i : 0
+                stop = Stop.new(stop_id, hex_index, endpoint, kind, revenue, 1,
+                                slots, tokened, false)
+                @stops << stop
+                @stops_by_hex[hex_index] << stop_id
+                @token_endpoints << global_endpoint(hex_index, endpoint) if tokened
+                endpoint += 1
+              end
+            end
+          end
+
+          def node_tokened_by?(node, entity)
+            return false unless node.respond_to?(:tokens)
+
+            Array(node.tokens).compact.any? do |token|
+              corporation = token.respond_to?(:corporation) ? token.corporation : nil
+              corporation == entity
+            end
+          end
+
+          def tile_revenue(tile, revenue_for)
+            return revenue_for.call(tile).to_i if revenue_for
+
+            nodes = []
+            nodes.concat(Array(tile.cities)) if tile.respond_to?(:cities)
+            nodes.concat(Array(tile.towns)) if tile.respond_to?(:towns)
+            nodes.concat(Array(tile.offboards)) if tile.respond_to?(:offboards)
+            nodes.map { |node| node_revenue(node, revenue_for) }.sum
+          end
+
+          def node_revenue(node, revenue_for)
+            return revenue_for.call(node).to_i if revenue_for
+            return 0 unless node.respond_to?(:revenue)
+
+            revenue = node.revenue
+            revenue.is_a?(Numeric) ? revenue.to_i : 0
+          rescue StandardError
+            0
+          end
+
+          def tile_rotation(tile)
+            tile.respond_to?(:rotation) ? (tile.rotation || 0).to_i : 0
+          end
+
+          def global_endpoint(hex_index, local_endpoint)
+            (hex_index.to_i * MAX_ENDPOINTS_PER_HEX) + local_endpoint.to_i
+          end
+
+          def each_neighbor(endpoint)
+            hex = endpoint.to_i / MAX_ENDPOINTS_PER_HEX
+            local = endpoint.to_i % MAX_ENDPOINTS_PER_HEX
+            state = @tile_states[@tile_state_ids[hex]]
+            return unless state
+
+            Array(state.connections_by_endpoint[local]).each do |other_local|
+              yield global_endpoint(hex, other_local)
+            end
+            return unless local < EDGE_COUNT
+            return unless state.exits_at?(local)
+
+            adjacent_hex = @neighbors[hex][local]
+            return if adjacent_hex.nil? || adjacent_hex.negative?
+
+            adjacent_edge = @neighbor_edges[hex][local]
+            adjacent_state = @tile_states[@tile_state_ids[adjacent_hex]]
+            return unless adjacent_state && adjacent_state.exits_at?(adjacent_edge)
+
+            yield global_endpoint(adjacent_hex, adjacent_edge)
+          end
+
+          def zobrist(hex_index, state_id)
+            # Deterministic 32-bit mix suitable for an in-memory transposition key.
+            value = ((hex_index.to_i + 1) * 1_103_515_245) ^
+                    ((state_id.to_i + 1) * 12_345)
+            value & 0x7fff_ffff
+          end
+        end
+
         class << self
           def engine_search_locks
             @engine_search_locks ||= {}
@@ -535,6 +1021,7 @@ module View
                 candidates << {
                   hex_id: hex.id.to_s,
                   tile_name: tile.name.to_s,
+                  tile: tile,
                   rotation: rotation.to_i,
                   local_signature: engine_local_second_signature(tile, hex.id, rotation),
                 }
@@ -1037,6 +1524,68 @@ module View
           end
         end
 
+        COMPACT_SHADOW_PAIR_LIMIT = 12 unless const_defined?(:COMPACT_SHADOW_PAIR_LIMIT)
+
+        def engine_compact_shadow_shortlist(jobs, entity)
+          return jobs if jobs.size <= COMPACT_SHADOW_PAIR_LIMIT
+
+          network = CompactShadowNetwork.from_game(@game, entity, ->(node) { printed_hex_revenue(node) })
+          return jobs unless network
+
+          base = network.reachable_stops.dup
+          scored = jobs.each_with_index.map do |job, index|
+            first_action = job[:first_result][:action]
+            first = network.translate_candidate(first_action)
+            data = job[:second]
+            second = network.translate_parts(data[:hex_id], data[:tile], data[:rotation])
+            next unless first && second
+            next if first[:hex_index] == second[:hex_index]
+
+            network.apply(first)
+            first_score = network.structural_score(base)
+            first_reachable = network.reachable_stops.dup
+            network.apply(second)
+            second_score = network.structural_score(first_reachable)
+            estimate = network.estimated_total_revenue
+            network.undo
+            network.undo
+            {
+              job: job,
+              index: index,
+              key: [first_score[:rank].to_i, second_score[:rank].to_i,
+                    -estimate.to_i, -second_score[:new_revenue].to_i,
+                    -first_score[:new_revenue].to_i,
+                    -job[:first_result][:best_revenue].to_i, index],
+            }
+          rescue StandardError => e
+            network.undo while network.instance_variable_get(:@changes)&.any?
+            LOGGER.warn("[AI COMPACT SHADOW] pair failed: #{e.class}: #{e.message}")
+            nil
+          end.compact
+          return jobs if scored.empty?
+
+          groups = scored.group_by { |item| item[:job][:first_result][:action].object_id }
+          limit = [COMPACT_SHADOW_PAIR_LIMIT, groups.size].max
+          selected = groups.values.map { |items| items.min_by { |item| item[:key] } }
+          ids = {}
+          selected.each { |item| ids[item[:index]] = true }
+          scored.sort_by { |item| item[:key] }.each do |item|
+            break if selected.size >= limit
+            next if ids[item[:index]]
+
+            selected << item
+            ids[item[:index]] = true
+          end
+          selected.sort_by! { |item| item[:key] }
+          LOGGER.info(
+            "[AI COMPACT SHADOW] pairs=#{jobs.size} shortlisted=#{selected.size} " "limit=#{limit} trains=#{network.train_rules.map(&:name).join(',')} " "grouped_trains=#{network.train_rules.count(&:grouped?)}"
+          )
+          selected.map { |item| item[:job] }
+        rescue StandardError => e
+          LOGGER.warn("[AI COMPACT SHADOW] shortlist failed: #{e.class}: #{e.message}")
+          jobs
+        end
+
         def engine_finish_tile_search(state, entity, round_before, step_before)
           completed = state[:results]
           if completed.empty?
@@ -1100,9 +1649,6 @@ module View
             structural_pairs += candidates.size
             seen = {}
             candidates.each do |second|
-              # A two-ply continuation must build a different hex. Re-laying or
-              # upgrading the first-build hex produced impossible branches such as
-              # E13/7/1 -> E13/29/1 and false projected revenue.
               if second[:hex_id].to_s == first.hex.id.to_s
                 same_hex_rejected += 1
                 next
@@ -1123,12 +1669,16 @@ module View
             end
           end
 
+          pre_shortlist_jobs = jobs.size
+          jobs = engine_compact_shadow_shortlist(jobs, entity)
+          shadow_pruned = pre_shortlist_jobs - jobs.size
           generation_ms = engine_now_ms - generation_started_at
 
           LOGGER.info(
             "[AI 2PLY TREE] first_branches=#{completed.size} " \
             "structural_pairs=#{structural_pairs} unique_pairs=#{jobs.size} " \
-            "deduplicated=#{deduplicated} same_hex_rejected=#{same_hex_rejected} production=" \
+            "deduplicated=#{deduplicated} same_hex_rejected=#{same_hex_rejected} " \
+            "shadow_pruned=#{shadow_pruned} production=" \
             "#{action.hex.id}/#{action.tile.name}/#{action.rotation}"
           )
 
@@ -1144,6 +1694,7 @@ module View
             structural_pairs: structural_pairs,
             deduplicated: deduplicated,
             same_hex_rejected: same_hex_rejected,
+            shadow_pruned: shadow_pruned,
             started_at: started_at,
             deadline: started_at + 5_000,
             production_action: action,

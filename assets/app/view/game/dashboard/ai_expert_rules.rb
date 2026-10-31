@@ -74,6 +74,46 @@ module View
           items
         end
 
+        # Return a reproducible probability decision for one game position.
+        #
+        # Re-evaluating the same action position therefore does not reroll the
+        # decision. Advancing the action history creates a new decision point.
+        def self.stable_probability?(game, entity, policy_name, probability)
+          key = [
+            game&.seed,
+            game&.raw_actions&.size,
+            game&.turn,
+            game&.round&.class&.name,
+            entity&.class&.name,
+            entity&.id,
+            policy_name,
+          ].join(':')
+
+          value = key.each_byte.reduce(0) do |memo, byte|
+            ((memo * 31) + byte) & 0x7fffffff
+          end
+
+          Random.new(value).rand < probability
+        end
+
+        def self.issue_shares?(game, entity)
+          stable_probability?(
+            game,
+            entity,
+            :issue_shares,
+            0.80,
+          )
+        end
+
+        def self.redeem_shares?(game, entity)
+          stable_probability?(
+            game,
+            entity,
+            :redeem_shares,
+            0.90,
+          )
+        end
+
         # Policy: generic choices are intentionally uniform.
         def self.select_uniform_choice(actions)
           choices = actions.select { |action| action.is_a?(Engine::Action::Choose) }
@@ -554,6 +594,7 @@ module View
             when: { action_type: 'choose' },
             score_add: 50,
           },
+
         ].freeze
       end
     end
