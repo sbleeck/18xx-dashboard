@@ -50,3 +50,7 @@ dist/
 18xx-extension/main.js
 18xx-extension/_metadata/
 *screenshot_1280x800.png
+
+# AI autoplay generated browser fixtures
+/public/fixtures/ai_catalogue/
+
