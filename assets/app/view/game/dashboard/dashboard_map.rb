@@ -540,6 +540,11 @@ module View
             if (!dashboard) return;
             window.clearMapHexHighlights();
             var list = Array.isArray(hexIds) ? hexIds : (hexIds.to_a ? hexIds.to_a() : [hexIds]);
+
+            if (Array.isArray(window._hoveredCorpLastHexes) && window._hoveredCorpLastHexes.length > 0) {
+              list = list.concat(window._hoveredCorpLastHexes);
+            }
+
             var len = list.length || 0;
 for (var i = 0; i < list.length; i++) {
               var rawId = String(list[i]);
@@ -1490,6 +1495,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                           end
 
         if hovered_company
+          last_laid = last_laid_hexes_for(hovered_company)
           # If the hovered entity has placed tokens on the board, breathing tokens are sufficient.
           # Suppress hex highlights completely for tokened entities.
           has_placed = false
@@ -1498,7 +1504,9 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               (t.respond_to?(:placed?) && t.placed?) || (t.respond_to?(:city) && t.city&.hex) || (t.respond_to?(:hex) && t.hex)
             end
           end
-          return [] if has_placed
+          return last_laid if has_placed
+
+          target_hexes.concat(last_laid)
 
           if hovered_company.respond_to?(:coordinates) && hovered_company.coordinates
             Array(hovered_company.coordinates).each { |coord| target_hexes << coord.to_s }
@@ -1550,6 +1558,57 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           end
         end
         target_hexes.uniq
+      end
+
+      def last_laid_hexes_for(corporation)
+        return [] unless corporation && @game
+
+        step = @game.round.active_step(@selected_company)
+        curr = dashboard_current_entity(step)
+        if @game.round.respond_to?(:laid_hexes) && curr == corporation && @game.round.laid_hexes&.any?
+          return @game.round.laid_hexes.map { |h| h.respond_to?(:id) ? h.id.to_s : h.to_s }.uniq
+        end
+
+        if corporation.respond_to?(:operating_history) && corporation.operating_history&.any?
+          last_info = corporation.operating_history.values.reverse.find do |info|
+            info.respond_to?(:laid_hexes) && info.laid_hexes&.any?
+          end
+          return last_info.laid_hexes.map { |h| h.respond_to?(:id) ? h.id.to_s : h.to_s }.uniq if last_info
+        end
+
+        actions_list = @game.respond_to?(:actions) ? (@game.actions || []) : []
+        laid = []
+        actions_list.reverse_each do |act|
+          a_type = if act.is_a?(Hash)
+                     act['type'] || act[:type]
+                   else
+                     (act.respond_to?(:type) ? act.type : nil)
+                   end
+          a_ent = if act.is_a?(Hash)
+                    act['entity'] || act[:entity]
+                  else
+                    (act.respond_to?(:entity) ? act.entity : nil)
+                  end
+          ent_id = a_ent.respond_to?(:id) ? a_ent.id.to_s : a_ent.to_s
+          owner_id = a_ent.respond_to?(:owner) && a_ent.owner.respond_to?(:id) ? a_ent.owner.id.to_s : nil
+          is_corp = (ent_id == corporation.id.to_s) || (owner_id == corporation.id.to_s)
+
+          if a_type.to_s == 'lay_tile' && is_corp
+            hex = if act.is_a?(Hash)
+                    act['hex'] || act[:hex]
+                  else
+                    (act.respond_to?(:hex) ? act.hex : nil)
+                  end
+            hex_id = hex.respond_to?(:id) ? hex.id.to_s : hex.to_s
+            laid << hex_id unless hex_id.empty?
+          elsif laid.any? && (!is_corp || %w[run_routes dividend pass].include?(a_type.to_s))
+            break
+          end
+        end
+
+        laid.uniq
+      rescue StandardError
+        []
       end
 
       def map_x

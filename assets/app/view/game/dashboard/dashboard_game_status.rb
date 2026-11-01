@@ -992,6 +992,8 @@ module View
 
         tr_props[:attrs][:class] = row_classes.join(' ') unless row_classes.empty?
 
+        last_laid_hexes = last_laid_hexes_for(corporation)
+
         name_props = {
           attrs: {
             class: 'major-corporation-cell status-corp-wrapper cmd-corp-wrapper',
@@ -1004,6 +1006,24 @@ module View
             textAlign: 'center',
             verticalAlign: 'middle',
             position: 'relative',
+          },
+          on: {
+            mouseenter: lambda {
+              %x{
+                window._hoveredCorpLastHexes = #{last_laid_hexes};
+                if (window.highlightMapHexes && #{last_laid_hexes}.length > 0) {
+                  window.highlightMapHexes(#{last_laid_hexes});
+                }
+              }
+            },
+            mouseleave: lambda {
+              %x{
+                window._hoveredCorpLastHexes = null;
+                if (window.clearMapHexHighlights) {
+                  window.clearMapHexHighlights();
+                }
+              }
+            },
           },
         }
         treasury = []
@@ -2244,6 +2264,45 @@ module View
         ])
       end
 
+      def last_laid_hexes_for(corporation)
+        return [] unless corporation && @game
+
+        if @game.round.respond_to?(:laid_hexes) &&
+           (active_entity == corporation || visual_operating_entity == corporation) &&
+           @game.round.laid_hexes&.any?
+          return @game.round.laid_hexes.map { |h| h.respond_to?(:id) ? h.id.to_s : h.to_s }.uniq
+        end
+
+        if corporation.respond_to?(:operating_history) && corporation.operating_history&.any?
+          last_info = corporation.operating_history.values.reverse.find do |info|
+            info.respond_to?(:laid_hexes) && info.laid_hexes&.any?
+          end
+          return last_info.laid_hexes.map { |h| h.respond_to?(:id) ? h.id.to_s : h.to_s }.uniq if last_info
+        end
+
+        actions_list = @game.respond_to?(:actions) ? (@game.actions || []) : []
+        laid = []
+        actions_list.reverse_each do |act|
+          a_type = act.is_a?(Hash) ? (act['type'] || act[:type]) : (act.respond_to?(:type) ? act.type : nil)
+          a_ent = act.is_a?(Hash) ? (act['entity'] || act[:entity]) : (act.respond_to?(:entity) ? act.entity : nil)
+          ent_id = a_ent.respond_to?(:id) ? a_ent.id.to_s : a_ent.to_s
+          owner_id = a_ent.respond_to?(:owner) && a_ent.owner.respond_to?(:id) ? a_ent.owner.id.to_s : nil
+          is_corp = (ent_id == corporation.id.to_s) || (owner_id == corporation.id.to_s)
+
+          if a_type.to_s == 'lay_tile' && is_corp
+            hex = act.is_a?(Hash) ? (act['hex'] || act[:hex]) : (act.respond_to?(:hex) ? act.hex : nil)
+            hex_id = hex.respond_to?(:id) ? hex.id.to_s : hex.to_s
+            laid << hex_id unless hex_id.empty?
+          elsif laid.any? && (!is_corp || %w[run_routes dividend pass].include?(a_type.to_s))
+            break
+          end
+        end
+
+        laid.uniq
+      rescue StandardError
+        []
+      end
+      
       def render_unplaced_tokens(corporation)
         return h(:span, { attrs: { id: "tokens_#{corporation.id}" } }, '') unless corporation.respond_to?(:tokens)
 
