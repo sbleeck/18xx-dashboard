@@ -1712,16 +1712,17 @@ h(:pattern, {
           h(:g, { attrs: { transform: "scale(#{@scale})" } }, [
             h(:g, { attrs: { id: 'map-hexes', transform: "translate(#{map_x} #{map_y})" } }, @hexes),
             h(:g, { attrs: { id: 'map-axis' } }, [
-               h(Axis,
-                 cols: @cols,
-                 rows: @rows,
-                 axes: @game.axes,
-                 layout: @layout,
-                 font_size: FONT_SIZE,
-                 gap: GAP,
-                 map_x: map_x,
-                 map_y: map_y,
-                 start_pos: @start_pos),
+             h(Axis,
+               cols: @cols.map { |c| c + 1 },
+               rows: @rows.map { |r| r + 1 },
+               axes: @game.axes,
+               layout: @layout,
+               font_size: FONT_SIZE,
+               gap: GAP,
+               map_x: map_x,
+               map_y: map_y,
+               start_pos: [(@start_pos[0] || 0) + 1, (@start_pos[1] || 0) + 1]),
+
              ]),
           ]),
         ])

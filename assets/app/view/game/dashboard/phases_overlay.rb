@@ -306,15 +306,20 @@ module View
           curr_idx = phases_list.index { |p| p == current_phase || p[:name].to_s == curr_name } || 0
           status_map = @game.class.const_defined?(:STATUS_TEXT) ? @game.class::STATUS_TEXT : {}
 
-          header = h(:tr, { style: { backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1' } }, [
-            h(:th, { style: { padding: '5px 8px', textAlign: 'left', fontSize: '0.75rem' } }, 'Phase'),
-            h(:th, { style: { padding: '5px 8px', textAlign: 'left', fontSize: '0.75rem' } },
-              @game.respond_to?(:on_train_header) ? @game.on_train_header : 'On Train'),
-            h(:th, { style: { padding: '5px 8px', textAlign: 'center', fontSize: '0.75rem' } }, 'ORs'),
-            h(:th, { style: { padding: '5px 8px', textAlign: 'left', fontSize: '0.75rem' } }, 'Limit'),
-            h(:th, { style: { padding: '5px 8px', textAlign: 'center', fontSize: '0.75rem' } }, 'Tiles'),
-            h(:th, { style: { padding: '5px 8px', textAlign: 'left', fontSize: '0.75rem' } }, 'Status / Triggers'),
-          ])
+          header = h(:tr, { style: { backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1', color: '#000000' } }, [
+                      h(:th, { style: { padding: '5px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#000000' } },
+                        'Phase'),
+                      h(:th, { style: { padding: '5px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#000000' } },
+                        @game.respond_to?(:on_train_header) ? @game.on_train_header : 'On Train'),
+                      h(:th, { style: { padding: '5px 8px', textAlign: 'center', fontSize: '0.75rem', color: '#000000' } },
+                        'ORs'),
+                      h(:th, { style: { padding: '5px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#000000' } },
+                        'Limit'),
+                      h(:th, { style: { padding: '5px 8px', textAlign: 'center', fontSize: '0.75rem', color: '#000000' } },
+                        'Tiles'),
+                      h(:th, { style: { padding: '5px 8px', textAlign: 'left', fontSize: '0.75rem', color: '#000000' } },
+                        'Status / Triggers'),
+                    ])
 
           rows = phases_list.each_with_index.map do |phase, idx|
             p_name = phase[:name].to_s
@@ -380,7 +385,7 @@ module View
                 },
               }, [
               h(:td, { style: { padding: '5px 8px', color: is_active ? '#15803d' : '#0f172a' } }, "#{indicator}#{p_name}"),
-              h(:td, { style: { padding: '5px 8px', color: '#334155' } },
+              h(:td, { style: { padding: '5px 8px', color: '#000000' } },
                 @game.respond_to?(:info_on_trains) ? @game.info_on_trains(phase) : (phase[:train] || '—')),
               h(:td, { style: { padding: '5px 8px', textAlign: 'center', color: '#334155' } }, phase[:operating_rounds].to_s),
               h(:td, { style: { padding: '5px 8px', color: '#334155' } }, format_train_limit(phase[:train_limit])),
@@ -448,15 +453,15 @@ module View
             durability << "Phased out by #{obsoleted_by.join(', ')}" if obsoleted_by.any?
             durability_str = durability.any? ? durability.join(' | ') : 'Permanent'
 
-            h(:tr, { style: { borderBottom: '1px solid #e2e8f0', fontSize: '0.75rem' } }, [
-              h(:td, { style: { padding: '4px 8px', fontWeight: 'bold' } }, name),
-              h(:td, { style: { padding: '4px 8px' } }, @game.format_currency(train.price)),
-              h(:td, { style: { padding: '4px 8px', textAlign: 'center' } }, rem_str),
-              h(:td, { style: { padding: '4px 8px', color: '#b91c1c', fontWeight: effects.any? ? 'bold' : 'normal' } },
-                effects_str),
-              h(:td,
-                { style: { padding: '4px 8px', color: durability.any? ? '#475569' : '#15803d', fontWeight: durability.any? ? 'normal' : 'bold' } }, durability_str),
-            ])
+            h(:tr, { style: { borderBottom: '1px solid #e2e8f0', fontSize: '0.75rem', backgroundColor: '#ffffff' } }, [
+                 h(:td, { style: { padding: '4px 8px', fontWeight: 'bold', color: '#000000' } }, name),
+                 h(:td, { style: { padding: '4px 8px', color: '#000000' } }, @game.format_currency(train.price)),
+                 h(:td, { style: { padding: '4px 8px', textAlign: 'center', color: '#000000' } }, rem_str),
+                 h(:td, { style: { padding: '4px 8px', color: '#b91c1c', fontWeight: effects.any? ? 'bold' : 'normal' } },
+                   effects_str),
+                 h(:td,
+                   { style: { padding: '4px 8px', color: durability.any? ? '#475569' : '#15803d', fontWeight: durability.any? ? 'normal' : 'bold' } }, durability_str),
+               ])
           end
 
           h(:div, {
@@ -467,20 +472,20 @@ module View
               },
             }, [
             h(:strong, { style: { fontSize: '0.8rem', color: '#0f172a' } }, 'Train Obsolescence & Rust Rules'),
-            h(:div, { style: { overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: '6px' } }, [
-              h(:table, { style: { width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' } }, [
-                h(:thead, [
-                  h(:tr, { style: { backgroundColor: '#f1f5f9', borderBottom: '1px solid #cbd5e1' } }, [
-                    h(:th, { style: { padding: '4px 8px', textAlign: 'left' } }, 'Train'),
-                    h(:th, { style: { padding: '4px 8px', textAlign: 'left' } }, 'Price'),
-                    h(:th, { style: { padding: '4px 8px', textAlign: 'center' } }, 'Remaining'),
-                    h(:th, { style: { padding: '4px 8px', textAlign: 'left' } }, 'On Purchase Effect'),
-                    h(:th, { style: { padding: '4px 8px', textAlign: 'left' } }, 'Durability'),
+            h(:div, { style: { overflowX: 'auto', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff' } }, [
+                h(:table, { style: { width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', color: '#000000', backgroundColor: '#ffffff' } }, [
+                  h(:thead, [
+                    h(:tr, { style: { backgroundColor: '#f1f5f9', borderBottom: '1px solid #cbd5e1', color: '#000000' } }, [
+                      h(:th, { style: { padding: '4px 8px', textAlign: 'left', color: '#000000' } }, 'Train'),
+                      h(:th, { style: { padding: '4px 8px', textAlign: 'left', color: '#000000' } }, 'Price'),
+                      h(:th, { style: { padding: '4px 8px', textAlign: 'center', color: '#000000' } }, 'Remaining'),
+                      h(:th, { style: { padding: '4px 8px', textAlign: 'left' } }, 'On Purchase Effect'),
+                      h(:th, { style: { padding: '4px 8px', textAlign: 'left' } }, 'Durability'),
+                    ]),
                   ]),
+                  h(:tbody, rows),
                 ]),
-                h(:tbody, rows),
               ]),
-            ]),
           ])
         end
 
