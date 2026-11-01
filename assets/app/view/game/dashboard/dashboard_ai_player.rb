@@ -132,7 +132,7 @@ module View
           # BuyCompany action exists. All buy actions share that half equally.
           # Legal Bid and Pass actions share the other half equally. Without a
           # buy action, all legal Bid and Pass actions are equally likely.
-          draft_action = AiExpertRules.select_draft_action(actions)
+          draft_action = AiExpertRules.select_draft_action(actions, @game)
           if draft_action
             return false unless action_belongs_to_entity?(draft_action, entity)
             return false unless @game.round.equal?(round_before)
@@ -488,10 +488,8 @@ module View
 
           if step.respond_to?(:available_hex)
             Array(@game.hexes).each do |hex|
-              begin
-                targets << hex if step.available_hex(entity, hex)
-              rescue StandardError
-              end
+              targets << hex if step.available_hex(entity, hex)
+            rescue StandardError
             end
           end
 
@@ -1462,43 +1460,108 @@ module View
         def collect_company_purchases(step, entity)
           return [] unless defined?(Engine::Action::BuyCompany)
 
-          companies = private_companies_for(step, entity)
-          cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
+          cash =
+            if entity.respond_to?(:cash)
+              entity.cash.to_i
+            else
+              0
+            end
+
+          private_companies =
+            private_companies_for(
+              step,
+              entity,
+            )
+
+          bank_companies =
+            begin
+              if step.respond_to?(:buyable_bank_owned_companies)
+                Array(
+                  step.buyable_bank_owned_companies(entity)
+                )
+              elsif @game.respond_to?(:buyable_bank_owned_companies)
+                Array(
+                  @game.buyable_bank_owned_companies
+                )
+              else
+                []
+              end
+            rescue StandardError
+              []
+            end
+
+          companies =
+            (
+              private_companies +
+              bank_companies
+            ).compact.uniq
 
           companies.filter_map do |company|
-            min_price = if step.respond_to?(:min_price)
-                          begin; step.min_price(company); rescue StandardError; nil; end
-                        elsif company.respond_to?(:min_price)
-                          company.min_price
-                        else
-                          1
-                        end
+            bank_owned =
+              bank_companies.include?(company)
 
-            max_price = if step.respond_to?(:max_price)
-                          begin; step.max_price(entity, company); rescue StandardError; nil; end
-                        elsif company.respond_to?(:max_price)
-                          company.max_price
-                        else
-                          cash
-                        end
+            if bank_owned
+              # Bank-owned companies/certificates are bought at their
+              # engine-defined face value.
+              price =
+                if company.respond_to?(:value)
+                  company.value.to_i
+                else
+                  0
+                end
 
-            next if min_price.nil? || max_price.nil?
+              next unless price.positive?
+              next if price > cash
 
-            min_price = min_price.to_i
-            max_price = [max_price.to_i, cash].min
-            next if max_price < min_price
+              Engine::Action::BuyCompany.new(
+                entity,
+                company: company,
+                price: price,
+              )
+            else
+              min_price =
+                if step.respond_to?(:min_price)
+                  begin
+                    step.min_price(company)
+                  rescue StandardError
+                    nil
+                  end
+                elsif company.respond_to?(:min_price)
+                  company.min_price
+                else
+                  1
+                end
 
-            # User policy: each private gets an independent 30% roll. A successful
-            # purchase pays the maximum legal amount the corporation can afford.
-            next unless AiExpertRules.buy_private_company?
+              max_price =
+                if step.respond_to?(:max_price)
+                  begin
+                    step.max_price(entity, company)
+                  rescue StandardError
+                    nil
+                  end
+                elsif company.respond_to?(:max_price)
+                  company.max_price
+                else
+                  cash
+                end
 
-            Engine::Action::BuyCompany.new(
-              entity,
-              company: company,
-              price: max_price,
-            )
+              next if min_price.nil? || max_price.nil?
+
+              min_price = min_price.to_i
+              max_price = [max_price.to_i, cash].min
+
+              next if max_price < min_price
+
+              Engine::Action::BuyCompany.new(
+                entity,
+                company: company,
+                price: max_price,
+              )
+            end
           rescue StandardError => e
-            LOGGER.warn("[AI PRIVATE PURCHASE] #{e.class}: #{e.message}")
+            LOGGER.warn(
+              "[AI COMPANY PURCHASE] #{e.class}: #{e.message}"
+            )
             nil
           end
         end
@@ -1610,6 +1673,11 @@ module View
               action.is_a?(Engine::Action::SellShares)
             end
 
+          par_actions =
+            actions.select do |action|
+              action.is_a?(Engine::Action::Par)
+            end
+
           step = @game.round.active_step
 
           # Emergency train financing:
@@ -1652,6 +1720,10 @@ module View
             end
 
           return sell_actions if forced_sale
+
+                    # Starting a new corporation takes priority over adding another
+          # certificate to an already-started corporation.
+          return par_actions if par_actions.any?
 
           # STOCK POLICY:
           # Never leave purchasing power unused while a legal share purchase exists.
@@ -2123,25 +2195,23 @@ module View
 
             share_percent = 10 unless share_percent.positive?
 
-            percent_needed =
-              if corporation.respond_to?(:percent_to_float)
-                corporation.percent_to_float.to_i
-              elsif corporation.respond_to?(:float_percent)
-                corporation.float_percent.to_i
-              else
-                corporation.presidents_share&.percent.to_i
-              end
-
+         
+            # Par affordability is determined by the initial president
+            # certificate purchase, not by the corporation's float threshold.
+            #
+            # The remaining shares required to float may be bought later by
+            # this or other players. Requiring the parring player to afford
+            # the entire float incorrectly removes legal Par actions.
             president_percent =
               corporation.presidents_share&.percent.to_i
 
-            if percent_needed < president_percent
-              percent_needed =
-                president_percent
-            end
+            president_percent =
+              share_percent unless president_percent.positive?
 
             share_units_needed =
-              (percent_needed.to_f / share_percent).ceil
+              (president_percent.to_f / share_percent).ceil
+
+
 
             affordable_prices = prices.filter_map do |price_entry|
               share_price =
@@ -3430,7 +3500,7 @@ module View
                 step.available_hex(entity, hex)
               rescue StandardError => e
                 LOGGER.warn(
-                  '[AI TILE ENGINE LIST] '                   "available_hex failed hex=#{hex.id}: "                   "#{e.class}: #{e.message}"
+                  '[AI TILE ENGINE LIST] ' "available_hex failed hex=#{hex.id}: " "#{e.class}: #{e.message}"
                 )
                 false
               end
@@ -3447,7 +3517,7 @@ module View
                 ).compact
               rescue StandardError => e
                 LOGGER.warn(
-                  '[AI TILE ENGINE LIST] '                   "upgradeable_tiles failed hex=#{hex.id}: "                   "#{e.class}: #{e.message}"
+                  '[AI TILE ENGINE LIST] ' "upgradeable_tiles failed hex=#{hex.id}: " "#{e.class}: #{e.message}"
                 )
                 []
               end

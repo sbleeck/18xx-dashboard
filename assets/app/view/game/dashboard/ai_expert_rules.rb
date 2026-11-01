@@ -146,23 +146,123 @@ end
           choices.sample
         end
 
-        # Policy: draft/auction probabilities.
-        # If a buy is available, the buy group receives 50% and bid/pass receives 50%.
-        # Actions inside either group are uniformly selected.
-        def self.select_draft_action(actions)
-          buy_class = defined?(Engine::Action::BuyCompany) ? Engine::Action::BuyCompany : nil
-          bid_class = defined?(Engine::Action::Bid) ? Engine::Action::Bid : nil
+        # Auction policy:
+        #
+        # The opening bid is attractive and is taken whenever bidding is chosen.
+        # Above the original price, willingness to continue decays exponentially.
+        #
+        # The decay is adjusted for player count so that, for N independent
+        # bidders, the expected winning price is approximately 1.20 times the
+        # original price.
+        def self.select_draft_action(actions, game)
+          buy_class =
+            defined?(Engine::Action::BuyCompany) ?
+              Engine::Action::BuyCompany :
+              nil
 
-          buys = buy_class ? actions.select { |action| action.is_a?(buy_class) } : []
-          alternatives = actions.select do |action|
-            action.is_a?(Engine::Action::Pass) || (bid_class && action.is_a?(bid_class))
+          bid_class =
+            defined?(Engine::Action::Bid) ?
+              Engine::Action::Bid :
+              nil
+
+          buys =
+            buy_class ?
+              actions.select { |action| action.is_a?(buy_class) } :
+              []
+
+          bids =
+            bid_class ?
+              actions.select { |action| action.is_a?(bid_class) } :
+              []
+
+          passes =
+            actions.select do |action|
+              action.is_a?(Engine::Action::Pass)
+            end
+
+          return nil if buys.empty? && bids.empty?
+
+          # Preserve the existing direct-buy policy.
+          if buys.any? && bids.any?
+            return buys.sample if rand < 0.50
+          elsif buys.any?
+            return buys.sample
           end
-          has_bid = alternatives.any? { |action| bid_class && action.is_a?(bid_class) }
-          return nil if buys.empty? && !has_bid
-          return buys.sample if alternatives.empty?
-          return alternatives.sample if buys.empty?
 
-          rand < 0.50 ? buys.sample : alternatives.sample
+          return bids.sample if passes.empty?
+          return passes.sample if bids.empty?
+
+          # First choose which legal object we are considering bidding on.
+          # The number of available companies must not itself increase the
+          # overall probability of bidding.
+          bid = bids.sample
+
+          target =
+            if bid.respond_to?(:company) && bid.company
+              bid.company
+            elsif bid.respond_to?(:corporation) && bid.corporation
+              bid.corporation
+            elsif bid.respond_to?(:minor) && bid.minor
+              bid.minor
+            end
+
+          original_price =
+            begin
+              if target&.respond_to?(:value) &&
+                 target.value.to_i.positive?
+                target.value.to_i
+              elsif target&.respond_to?(:min_price) &&
+                    target.min_price.to_i.positive?
+                target.min_price.to_i
+              else
+                bid.price.to_i
+              end
+            rescue StandardError
+              bid.price.to_i
+            end
+
+          bid_price = bid.price.to_i
+
+          # Opening/original-price bid: bidding remains strongly preferred.
+          return bid if original_price <= 0 || bid_price <= original_price
+
+          player_count =
+            begin
+              [Array(game.players).size, 1].max
+            rescue StandardError
+              1
+            end
+
+          # Harmonic number H_N.
+          harmonic =
+            (1..player_count).sum do |n|
+              1.0 / n
+            end
+
+          # For N exponentially distributed willingness-to-pay margins:
+          #
+          # E[max margin] = H_N * scale
+          #
+          # Choose scale so expected winning price is approximately 1.20x
+          # the original price.
+          scale =
+            (0.20 * original_price.to_f) /
+            harmonic
+
+          excess =
+            bid_price.to_f -
+            original_price.to_f
+
+          bid_probability =
+            Math.exp(
+              -excess / scale
+            )
+
+          if rand < bid_probability
+            bid
+          else
+            passes.sample
+          end
         end
 
         # Policy: buy as many trains as the network can drive next OR, with a single
@@ -187,7 +287,7 @@ def self.buy_same_director_train?(game, entity)
   stable_probability?(
     game,
     entity,
-    :buy_same_director_train,
+    :buy_same_director_traiai_expert_rules.rbn,
     0.10,
   )
 end
