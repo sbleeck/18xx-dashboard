@@ -689,10 +689,13 @@ module View
         owner = corporation.respond_to?(:owner) ? corporation.owner : nil
 
         if owner && owner == active_player
-          owner_actions = status_actions_for(owner).select { |a| a.start_with?('corporate_') }
+          owner_actions = status_actions_for(owner)
+          step = @game.round.active_step
+          global_actions = step.respond_to?(:current_actions) ? (step.current_actions || []) : []
           actions.concat(owner_actions)
+          actions.concat(global_actions)
         end
-        actions.uniq
+        actions.compact.map(&:to_s).uniq
       end
 
       def status_step_bundles(step, method_name, corporation)
@@ -2283,14 +2286,26 @@ module View
         actions_list = @game.respond_to?(:actions) ? (@game.actions || []) : []
         laid = []
         actions_list.reverse_each do |act|
-          a_type = act.is_a?(Hash) ? (act['type'] || act[:type]) : (act.respond_to?(:type) ? act.type : nil)
-          a_ent = act.is_a?(Hash) ? (act['entity'] || act[:entity]) : (act.respond_to?(:entity) ? act.entity : nil)
+          a_type = if act.is_a?(Hash)
+                     act['type'] || act[:type]
+                   else
+                     (act.respond_to?(:type) ? act.type : nil)
+                   end
+          a_ent = if act.is_a?(Hash)
+                    act['entity'] || act[:entity]
+                  else
+                    (act.respond_to?(:entity) ? act.entity : nil)
+                  end
           ent_id = a_ent.respond_to?(:id) ? a_ent.id.to_s : a_ent.to_s
           owner_id = a_ent.respond_to?(:owner) && a_ent.owner.respond_to?(:id) ? a_ent.owner.id.to_s : nil
           is_corp = (ent_id == corporation.id.to_s) || (owner_id == corporation.id.to_s)
 
           if a_type.to_s == 'lay_tile' && is_corp
-            hex = act.is_a?(Hash) ? (act['hex'] || act[:hex]) : (act.respond_to?(:hex) ? act.hex : nil)
+            hex = if act.is_a?(Hash)
+                    act['hex'] || act[:hex]
+                  else
+                    (act.respond_to?(:hex) ? act.hex : nil)
+                  end
             hex_id = hex.respond_to?(:id) ? hex.id.to_s : hex.to_s
             laid << hex_id unless hex_id.empty?
           elsif laid.any? && (!is_corp || %w[run_routes dividend pass].include?(a_type.to_s))
@@ -2302,7 +2317,7 @@ module View
       rescue StandardError
         []
       end
-      
+
       def render_unplaced_tokens(corporation)
         return h(:span, { attrs: { id: "tokens_#{corporation.id}" } }, '') unless corporation.respond_to?(:tokens)
 
@@ -2651,7 +2666,7 @@ module View
                          end
           end
 
-          is_buyable = false if active_ent.respond_to?(:corporation?) && active_ent.corporation? && (!c.owner || c.owner != active_ent.owner)
+          is_buyable = false if c.owner == active_ent
 
           matching_special_action = valid_special_actions.find do |_, _action_class|
             targets = if step.respond_to?(:available_targets)

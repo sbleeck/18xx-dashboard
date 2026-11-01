@@ -253,22 +253,23 @@ module View
         def actions_for(entity)
           return [] unless entity
 
-          step = active_step_for(entity) || (@game.round.respond_to?(:active_step) ? @game.round.active_step : nil)
-          actions = begin
-            step.respond_to?(:actions) ? (step.actions(entity) || []) : []
-          rescue NotImplementedError, StandardError
-            []
-          end
-
-          if actions.empty? && @game.round.respond_to?(:actions_for)
-            actions = begin
-              @game.round.actions_for(entity) || []
+          actions = []
+          if @game.round.respond_to?(:actions_for)
+            begin
+              actions.concat(Array(@game.round.actions_for(entity)))
             rescue NotImplementedError, StandardError
-              []
             end
           end
 
-          actions
+          step = active_step_for(entity) || (@game.round.respond_to?(:active_step) ? @game.round.active_step : nil)
+          if step.respond_to?(:actions)
+            begin
+              actions.concat(Array(step.actions(entity)))
+            rescue NotImplementedError, StandardError
+            end
+          end
+
+          actions.compact.map(&:to_s).uniq
         rescue NotImplementedError, StandardError
           []
         end
@@ -322,87 +323,65 @@ module View
           step = @game.round.active_step
           return [] unless step
 
+          target = current_entity
+          target = step.current_entity if !corporation_or_minor?(target) && step.respond_to?(:current_entity)
+          return [] unless corporation_or_minor?(target)
+
+          candidate = target
           player = active_player
 
-          candidates =
-            if @game.round.stock?
-              (@game.respond_to?(:corporations) ? @game.corporations : []).select do |corporation|
-                corporation.respond_to?(:owner) &&
-                  corporation.owner &&
-                  player &&
-                  corporation.owner == player
-              end
-            else
-              [
-                current_entity,
-                step.current_entity,
-                *(@game.respond_to?(:corporations) ? @game.corporations : []),
-              ].compact.uniq
+          candidate_step = active_step_for(candidate) || step
+
+          player_actions = player ? actions_for(player).compact.map(&:to_s) : []
+          global_actions = candidate_step.respond_to?(:current_actions) ? (candidate_step.current_actions || []).map(&:to_s) : []
+          candidate_actions = (actions_for(candidate).compact.map(&:to_s) + player_actions + global_actions).uniq
+
+          round_steps = @game.round.respond_to?(:steps) ? (@game.round.steps || []) : []
+          issue_step = round_steps.find do |s|
+            s.respond_to?(:issuable_shares) || s.respond_to?(:issuable_bundles)
+          end || candidate_step
+
+          redeem_step = round_steps.find do |s|
+            s.respond_to?(:redeemable_shares) || s.respond_to?(:redeemable_bundles)
+          end || candidate_step
+
+          issuable = begin
+            res = []
+            if issue_step.respond_to?(:issuable_shares)
+              res = begin; issue_step.issuable_shares(candidate) || []; rescue ArgumentError; issue_step.issuable_shares || []; end
+            elsif issue_step.respond_to?(:issuable_bundles)
+              res = begin; issue_step.issuable_bundles(candidate) || []; rescue ArgumentError; issue_step.issuable_bundles || []; end
             end
-
-          candidates.filter_map do |candidate|
-            next unless corporation_or_minor?(candidate)
-
-            candidate_step = active_step_for(candidate) || step
-
-            candidate_actions =
-              actions_for(candidate)
-                .compact
-                .map(&:to_s)
-                .uniq
-
-            issuable = begin
-              if candidate_step.respond_to?(:issuable_shares)
-                begin
-                  candidate_step.issuable_shares(candidate) || []
-                rescue ArgumentError
-                  candidate_step.issuable_shares || []
-                end
-              elsif candidate_step.respond_to?(:issuable_bundles)
-                begin
-                  candidate_step.issuable_bundles(candidate) || []
-                rescue ArgumentError
-                  candidate_step.issuable_bundles || []
-                end
-              else
-                []
-              end
-            rescue StandardError
-              []
-            end
-
-            redeemable = begin
-              if candidate_step.respond_to?(:redeemable_shares)
-                begin
-                  candidate_step.redeemable_shares(candidate) || []
-                rescue ArgumentError
-                  candidate_step.redeemable_shares || []
-                end
-              elsif candidate_step.respond_to?(:redeemable_bundles)
-                begin
-                  candidate_step.redeemable_bundles(candidate) || []
-                rescue ArgumentError
-                  candidate_step.redeemable_bundles || []
-                end
-              else
-                []
-              end
-            rescue StandardError
-              []
-            end
-
-            can_issue =
-              (candidate_actions &
-               %w[issue_shares reissue_shares reissue corporate_sell_shares]).any? &&
-              issuable.compact.any?
-
-            can_redeem =
-              (candidate_actions &
-               %w[redeem redeem_shares corporate_buy_shares]).any? &&
-              redeemable.compact.any?
-
-            [candidate, candidate_actions] if can_issue || can_redeem
+            res = @game.issuable_shares(candidate) || [] if res.empty? && @game.respond_to?(:issuable_shares)
+            res
+          rescue StandardError
+            []
           end
+
+          redeemable = begin
+            res = []
+            if redeem_step.respond_to?(:redeemable_shares)
+              res = begin; redeem_step.redeemable_shares(candidate) || []; rescue ArgumentError; redeem_step.redeemable_shares || []; end
+            elsif redeem_step.respond_to?(:redeemable_bundles)
+              res = begin; redeem_step.redeemable_bundles(candidate) || []; rescue ArgumentError; redeem_step.redeemable_bundles || []; end
+            end
+            res = @game.redeemable_shares(candidate) || [] if res.empty? && @game.respond_to?(:redeemable_shares)
+            res
+          rescue StandardError
+            []
+          end
+
+          can_issue =
+            (candidate_actions &
+             %w[issue issue_shares reissue reissue_shares corporate_sell_shares sell_shares]).any? &&
+            issuable.compact.any?
+
+          can_redeem =
+            (candidate_actions &
+             %w[redeem redeem_shares corporate_buy_shares buy_shares]).any? &&
+            redeemable.compact.any?
+
+          can_issue || can_redeem ? [[candidate, candidate_actions]] : []
         end
 
         def active_player
@@ -1165,6 +1144,15 @@ module View
           buy_company_step =
             if @game.round.respond_to?(:steps)
               @game.round.steps.find do |candidate_step|
+                next false unless candidate_step.respond_to?(:buyable_companies) ||
+                                  candidate_step.respond_to?(:can_buy_company?)
+
+                if candidate_step.respond_to?(:actions)
+                  (Array(candidate_step.actions(entity)).map(&:to_s) & %w[buy_company acquire_company]).any?
+                else
+                  true
+                end
+              end || @game.round.steps.find do |candidate_step|
                 candidate_step.respond_to?(:buyable_companies) ||
                   candidate_step.respond_to?(:can_buy_company?)
               end
@@ -1172,29 +1160,34 @@ module View
 
           buy_company_step ||= step
 
-          all_companies =
-            if buy_company_step.respond_to?(:buyable_companies)
-              begin
-                buy_company_step.buyable_companies(entity) || []
-              rescue StandardError
-                []
-              end
-            elsif buy_company_step.respond_to?(:can_buy_company?) &&
-                  @game.respond_to?(:companies)
-              @game.companies.select do |company|
-                buy_company_step.can_buy_company?(entity, company)
-              rescue StandardError
-                false
-              end
-            else
-              []
+          all_companies = []
+          if buy_company_step.respond_to?(:buyable_companies)
+            begin
+              all_companies.concat(Array(buy_company_step.buyable_companies(entity)))
+            rescue StandardError
             end
+          end
+          if all_companies.empty? && @game.respond_to?(:purchasable_companies)
+            begin
+              all_companies.concat(Array(@game.purchasable_companies(entity)))
+            rescue StandardError
+            end
+          end
+          if @game.respond_to?(:buyable_bank_owned_companies)
+            begin
+              all_companies.concat(Array(@game.buyable_bank_owned_companies))
+            rescue StandardError
+            end
+          end
+          all_companies.concat(Array(@game.companies)) if all_companies.empty? && @game.respond_to?(:companies)
+          all_companies.uniq!
 
           companies = all_companies
             .compact
             .reject { |company| company.respond_to?(:closed?) && company.closed? }
+            .reject { |company| @game.respond_to?(:abilities) && @game.abilities(company, :no_buy) }
             .select do |company|
-              company.owner == operating_player &&
+              (company.owner == operating_player || !company.owner&.player?) &&
                 company.owner != entity
             end
 
@@ -2133,32 +2126,38 @@ module View
           entity ||= current_entity
           return nil unless entity && step
 
-          entity_actions = actions_for(entity)
+          player = active_player
+          player_actions = player ? actions_for(player).compact.map(&:to_s) : []
+          global_actions = step.respond_to?(:current_actions) ? (step.current_actions || []).map(&:to_s) : []
+          entity_actions = actions_for(entity).compact.map(&:to_s)
 
-          available_actions =
-            entity_actions
-              .compact
-              .map(&:to_s)
-              .uniq
+          available_actions = (entity_actions + player_actions + global_actions).uniq
+
+          round_steps = @game.round.respond_to?(:steps) ? (@game.round.steps || []) : []
+          issue_step = round_steps.find do |s|
+            s.respond_to?(:issuable_shares) || s.respond_to?(:issuable_bundles)
+          end || step
+
+          redeem_step = round_steps.find do |s|
+            s.respond_to?(:redeemable_shares) || s.respond_to?(:redeemable_bundles)
+          end || step
 
           issuable_bundles = begin
-            bundles = if step.respond_to?(:issuable_shares)
-                        begin
-                          step.issuable_shares(entity)
-                        rescue ArgumentError
-                          step.issuable_shares
-                        end
-                      elsif step.respond_to?(:issuable_bundles)
-                        begin
-                          step.issuable_bundles(entity)
-                        rescue ArgumentError
-                          step.issuable_bundles
-                        end
-                      elsif @game.respond_to?(:issuable_shares)
-                        @game.issuable_shares(entity)
-                      else
-                        []
-                      end || []
+            bundles = []
+            if issue_step.respond_to?(:issuable_shares)
+              bundles = begin
+                issue_step.issuable_shares(entity) || []
+              rescue ArgumentError
+                issue_step.issuable_shares || []
+              end
+            elsif issue_step.respond_to?(:issuable_bundles)
+              bundles = begin
+                issue_step.issuable_bundles(entity) || []
+              rescue ArgumentError
+                issue_step.issuable_bundles || []
+              end
+            end
+            bundles = @game.issuable_shares(entity) || [] if bundles.empty? && @game.respond_to?(:issuable_shares)
 
             bundles.compact.map do |raw|
               if defined?(Engine::ShareBundle) && raw.is_a?(Engine::ShareBundle)
@@ -2180,11 +2179,12 @@ module View
           can_issue = (
             available_actions &
             %w[
-              issue_shares
-              reissue_shares
-              reissue
-              corporate_sell_shares
-              sell_shares
+            issue
+            issue_shares
+            reissue_shares
+            reissue
+            corporate_sell_shares
+            sell_shares
             ]
           ).any?
 
@@ -2299,29 +2299,28 @@ module View
           end
 
           redeemable_bundles = begin
-            bundles = if step.respond_to?(:redeemable_shares)
-                        begin
-                          step.redeemable_shares(entity)
-                        rescue ArgumentError
-                          step.redeemable_shares
-                        end
-                      elsif step.respond_to?(:redeemable_bundles)
-                        begin
-                          step.redeemable_bundles(entity)
-                        rescue ArgumentError
-                          step.redeemable_bundles
-                        end
-                      elsif @game.respond_to?(:redeemable_shares)
-                        @game.redeemable_shares(entity)
-                      elsif step.respond_to?(:buyable_shares)
-                        begin
-                          step.buyable_shares(entity)
-                        rescue ArgumentError
-                          step.buyable_shares
-                        end
-                      else
-                        []
-                      end || []
+            bundles = []
+            if redeem_step.respond_to?(:redeemable_shares)
+              bundles = begin
+                redeem_step.redeemable_shares(entity) || []
+              rescue ArgumentError
+                redeem_step.redeemable_shares || []
+              end
+            elsif redeem_step.respond_to?(:redeemable_bundles)
+              bundles = begin
+                redeem_step.redeemable_bundles(entity) || []
+              rescue ArgumentError
+                redeem_step.redeemable_bundles || []
+              end
+            end
+            bundles = @game.redeemable_shares(entity) || [] if bundles.empty? && @game.respond_to?(:redeemable_shares)
+            if bundles.empty? && redeem_step.respond_to?(:buyable_shares)
+              bundles = begin
+                redeem_step.buyable_shares(entity) || []
+              rescue ArgumentError
+                redeem_step.buyable_shares || []
+              end
+            end
 
             bundles.compact.map do |raw|
               if defined?(Engine::ShareBundle) && raw.is_a?(Engine::ShareBundle)
@@ -3545,7 +3544,8 @@ module View
                 components << h(CashCrisis)
                 loans_rendered = true if (%w[take_loan payoff_loan] & actions).any?
               elsif (actions.include?('buy_shares') || actions.include?('sell_shares')) &&
-                corporation_or_minor?(op_entity)
+                corporation_or_minor?(op_entity) &&
+                !rendered_issue_entities.include?(op_entity)
 
                 price_protection = begin
                   step.price_protection if step.respond_to?(:price_protection)
@@ -3635,10 +3635,16 @@ module View
                 end
               end
 
-              can_buy_companies = actions.include?('buy_company') ||
-                                  (step.respond_to?(:buyable_companies) && step.buyable_companies(step&.current_entity)&.any?) ||
-                                  (step.respond_to?(:can_buy_company?) && @game.companies.any? { |c| step.can_buy_company?(step&.current_entity, c) })
-              components << render_buyable_companies(step, step&.current_entity) if can_buy_companies
+              step_actions = step.respond_to?(:current_actions) ? (step.current_actions || []) : []
+              player_actions = active_player ? actions_for(active_player) : []
+              all_actions_here = (actions + step_actions + player_actions).compact.map(&:to_s).uniq
+              op_ent = step&.current_entity || current_entity
+
+              can_buy_companies = all_actions_here.include?('buy_company') ||
+                                  (step.respond_to?(:buyable_companies) && step.buyable_companies(op_ent)&.any?) ||
+                                  (step.respond_to?(:can_buy_company?) && @game.companies.any? { |c| step.can_buy_company?(op_ent, c) })
+
+              components << render_buyable_companies(step, op_ent) if can_buy_companies
 
               components << render_buyable_trains(step, step&.current_entity) if actions.include?('buy_train')
               components << render_discard_trains(step, step&.current_entity || current_entity) if actions.include?('discard_train')
