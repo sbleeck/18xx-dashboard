@@ -534,7 +534,7 @@ module View
         if (typeof window !== 'undefined') {
 
 
-          window.highlightMapHexes = function(hexIds, _color) {
+          window.highlightMapHexes = function(hexIds, _color, breatheLastBuilt) {
             if (!hexIds) return;
             var dashboard = document.getElementById('viz-master-frame');
             if (!dashboard) return;
@@ -565,6 +565,9 @@ for (var i = 0; i < list.length; i++) {
                     poly.setAttribute('stroke-width', '8');
                     poly.setAttribute('fill', '#00ffff');
                     poly.setAttribute('fill-opacity', '0.35');
+                    if (breatheLastBuilt || (Array.isArray(window._hoveredCorpLastHexes) && window._hoveredCorpLastHexes.map(String).indexOf(rawId) >= 0)) {
+                      poly.classList.add('last-built-tile-breathing');
+                    }
                   }
                 }
               }
@@ -585,6 +588,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               p.setAttribute('stroke-width', origWidth);
               p.setAttribute('fill', origFill);
               p.setAttribute('fill-opacity', origFillOpacity);
+              p.classList.remove('last-built-tile-breathing');
             }
           };
         }
@@ -1235,7 +1239,12 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                           false
                         end
                       end
+          hover_mode = !hovered_c_id.nil? || !hovered_last_id.nil?
           is_hovered = hovered_hex_set.include?(hex.id.to_s.upcase)
+          is_last_built_hover = hovered_corp && last_laid_hexes_for(hovered_corp).map do |h|
+            h.to_s.upcase
+          end.include?(hex.id.to_s.upcase)
+          is_hovered ||= is_last_built_hover
 
           base_hex = h(
               Hex,
@@ -1260,7 +1269,9 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
 
           overlays = []
 
-          show_building_highlight = if hex_selected
+          show_building_highlight = if hover_mode
+                                      false
+                                    elsif hex_selected
                                       hex == selected_hex
                                     else
                                       clickable && track_action_active && step.respond_to?(:potential_tiles) &&
@@ -1664,6 +1675,15 @@ h(:style, {}, %(
   #map .dashboard-tile-cost {
     font-size: 12px !important;
     letter-spacing: 0 !important;
+  }
+  @keyframes dashboard-last-built-tile-breathe {
+    0%, 100% { stroke-width: 7px; stroke-opacity: 0.55; fill-opacity: 0.16; filter: drop-shadow(0 0 2px #00ffff); }
+    50% { stroke-width: 14px; stroke-opacity: 1; fill-opacity: 0.46; filter: drop-shadow(0 0 10px #00ffff); }
+  }
+  #map .last-built-tile-breathing {
+    animation: dashboard-last-built-tile-breathe 0.95s ease-in-out infinite !important;
+    transform-box: fill-box;
+    transform-origin: center;
   }
 )),
 h(:pattern, {

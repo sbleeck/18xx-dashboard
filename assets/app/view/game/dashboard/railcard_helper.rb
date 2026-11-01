@@ -593,6 +593,66 @@ module View
           end
         end
 
+        def tooltip_last_laid_hexes(entity)
+          return [] unless entity && @game
+          if @game.round.respond_to?(:laid_hexes) &&
+             ((@game.respond_to?(:current_entity) && @game.current_entity == entity) ||
+              (@game.round.respond_to?(:current_entity) && @game.round.current_entity == entity)) &&
+             @game.round.laid_hexes&.any?
+            return @game.round.laid_hexes.map { |h| h.respond_to?(:id) ? h.id.to_s : h.to_s }.uniq
+          end
+
+          if entity.respond_to?(:operating_history) && entity.operating_history&.any?
+            info = entity.operating_history.values.reverse.find do |entry|
+              entry.respond_to?(:laid_hexes) && entry.laid_hexes&.any?
+            end
+            return info.laid_hexes.map { |h| h.respond_to?(:id) ? h.id.to_s : h.to_s }.uniq if info
+          end
+          []
+        rescue StandardError
+          []
+        end
+
+        def tooltip_last_run(entity)
+          return ['No recorded run', nil] unless entity.respond_to?(:operating_history) && entity.operating_history&.any?
+
+          run = entity.operating_history.values.last
+          revenue = if run.respond_to?(:revenue)
+                      run.revenue
+                    else
+                      (run.is_a?(Hash) ? (run[:revenue] || run['revenue']) : nil)
+                    end
+          dividend = if run.respond_to?(:dividend)
+                       run.dividend
+                     else
+                       (run.is_a?(Hash) ? (run[:dividend] || run['dividend']) : nil)
+                     end
+          kind = (dividend.respond_to?(:kind) ? dividend.kind : dividend).to_s.downcase
+          held = if run.respond_to?(:withheld?)
+                   run.withheld?
+                 elsif run.respond_to?(:withhold?)
+                   run.withhold?
+                 else
+                   kind.start_with?('withhold', 'held', 'hold')
+                 end
+          half = run.respond_to?(:half?) ? run.half? : kind.start_with?('half', 'split')
+          amount = revenue.nil? ? nil : @game.format_currency(revenue)
+          label = if amount.nil?
+                    'No recorded revenue'
+                  elsif held
+                    "Withheld (#{amount})"
+                  elsif half
+                    "Half paid (#{amount})"
+                  elsif kind.empty?
+                    amount
+                  else
+                    "#{kind.split('_').map(&:capitalize).join(' ')} (#{amount})"
+                  end
+          [label, revenue]
+        rescue StandardError
+          ['No recorded run', nil]
+        end
+
         def render_corp_tooltip(entity)
           return nil unless entity
 
@@ -606,7 +666,8 @@ module View
 
           return nil unless is_corporation || is_minor
 
-          target_hexes = resolve_target_hexes(entity)
+          last_laid_hexes = tooltip_last_laid_hexes(entity)
+          target_hexes = (resolve_target_hexes(entity) + last_laid_hexes).uniq
 
           corp_name = if entity.respond_to?(:full_name) && entity.full_name && !entity.full_name.to_s.empty?
                         entity.full_name.to_s
@@ -616,6 +677,7 @@ module View
                         entity.id.to_s
                       end
 
+          corp_symbol = (entity.respond_to?(:sym) && entity.sym ? entity.sym : entity.id).to_s
           corp_bg = entity.respond_to?(:color) && entity.color ? entity.color : '#4169e1'
           corp_text = entity.respond_to?(:text_color) && entity.text_color ? entity.text_color : '#ffffff'
 
@@ -678,7 +740,10 @@ module View
                                   color: corp_text,
                                   wordBreak: 'break-word',
                                 },
-                              }, corp_name),
+                              }, [
+                                h(:div, { style: { fontSize: '1rem', fontWeight: '900', lineHeight: '1.15', whiteSpace: 'normal', overflowWrap: 'anywhere' } }, corp_name),
+                                h(:div, { style: { fontSize: '0.72rem', fontWeight: '700', opacity: '0.9', marginTop: '2px' } }, "Symbol: #{corp_symbol}"),
+                              ]),
                           ])
 
           director_name = if entity.respond_to?(:owner) && entity.owner
@@ -756,6 +821,21 @@ module View
                                    }, 'None')
           end
 
+          last_run_label, last_run_revenue = tooltip_last_run(entity)
+          last_hex_text = last_laid_hexes.any? ? last_laid_hexes.join(', ') : 'None recorded'
+          run_color = last_run_label.start_with?('Withheld') ? '#b91c1c' : COLOR_MONEY
+          operations_content = [
+            h(:div, { style: { borderTop: '1px solid #e5e7eb', marginTop: '8px', paddingTop: '8px' } }, [
+              h(:div, { style: { fontSize: '0.72rem', fontWeight: '800', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' } }, 'Last run'),
+              h(:div, { style: { fontFamily: FONT_MONEY, fontSize: '0.82rem', fontWeight: 'bold', color: run_color, whiteSpace: 'normal', overflowWrap: 'anywhere' } }, last_run_label),
+            ]),
+            h(:div, { style: { marginTop: '8px' } }, [
+              h(:div, { style: { fontSize: '0.72rem', fontWeight: '800', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' } }, 'Last hex built'),
+              h(:div, { style: { fontFamily: FONT_MONEY, fontSize: '0.82rem', fontWeight: 'bold', color: corp_bg, whiteSpace: 'normal', overflowWrap: 'anywhere' } }, last_hex_text),
+            ]),
+            h(:div, { style: { marginTop: '9px', padding: '6px 8px', borderRadius: '5px', backgroundColor: '#eff6ff', color: '#1d4ed8', fontSize: '0.72rem', lineHeight: '1.3', whiteSpace: 'normal', overflowWrap: 'anywhere' } }, ''),
+          ]
+
           body_node = h(:div, {
                           style: {
                             padding: '10px 12px',
@@ -764,11 +844,12 @@ module View
                         }, [
                           director_row,
                           *abilities_content,
+                          *operations_content,
                         ])
 
           card_container = h(:div, {
                                style: {
-                                 width: '280px',
+                                 width: '320px',
                                  maxWidth: '90vw',
                                  backgroundColor: '#ffffff',
                                  border: '2px solid #333333',

@@ -580,7 +580,6 @@ module View
           *extra,
         ]
         corporation_headers << h(:th, { attrs: { class: 'header-corporate' } }, render_sort_link('Privates', :companies)) if @show_privates
-        corporation_headers << h(:th, { attrs: { class: 'header-corporate' } }, render_sort_link('Last', :prev_revenue))
 
         [h(:tr, [
           h('th.thick-right.header-symbol', ''),
@@ -1012,20 +1011,24 @@ module View
           },
           on: {
             mouseenter: lambda {
+              Lib::Storage['hovered_last_corp'] = corporation.id
               %x{
                 window._hoveredCorpLastHexes = #{last_laid_hexes};
                 if (window.highlightMapHexes && #{last_laid_hexes}.length > 0) {
-                  window.highlightMapHexes(#{last_laid_hexes});
+                  window.highlightMapHexes(#{last_laid_hexes}, null, true);
                 }
               }
+              update
             },
             mouseleave: lambda {
+              Lib::Storage['hovered_last_corp'] = nil if Lib::Storage['hovered_last_corp'] == corporation.id
               %x{
                 window._hoveredCorpLastHexes = null;
                 if (window.clearMapHexHighlights) {
                   window.clearMapHexHighlights();
                 }
               }
+              update
             },
           },
         }
@@ -2006,7 +2009,8 @@ module View
         unless ipo_share_text.empty?
           card_classes = ['game-card']
           card_classes << 'president-card' if ipo_is_director
-          card_classes << 'action-sell' if issue_from_ipo
+          # IPO inventory is never rendered red. Red is reserved for sell/redeem
+          # sources; issuing from IPO must not leak that transient action colour.
           card_classes << 'action-buy' if ipo_click_handler && !issue_from_ipo
           card_classes << 'clickable' if ipo_click_handler
 
@@ -2193,60 +2197,6 @@ module View
           *extra,
         ]
         corporation_row_content << render_companies(corporation, nil, 'column-zone-corporate') if @show_privates
-
-        last_run = corporation.operating_history.values.last
-        div = if last_run.respond_to?(:dividend)
-                last_run.dividend
-              else
-                (last_run.is_a?(Hash) ? last_run[:dividend] : nil)
-              end
-        div_kind = (div.respond_to?(:kind) ? div.kind : div).to_s.downcase
-
-        held = if last_run.respond_to?(:withheld?)
-                 last_run.withheld?
-               elsif last_run.respond_to?(:withhold?)
-                 last_run.withhold?
-               else
-                 div_kind.start_with?('withhold', 'held', 'hold')
-               end
-
-        half_held = last_run.respond_to?(:half?) ? last_run.half? : div_kind.start_with?('half', 'split')
-        held = false if clean_rev.empty?
-        half_held = false if clean_rev.empty? || held
-
-        font_color = '#dc2626' if held
-        clean_rev = "-#{clean_rev}" if held
-        clean_rev = "½ #{clean_rev}" if half_held
-
-        is_hovered_cell = (Lib::Storage['hovered_last_corp'] == corporation.id)
-        rev_class = "td.padded_number.column-zone-corporate#{'.money-value' unless font_color}"
-        rev_props = { hook: Lib::MoneyAnimation.hook }
-        rev_props[:style] = {
-          color: font_color,
-          fontFamily: 'var(--font-money)',
-          fontWeight: 'bold',
-          fontVariantNumeric: 'tabular-nums',
-        }.compact
-
-        unless clean_rev.empty?
-          rev_props[:style][:cursor] = 'pointer'
-          rev_props[:style][:boxShadow] = 'inset 0 0 0 2px #00ffff' if is_hovered_cell
-          rev_props[:attrs] = { title: 'Hover to view previous routes' }
-          rev_props[:on] = {
-            mouseenter: lambda {
-              Lib::Storage['hovered_last_corp'] = corporation.id
-              update
-            },
-            mouseleave: lambda {
-              if Lib::Storage['hovered_last_corp'] == corporation.id
-                Lib::Storage['hovered_last_corp'] = nil
-                update
-              end
-            },
-          }
-        end
-
-        corporation_row_content << h(rev_class, rev_props, clean_rev)
 
         row_content = []
         row_content.concat(players_row_content)
@@ -2982,6 +2932,15 @@ module View
         %x{
     if (typeof window !== 'undefined') {
       window._railcard_pending_source = #{source_selector};
+      window._railcard_pending_target = '#player_shares_#{player.id}';
+      var el = document.querySelector(#{source_selector});
+      if (el) {
+        var card = el.classList && el.classList.contains('game-card') ? el : (el.querySelector('.game-card') || el);
+        var r = card.getBoundingClientRect();
+        window._railcard_pending_source_rect = {
+          left: r.left, top: r.top, width: r.width, height: r.height
+        };
+      }
     }
   }
 
@@ -3005,6 +2964,15 @@ module View
         %x{
     if (typeof window !== 'undefined') {
       window._railcard_pending_source = #{source_selector};
+      window._railcard_pending_target = '#player_shares_#{player.id}';
+      var el = document.querySelector(#{source_selector});
+      if (el) {
+        var card = el.classList && el.classList.contains('game-card') ? el : (el.querySelector('.game-card') || el);
+        var r = card.getBoundingClientRect();
+        window._railcard_pending_source_rect = {
+          left: r.left, top: r.top, width: r.width, height: r.height
+        };
+      }
     }
   }
 

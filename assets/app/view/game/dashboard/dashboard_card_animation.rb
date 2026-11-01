@@ -149,12 +149,12 @@ module Lib
         }
 
         var savedSourceRect = null;
-        if (isTrain) {
-          if (isForward && window._railcard_pending_source_rect) {
-            savedSourceRect = window._railcard_pending_source_rect;
-          } else if (!isForward && activeData.train_target_rect) {
-            savedSourceRect = activeData.train_target_rect;
-          }
+        if (isForward && window._railcard_pending_source_rect) {
+          // Share cards can disappear or change immediately after a purchase.
+          // Preserve the pre-action pool/IPO card geometry just like train cards.
+          savedSourceRect = window._railcard_pending_source_rect;
+        } else if (isTrain && !isForward && activeData.train_target_rect) {
+          savedSourceRect = activeData.train_target_rect;
         }
 
         window._railcard_pending_transfer = null;
