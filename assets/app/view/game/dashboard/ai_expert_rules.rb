@@ -287,139 +287,456 @@ module View
           true
         end
 
-        # Policy: evaluate a tile lay as the first of two consecutive builds.
-        def self.two_build_tile_features(entity:, hex:, old_tile:, new_tile:, cost:, revenue_for:)
-          old_rev = revenue_for.call(old_tile)
-          new_rev = revenue_for.call(new_tile)
-          tile_rev_gain = [new_rev - old_rev, 0].max
-          has_own_token = old_tile.respond_to?(:cities) && Array(old_tile.cities).any? do |city|
+        # =====================================================================
+        # 4-HEX DIRECTIONAL CORRIDOR & TOPOLOGY EVALUATOR
+        # =====================================================================
+
+        def self.extract_tile_exits(tile)
+          return [] unless tile
+
+          if tile.respond_to?(:exits) && tile.exits&.any?
+            Array(tile.exits).compact.map(&:to_i).uniq
+          elsif tile.respond_to?(:paths) && tile.paths&.any?
+            Array(tile.paths).flat_map(&:exits).flatten.compact.map(&:to_i).uniq
+          else
+            []
+          end
+        rescue StandardError
+          []
+        end
+
+        def self.connected_exits_from_entry(tile, entry_edge, fallback_exits = nil)
+          exits = fallback_exits || extract_tile_exits(tile)
+          return [] unless tile
+
+          if tile.respond_to?(:paths) && tile.paths&.any?
+            reachable = []
+            Array(tile.paths).each do |path|
+              p_exits = Array(path.exits).compact.map(&:to_i)
+              reachable.concat(p_exits - [entry_edge]) if p_exits.include?(entry_edge)
+            end
+            return reachable.uniq if reachable.any?
+          end
+
+          exits - [entry_edge]
+        rescue StandardError
+          Array(fallback_exits) - [entry_edge]
+        end
+
+        def self.max_revenue_on_tile(tile, revenue_for = nil)
+          return 0 unless tile
+
+          revs = []
+          revs.concat(Array(tile.cities).map(&:revenue)) if tile.respond_to?(:cities) && tile.cities
+          revs.concat(Array(tile.towns).map(&:revenue)) if tile.respond_to?(:towns) && tile.towns
+          revs.concat(Array(tile.offboards).map(&:revenue)) if tile.respond_to?(:offboards) && tile.offboards
+
+          best = revs.flatten.compact.map do |r|
+            r.is_a?(Hash) ? (r.values.select { |v| v.is_a?(Numeric) }.max || 0) : r.to_i
+          end.max || 0
+
+          return best if best.positive?
+
+          revenue_for ? revenue_for.call(tile).to_i : 0
+        rescue StandardError
+          revenue_for ? revenue_for.call(tile).to_i : 0
+        end
+
+        def self.tile_has_own_token?(tile, entity)
+          return false unless tile && entity && tile.respond_to?(:cities)
+
+          Array(tile.cities).any? do |city|
             if city.respond_to?(:tokened_by?)
               city.tokened_by?(entity)
             else
               Array(city.tokens).compact.any? { |token| token.corporation == entity }
             end
           end
+        rescue StandardError
+          false
+        end
 
-          old_exits = old_tile.respond_to?(:exits) ? Array(old_tile.exits).uniq : []
-          new_exits = new_tile.respond_to?(:exits) ? Array(new_tile.exits).uniq : []
-          added_exits = new_exits - old_exits
-          considered_exits = added_exits.empty? ? new_exits : added_exits
+        def self.tile_has_open_slot?(tile, entity)
+          return false unless tile && tile.respond_to?(:cities)
 
+          Array(tile.cities).any? do |city|
+            next false if entity && city.respond_to?(:tokened_by?) && city.tokened_by?(entity)
+
+            if city.respond_to?(:available_slots)
+              city.available_slots.to_i.positive?
+            elsif city.respond_to?(:tokens)
+              Array(city.tokens).any?(&:nil?)
+            else
+              false
+            end
+          end
+        rescue StandardError
+          false
+        end
+
+        # A city hex is completely blocked for through-routing if it has cities,
+        # zero open slots, and no token belonging to this entity.
+        def self.tile_blocked_for_through_route?(tile, entity)
+          return false unless tile && tile.respond_to?(:cities)
+
+          cities = Array(tile.cities)
+          return false if cities.empty?
+
+          cities.none? do |city|
+            own = if city.respond_to?(:tokened_by?)
+                    city.tokened_by?(entity)
+                  else
+                    Array(city.tokens).compact.any? { |token| token.corporation == entity }
+                  end
+            open = if city.respond_to?(:available_slots)
+                     city.available_slots.to_i.positive?
+                   elsif city.respond_to?(:tokens)
+                     Array(city.tokens).any?(&:nil?)
+                   else
+                     true
+                   end
+            own || open
+          end
+        rescue StandardError
+          false
+        end
+
+        def self.neighbor_at_edge(hex, edge)
           neighbors = hex.respond_to?(:neighbors) && hex.neighbors ? hex.neighbors : {}
           all_neighbors = hex.respond_to?(:all_neighbors) && hex.all_neighbors ? hex.all_neighbors : neighbors
+          neighbors[edge] || all_neighbors[edge]
+        rescue StandardError
+          nil
+        end
+
+        def self.invert_hex_edge(hex, edge)
+          hex.respond_to?(:invert) ? hex.invert(edge) : ((edge + 3) % 6)
+        rescue StandardError
+          (edge + 3) % 6
+        end
+
+        # Identifies which edges of `origin_hex` are already connected to `entity`'s
+        # existing network before laying a new tile on `origin_hex`.
+        # Excluding these feeder edges from outward lookahead prevents the home city
+        # behind a newly laid yellow tile from masking the forward horizon score.
+        def self.feeder_edges_for_hex(entity, origin_hex, considered_exits)
+          connecting_edges = []
+          token_connected_edges = []
+
+          home_coords = []
+          if entity.respond_to?(:coordinates) && entity.coordinates
+            home_coords.concat(Array(entity.coordinates).flatten.compact.map(&:to_s))
+          end
+
+          Array(considered_exits).each do |edge|
+            n1 = neighbor_at_edge(origin_hex, edge)
+            next unless n1 && n1.respond_to?(:tile) && n1.tile
+
+            inv_edge = invert_hex_edge(origin_hex, edge)
+            n1_exits = extract_tile_exits(n1.tile)
+            next unless n1_exits.include?(inv_edge)
+
+            connecting_edges << edge
+            if ReachabilitySearch.reaches_entity_base?(n1, inv_edge, origin_hex, entity, home_coords)
+              token_connected_edges << edge
+            end
+          end
+
+          return token_connected_edges if token_connected_edges.any?
+          return connecting_edges if connecting_edges.size == 1 && considered_exits.size > 1
+
+          []
+        rescue StandardError
+          []
+        end
+
+        module ReachabilitySearch
+          def self.reaches_entity_base?(start_hex, start_entry_edge, blocked_hex, entity, home_coords)
+            queue = [[start_hex, start_entry_edge, 0]]
+            visited = {}
+
+            while (current = queue.shift)
+              hex, entry_edge, depth = current
+              next unless hex && hex != blocked_hex && hex.respond_to?(:tile) && hex.tile
+
+              tile = hex.tile
+              return true if AiExpertRules.tile_has_own_token?(tile, entity)
+              return true if home_coords.include?(hex.id.to_s)
+              next if depth >= 8
+
+              state_key = "#{hex.id}:#{entry_edge}"
+              next if visited[state_key]
+
+              visited[state_key] = true
+              out_edges = AiExpertRules.connected_exits_from_entry(tile, entry_edge)
+              out_edges.each do |out_edge|
+                nxt = AiExpertRules.neighbor_at_edge(hex, out_edge)
+                next unless nxt && nxt != blocked_hex && nxt.respond_to?(:tile) && nxt.tile
+
+                nxt_entry = AiExpertRules.invert_hex_edge(hex, out_edge)
+                nxt_exits = AiExpertRules.extract_tile_exits(nxt.tile)
+                next unless nxt_exits.include?(nxt_entry)
+
+                queue << [nxt, nxt_entry, depth + 1]
+              end
+            end
+
+            false
+          rescue StandardError
+            false
+          end
+        end
+
+        # Evaluates a 4-hex directional corridor starting from `origin_hex` along `start_edge`.
+        # Returns best values at horizons 1..4, whether step 1 links to existing track/stops,
+        # and whether step 1 is a permanent dead end.
+        def self.evaluate_corridor_from_edge(
+          entity:,
+          origin_hex:,
+          start_edge:,
+          revenue_for:,
+          dest_coords:,
+          has_unplaced_tokens:
+        )
+          horizons = { 1 => 0, 2 => 0, 3 => 0, 4 => 0 }
+          n1 = neighbor_at_edge(origin_hex, start_edge)
+          return { horizons: horizons, dead_end: true, connects_existing: false } unless n1 && n1.respond_to?(:tile) && n1.tile
+
+          entry_1 = invert_hex_edge(origin_hex, start_edge)
+          queue = [[n1, entry_1, 1, 0]]
+          best_visited_penalty = { origin_hex.id.to_s => -1 }
+          connects_existing = false
+          dead_end_step_1 = false
+
+          while (node = queue.shift)
+            curr_hex, entry_edge, depth, acc_penalty = node
+            curr_tile = curr_hex.tile
+            next unless curr_tile
+
+            color = curr_tile.respond_to?(:color) && curr_tile.color ? curr_tile.color.to_sym : :white
+            exits = extract_tile_exits(curr_tile)
+            unbuilt = (color == :white) && exits.empty?
+            connects_back = exits.include?(entry_edge)
+            rev = max_revenue_on_tile(curr_tile, revenue_for)
+
+            # Check if an unbuilt white hex is completely impassable (e.g. water/mountain blocker)
+            borders = curr_tile.respond_to?(:borders) ? Array(curr_tile.borders) : []
+            entry_blocked_by_border = borders.any? do |border|
+              border.respond_to?(:edge) && border.edge.to_i == entry_edge &&
+                border.respond_to?(:type) && border.type == :impassable
+            end
+
+            if entry_blocked_by_border
+              dead_end_step_1 = true if depth == 1
+              next
+            end
+
+            if !unbuilt && !connects_back
+              if %i[red gray brown].include?(color)
+                # Pointing into the non-connecting side of a red offboard, gray fixed tile,
+                # or brown tile is a dead end.
+                dead_end_step_1 = true if depth == 1
+                next
+              else
+                # Yellow or green tile with a city/town that could be upgraded later to add an exit.
+                if rev.positive? && depth <= 2
+                  upgrade_val = [(rev * 0.65).to_i - acc_penalty, 5].max
+                  horizons[depth] = [horizons[depth], upgrade_val].max
+                elsif depth == 1
+                  dead_end_step_1 = true
+                end
+                next
+              end
+            end
+
+            connects_existing = true if depth == 1 && (connects_back || (unbuilt && rev.positive?))
+
+            terrain_cost = curr_hex.respond_to?(:cost) ? curr_hex.cost.to_i : 0
+            if unbuilt && terrain_cost.zero? && curr_tile.respond_to?(:upgrades)
+              terrain_cost = Array(curr_tile.upgrades).map { |u| u.respond_to?(:cost) ? u.cost.to_i : 0 }.max.to_i
+            end
+            step_penalty = unbuilt ? (terrain_cost / 4).to_i : 0
+
+            is_dest = dest_coords.include?(curr_hex.id.to_s)
+            open_slot = has_unplaced_tokens && tile_has_open_slot?(curr_tile, entity)
+
+            target_val = 0
+            if rev.positive?
+              target_val = rev
+              target_val += 80 if is_dest
+              target_val += 15 if open_slot
+            elsif is_dest
+              target_val = 80
+            elsif connects_back
+              target_val = 12
+            end
+
+            if target_val.positive?
+              applied_penalty = acc_penalty + (depth > 1 ? step_penalty : (step_penalty / 2).to_i)
+              net_val = [target_val - applied_penalty, (rev.positive? ? 5 : 2)].max
+              horizons[depth] = [horizons[depth], net_val].max
+            end
+
+            next if depth >= 4
+            next if color == :red
+            next if tile_blocked_for_through_route?(curr_tile, entity)
+
+            out_edges = if connects_back
+                          connected_exits_from_entry(curr_tile, entry_edge, exits)
+                        else
+                          (0..5).to_a - [entry_edge]
+                        end
+
+            out_edges.each do |out_edge|
+              next if borders.any? do |b|
+                b.respond_to?(:edge) && b.edge.to_i == out_edge &&
+                  b.respond_to?(:type) && b.type == :impassable
+              end
+
+              nxt_hex = neighbor_at_edge(curr_hex, out_edge)
+              next unless nxt_hex && nxt_hex != origin_hex && nxt_hex.respond_to?(:tile) && nxt_hex.tile
+
+              # Slight preference for straight/gentle-curve exits over sharp curves on unbuilt hexes
+              turn_delta = (out_edge - entry_edge).abs % 6
+              sharp_curve_penalty = unbuilt && [1, 5].include?(turn_delta) ? 3 : 0
+              nxt_penalty = acc_penalty + step_penalty + sharp_curve_penalty
+              nxt_depth = depth + 1
+              nxt_id = "#{nxt_hex.id}:#{nxt_depth}"
+
+              next if best_visited_penalty.key?(nxt_id) && best_visited_penalty[nxt_id] <= nxt_penalty
+
+              best_visited_penalty[nxt_id] = nxt_penalty
+              nxt_entry = invert_hex_edge(curr_hex, out_edge)
+              queue << [nxt_hex, nxt_entry, nxt_depth, nxt_penalty]
+            end
+          end
+
+          {
+            horizons: horizons,
+            dead_end: dead_end_step_1,
+            connects_existing: connects_existing,
+          }
+        rescue StandardError
+          { horizons: horizons, dead_end: false, connects_existing: false }
+        end
+
+        # Policy: evaluate a tile lay across a 4-hex lookahead horizon.
+        # Backwards-compatible with both dashboard_ai_player.rb and dashboard_ai_engine_search.rb.
+        def self.two_build_tile_features(entity:, hex:, old_tile:, new_tile:, cost:, revenue_for:)
+          old_rev = max_revenue_on_tile(old_tile, revenue_for)
+          new_rev = max_revenue_on_tile(new_tile, revenue_for)
+          tile_rev_gain = [new_rev - old_rev, 0].max
+          has_own_token = tile_has_own_token?(old_tile, entity) || tile_has_own_token?(new_tile, entity)
+
+          old_exits = extract_tile_exits(old_tile)
+          new_exits = extract_tile_exits(new_tile)
+          added_exits = new_exits - old_exits
+          base_exits = added_exits.empty? ? new_exits : added_exits
+
+          # Exclude feeder edges that simply point back into the corporation's existing
+          # network when laying on an unbuilt hex, so the home city behind us does not
+          # pollute forward horizon values.
+          feeder_edges = old_exits.empty? ? feeder_edges_for_hex(entity, hex, base_exits) : []
+          outward_exits = base_exits - feeder_edges
+          considered_exits = outward_exits.empty? ? base_exits : outward_exits
+
+          dest_coords = []
+          if entity.respond_to?(:destination_coordinates) && entity.destination_coordinates
+            dest_coords.concat(Array(entity.destination_coordinates).flatten.compact.map(&:to_s))
+          end
+
+          has_unplaced_tokens =
+            if entity.respond_to?(:unplaced_tokens)
+              Array(entity.unplaced_tokens).any?
+            elsif entity.respond_to?(:tokens)
+              Array(entity.tokens).any? { |t| t.respond_to?(:used) && !t.used }
+            else
+              false
+            end
+
           horizon_1_value = 0
-          horizon_2_value = 0
+          horizon_2_raw = 0
+          horizon_3_value = 0
+          horizon_4_value = 0
           dead_end_count = 0
+          outward_connects_existing = false
 
           considered_exits.each do |edge|
-            n1 = neighbors[edge] || all_neighbors[edge]
-            unless n1 && n1.respond_to?(:tile) && n1.tile
+            corridor = evaluate_corridor_from_edge(
+              entity: entity,
+              origin_hex: hex,
+              start_edge: edge,
+              revenue_for: revenue_for,
+              dest_coords: dest_coords,
+              has_unplaced_tokens: has_unplaced_tokens,
+            )
+
+            if corridor[:dead_end]
               dead_end_count += 1
               next
             end
 
-            inv_edge = hex.respond_to?(:invert) ? hex.invert(edge) : ((edge + 3) % 6)
-            n1_tile = n1.tile
-
-            max_revenue_on_tile = lambda do |t|
-              return 0 unless t
-
-              revs = []
-              revs.concat(t.cities.map(&:revenue)) if t.respond_to?(:cities) && t.cities
-              revs.concat(t.towns.map(&:revenue)) if t.respond_to?(:towns) && t.towns
-              revs.flatten.compact.map do |r|
-                r.is_a?(Hash) ? (r.values.compact.max || 0) : r
-              end.max || 0
-            end
-
-            n1_rev = max_revenue_on_tile.call(n1_tile)
-
-            n1_exits = if n1_tile.respond_to?(:exits) && n1_tile.exits&.any?
-                         Array(n1_tile.exits).uniq
-                       elsif n1_tile.respond_to?(:paths) && n1_tile.paths&.any?
-                         Array(n1_tile.paths).flat_map(&:exits).flatten.compact.uniq
-                       else
-                         []
-                       end
-
-            n1_color = n1_tile.respond_to?(:color) ? n1_tile.color : nil
-            n1_unbuilt = [:white, 'white'].include?(n1_color) || n1_color.nil?
-            n1_connects_back = n1_exits.include?(inv_edge)
-
-            if n1_rev.positive?
-              if n1_connects_back
-                horizon_1_value = [horizon_1_value, n1_rev].max
-              elsif n1_unbuilt
-                horizon_1_value = [horizon_1_value, [n1_rev, 20].max].max
-              end
-            elsif n1_connects_back
-              horizon_1_value = [horizon_1_value, 10].max
-            end
-
-            n2_edges = []
-            if n1_unbuilt
-              n2_edges = (0..5).to_a - [inv_edge]
-            elsif n1_connects_back
-              if n1_tile.respond_to?(:paths) && n1_tile.paths&.any?
-                Array(n1_tile.paths).each do |path|
-                  path_exits = path.exits
-                  n2_edges.concat(path_exits - [inv_edge]) if path_exits.include?(inv_edge)
-                end
-              else
-                n2_edges = n1_exits - [inv_edge]
-              end
-            end
-            n2_edges.uniq!
-            next if n2_edges.empty?
-
-            n1_neighbors = n1.respond_to?(:neighbors) && n1.neighbors ? n1.neighbors : {}
-            n1_all = n1.respond_to?(:all_neighbors) && n1.all_neighbors ? n1.all_neighbors : n1_neighbors
-            n1_cost = n1.respond_to?(:cost) ? (n1.cost || 0).to_i : 0
-            best_second_build = 0
-
-            n2_edges.each do |edge2|
-              n2 = n1_neighbors[edge2] || n1_all[edge2]
-              next unless n2 && n2 != hex && n2.respond_to?(:tile) && n2.tile
-
-              n2_tile = n2.tile
-              n2_rev = revenue_for.call(n2_tile)
-
-              n2_exits = if n2_tile.respond_to?(:exits) && n2_tile.exits&.any?
-                           Array(n2_tile.exits).uniq
-                         elsif n2_tile.respond_to?(:paths) && n2_tile.paths&.any?
-                           Array(n2_tile.paths).flat_map(&:exits).flatten.compact.uniq
-                         else
-                           []
-                         end
-
-              n2_color = n2_tile.respond_to?(:color) ? n2_tile.color : nil
-              n2_unbuilt = [:white, 'white'].include?(n2_color) || n2_color.nil?
-              back_to_n1 = n1.respond_to?(:invert) ? n1.invert(edge2) : ((edge2 + 3) % 6)
-
-              if !n2_unbuilt
-                next unless n2_exits.include?(back_to_n1)
-              else
-                next unless n2_rev.positive?
-              end
-
-              value = if n2_rev.positive?
-                        n2_rev
-                      else
-                        (n2_exits.any? ? 10 : 0)
-                      end
-              value -= n1_cost / 3 if n1_unbuilt
-              best_second_build = [best_second_build, value].max
-            end
-            horizon_2_value = [horizon_2_value, best_second_build].max
+            outward_connects_existing ||= corridor[:connects_existing]
+            h = corridor[:horizons]
+            horizon_1_value = [horizon_1_value, h[1].to_i].max
+            horizon_2_raw   = [horizon_2_raw,   h[2].to_i].max
+            horizon_3_value = [horizon_3_value, h[3].to_i].max
+            horizon_4_value = [horizon_4_value, h[4].to_i].max
           end
+
+          # Count total exits connecting to existing neighbor track/stops on step 1
+          total_connecting_exits = new_exits.count do |edge|
+            n1 = neighbor_at_edge(hex, edge)
+            if n1 && n1.respond_to?(:tile) && n1.tile
+              inv = invert_hex_edge(hex, edge)
+              extract_tile_exits(n1.tile).include?(inv)
+            else
+              false
+            end
+          end
+
+          old_has_stops =
+            (old_tile.respond_to?(:cities) && Array(old_tile.cities).any?) ||
+            (old_tile.respond_to?(:towns) && Array(old_tile.towns).any?) ||
+            (old_tile.respond_to?(:offboards) && Array(old_tile.offboards).any?)
+          new_has_stops =
+            (new_tile.respond_to?(:cities) && Array(new_tile.cities).any?) ||
+            (new_tile.respond_to?(:towns) && Array(new_tile.towns).any?) ||
+            (new_tile.respond_to?(:offboards) && Array(new_tile.offboards).any?)
+
+          # A tile lay can only alter immediate ply-1 AutoRouter revenue if it upgrades
+          # existing track, involves a city/town/offboard, or bridges >= 2 existing track edges.
+          immediate_network_change =
+            old_exits.any? ||
+            old_has_stops ||
+            new_has_stops ||
+            tile_rev_gain.positive? ||
+            total_connecting_exits >= 2
+
+          # Fold discounted 3-hex and 4-hex values into horizon_2_value so callers
+          # summing horizon_1 + horizon_2 automatically gain 4-hex directional vision.
+          extended_horizon_2 =
+            horizon_2_raw +
+            (horizon_3_value * 0.60).to_i +
+            (horizon_4_value * 0.35).to_i
+
+          multi_hex_corridor_value =
+            horizon_1_value +
+            extended_horizon_2
 
           {
             tile_rev_gain: tile_rev_gain,
             has_own_token: has_own_token,
             horizon_1_value: horizon_1_value,
-            horizon_2_value: horizon_2_value,
+            horizon_2_raw: horizon_2_raw,
+            horizon_2_value: extended_horizon_2,
+            horizon_3_value: horizon_3_value,
+            horizon_4_value: horizon_4_value,
+            multi_hex_corridor_value: multi_hex_corridor_value,
+            immediate_network_change: immediate_network_change,
+            outward_connects_existing: outward_connects_existing,
             is_dead_end_edge: considered_exits.any? && dead_end_count == considered_exits.size,
-            tile_cost: cost,
+            tile_cost: cost.to_i,
           }
         end
 
@@ -696,7 +1013,7 @@ module View
           },
 
           # -------------------------------------------------------------------
-          # 5. OPERATING ROUND: TRACK LAYING (1-TILE & 2-TILE HORIZON)
+          # 5. OPERATING ROUND: TRACK LAYING (1 TO 4 HEX CORRIDOR HORIZON)
           # -------------------------------------------------------------------
           {
             id: 'OR_TL01_base_valid_tile',
@@ -706,7 +1023,7 @@ module View
           },
           {
             id: 'OR_TL02_immediate_route_revenue_gain',
-            description: 'High reward when AutoRouter confirms immediate route revenue increase',
+            description: 'High reward when AutoRouter or topology confirms route revenue increase',
             when: { action_type: 'lay_tile', route_revenue_gain_gt: 0 },
             score_add: 250,
             score_per_unit: { field: 'route_revenue_gain', multiplier: 8.0 },
@@ -727,23 +1044,37 @@ module View
           },
           {
             id: 'OR_TL05_horizon1_direct_neighbor_target',
-            description: '1-Tile Horizon: New exit connects directly to an adjacent city, town, or offboard',
+            description: '1-Hex Horizon: Outward exit connects to an adjacent city, town, or offboard',
             when: { action_type: 'lay_tile', horizon_1_value_gt: 0 },
             score_add: 200,
             score_per_unit: { field: 'horizon_1_value', multiplier: 18.0 },
           },
           {
             id: 'OR_TL06_horizon2_two_tile_bridge',
-            description: '2-Tile Horizon: New exit points across an open neighbor toward a city/offboard 2 hexes away',
-            when: { action_type: 'lay_tile', horizon_2_value_gt: 0 },
-            score_add: 50,
-            score_per_unit: { field: 'horizon_2_value', multiplier: 5.0 },
+            description: '2-Hex Horizon: Outward exit points toward a revenue center or destination 2 hexes away',
+            when: { action_type: 'lay_tile', horizon_2_raw_gt: 0 },
+            score_add: 60,
+            score_per_unit: { field: 'horizon_2_raw', multiplier: 6.0 },
+          },
+          {
+            id: 'OR_TL06b_horizon3_three_tile_corridor',
+            description: '3-Hex Horizon: Outward exit steers toward a high-value hub or offboard 3 hexes away',
+            when: { action_type: 'lay_tile', horizon_3_value_gt: 0 },
+            score_add: 35,
+            score_per_unit: { field: 'horizon_3_value', multiplier: 3.5 },
+          },
+          {
+            id: 'OR_TL06c_horizon4_four_tile_corridor',
+            description: '4-Hex Horizon: Long-range alignment toward distant destinations or red offboards 4 hexes away',
+            when: { action_type: 'lay_tile', horizon_4_value_gt: 0 },
+            score_add: 20,
+            score_per_unit: { field: 'horizon_4_value', multiplier: 2.0 },
           },
           {
             id: 'OR_TL07_penalize_map_border_dead_end',
-            description: 'Penalize pointing new exits off the board edge or into impassable hexes',
+            description: 'Penalize pointing new exits off the board edge, into impassable hexes, or into non-connecting offboard sides',
             when: { action_type: 'lay_tile', is_dead_end_edge: true },
-            score_add: -400,
+            score_add: -600,
           },
           {
             id: 'OR_TL08_half_cost_value_penalty',

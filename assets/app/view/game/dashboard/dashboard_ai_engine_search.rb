@@ -1,3 +1,4 @@
+# assets/app/view/game/dashboard/dashboard_ai_engine_search.rb
 # frozen_string_literal: true
 
 # backtick_javascript: true
@@ -10,6 +11,7 @@ module View
     module Dashboard
       class DashboardAiPlayer
         ENGINE_SEARCH_TIMEOUT_MS = 5_000 unless const_defined?(:ENGINE_SEARCH_TIMEOUT_MS)
+        ENABLE_TRAIN_PROJECTION_DIAGNOSTICS = false unless const_defined?(:ENABLE_TRAIN_PROJECTION_DIAGNOSTICS)
 
         # Compact, corporation-specific topology snapshot used to rank tile lays
         # without cloning the complete Engine::Game. Engine legality and the
@@ -69,10 +71,6 @@ module View
             end
           end
 
-          # Preserves the Engine train-distance structure rather than flattening
-          # every train to one integer. A 3+3 train therefore remains two groups,
-          # for example three paying city/offboard visits plus three paying town
-          # visits, subject to the exact distance data supplied by the game.
           class TrainRule
             attr_reader :name, :raw_distance, :groups, :multiplier, :supported
 
@@ -262,9 +260,6 @@ module View
             total * train_rule.multiplier
           end
 
-          # This is deliberately conservative. Game-specific route bonuses,
-          # doubled towns, token rules, pullman rules, hex re-use restrictions,
-          # and title overrides remain exact only in the Engine AutoRouter.
           def exact_engine_verification_required?
             true
           end
@@ -490,7 +485,6 @@ module View
           end
 
           def zobrist(hex_index, state_id)
-            # Deterministic 32-bit mix suitable for an in-memory transposition key.
             value = ((hex_index.to_i + 1) * 1_103_515_245) ^
                     ((state_id.to_i + 1) * 12_345)
             value & 0x7fff_ffff
@@ -502,8 +496,6 @@ module View
             @engine_search_locks ||= {}
           end
 
-          # Separate entry point. Do not alias or replace DashboardAiPlayer.play;
-          # Opal cannot reliably alias the singleton method while loading this file.
           def engine_play(game, routes = [], &process_block)
             player = new(game, routes, &process_block)
             step = game.round&.active_step
@@ -549,9 +541,6 @@ module View
           tiles = actions.select { |action| action.is_a?(Engine::Action::LayTile) }
           tokens = actions.select { |action| action.is_a?(Engine::Action::PlaceToken) }
 
-          # To simplify 1846 and other combined track/token steps, evaluate track
-          # laying first. This guarantees all potential routes are physically
-          # constructed before checking if a token secures them.
           if tiles.any?
             start_engine_tile_search(tiles, actions, entity, @game.round, step)
             return :async
@@ -611,7 +600,6 @@ module View
             borrowed_train_owner = borrowed_train.owner
             borrowed_train.owner = trial_entity
             trial_entity.trains << borrowed_train
-
           end
 
           router = Engine::AutoRouter.new(
@@ -633,8 +621,6 @@ module View
             end
             best_revenue = revenue if best_revenue.nil? || revenue > best_revenue
 
-            # AutoRouter can publish improving intermediate results. Only the callback
-            # after running=false is final and may advance the candidate state machine.
             next if router.running || completed
 
             completed = true
@@ -647,8 +633,6 @@ module View
             yield(best_revenue.to_i)
           end
 
-          # AutoRouter#route is already asynchronous. The state machine continues
-          # from callback, so no JavaScript setTimeout wrapper is needed here.
           begin
             router.compute(
               trial_entity,
@@ -676,11 +660,7 @@ module View
         end
 
         def engine_finish(action, round_before, step_before, entity)
-          if action && execution_context_unchanged?(round_before, step_before, entity)
-            # action still references the live game because only trial actions were
-            # reconstructed against clones.
-            @process_block.call(action)
-          end
+          @process_block.call(action) if action && execution_context_unchanged?(round_before, step_before, entity)
         rescue StandardError => e
           LOGGER.error("[AI ENGINE SEARCH] final action failed: #{e.message}")
         ensure
@@ -701,6 +681,30 @@ module View
           # Production quiet mode.
         end
 
+        # Fast in-place rotation check to avoid full-history game cloning on
+        # rotations that the active track step can immediately reject.
+        def engine_fast_reject_tile_action?(step, entity, action)
+          return false unless step && action && action.tile && action.hex
+          return false unless step.respond_to?(:legal_tile_rotation?)
+
+          tile = action.tile
+          old_rotation = tile.respond_to?(:rotation) ? (tile.rotation || 0) : 0
+          begin
+            tile.rotate!(action.rotation.to_i) if tile.respond_to?(:rotate!)
+            legal =
+              begin
+                step.legal_tile_rotation?(entity, action.hex, tile)
+              rescue ArgumentError
+                step.legal_tile_rotation?(entity, action.hex, tile, action.rotation.to_i)
+              end
+            legal == false
+          rescue StandardError
+            false
+          ensure
+            tile.rotate!(old_rotation) if tile.respond_to?(:rotate!)
+          end
+        end
+
         def start_engine_tile_search(actions, all_actions, entity, round_before, step_before)
           `document.body.style.cursor = 'progress'` if RUBY_ENGINE == 'opal'
           engine_log_tile_candidate_list('AI TILE RAW CANDIDATES', actions)
@@ -712,88 +716,76 @@ module View
             legal_actions: [],
             verified_games: {},
             rejected_count: 0,
+            fast_rejected_count: 0,
             rejected_actions: [],
             results: [],
+            baseline_revenue: nil,
+            skipped_router_count: 0,
           }
           engine_verify_next_tile(state, entity, round_before, step_before)
         end
 
-        # Phase 1: engine legality only. No route search or revenue evaluation is
-        # started until every retained candidate has passed process_action on a clone.
+        # Phase 1: engine legality verification. Fast-rejected rotations skip
+        # game cloning and continue in the current tick without setTimeout overhead.
         def engine_verify_next_tile(state, entity, round_before, step_before)
-          if state[:verification_index] >= state[:unchecked_actions].size ||
-             (
-               engine_now_ms >= state[:legality_deadline] &&
-               state[:legal_actions].any?
-             )
-            return engine_begin_legal_tile_search(
-              state,
-              entity,
-              round_before,
-              step_before,
-            )
-          end
-
-          action =
-            state[:unchecked_actions][
-              state[:verification_index]
-            ]
-
-          state[:verification_index] += 1
-
-          begin
-            trial =
-              clone_and_process(
-                @game,
-                action,
+          while state[:verification_index] < state[:unchecked_actions].size
+            if engine_now_ms >= state[:legality_deadline] && state[:legal_actions].any?
+              return engine_begin_legal_tile_search(
+                state,
+                entity,
+                round_before,
+                step_before,
               )
+            end
 
-            state[:legal_actions] << action
+            action = state[:unchecked_actions][state[:verification_index]]
+            state[:verification_index] += 1
 
-            state[:verified_games][
-              action.object_id
-            ] = trial
-          rescue StandardError => e
-            state[:rejected_count] += 1
+            if engine_fast_reject_tile_action?(step_before, entity, action)
+              state[:rejected_count] += 1
+              state[:fast_rejected_count] += 1
+              next
+            end
 
-            state[:rejected_actions] << {
-              action: action,
-              error_class: e.class.name.to_s,
-              error_message: e.message.to_s,
-            }
-          end
+            begin
+              trial = clone_and_process(@game, action)
+              state[:legal_actions] << action
+              state[:verified_games][action.object_id] = trial
+            rescue StandardError => e
+              state[:rejected_count] += 1
+              state[:rejected_actions] << {
+                action: action,
+                error_class: e.class.name.to_s,
+                error_message: e.message.to_s,
+              }
+            end
 
-          if RUBY_ENGINE == 'opal'
+            next unless RUBY_ENGINE == 'opal' && state[:verification_index] < state[:unchecked_actions].size
+
             %x(setTimeout(function () { #{engine_verify_next_tile(
-      state,
-      entity,
-      round_before,
-      step_before
-    )} }, 0))
-          else
-            engine_verify_next_tile(
               state,
               entity,
               round_before,
-              step_before,
-            )
+              step_before
+            )} }, 0))
+            return
           end
+
+          engine_begin_legal_tile_search(
+            state,
+            entity,
+            round_before,
+            step_before,
+          )
         end
 
         def engine_begin_legal_tile_search(state, entity, round_before, step_before)
           LOGGER.info(
             "[AI TILE LEGALITY] candidates=#{state[:unchecked_actions].size} " \
-            "engine_legal=#{state[:legal_actions].size} rejected=#{state[:rejected_count]}"
+            "engine_legal=#{state[:legal_actions].size} rejected=#{state[:rejected_count]} " \
+            "fast_rejected=#{state[:fast_rejected_count]}"
           )
           engine_log_tile_candidate_list('AI TILE ENGINE-VERIFIED CANDIDATES', state[:legal_actions])
-          unless state[:rejected_actions].empty?
-            state[:rejected_actions].sort_by do |item|
-              engine_tile_candidate_key(item[:action])
-            end.each do |item|
-              action = item[:action]
-              hex_id, tile_name, rotation = engine_tile_candidate_key(action)
-            end
-          end
 
           if state[:legal_actions].empty?
             pass = Array(state[:all_actions]).find do |candidate|
@@ -808,10 +800,12 @@ module View
             return engine_finish(nil, round_before, step_before, entity)
           end
 
-          # Compute topology/revenue hints only after engine legality has been
-          # established. Illegal and unaffordable candidates never reach this work.
           @tile_eval_cache ||= {}
           topology_deadline = engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS
+          corp_cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
+          trains_count = entity.respond_to?(:trains) ? entity.trains.size : 0
+          min_train_price = respond_to?(:next_depot_train_price, true) ? next_depot_train_price(entity) : 0
+
           state[:legal_actions].each do |action|
             break if engine_now_ms >= topology_deadline
 
@@ -830,69 +824,107 @@ module View
               cost,
               topology_deadline,
             )
-            @tile_eval_cache[action] = metrics if metrics
+            next unless metrics
+
+            metrics[:breaks_train_budget] =
+              trains_count.zero? &&
+              cost.to_i.positive? &&
+              min_train_price.positive? &&
+              (corp_cash >= min_train_price) &&
+              ((corp_cash - cost.to_i) < min_train_price)
+            @tile_eval_cache[action] = metrics
           end
 
-          # Give AutoRouter revenue evaluation its own full budget after legality
-          # and topology filtering.
+          # Veto tiles that break a trainless corporation's train budget whenever
+          # at least one budget-safe legal tile exists.
+          budget_safe = state[:legal_actions].reject do |action|
+            @tile_eval_cache.dig(action, :breaks_train_budget)
+          end
+          active_legal = budget_safe.any? ? budget_safe : state[:legal_actions]
+
+          # Sort candidates so immediate revenue upgrades and highest 4-hex corridor
+          # extensions are evaluated first.
+          active_legal = active_legal.sort_by do |action|
+            m = @tile_eval_cache[action] || {}
+            [
+              m[:is_dead_end_edge] ? 1 : 0,
+              m[:immediate_network_change] ? 0 : 1,
+              -m[:tile_rev_gain].to_i,
+              -m[:multi_hex_corridor_value].to_i,
+              -m[:horizon_1_value].to_i,
+              action.hex.id.to_s,
+              action.tile.name.to_s,
+              action.rotation.to_i,
+            ]
+          end
+
           state[:deadline] = engine_now_ms + ENGINE_SEARCH_TIMEOUT_MS
-          state[:first_actions] = state[:legal_actions]
+          state[:first_actions] = active_legal
           state[:first_index] = 0
-          engine_next_first_tile(state, entity, round_before, step_before)
+
+          baseline_clone =
+            begin
+              @game.clone(Array(@game.raw_actions))
+            rescue StandardError
+              nil
+            end
+
+          if baseline_clone
+            engine_route_revenue(baseline_clone, entity, state[:deadline], 'tile baseline') do |base_rev|
+              state[:baseline_revenue] = base_rev
+              engine_next_first_tile(state, entity, round_before, step_before)
+            end
+          else
+            engine_next_first_tile(state, entity, round_before, step_before)
+          end
         end
 
         def engine_next_first_tile(state, entity, round_before, step_before)
-          if engine_now_ms >= state[:deadline] || state[:first_index] >= state[:first_actions].size
-            return engine_finish_tile_search(state, entity, round_before, step_before)
-          end
+          while state[:first_index] < state[:first_actions].size
+            return engine_finish_tile_search(state, entity, round_before, step_before) if engine_now_ms >= state[:deadline]
 
-          action = state[:first_actions][state[:first_index]]
-          state[:first_index] += 1
-          first_game = state[:verified_games][action.object_id]
-          return engine_next_first_tile(state, entity, round_before, step_before) unless first_game
+            action = state[:first_actions][state[:first_index]]
+            state[:first_index] += 1
+            first_game = state[:verified_games][action.object_id]
+            next unless first_game
 
-          label = "first hex=#{action.hex.id} tile=#{action.tile.id} rotation=#{action.rotation}"
-          engine_route_revenue(first_game, entity, state[:deadline], label) do |first_revenue|
-            unless first_revenue
-              engine_next_first_tile(state, entity, round_before, step_before)
+            topology_metrics = (@tile_eval_cache && @tile_eval_cache[action]) || {}
+            topology_revenue = topology_metrics[:projected_revenue].to_i
+
+            # Fast-path: if an initial plain track lay on an empty white hex has
+            # no stops and only connects back to its feeder edge, it cannot change
+            # ply-1 route revenue over the board baseline.
+            if !state[:baseline_revenue].nil? &&
+               topology_metrics.key?(:immediate_network_change) &&
+               !topology_metrics[:immediate_network_change]
+              state[:skipped_router_count] += 1
+              state[:results] << {
+                action: action,
+                first_revenue: state[:baseline_revenue].to_i,
+                best_revenue: state[:baseline_revenue].to_i,
+                topology_revenue: topology_revenue,
+                best_second: nil,
+              }
               next
             end
 
-            topology_metrics = @tile_eval_cache && @tile_eval_cache[action]
-            topology_revenue = topology_metrics ? topology_metrics[:projected_revenue].to_i : 0
-            result = {
-              action: action,
-              first_revenue: first_revenue,
-              best_revenue: first_revenue,
-              topology_revenue: topology_revenue,
-              best_second: nil,
-            }
-            state[:results] << result
-
-            # Do NOT recursively clone the game for second-tile engine verification.
-            # Doing so causes a combinatorial explosion that exhausts the 5-second
-            # search budget on the very first candidate, forcing a premature fallback.
-            # Rely entirely on the fast topological two-build lookahead (topology_revenue)
-            # to break ties among candidates that maintain immediate engine revenue.
-            engine_next_first_tile(state, entity, round_before, step_before)
-
-            # begin
-            #   # Safely instantiate a new AI player against the cloned game state
-            #   # to materialise all legal follow-up tile lays.
-            #   first_player = self.class.new(first_game, []) { |_a| }
-            #   second_actions = first_player.generate_legal_actions.select do |candidate|
-            #     candidate.is_a?(Engine::Action::LayTile)
-            #   end
-
-            #   engine_next_second_tile(
-            #     state, result, first_game, second_actions, 0,
-            #     entity, round_before, step_before
-            #   )
-            # rescue StandardError => e
-            #   LOGGER.warn("[AI TILE SEARCH] Second-tile generation failed: #{e.message}")
-            #   engine_next_first_tile(state, entity, round_before, step_before)
-            # end
+            label = "first hex=#{action.hex.id} tile=#{action.tile.id} rotation=#{action.rotation}"
+            engine_route_revenue(first_game, entity, state[:deadline], label) do |first_revenue|
+              if first_revenue
+                state[:results] << {
+                  action: action,
+                  first_revenue: first_revenue,
+                  best_revenue: first_revenue,
+                  topology_revenue: topology_revenue,
+                  best_second: nil,
+                }
+              end
+              engine_next_first_tile(state, entity, round_before, step_before)
+            end
+            return
           end
+
+          engine_finish_tile_search(state, entity, round_before, step_before)
         end
 
         def engine_next_second_tile(state, result, first_game, actions, index, entity, round_before, step_before)
@@ -925,22 +957,14 @@ module View
           end
         end
 
-        # Shadow two-ply diagnostic stage 1. These methods do not alter
-        # production tile selection or submit a second tile action.
         def engine_shadow_track_step(game)
           steps = Array(game.round&.steps)
 
-          steps.each do |candidate|
-          end
-
-          track_step = steps.find do |candidate|
+          steps.find do |candidate|
             next false if candidate.is_a?(Engine::Step::SpecialTrack)
 
             candidate.is_a?(Engine::Step::Track)
           end
-
-
-          track_step
         rescue StandardError => e
           LOGGER.warn("[AI 2PLY SHADOW TRACK STEP] failed: #{e.class}: #{e.message}")
           nil
@@ -956,10 +980,6 @@ module View
           [klass]
         end
 
-        # Cheap signature of only the proposed second tile. This runs before any
-        # game clone or graph rebuild. It is deliberately scoped to one first
-        # branch, so equivalent second-tile rotations can be collapsed safely
-        # without assuming equivalence across different first positions.
         def engine_local_second_signature(tile, hex_id, rotation)
           trial_tile = clone_tile_for_trial(tile, rotation)
           return nil unless trial_tile
@@ -1021,7 +1041,17 @@ module View
             end
 
             tiles.each do |tile|
-              Array(tile.legal_rotations).compact.map(&:to_i).uniq.sort.each do |rotation|
+              rotations = if step.respond_to?(:legal_tile_rotations)
+                            begin
+                              Array(step.legal_tile_rotations(entity, hex, tile))
+                            rescue StandardError
+                              Array(tile.legal_rotations)
+                            end
+                          else
+                            Array(tile.legal_rotations)
+                          end
+
+              rotations.compact.map(&:to_i).uniq.sort.each do |rotation|
                 candidates << {
                   hex_id: hex.id.to_s,
                   tile_name: tile.name.to_s,
@@ -1100,8 +1130,6 @@ module View
           nil
         end
 
-        # Build one reusable clone for all second-tile candidates belonging to
-        # the same verified first-tile branch.
         def engine_shadow_prepare_branch(shadow, job)
           branch_key = job[:first_game].object_id
           return true if shadow[:branch_key] == branch_key && shadow[:branch_game]
@@ -1128,8 +1156,6 @@ module View
           false
         end
 
-        # Temporarily install a detached second tile on the reusable branch clone.
-        # The returned context contains everything required for unconditional restore.
         def engine_shadow_apply_second_tile(shadow, candidate)
           trial_hex = nil
           old_tile = nil
@@ -1190,7 +1216,6 @@ module View
               graph.clear
             end
           rescue StandardError
-            # The branch is discarded below; never reuse uncertain state.
           end
           shadow[:branch_key] = nil
           shadow[:branch_game] = nil
@@ -1452,9 +1477,11 @@ module View
             best = shadow[:pairs].sort_by do |pair|
               first = pair[:first_result][:action]
               second = pair[:second]
+              first_topo = (@tile_eval_cache && @tile_eval_cache[first]) || {}
               [
                 -pair[:final_revenue].to_i,
                 -pair[:first_result][:best_revenue].to_i,
+                -first_topo[:multi_hex_corridor_value].to_i,
                 first.hex.id.to_s,
                 first.tile.name.to_s,
                 first.rotation.to_i,
@@ -1469,9 +1496,6 @@ module View
             production_revenue = shadow[:production_revenue].to_i
             two_ply_revenue = best[:final_revenue].to_i
 
-            # Promote two-ply only when the full tree completed and it strictly
-            # improves on the production single-ply revenue. On a tie, retain the
-            # known-good immediate-revenue choice.
             if shadow[:complete] && two_ply_revenue > production_revenue
               chosen_action = first
               selection_source = 'deterministic_two_ply'
@@ -1479,7 +1503,9 @@ module View
 
             elapsed_ms = engine_now_ms - shadow[:started_at]
             LOGGER.info(
-              "[AI 2PLY OPTIMISATION] structural_pairs=#{shadow[:structural_pairs]} " "unique_pairs=#{shadow[:jobs].size} deduplicated=#{shadow[:deduplicated]} " "router_calls=#{shadow[:router_calls]} elapsed_ms=#{elapsed_ms}"
+              "[AI 2PLY OPTIMISATION] structural_pairs=#{shadow[:structural_pairs]} " \
+              "unique_pairs=#{shadow[:jobs].size} deduplicated=#{shadow[:deduplicated]} " \
+              "router_calls=#{shadow[:router_calls]} elapsed_ms=#{elapsed_ms}"
             )
             timings = shadow[:timings]
             measured_ms = timings.values.sum
@@ -1516,7 +1542,7 @@ module View
             )
           end
 
-          if best && shadow[:complete]
+          if ENABLE_TRAIN_PROJECTION_DIAGNOSTICS && best && shadow[:complete]
             engine_start_train_projection(shadow, best, chosen_action)
           else
             engine_finish(
@@ -1539,6 +1565,7 @@ module View
           base = network.reachable_stops.dup
           scored = jobs.each_with_index.map do |job, index|
             first_action = job[:first_result][:action]
+            first_topo = (@tile_eval_cache && @tile_eval_cache[first_action]) || {}
             first = network.translate_candidate(first_action)
             data = job[:second]
             second = network.translate_parts(data[:hex_id], data[:tile], data[:rotation])
@@ -1556,10 +1583,16 @@ module View
             {
               job: job,
               index: index,
-              key: [first_score[:rank].to_i, second_score[:rank].to_i,
-                    -estimate.to_i, -second_score[:new_revenue].to_i,
-                    -first_score[:new_revenue].to_i,
-                    -job[:first_result][:best_revenue].to_i, index],
+              key: [
+                first_score[:rank].to_i,
+                second_score[:rank].to_i,
+                -estimate.to_i,
+                -second_score[:new_revenue].to_i,
+                -first_score[:new_revenue].to_i,
+                -job[:first_result][:best_revenue].to_i,
+                -first_topo[:multi_hex_corridor_value].to_i,
+                index,
+              ],
             }
           rescue StandardError => e
             network.undo while network.instance_variable_get(:@changes)&.any?
@@ -1582,7 +1615,9 @@ module View
           end
           selected.sort_by! { |item| item[:key] }
           LOGGER.info(
-            "[AI COMPACT SHADOW] pairs=#{jobs.size} shortlisted=#{selected.size} " "limit=#{limit} trains=#{network.train_rules.map(&:name).join(',')} " "grouped_trains=#{network.train_rules.count(&:grouped?)}"
+            "[AI COMPACT SHADOW] pairs=#{jobs.size} shortlisted=#{selected.size} " \
+            "limit=#{limit} trains=#{network.train_rules.map(&:name).join(',')} " \
+            "grouped_trains=#{network.train_rules.count(&:grouped?)}"
           )
           selected.map { |item| item[:job] }
         rescue StandardError => e
@@ -1593,7 +1628,7 @@ module View
         def engine_finish_tile_search(state, entity, round_before, step_before)
           completed = state[:results]
           if completed.empty?
-            fallback = Array(state[:legal_actions]).sort_by do |action|
+            fallback = Array(state[:first_actions] || state[:legal_actions]).sort_by do |action|
               [action.hex.id.to_s, action.tile.name.to_s, action.rotation.to_i]
             end.first
             if fallback
@@ -1608,16 +1643,20 @@ module View
             return engine_finish(nil, round_before, step_before, entity)
           end
 
-          # Immediate engine revenue is authoritative. Topology is used only to
-          # break equal-revenue ties. No expert-rule randomness or cost penalty.
+          # Rank by immediate AutoRouter revenue first, then by 4-hex corridor
+          # projection (H1 -> H2 -> H3 -> H4) while penalizing dead-end edges.
           winner = completed.sort_by do |result|
             action = result[:action]
             topology = (@tile_eval_cache && @tile_eval_cache[action]) || {}
             [
+              topology[:is_dead_end_edge] ? 1 : 0,
               -result[:best_revenue].to_i,
               -result[:topology_revenue].to_i,
-              -topology[:horizon_2_value].to_i,
               -topology[:horizon_1_value].to_i,
+              -topology[:horizon_2_raw].to_i,
+              -topology[:horizon_3_value].to_i,
+              -topology[:horizon_4_value].to_i,
+              (topology[:tile_cost].to_i / 20),
               action.hex.id.to_s,
               action.tile.name.to_s,
               action.rotation.to_i,
@@ -1627,7 +1666,15 @@ module View
           action = winner[:action]
           topology = (@tile_eval_cache && @tile_eval_cache[action]) || {}
           LOGGER.info(
-            "[AI TILE CHOSEN] hex=#{action.hex.id} tile=#{action.tile.id} " "rotation=#{action.rotation} selection_source=deterministic_immediate_revenue " "engine_revenue=#{winner[:best_revenue].to_i} " "topology_revenue=#{winner[:topology_revenue].to_i} " "horizon2=#{topology[:horizon_2_value].to_i} " "horizon1=#{topology[:horizon_1_value].to_i} cost_penalty=disabled"
+            "[AI TILE CHOSEN] hex=#{action.hex.id} tile=#{action.tile.id} " \
+            "rotation=#{action.rotation} selection_source=deterministic_immediate_revenue " \
+            "engine_revenue=#{winner[:best_revenue].to_i} " \
+            "topology_revenue=#{winner[:topology_revenue].to_i} " \
+            "horizon1=#{topology[:horizon_1_value].to_i} " \
+            "horizon2=#{topology[:horizon_2_raw].to_i} " \
+            "horizon3=#{topology[:horizon_3_value].to_i} " \
+            "horizon4=#{topology[:horizon_4_value].to_i} " \
+            "skipped_router=#{state[:skipped_router_count].to_i}"
           )
           generation_started_at = engine_now_ms
           jobs = []
@@ -1637,7 +1684,9 @@ module View
 
           completed.sort_by do |result|
             first = result[:action]
+            first_topo = (@tile_eval_cache && @tile_eval_cache[first]) || {}
             [
+              first_topo[:is_dead_end_edge] ? 1 : 0,
               -result[:best_revenue].to_i,
               -result[:topology_revenue].to_i,
               first.hex.id.to_s,
@@ -1781,7 +1830,10 @@ module View
 
             gain = winner[:revenue].to_i - state[:baseline].to_i
             LOGGER.info(
-              "[AI TOKEN CHOSEN] hex=#{winner[:action].city.hex.id} " "city=#{winner[:action].city.id} slot=#{winner[:action].slot} " "baseline=#{state[:baseline].to_i} revenue=#{winner[:revenue].to_i} " "gain=#{gain} selection_source=deterministic_revenue"
+              "[AI TOKEN CHOSEN] hex=#{winner[:action].city.hex.id} " \
+              "city=#{winner[:action].city.id} slot=#{winner[:action].slot} " \
+              "baseline=#{state[:baseline].to_i} revenue=#{winner[:revenue].to_i} " \
+              "gain=#{gain} selection_source=deterministic_revenue"
             )
             return engine_finish(winner[:action], round_before, step_before, entity)
           end
@@ -1795,8 +1847,6 @@ module View
           pass_action = state[:all_actions].find { |action| action.is_a?(Engine::Action::Pass) }
           return engine_finish(pass_action, round_before, step_before, entity) if pass_action
 
-          # Mandatory token placement, such as a home token: choose the highest
-          # revenue legal processed result deterministically even without a gain.
           unless state[:results].empty?
             winner = state[:results].sort_by do |result|
               action = result[:action]
@@ -1809,7 +1859,9 @@ module View
             end.first
 
             LOGGER.warn(
-              "[AI TOKEN FALLBACK] forced placement hex=#{winner[:action].city.hex.id} " "city=#{winner[:action].city.id} slot=#{winner[:action].slot} " "baseline=#{state[:baseline].to_i} revenue=#{winner[:revenue].to_i}"
+              "[AI TOKEN FALLBACK] forced placement hex=#{winner[:action].city.hex.id} " \
+              "city=#{winner[:action].city.id} slot=#{winner[:action].slot} " \
+              "baseline=#{state[:baseline].to_i} revenue=#{winner[:revenue].to_i}"
             )
             return engine_finish(winner[:action], round_before, step_before, entity)
           end
