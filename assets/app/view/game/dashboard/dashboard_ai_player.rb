@@ -127,11 +127,6 @@ module View
             return true
           end
 
-          # Draft / auction policy:
-          # Buying receives 50% of the total probability when at least one legal
-          # BuyCompany action exists. All buy actions share that half equally.
-          # Legal Bid and Pass actions share the other half equally. Without a
-          # buy action, all legal Bid and Pass actions are equally likely.
           draft_action = AiExpertRules.select_draft_action(actions, @game)
           if draft_action
             return false unless action_belongs_to_entity?(draft_action, entity)
@@ -143,7 +138,6 @@ module View
             return true
           end
 
-          # Generic Choose step: every legal choice has exactly the same probability.
           choose_actions = actions.select { |action| action.is_a?(Engine::Action::Choose) }
 
           if choose_actions.any?
@@ -165,21 +159,16 @@ module View
           end
           scored = AiExpertRules.apply_probability_policy(scored)
 
-          # Every draft/choice option has exactly the same probability.
           choice_items = scored.select { |item| item[:features][:action_type] == 'choose' }
           tile_items = scored.select { |item| item[:features][:action_type] == 'lay_tile' }
           winning = if choice_items.any?
                       chosen_action = AiExpertRules.select_uniform_choice(choice_items.map { |item| item[:action] })
                       choice_items.find { |item| item[:action].equal?(chosen_action) }
                     elsif tile_items.any?
-                      # Tile building is selected strictly by the highest recursive
-                      # AutoRouter income; ties are random among the joint winners.
-                      # First maximise income that is realised immediately on an
-                      # already connected, own-token city. Only then compare the
-                      # speculative two-build continuation value. This prevents a
-                      # remote track lay with an attractive heuristic horizon from
-                      # defeating a real revenue upgrade such as I15 tile 53.
-                      tile_items.each do |item|
+                      budget_safe = tile_items.reject { |item| item[:features][:breaks_train_budget] }
+                      active_tiles = budget_safe.any? ? budget_safe : tile_items
+
+                      active_tiles.each do |item|
                         features = item[:features]
                         features[:realized_income_gain] = if features[:has_own_token]
                                                             features[:tile_rev_gain].to_i
@@ -187,24 +176,16 @@ module View
                                                             0
                                                           end
                       end
-                      best_key = tile_items.map do |item|
+                      best_key = active_tiles.map do |item|
                         [item[:features][:realized_income_gain].to_i,
                          item[:features][:projected_revenue].to_i]
                       end.max
-                      tied = tile_items.select do |item|
+                      tied = active_tiles.select do |item|
                         [item[:features][:realized_income_gain].to_i,
                          item[:features][:projected_revenue].to_i] == best_key
                       end
-                      selected = tied.sample
-                      chosen = selected[:action]
-                      chosen_rotation = chosen.tile.respond_to?(:rotation) ? chosen.tile.rotation : nil
-                      chosen_message = "[AI BUILD CHOSEN] hex=#{chosen.hex.id} tile=#{chosen.tile.name} " \
-                                       "rotation=#{chosen_rotation} realized_gain=#{best_key[0]} " \
-                                       "two_build_value=#{best_key[1]} tied_candidates=#{tied.size} " \
-                                       "best_second=#{selected[:features][:best_second]}"
-                      selected
+                      tied.sample
                     else
-
                       token_items = scored.select { |item| item[:features][:action_type] == 'place_token' }
 
                       if token_items.any?
@@ -226,16 +207,12 @@ module View
                           end
 
                           if non_tokens.empty?
-                            # Mandatory token-only step, e.g. HomeToken.
-                            # All candidates have already passed engine legality checking.
-                            # Revenue improvement is irrelevant because the token must be placed.
                             token_items.sample
                           else
                             non_tokens.sort_by! { |item| -item[:score] }
                             AiExpertRules.select_candidate(non_tokens)
                           end
                         end
-
                       else
                         scored.sort_by! { |item| -item[:score] }
                         AiExpertRules.select_candidate(scored)
@@ -276,10 +253,6 @@ module View
           @tile_eval_cache.clear if @tile_eval_cache
         end
 
-        # Registry of engine action names to collectors. The registry is deliberately
-        # explicit: strategic collectors only run when the CURRENT blocking step exposes
-        # one of their action names. Unsupported names are logged and safely fall back
-        # to Pass when Pass is available.
         ACTION_REGISTRY = {
           'bankrupt' => :collect_bankruptcy,
           'pass' => :collect_pass,
@@ -316,9 +289,6 @@ module View
           'corporate_buy_shares' => :collect_redeem_shares,
         }.freeze
 
-        # Optional operating-round opportunities are not always advertised by
-        # step.actions(entity). Probe only the CURRENT blocking step, never a future
-        # round step, and let each collector return [] when the opportunity is absent.
         OR_OPPORTUNITY_COLLECTORS = %i[
           collect_or_train_opportunities
           collect_or_company_opportunities
@@ -367,8 +337,6 @@ module View
           if operating_entity?(entity)
             OR_OPPORTUNITY_COLLECTORS.each do |collector_name|
               discovered = Array(send(collector_name, step, entity, actions))
-              unless discovered.empty?
-              end
               legal.concat(discovered)
             rescue StandardError => e
               LOGGER.warn(
@@ -391,8 +359,6 @@ module View
 
           legal = legal.compact.uniq.select { |action| action_belongs_to_entity?(action, entity) }
 
-          # Fail-safe: an unsupported/unmaterialisable step must never invent an action.
-          # If the engine offers Pass, return only Pass when no understood candidate exists.
           if legal.empty? && actions.include?('pass')
             fallback = collect_pass(step, entity, actions)
             return fallback if fallback.any?
@@ -594,37 +560,6 @@ module View
           end
         end
 
-        def collect_special_buys(step, entity, actions)
-          return [] unless actions.include?('special_buy')
-          return [] unless defined?(Engine::Action::SpecialBuy)
-          return [] unless step.respond_to?(:buyable_items)
-
-          items =
-            begin
-              Array(step.buyable_items(entity))
-            rescue StandardError
-              []
-            end
-
-          candidates = items.map do |item|
-            Engine::Action::SpecialBuy.new(
-              entity,
-              item: item,
-            )
-          end
-
-          return candidates if RUBY_ENGINE == 'opal'
-
-          candidates.select do |action|
-            trial = @game.clone(Array(@game.raw_actions))
-            mapped = Engine::Action::Base.action_from_h(action.to_h, trial)
-            trial.process_action(mapped, add_auto_actions: true).maybe_raise!
-            true
-          rescue StandardError
-            false
-          end
-        end
-
         def collect_multiple_companies(step, entity, actions)
           return [] unless actions.include?('select_multiple_companies')
           return [] unless defined?(Engine::Action::SelectMultipleCompanies)
@@ -638,8 +573,6 @@ module View
 
           return [] if available.empty?
 
-          # Try to discover the required selection size from the step's own
-          # public state first.
           required_count =
             begin
               if step.respond_to?(:cards_to_keep)
@@ -653,8 +586,6 @@ module View
               0
             end
 
-          # Some steps, including CertificateSelection, keep the value internally
-          # rather than exposing a public reader.
           if required_count <= 0
             begin
               required_count =
@@ -677,16 +608,12 @@ module View
             next if size <= 0
             next if size > available.size
 
-            # Randomise before combination generation so we do not systematically
-            # favour the first certificates returned by a game.
             available.shuffle.combination(size).each do |companies|
               candidates << Engine::Action::SelectMultipleCompanies.new(
                 entity,
                 companies: companies,
               )
 
-              # We only need a usable legal candidate, not every combinatorial
-              # possibility. Keep this bounded for games with large pools.
               break if candidates.size >= 50
             end
 
@@ -740,9 +667,6 @@ module View
           collect_company_purchases(buy_step, entity)
         end
 
-        # Mirror DashboardActionWindow#render_buyable_companies: private-company
-        # buying may be implemented by a different step in the current operating
-        # round, even while the visible/current step advertises only Pass.
         def private_buy_step_for(default_step, entity)
           steps = if @game.round.respond_to?(:steps)
                     Array(@game.round.steps)
@@ -915,9 +839,6 @@ module View
           end
         end
 
-        # Trial search may create detached tile copies with the same tile id.
-        # Immediately before dispatch, rebuild LayTile using a currently available
-        # supply object. Never send a trial/search object to the engine.
         def materialize_action_for_dispatch(action)
           return action unless action.is_a?(Engine::Action::LayTile)
 
@@ -979,9 +900,149 @@ module View
           0
         end
 
+        def next_depot_train_price(entity = nil)
+          if entity && @game.respond_to?(:min_depot_price)
+            begin
+              price = @game.min_depot_price(entity).to_i
+              return price if price.positive?
+            rescue ArgumentError
+              price = @game.min_depot_price.to_i
+              return price if price.positive?
+            rescue StandardError
+            end
+          end
+
+          if @game.respond_to?(:depot) && @game.depot
+            if @game.depot.respond_to?(:min_depot_price)
+              price = @game.depot.min_depot_price.to_i
+              return price if price.positive?
+            end
+            return (@game.depot.min_depot_train&.price || 0).to_i if @game.depot.respond_to?(:min_depot_train)
+          end
+
+          0
+        rescue StandardError
+          0
+        end
+
+        def emergency_train_sale_context?(step, entity)
+          return false unless step && entity && entity.respond_to?(:player?) && entity.player?
+
+          corporation = step.respond_to?(:current_entity) ? step.current_entity : nil
+          return false unless corporation &&
+                              corporation.respond_to?(:corporation?) &&
+                              corporation.corporation? &&
+                              corporation.respond_to?(:owner) &&
+                              corporation.owner == entity
+
+          must_buy = step.respond_to?(:must_buy_train?) && step.must_buy_train?(corporation)
+          return false unless must_buy
+
+          Array(@game.round.actions_for(entity)).map(&:to_s).include?('sell_shares')
+        rescue StandardError
+          false
+        end
+
+        def emergency_train_shortfall(step, entity)
+          return 0 unless emergency_train_sale_context?(step, entity)
+
+          corporation = step.current_entity
+          trains = step.respond_to?(:buyable_trains) ? Array(step.buyable_trains(corporation)) : []
+          cheapest = trains.filter_map { |t| t.price.to_i if t.respond_to?(:price) && t.price.to_i.positive? }.min
+          cheapest ||= next_depot_train_price(corporation)
+          return 0 unless cheapest.to_i.positive?
+
+          corp_cash = corporation.respond_to?(:cash) ? corporation.cash.to_i : 0
+          player_cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
+          [cheapest.to_i - corp_cash - player_cash, 1].max
+        rescue StandardError
+          0
+        end
+
+        def evaluate_home_location_value(corp)
+          return 0 unless corp && corp.respond_to?(:coordinates) && @game.respond_to?(:hex_by_id)
+
+          coords = Array(corp.coordinates).flatten.compact
+          return 0 if coords.empty?
+
+          total = 0
+          coords.each do |coord|
+            hex = @game.hex_by_id(coord.to_s)
+            next unless hex && hex.respond_to?(:tile) && hex.tile
+
+            total += printed_hex_revenue(hex.tile)
+            neighbors = hex.respond_to?(:neighbors) && hex.neighbors ? hex.neighbors.values : []
+            Array(neighbors).compact.each do |n1|
+              total += (printed_hex_revenue(n1.tile) * 0.6).to_i if n1.respond_to?(:tile) && n1.tile
+              cost = n1.respond_to?(:cost) ? n1.cost.to_i : 0
+              total -= (cost / 10).to_i if cost.positive?
+            end
+          end
+
+          [total, 0].max
+        rescue StandardError
+          0
+        end
+
+        def active_operating_routes_revenue
+          routes = if @routes && @routes.any?
+                     @routes
+                   elsif @game.round.respond_to?(:routes)
+                     Array(@game.round.routes)
+                   else
+                     []
+                   end
+          return 0 if routes.empty?
+
+          if @game.respond_to?(:routes_revenue)
+            @game.routes_revenue(routes).to_i
+          else
+            routes.sum { |r| r.respond_to?(:revenue) ? r.revenue.to_i : 0 }.to_i
+          end
+        rescue StandardError
+          0
+        end
+
+        def dividend_retained_cash(step, entity, kind, total_revenue)
+          if step.respond_to?(:dividend_options)
+            opts = step.dividend_options(entity)
+            if opts.is_a?(Hash)
+              info = opts[kind.to_sym] || opts[kind.to_s]
+              return info[:corporation].to_i if info.is_a?(Hash) && info.key?(:corporation)
+            end
+          end
+
+          case kind.to_s
+          when 'withhold'
+            total_revenue.to_i
+          when 'half', 'split'
+            (total_revenue.to_i / 2.0).floor
+          else
+            0
+          end
+        rescue StandardError
+          kind.to_s == 'withhold' ? total_revenue.to_i : 0
+        end
+
+        def par_float_units_needed(corp)
+          share_percent = corp.respond_to?(:share_percent) && corp.share_percent.to_i.positive? ? corp.share_percent.to_i : 10
+          float_pct = if corp.respond_to?(:percent_to_float) && corp.percent_to_float
+                        corp.percent_to_float.to_i
+                      elsif corp.respond_to?(:float_percent) && corp.float_percent
+                        corp.float_percent.to_i
+                      else
+                        60
+                      end
+          pres_pct = corp.presidents_share&.percent.to_i
+          pres_pct = share_percent unless pres_pct.positive?
+          ([float_pct, pres_pct].max.to_f / share_percent).ceil
+        rescue StandardError
+          6
+        end
+
         def extract_features(action, step, entity, all_actions)
           f = {}
-          f[:player_cash] = entity.respond_to?(:cash) ? entity.cash : 0
+          f[:player_cash] = entity.respond_to?(:cash) ? entity.cash.to_i : 0
           cert_count =
             if entity.respond_to?(:shares) && @game.respond_to?(:num_certs)
               begin
@@ -1007,10 +1068,16 @@ module View
           f[:cert_limit] = cert_limit
           f[:certs_free] = cert_limit - cert_count
 
-          my_unfloated = @game.corporations.select do |c|
+          my_unfloated = Array(@game.corporations).select do |c|
             c.owner == entity && (!c.respond_to?(:floated?) || !c.floated?)
           end
           f[:unfloated_presidencies] = my_unfloated.size
+
+          can_buy_unfloated_own = all_actions.any? do |a|
+            a.is_a?(Engine::Action::BuyShares) &&
+              a.bundle&.corporation &&
+              my_unfloated.include?(a.bundle.corporation)
+          end
 
           case action
           when Engine::Action::Pass
@@ -1027,47 +1094,49 @@ module View
               f[:other_is_president] = (!corp.owner.nil? && corp.owner != entity)
               f[:player_percent] = entity.respond_to?(:percent_of) ? entity.percent_of(corp) : 0
               f[:corp_trains_count] = corp.respond_to?(:trains) ? corp.trains.size : 0
-              f[:share_price] = bundle.price
+              f[:share_price] = bundle.price.to_i
               is_market = (@game.respond_to?(:share_pool) && bundle.owner == @game.share_pool)
               f[:source] = is_market ? :market : :ipo
 
-              f[:corp_can_buy_train] = corp.cash >= if @game.respond_to?(:depot) && @game.depot.respond_to?(:min_depot_train)
-                                                      (@game.depot.min_depot_train&.price || 999)
-                                                    else
-                                                      100
-                                                    end
+              min_train = next_depot_train_price(corp)
+              f[:corp_can_buy_train] = min_train.positive? ? (corp.cash.to_i >= min_train) : (corp.cash.to_i >= 100)
 
-              opp_percents = @game.players.reject { |p| p == entity }.map { |p| p.percent_of(corp) }
+              opp_percents = Array(@game.players).reject { |p| p == entity }.map do |p|
+                p.respond_to?(:percent_of) ? p.percent_of(corp) : 0
+              end
               max_opp = opp_percents.max || 0
               f[:presidency_threatened] = (f[:player_is_president] && max_opp >= (f[:player_percent] - 10))
 
-              f[:market_price_lt_ipo] = bundle.price < corp.par_price.price if is_market && corp.par_price
+              f[:market_price_lt_ipo] =
+                if is_market && corp.respond_to?(:par_price) && corp.par_price
+                  bundle.price.to_i < corp.par_price.price.to_i
+                else
+                  false
+                end
             end
 
           when Engine::Action::Par
             f[:action_type] = 'par'
             corp = action.corporation
             sp = action.share_price
-            price_val = sp.respond_to?(:price) ? sp.price : sp.to_i
+            price_val = sp.respond_to?(:price) ? sp.price.to_i : sp.to_i
             f[:par_price] = price_val
 
-            needed_shares = if corp.respond_to?(:percent_to_float)
-                              (corp.percent_to_float / 10).to_i
-                            else
-                              6
-                            end
+            needed_shares = par_float_units_needed(corp)
             cost_to_self_float = price_val * needed_shares
             f[:can_self_float] = (f[:player_cash] >= cost_to_self_float)
 
             cheaper_floatable = all_actions.any? do |a|
               if a.is_a?(Engine::Action::Par) && a != action
-                p = a.share_price.respond_to?(:price) ? a.share_price.price : a.share_price.to_i
-                p < price_val && (f[:player_cash] >= (p * needed_shares))
+                p = a.share_price.respond_to?(:price) ? a.share_price.price.to_i : a.share_price.to_i
+                other_units = par_float_units_needed(a.corporation)
+                p < price_val && (f[:player_cash] >= (p * other_units))
               else
                 false
               end
             end
             f[:cheaper_floatable_par_exists] = cheaper_floatable
+            f[:home_location_value] = evaluate_home_location_value(corp)
 
           when Engine::Action::SellShares
             f[:action_type] = if entity.respond_to?(:corporation?) && entity.corporation?
@@ -1077,41 +1146,109 @@ module View
                               end
             bundle = action.bundle
             corp = bundle&.corporation
+            f[:bundle_price] = bundle&.price.to_i
+            f[:bundle_num_shares] = bundle.respond_to?(:num_shares) ? bundle.num_shares.to_i : 1
+
             if corp
               f[:corp_id] = corp.id
               f[:player_is_president_of_sold] = (corp.owner == entity)
+              pres_shares = corp.presidents_share&.num_shares || 2
               f[:causes_president_dump] =
-                (corp.owner == entity && bundle.num_shares >= (corp.presidents_share&.num_shares || 2))
+                if bundle.respond_to?(:can_dump?)
+                  (corp.owner == entity) && !bundle.can_dump?(entity)
+                else
+                  (corp.owner == entity) && (f[:bundle_num_shares] >= pres_shares)
+                end
+            else
+              f[:player_is_president_of_sold] = false
+              f[:causes_president_dump] = false
             end
-            f[:must_sell] = step.respond_to?(:must_sell?) && step.must_sell?(entity)
-            f[:must_sell_or_raise_float_cash] =
-              f[:must_sell] || (f[:certs_free] <= 0) || (f[:unfloated_presidencies] > 0)
+
+            f[:must_sell] = (step.respond_to?(:must_sell?) && step.must_sell?(entity)) || (f[:certs_free] < 0)
+            f[:emergency_train_sale] = emergency_train_sale_context?(step, entity)
+            shortfall = f[:emergency_train_sale] ? emergency_train_shortfall(step, entity) : 0
+            f[:covers_emergency_shortfall] = f[:emergency_train_sale] && (f[:bundle_price] >= shortfall)
+            f[:emergency_shortfall_overshoot] =
+              f[:covers_emergency_shortfall] ? (f[:bundle_price] - shortfall) : 0
+
+            f[:need_cash_for_unfloated_presidency] =
+              (f[:unfloated_presidencies] > 0) && !can_buy_unfloated_own
+
+            has_par_or_buy = all_actions.any? do |a|
+              a.is_a?(Engine::Action::Par) || a.is_a?(Engine::Action::BuyShares)
+            end
+            f[:voluntary_sell_roll] =
+              if !has_par_or_buy && f[:bundle_num_shares] == 1
+                if f[:player_is_president_of_sold]
+                  AiExpertRules.sell_own_company_shares?(@game, entity)
+                else
+                  AiExpertRules.sell_other_company_shares?(@game, entity)
+                end
+              else
+                false
+              end
+
+            f[:sell_justified] =
+              f[:emergency_train_sale] ||
+              f[:must_sell] ||
+              f[:need_cash_for_unfloated_presidency] ||
+              f[:voluntary_sell_roll]
 
           when Engine::Action::Dividend
             f[:action_type] = 'dividend'
-            f[:dividend_kind] = action.kind
+            f[:dividend_kind] = action.kind.to_s
             corp = entity
             f[:corp_trains_count] = corp.respond_to?(:trains) ? corp.trains.size : 0
-            f[:revenue] = @routes&.sum { |r| r.respond_to?(:revenue) ? r.revenue.to_i : 0 }.to_i
-            f[:withhold_enables_permanent_train] = action.kind.to_s == 'withhold' && can_buy_permanent_train?(corp, f[:revenue])
+            f[:revenue] = active_operating_routes_revenue
+            retained = dividend_retained_cash(step, corp, action.kind, f[:revenue])
+
+            has_perm = Array(corp.trains).any? { |t| permanent_train?(t) }
+            perm_without_retention = can_buy_permanent_train?(corp, 0)
+            perm_with_retention = can_buy_permanent_train?(corp, retained)
+
+            f[:retention_enables_permanent_train] =
+              !has_perm && !perm_without_retention && perm_with_retention
+            f[:withhold_enables_permanent_train] = f[:retention_enables_permanent_train]
+
+            min_train_price = next_depot_train_price(corp)
+            corp_cash = corp.respond_to?(:cash) ? corp.cash.to_i : 0
+            f[:trainless_needs_cash] =
+              f[:corp_trains_count].zero? && min_train_price.positive? && (corp_cash < min_train_price)
+
+            reaches_next_train =
+              f[:trainless_needs_cash] && ((corp_cash + retained) >= min_train_price)
+            f[:retention_enables_needed_train] =
+              f[:retention_enables_permanent_train] || reaches_next_train
 
           when Engine::Action::BuyTrain
             f[:action_type] = 'buy_train'
             train = action.train
             f[:train_from_depot] =
               (train.owner == @game.depot || (train.respond_to?(:from_depot?) && train.from_depot?))
-            f[:train_cost] = action.price || train.price || 0
+            f[:is_permanent_train] = permanent_train?(train)
+            f[:train_cost] = (action.price || train.price || 0).to_i
             corp = entity
             f[:corp_trains_count] = corp.respond_to?(:trains) ? corp.trains.size : 0
 
           when Engine::Action::DiscardTrain
             f[:action_type] = 'discard_train'
-            f[:train_cost] = action.train&.price || 0
+            f[:train_cost] = (action.train&.price || 0).to_i
 
           when Engine::Action::LayTile
             f[:action_type] = 'lay_tile'
             eval_data = @tile_eval_cache[action] || {}
             f.merge!(eval_data)
+            tile_cost = (f[:tile_cost] || calculate_tile_cost(step, entity, action.hex, action.tile)).to_i
+            f[:tile_cost] = tile_cost
+            corp_cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
+            trains_count = entity.respond_to?(:trains) ? entity.trains.size : 0
+            min_train_price = next_depot_train_price(entity)
+            f[:breaks_train_budget] =
+              trains_count.zero? &&
+              tile_cost.positive? &&
+              min_train_price.positive? &&
+              (corp_cash >= min_train_price) &&
+              ((corp_cash - tile_cost) < min_train_price)
 
           when Engine::Action::PlaceToken
             f[:action_type] = 'place_token'
@@ -1130,11 +1267,6 @@ module View
 
           action = Engine::Action::Pass.new(entity)
 
-          # The engine explicitly advertised "pass".
-          #
-          # Under CRuby, additionally verify the complete action against a cloned
-          # game position. Do not try to duplicate game-specific pass restrictions
-          # here with must_buy_train?, must_sell?, can_pass?, etc.
           if RUBY_ENGINE != 'opal'
             begin
               trial = @game.clone(Array(@game.raw_actions))
@@ -1222,12 +1354,6 @@ module View
             )
           end
 
-          # Auction APIs differ considerably between games. Methods such as can_bid?
-          # may approve a structurally plausible bid without considering all current
-          # auction commitments, reserved cash, or game-specific maximum-bid rules.
-          #
-          # Under CRuby, process every candidate on a cloned position and retain only
-          # actions accepted by the authoritative engine.
           if RUBY_ENGINE != 'opal'
             legal.select! do |action|
               trial =
@@ -1501,8 +1627,6 @@ module View
               bank_companies.include?(company)
 
             if bank_owned
-              # Bank-owned companies/certificates are bought at their
-              # engine-defined face value.
               price =
                 if company.respond_to?(:value)
                   company.value.to_i
@@ -1566,6 +1690,9 @@ module View
           end
         end
 
+        # Collects all legal dividend options for the current step.
+        # Strategic choice between payout, half/split, and withhold is delegated
+        # entirely to AiExpertRules (OR_DIV01..OR_DIV07).
         def collect_dividends(step, entity, actions)
           return [] unless (actions & %w[dividend payout withhold half split]).any?
 
@@ -1593,56 +1720,6 @@ module View
           opts = (actions & %w[payout withhold half split]) if opts.empty?
           opts.reject! { |option| option == 'dividend' }
 
-          has_permanent_train =
-            entity.respond_to?(:trains) &&
-            Array(entity.trains).any? do |train|
-              train.rusts_on.nil? &&
-                train.obsolete_on.nil? &&
-                !train.rusted
-            end
-
-          # Conservative treasury policy:
-          #
-          # If the corporation does not currently have enough treasury cash to buy
-          # the cheapest/next available depot train, withhold whenever withholding
-          # is a legal dividend option.
-          #
-          # Some games provide an entity-specific min_depot_price; otherwise use
-          # the standard depot price.
-          next_train_price =
-            begin
-              if @game.respond_to?(:min_depot_price)
-                @game.min_depot_price(entity).to_i
-              elsif @game.respond_to?(:depot) && @game.depot
-                @game.depot.min_depot_price.to_i
-              else
-                0
-              end
-            rescue ArgumentError
-              begin
-                @game.min_depot_price.to_i
-              rescue StandardError
-                @game.depot&.min_depot_price.to_i
-              end
-            rescue StandardError
-              @game.depot&.min_depot_price.to_i
-            end
-
-          corporation_cash =
-            entity.respond_to?(:cash) ? entity.cash.to_i : 0
-
-          if !has_permanent_train &&
-             next_train_price.positive? &&
-             corporation_cash < next_train_price &&
-             opts.include?('withhold')
-            return [
-              Engine::Action::Dividend.new(
-                entity,
-                kind: 'withhold',
-              ),
-            ]
-          end
-
           opts.map do |kind|
             Engine::Action::Dividend.new(
               entity,
@@ -1660,50 +1737,22 @@ module View
           apply_player_share_focus(actions, entity)
         end
 
+        # Preserves all legal Par, BuyShares, justified SellShares, and Pass
+        # actions so AiExpertRules scores them on a unified scale.
+        # Mandatory emergency train sales and engine-forced sales isolate
+        # sell_actions because the engine requires a sale before anything else.
         def apply_player_share_focus(actions, entity)
           return actions unless entity.respond_to?(:player?) && entity.player?
-
-          buy_actions =
-            actions.select do |action|
-              action.is_a?(Engine::Action::BuyShares)
-            end
 
           sell_actions =
             actions.select do |action|
               action.is_a?(Engine::Action::SellShares)
             end
 
-          par_actions =
-            actions.select do |action|
-              action.is_a?(Engine::Action::Par)
-            end
-
           step = @game.round.active_step
 
-          # Emergency train financing:
-          # if the corporation is forced to buy a train and the engine has
-          # switched action availability to its president for share sales,
-          # those sales are mandatory financing candidates, not voluntary
-          # stock-round sales. Never apply the 5%/10% sale policy here.
-          emergency_train_sale =
-            begin
-              corporation = step.current_entity
+          return sell_actions if emergency_train_sale_context?(step, entity) && sell_actions.any?
 
-              corporation &&
-                corporation.respond_to?(:corporation?) &&
-                corporation.corporation? &&
-                corporation.respond_to?(:owner) &&
-                corporation.owner == entity &&
-                step.respond_to?(:must_buy_train?) &&
-                step.must_buy_train?(corporation) &&
-                Array(@game.round.actions_for(entity)).map(&:to_s).include?('sell_shares')
-            rescue StandardError
-              false
-            end
-
-          return sell_actions if emergency_train_sale && sell_actions.any?
-
-          # Other engine-forced selling also has priority.
           forced_sale =
             sell_actions.any? do |action|
               features =
@@ -1721,51 +1770,12 @@ module View
 
           return sell_actions if forced_sale
 
-                    # Starting a new corporation takes priority over adding another
-          # certificate to an already-started corporation.
-          return par_actions if par_actions.any?
-
-          # STOCK POLICY:
-          # Never leave purchasing power unused while a legal share purchase exists.
-          return buy_actions if buy_actions.any?
-
-          # Optional sales must be small. Do not use multi-share bundles for
-          # speculative/portfolio sales.
-          single_share_sales =
-            sell_actions.select do |action|
-              bundle = action.bundle
-
-              bundle &&
-                bundle.respond_to?(:num_shares) &&
-                bundle.num_shares == 1
-            end
-
-          own_company_sales =
-            single_share_sales.select do |action|
-              corporation = share_action_corporation(action)
-
-              corporation &&
-                corporation.respond_to?(:owner) &&
-                corporation.owner == entity
-            end
-
-          other_company_sales =
-            single_share_sales.reject do |action|
-              own_company_sales.include?(action)
-            end
-
-          if own_company_sales.any? &&
-             AiExpertRules.sell_own_company_shares?(@game, entity)
-            return [own_company_sales.sample]
-          end
-
-          if other_company_sales.any? &&
-             AiExpertRules.sell_other_company_shares?(@game, entity)
-            return [other_company_sales.sample]
-          end
-
+          # In normal Stock Rounds, restrict optional sales to 1-share bundles
+          # and let AiExpertRules decide between Par, BuyShares, SellShares, and Pass.
           actions.reject do |action|
-            action.is_a?(Engine::Action::SellShares)
+            action.is_a?(Engine::Action::SellShares) &&
+              action.bundle.respond_to?(:num_shares) &&
+              action.bundle.num_shares.to_i > 1
           end
         end
 
@@ -1802,9 +1812,6 @@ module View
           classes << Engine::Action::Redeem if defined?(Engine::Action::Redeem)
           classes << Engine::Action::RedeemShares if defined?(Engine::Action::RedeemShares)
           classes << Engine::Action::CorporateBuyShares if defined?(Engine::Action::CorporateBuyShares)
-
-          # Some games represent treasury redemption using BuyShares with the
-          # corporation itself as the acting entity.
           classes << Engine::Action::BuyShares if defined?(Engine::Action::BuyShares)
 
           classes.any? { |klass| action.is_a?(klass) }
@@ -1996,6 +2003,7 @@ module View
                 )
             end
           end
+
           if actions.include?('sell_shares')
             corporations =
               @game.corporations.select do |corporation|
@@ -2035,8 +2043,6 @@ module View
                 end
               end
 
-              # Generic engine-level source used when the current step does not
-              # expose player sale bundles itself.
               if @game.respond_to?(:bundles_for_corporation)
                 begin
                   bundles.concat(
@@ -2135,10 +2141,76 @@ module View
           end
         end
 
+        # Generates up to two Par candidates per unstarted corporation:
+        # 1. The highest legal par price where the player can afford the initial
+        #    president certificate (preserving 1837 par generation).
+        # 2. The highest legal par price where the player can afford the entire
+        #    float requirement (enabling SR03 and SR04 in AiExpertRules).
         def collect_par(step, entity, actions)
           return [] unless actions.include?('par')
 
           legal = []
+
+          if step.respond_to?(:companies_pending_par)
+            pending = Array(step.companies_pending_par).first
+
+            if pending
+              corporation =
+                if pending.respond_to?(:corporation?) && pending.corporation?
+                  pending
+                elsif pending.respond_to?(:all_abilities)
+                  share_ability = pending.all_abilities.find do |ability|
+                    ability.respond_to?(:type) &&
+                      ability.type == :shares &&
+                      ability.respond_to?(:shares) &&
+                      ability.shares&.any?
+                  end
+
+                  share_ability&.shares&.first&.corporation
+                end
+
+              if corporation
+                prices =
+                  begin
+                    Array(step.get_par_prices(entity, corporation))
+                  rescue StandardError
+                    []
+                  end
+
+                best_price = prices
+                  .map { |entry| entry.is_a?(Array) ? entry.first : entry }
+                  .compact
+                  .max_by do |price|
+                    price.respond_to?(:price) ? price.price.to_i : price.to_i
+                  end
+
+                if best_price
+                  slot =
+                    begin
+                      if @game.respond_to?(:par_chart) &&
+                         @game.par_chart[best_price]
+                        @game.par_chart[best_price].index(nil)
+                      end
+                    rescue StandardError
+                      nil
+                    end
+
+                  kwargs = {
+                    corporation: corporation,
+                    share_price: best_price,
+                  }
+                  kwargs[:slot] = slot unless slot.nil?
+
+                  return [
+                    Engine::Action::Par.new(
+                      entity,
+                      **kwargs,
+                    ),
+                  ]
+                end
+              end
+            end
+          end
 
           unfloated = @game.corporations.select do |corporation|
             if corporation.respond_to?(:ipoed)
@@ -2195,23 +2267,19 @@ module View
 
             share_percent = 10 unless share_percent.positive?
 
-         
-            # Par affordability is determined by the initial president
-            # certificate purchase, not by the corporation's float threshold.
-            #
-            # The remaining shares required to float may be bought later by
-            # this or other players. Requiring the parring player to afford
-            # the entire float incorrectly removes legal Par actions.
             president_percent =
               corporation.presidents_share&.percent.to_i
 
-            president_percent =
-              share_percent unless president_percent.positive?
+            unless president_percent.positive?
+              president_percent =
+                share_percent
+            end
 
             share_units_needed =
               (president_percent.to_f / share_percent).ceil
 
-
+            float_units_needed =
+              par_float_units_needed(corporation)
 
             affordable_prices = prices.filter_map do |price_entry|
               share_price =
@@ -2224,10 +2292,10 @@ module View
                   share_price.to_i
                 end
 
-              total_float_cost =
+              initial_par_cost =
                 price_value * share_units_needed
 
-              next if total_float_cost > player_cash
+              next if initial_par_cost > player_cash
 
               slot = nil
 
@@ -2246,86 +2314,24 @@ module View
               {
                 share_price: share_price,
                 price_value: price_value,
-                total_float_cost: total_float_cost,
+                initial_par_cost: initial_par_cost,
+                self_float_cost: price_value * float_units_needed,
                 slot: slot,
               }
             end
 
-            # Choose only the highest legal par price that still leaves enough
-
-            if step.respond_to?(:companies_pending_par)
-              pending = Array(step.companies_pending_par).first
-
-              if pending
-                corporation =
-                  if pending.respond_to?(:corporation?) && pending.corporation?
-                    pending
-                  elsif pending.respond_to?(:all_abilities)
-                    share_ability = pending.all_abilities.find do |ability|
-                      ability.respond_to?(:type) &&
-                        ability.type == :shares &&
-                        ability.respond_to?(:shares) &&
-                        ability.shares&.any?
-                    end
-
-                    share_ability&.shares&.first&.corporation
-                  end
-
-                if corporation
-                  prices =
-                    begin
-                      Array(step.get_par_prices(entity, corporation))
-                    rescue StandardError
-                      []
-                    end
-
-                  best_price = prices
-                    .map { |entry| entry.is_a?(Array) ? entry.first : entry }
-                    .compact
-                    .max_by do |price|
-                      price.respond_to?(:price) ? price.price.to_i : price.to_i
-                    end
-
-                  if best_price
-                    slot =
-                      begin
-                        if @game.respond_to?(:par_chart) &&
-                           @game.par_chart[best_price]
-                          @game.par_chart[best_price].index(nil)
-                        end
-                      rescue StandardError
-                        nil
-                      end
-
-                    kwargs = {
-                      corporation: corporation,
-                      share_price: best_price,
-                    }
-                    kwargs[:slot] = slot unless slot.nil?
-
-                    return [
-                      Engine::Action::Par.new(
-                        entity,
-                        **kwargs,
-                      ),
-                    ]
-                  end
-                end
-              end
-            end
-            # purchasing power to reach the corporation's engine-defined float level.
-            best = affordable_prices.max_by do |candidate|
+            best_overall = affordable_prices.max_by do |candidate|
               candidate[:price_value]
             end
 
-            next unless best
+            best_self_float = affordable_prices
+              .select { |candidate| candidate[:self_float_cost] <= player_cash }
+              .max_by { |candidate| candidate[:price_value] }
 
-            kwargs = {
-              corporation: corporation,
-              share_price: best[:share_price],
-            }
-
-            kwargs[:slot] = best[:slot] unless best[:slot].nil?
+            selected_candidates =
+              [best_overall, best_self_float]
+                .compact
+                .uniq { |candidate| candidate[:share_price] }
 
             president_shares =
               if corporation.respond_to?(:presidents_share) &&
@@ -2335,19 +2341,28 @@ module View
                 []
               end
 
-            begin
-              legal << Engine::Action::Par.new(
-                entity,
-                **kwargs.merge(shares: president_shares)
-              )
-            rescue ArgumentError => e
-              raise unless e.message.to_s.include?('unknown keyword') ||
-                           e.message.to_s.include?('shares')
+            selected_candidates.each do |candidate|
+              kwargs = {
+                corporation: corporation,
+                share_price: candidate[:share_price],
+              }
 
-              legal << Engine::Action::Par.new(
-                entity,
-                **kwargs
-              )
+              kwargs[:slot] = candidate[:slot] unless candidate[:slot].nil?
+
+              begin
+                legal << Engine::Action::Par.new(
+                  entity,
+                  **kwargs.merge(shares: president_shares)
+                )
+              rescue ArgumentError => e
+                raise unless e.message.to_s.include?('unknown keyword') ||
+                             e.message.to_s.include?('shares')
+
+                legal << Engine::Action::Par.new(
+                  entity,
+                  **kwargs
+                )
+              end
             end
           end
 
@@ -2373,9 +2388,6 @@ module View
           legal
         end
 
-        # Number of distinct trains the current network can actually route next OR.
-        # AutoRouter is authoritative here: counting connected stops overstates capacity
-        # because several stops may belong to the same overlapping route.
         def drivable_train_capacity(entity)
           limit = @game.respond_to?(:train_limit) ? @game.train_limit(entity).to_i : 1
           limit = 1 unless limit.positive?
@@ -2397,9 +2409,6 @@ module View
             return [[routed_count, 1].max, limit].min if routed_count.positive?
           end
 
-          # Before the corporation owns a train AutoRouter cannot construct routes.
-          # Fall back conservatively: one train for a connected network, never infer
-          # multiple trains merely from the number of visible revenue stops.
           connected = begin; @game.graph.connected_nodes(entity); rescue StandardError; []; end
           connected = begin; @game.graph.connected_hexes(entity).keys; rescue StandardError; []; end if Array(connected).empty?
           Array(connected).empty? ? 1 : [1, limit].min
@@ -2419,7 +2428,6 @@ module View
               []
             end
 
-          # Bankruptcy is considered only in a train-buying step.
           return [] unless step_actions.include?('buy_train')
 
           must_buy =
@@ -2443,8 +2451,6 @@ module View
               []
             end
 
-          # Bankruptcy is forbidden if ANY engine-valid train purchase exists.
-          # Test all variants/prices exposed by the active train-buying step.
           buyable_trains.each do |train|
             variants =
               begin
@@ -2517,16 +2523,12 @@ module View
                   add_auto_actions: true,
                 )
 
-                # A train can be bought. Bankruptcy is therefore not forced.
                 return [] if trial.exception.nil?
               rescue StandardError
-                # Try the next variant/train.
               end
             end
           end
 
-          # No train purchase survived engine validation.
-          # Bankruptcy itself must still be accepted by the engine.
           action =
             Engine::Action::Bankrupt.new(entity)
 
@@ -2816,7 +2818,6 @@ module View
                   end
 
                 legal = permanent_actions if permanent_actions.any?
-
               else
                 same_director_actions =
                   legal.select do |action|
@@ -2885,8 +2886,6 @@ module View
 
           bundles = []
 
-          # First ask the current step. This is authoritative when the step
-          # implements special emergency-money or issue rules.
           %i[
             issuable_shares
             issueable_shares
@@ -2910,8 +2909,6 @@ module View
             bundles.concat(Array(result))
           end
 
-          # Some games expose their legal corporate issue bundles on the game
-          # rather than through the currently active step.
           %i[
             issuable_shares
             issueable_shares
@@ -2965,8 +2962,6 @@ module View
 
           return legal if RUBY_ENGINE == 'opal'
 
-          # The engine, not the AI, has final authority over whether an issue
-          # bundle is actually legal in the current game state.
           legal.select do |action|
             trial = @game.clone(Array(@game.raw_actions))
 
@@ -3085,7 +3080,7 @@ module View
               end
 
               if actions.include?('corporate_buy_shares') &&
-             defined?(Engine::Action::CorporateBuyShares)
+                 defined?(Engine::Action::CorporateBuyShares)
 
                 Engine::Action::CorporateBuyShares.new(
                   entity,
@@ -3140,7 +3135,6 @@ module View
             false
           end || []
 
-          # If UI routes are not yet populated, invoke Engine::AutoRouter directly
           if active_r.empty? && defined?(Engine::AutoRouter)
             begin
               router = Engine::AutoRouter.new(@game, ->(_msg) {})
@@ -3164,7 +3158,6 @@ module View
             end
           end
 
-          # Reject stale UI/AutoRouter routes using trains owned by another corporation.
           active_r = Array(active_r).select do |route|
             train = route.respond_to?(:train) ? route.train : nil
             owner = train.respond_to?(:owner) ? train.owner : nil
@@ -3254,12 +3247,6 @@ module View
 
           best_rev = nil
           callback_finished = false
-          started_ms =
-            if RUBY_ENGINE == 'opal'
-              `Date.now()`.to_f
-            else
-              Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000.0
-            end
           clear_entity_graph_cache(entity)
           router = Engine::AutoRouter.new(@game, ->(_msg) {})
           router.compute(
@@ -3274,12 +3261,6 @@ module View
                 0
               end
               callback_finished = true
-              elapsed =
-                if RUBY_ENGINE == 'opal'
-                  `Date.now()`.to_f - started_ms
-                else
-                  (Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000.0) - started_ms
-                end
             end
           )
 
@@ -3307,10 +3288,6 @@ module View
           end
         end
 
-        # IMPORTANT: look-ahead must never move a real tile object from the
-        # game's tile supply onto the map. Doing that corrupts tile ownership/counts
-        # and the eventual LayTile action is rejected as "tile already on map".
-        # Use a detached clone strictly for AutoRouter evaluation.
         def clone_tile_for_trial(tile, rotation)
           trial = begin
             tile.dup
@@ -3336,8 +3313,6 @@ module View
             yield trial_tile
           ensure
             set_hex_tile_for_trial(hex, old_tile)
-            # Hex#tile= may write a back-reference into the detached trial tile.
-            # Remove it so no search artefact can look like a laid supply tile.
             trial_tile.instance_variable_set(:@hex, nil) if trial_tile
             clear_entity_graph_cache(entity)
           end
@@ -3359,7 +3334,6 @@ module View
                       []
                     end
             Array(tiles).compact.each do |tile|
-              # Never select a tile object that is already installed on a map hex.
               next if tile.respond_to?(:hex) && tile.hex
               next if @game.respond_to?(:tile_available?) && !@game.tile_available?(tile)
 
@@ -3589,7 +3563,7 @@ module View
           return [] unless actions.include?('place_token') || actions.include?('hex_token')
 
           if step.respond_to?(:pending_token) &&
-   step.respond_to?(:available_tokens)
+             step.respond_to?(:available_tokens)
             legal = []
 
             Array(@game.hexes).each do |hex|
@@ -3660,7 +3634,6 @@ module View
           token_to_place = unplaced.first
           legal = []
 
-          # Mirror CitySlot#flash_token_slot? from dashboard_map.rb
           breathing_hexes = @game.hexes.select do |hex|
             next false unless hex && hex.tile
 
@@ -3681,7 +3654,6 @@ module View
               open_slot = city.respond_to?(:open_slot?) ? city.open_slot?(entity) : city.tokens.any?(&:nil?)
               next unless open_slot
 
-              # Check reservation compatibility
               if city.respond_to?(:reservations) && city.reservations
                 res_matching = city.reservations.any? do |r|
                   res_corp = r.respond_to?(:corporation) ? r.corporation : r

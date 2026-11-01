@@ -7,7 +7,7 @@ module View
       class AiExpertRules
         @game_overrides = {}
 
-        # Backdoor for game-specific rules (e.g., '1835', '1830')
+        # Optional registry for title-specific rule overrides (e.g., '1835', '1830').
         def self.register_override(game_title, rules)
           @game_overrides[game_title.to_s] = rules
         end
@@ -41,23 +41,29 @@ module View
           [total_score, applied_rules]
         end
 
+        # Selects one candidate from scored items:
+        # 1. Hard vetoes (<= -5000) are removed unless all legal actions were vetoed.
+        # 2. If any candidate has a positive score (> 0), negative-scoring actions
+        #    (such as Pass at -100 or penalized buys) are excluded so roulette noise
+        #    never picks Pass when a genuinely good move exists.
+        # 3. If no candidate has a positive score (all <= 0), the highest-scoring
+        #    candidate (typically Pass at -100 over bad buys at -400) wins cleanly.
         def self.select_candidate(scored_items, top_window: nil)
           return nil if scored_items.empty?
 
-          # Strategic hard vetoes normally remove undesirable actions.
           valid = scored_items.reject { |item| item[:score] <= -5000 }
-
-          # Stabilisation rule:
-          # strategy must never turn a non-empty set of engine-validated
-          # actions into "AI cannot act".
-          #
-          # If every legal candidate was vetoed, retain them all and choose
-          # among them according to their relative scores.
           valid = scored_items if valid.empty?
 
-          min_score = valid.map { |item| item[:score] }.min
+          positive = valid.select { |item| item[:score].positive? }
+          if positive.empty?
+            max_score = valid.map { |item| item[:score] }.max
+            return valid.select { |item| item[:score] == max_score }.sample
+          end
 
-          weights = valid.map do |item|
+          pool = top_window ? positive.first(top_window) : positive
+          min_score = pool.map { |item| item[:score] }.min
+
+          weights = pool.map do |item|
             ((item[:score] - min_score) + 10.0)**1.5
           end
 
@@ -65,12 +71,12 @@ module View
           target = rand * total_weight
           acc = 0.0
 
-          valid.each_with_index do |candidate, index|
+          pool.each_with_index do |candidate, index|
             acc += weights[index]
             return candidate if target < acc
           end
 
-          valid.last
+          pool.last
         end
 
         # Policy: preserve every generated legal action as a candidate.
@@ -79,9 +85,7 @@ module View
         end
 
         # Return a reproducible probability decision for one game position.
-        #
-        # Re-evaluating the same action position therefore does not reroll the
-        # decision. Advancing the action history creates a new decision point.
+        # Re-evaluating the same action position does not reroll the decision.
         def self.stable_probability?(game, entity, policy_name, probability)
           key = [
             game&.seed,
@@ -119,26 +123,26 @@ module View
         end
 
         # Policy: sell shares in a corporation controlled by this player
-# with 5% probability at each eligible game position.
-def self.sell_own_company_shares?(game, entity)
-  stable_probability?(
-    game,
-    entity,
-    :sell_own_company_shares,
-    0.05,
-  )
-end
+        # with 5% probability at each eligible game position.
+        def self.sell_own_company_shares?(game, entity)
+          stable_probability?(
+            game,
+            entity,
+            :sell_own_company_shares,
+            0.05,
+          )
+        end
 
-# Policy: sell shares in a corporation controlled by another player
-# with 10% probability at each eligible game position.
-def self.sell_other_company_shares?(game, entity)
-  stable_probability?(
-    game,
-    entity,
-    :sell_other_company_shares,
-    0.10,
-  )
-end
+        # Policy: sell shares in a corporation controlled by another player
+        # with 10% probability at each eligible game position.
+        def self.sell_other_company_shares?(game, entity)
+          stable_probability?(
+            game,
+            entity,
+            :sell_other_company_shares,
+            0.10,
+          )
+        end
 
         # Policy: generic choices are intentionally uniform.
         def self.select_uniform_choice(actions)
@@ -147,33 +151,30 @@ end
         end
 
         # Auction policy:
-        #
-        # The opening bid is attractive and is taken whenever bidding is chosen.
-        # Above the original price, willingness to continue decays exponentially.
-        #
-        # The decay is adjusted for player count so that, for N independent
-        # bidders, the expected winning price is approximately 1.20 times the
-        # original price.
+        # 1. Opening bid at or below original value is strongly preferred.
+        # 2. Above original value, willingness to continue decays exponentially.
+        # 3. Calibrated with harmonic number H_N across N players so expected
+        #    winning price is approximately 1.20x original value.
         def self.select_draft_action(actions, game)
           buy_class =
-            defined?(Engine::Action::BuyCompany) ?
-              Engine::Action::BuyCompany :
-              nil
+            (Engine::Action::BuyCompany if defined?(Engine::Action::BuyCompany))
 
           bid_class =
-            defined?(Engine::Action::Bid) ?
-              Engine::Action::Bid :
-              nil
+            (Engine::Action::Bid if defined?(Engine::Action::Bid))
 
           buys =
-            buy_class ?
-              actions.select { |action| action.is_a?(buy_class) } :
+            if buy_class
+              actions.select { |action| action.is_a?(buy_class) }
+            else
               []
+            end
 
           bids =
-            bid_class ?
-              actions.select { |action| action.is_a?(bid_class) } :
+            if bid_class
+              actions.select { |action| action.is_a?(bid_class) }
+            else
               []
+            end
 
           passes =
             actions.select do |action|
@@ -182,7 +183,6 @@ end
 
           return nil if buys.empty? && bids.empty?
 
-          # Preserve the existing direct-buy policy.
           if buys.any? && bids.any?
             return buys.sample if rand < 0.50
           elsif buys.any?
@@ -192,9 +192,6 @@ end
           return bids.sample if passes.empty?
           return passes.sample if bids.empty?
 
-          # First choose which legal object we are considering bidding on.
-          # The number of available companies must not itself increase the
-          # overall probability of bidding.
           bid = bids.sample
 
           target =
@@ -223,7 +220,6 @@ end
 
           bid_price = bid.price.to_i
 
-          # Opening/original-price bid: bidding remains strongly preferred.
           return bid if original_price <= 0 || bid_price <= original_price
 
           player_count =
@@ -233,18 +229,11 @@ end
               1
             end
 
-          # Harmonic number H_N.
           harmonic =
             (1..player_count).sum do |n|
               1.0 / n
             end
 
-          # For N exponentially distributed willingness-to-pay margins:
-          #
-          # E[max margin] = H_N * scale
-          #
-          # Choose scale so expected winning price is approximately 1.20x
-          # the original price.
           scale =
             (0.20 * original_price.to_f) /
             harmonic
@@ -266,58 +255,39 @@ end
         end
 
         # Policy: buy as many trains as the network can drive next OR, with a single
-        # 20% roll for one additional train. The caller stores this target for the step.
+        # 20% roll for one additional train.
         def self.train_target_count(useful_count, train_limit)
           extra_train = rand < 0.20 ? 1 : 0
           [useful_count.to_i + extra_train, train_limit.to_i].min
         end
 
         # Policy: if the corporation has at least twice the price of the
-# next depot train in cash, buy another train.
-def self.buy_train_when_cash_rich?(corporation_cash, next_train_price)
-  price = next_train_price.to_i
-  return false unless price.positive?
+        # next depot train in cash, buy another train.
+        def self.buy_train_when_cash_rich?(corporation_cash, next_train_price)
+          price = next_train_price.to_i
+          return false unless price.positive?
 
-  corporation_cash.to_i >= (2 * price)
-end
-
-# Policy: buy an engine-legal train from another corporation controlled
-# by the same director with 10% probability.
-def self.buy_same_director_train?(game, entity)
-  stable_probability?(
-    game,
-    entity,
-    :buy_same_director_traiai_expert_rules.rbn,
-    0.10,
-  )
-end
-
-# Policy: if an affordable permanent train is available from the depot,
-# buy it now.
-def self.buy_affordable_permanent_train?
-  true
-end
-
-        # Policy: place the best engine-verified revenue-improving marker
-        # with 80% probability; otherwise continue to track laying.
-        def self.place_profitable_token?
-          rand < 0.80
+          corporation_cash.to_i >= (2 * price)
         end
 
-        # Policy: after normal train needs are met, independently buy the next
-        # affordable depot train with 20% probability to progress the train deck.
-        def self.buy_progression_train?
-          rand < 0.20
+        # Policy: buy an engine-legal train from another corporation controlled
+        # by the same director with 10% probability.
+        def self.buy_same_director_train?(game, entity)
+          stable_probability?(
+            game,
+            entity,
+            :buy_same_director_train,
+            0.10,
+          )
         end
 
-        # Policy: every legally purchasable player-owned private receives an
-        # independent 30% purchase roll.
-        def self.buy_private_company?
-          rand < 0.30
+        # Policy: if an affordable permanent train is available from the depot,
+        # buy it now.
+        def self.buy_affordable_permanent_train?
+          true
         end
 
         # Policy: evaluate a tile lay as the first of two consecutive builds.
-        # The callback supplies printed revenue so this policy remains game-agnostic.
         def self.two_build_tile_features(entity:, hex:, old_tile:, new_tile:, cost:, revenue_for:)
           old_rev = revenue_for.call(old_tile)
           new_rev = revenue_for.call(new_tile)
@@ -333,8 +303,6 @@ end
           old_exits = old_tile.respond_to?(:exits) ? Array(old_tile.exits).uniq : []
           new_exits = new_tile.respond_to?(:exits) ? Array(new_tile.exits).uniq : []
           added_exits = new_exits - old_exits
-          # For an initial yellow lay old_tile normally has no exits. Use the actual
-          # exits of the candidate tile. Never treat every edge of an empty hex as usable.
           considered_exits = added_exits.empty? ? new_exits : added_exits
 
           neighbors = hex.respond_to?(:neighbors) && hex.neighbors ? hex.neighbors : {}
@@ -353,14 +321,12 @@ end
             inv_edge = hex.respond_to?(:invert) ? hex.invert(edge) : ((edge + 3) % 6)
             n1_tile = n1.tile
 
-            # Helper to find the maximum printed revenue among the cities/towns on a tile
             max_revenue_on_tile = lambda do |t|
               return 0 unless t
 
               revs = []
               revs.concat(t.cities.map(&:revenue)) if t.respond_to?(:cities) && t.cities
               revs.concat(t.towns.map(&:revenue)) if t.respond_to?(:towns) && t.towns
-              # Flatten arrays and sum hashes (phase-dependent revenue) to get the max possible
               revs.flatten.compact.map do |r|
                 r.is_a?(Hash) ? (r.values.compact.max || 0) : r
               end.max || 0
@@ -380,22 +346,16 @@ end
             n1_unbuilt = [:white, 'white'].include?(n1_color) || n1_color.nil?
             n1_connects_back = n1_exits.include?(inv_edge)
 
-            # One-build lookahead. A printed revenue centre immediately next to the
-            # new exit is attractive only when it is actually connectable from this edge.
             if n1_rev.positive?
               if n1_connects_back
                 horizon_1_value = [horizon_1_value, n1_rev].max
               elsif n1_unbuilt
-                # This is a future build, not an immediate connection. Give a modest
-                # first-horizon signal; horizon 2 below determines whether it leads on.
                 horizon_1_value = [horizon_1_value, [n1_rev, 20].max].max
               end
             elsif n1_connects_back
               horizon_1_value = [horizon_1_value, 10].max
             end
 
-            # Two-build lookahead. We can reach n2 if n1 is an empty white hex
-            # (we build on it next), OR if n1 is an existing tile and connects back to us.
             n2_edges = []
             if n1_unbuilt
               n2_edges = (0..5).to_a - [inv_edge]
@@ -437,11 +397,8 @@ end
               back_to_n1 = n1.respond_to?(:invert) ? n1.invert(edge2) : ((edge2 + 3) % 6)
 
               if !n2_unbuilt
-                # For a coloured destination, the second build must enter an existing matching edge.
                 next unless n2_exits.include?(back_to_n1)
               else
-                # A white destination is a possible later extension, but we only score it
-                # if it holds a pre-printed revenue target (like a white town/city).
                 next unless n2_rev.positive?
               end
 
@@ -495,42 +452,79 @@ end
           end
         end
 
+        # =====================================================================
+        # HUMAN-READABLE STRATEGIC RULEBOOK
+        #
+        # Scoring conventions:
+        #   +1000 to +2000 : Critical priority (floating own par, emergency finance, dividends)
+        #   +400  to +900  : High priority (starting a par, defending presidency)
+        #   +100  to +350  : Standard profitable action (buying shares, trains, tiles)
+        #   -100           : Pass baseline (chosen only when no action scores > 0)
+        #   -200  to -1500 : Soft strategic discouragement (over-concentration, bad buys)
+        #   -10_000        : Hard strategic veto (only bypassed if every legal move is vetoed)
+        # =====================================================================
         DEFAULT_RULES = [
-          # --- SHARE ROUND: FLOATING & PRESIDENCY RULES ---
+          # -------------------------------------------------------------------
+          # 1. STOCK ROUND: CORPORATION FORMATION (PAR)
+          # -------------------------------------------------------------------
           {
-            id: 'SR01_float_own_company',
-            description: 'If director of an unfloated company, buy shares until it opens',
-            when: { action_type: 'buy_shares', player_is_president: true, is_floated: false },
-            score_add: 500,
+            id: 'SR01_base_par',
+            description: 'Starting a new corporation beats ordinary share buying when no presidency is unfloated',
+            when: { action_type: 'par', unfloated_presidencies: 0 },
+            score_add: 450,
+            score_per_unit: { field: 'par_price', multiplier: 0.5 },
           },
           {
             id: 'SR02_veto_second_par_if_unfloated',
-            description: 'Never par a second company while an unfloated presidency is active',
+            description: 'Never par a second company while an existing presidency is still unfloated',
             when: { action_type: 'par', unfloated_presidencies_gt: 0 },
             score_add: -10_000,
           },
           {
             id: 'SR03_prefer_affordable_full_float_par',
-            description: 'Prefer par prices where player cash can fund the entire float threshold',
+            description: 'Strongly prefer par prices where player cash can self-float the corporation',
             when: { action_type: 'par', can_self_float: true },
-            score_add: 300,
+            score_add: 400,
             score_per_unit: { field: 'par_price', multiplier: 1.5 },
           },
           {
             id: 'SR04_veto_unfloatable_high_par',
-            description: 'Veto expensive pars if player cash cannot float and cheaper floatable pars exist',
+            description: 'Veto expensive pars if player cash cannot self-float and a cheaper self-floatable par exists',
             when: { action_type: 'par', can_self_float: false, cheaper_floatable_par_exists: true },
             score_add: -10_000,
           },
           {
-            id: 'SR05_defend_presidency',
-            description: 'Defend presidency if opponent shareholding is within 10% of mine',
-            when: { action_type: 'buy_shares', player_is_president: true, presidency_threatened: true },
-            score_add: 350,
+            id: 'SR05_par_home_quality',
+            description: 'Prefer parring corporations whose home hexes sit in higher-revenue clusters',
+            when: { action_type: 'par', home_location_value_gt: 0 },
+            score_add: 0,
+            score_per_unit: { field: 'home_location_value', multiplier: 2.0 },
+          },
+
+          # -------------------------------------------------------------------
+          # 2. STOCK ROUND: BUYING SHARES
+          # -------------------------------------------------------------------
+          {
+            id: 'SR06_base_valid_share_buy',
+            description: 'Positive baseline for any legal share purchase so healthy buys beat Pass',
+            when: { action_type: 'buy_shares' },
+            score_add: 100,
           },
           {
-            id: 'SR06_avoid_over_concentration_in_safe_company',
-            description: 'Discourage buying beyond 50% in own safe company if already floated',
+            id: 'SR07_float_own_company',
+            description: 'Highest Stock Round priority: if director of an unfloated company, buy shares until it floats',
+            when: { action_type: 'buy_shares', player_is_president: true, is_floated: false },
+            score_add: 1200,
+          },
+          {
+            id: 'SR08_defend_presidency',
+            description: 'Defend presidency if an opponent shareholding is within 10% of ours',
+            when: { action_type: 'buy_shares', player_is_president: true, presidency_threatened: true },
+            score_add: 450,
+          },
+          {
+            id: 'SR09_avoid_over_concentration_in_safe_company',
+            description: 'Discourage buying beyond 50% in own safe floated company (drops below Pass unless no other option)',
             when: {
               action_type: 'buy_shares',
               player_is_president: true,
@@ -538,79 +532,127 @@ end
               player_percent_gte: 50,
               presidency_threatened: false,
             },
-            score_add: -180,
-          },
-
-          
-
-          # --- SHARE ROUND: GENERAL INVESTING ---
-          {
-            id: 'SR07_buy_train_ready_company',
-            description: 'Buy shares in floated companies that already own operating trains',
-            when: { action_type: 'buy_shares', is_floated: true, corp_trains_count_gt: 0 },
-            score_add: 160,
-            score_per_unit: { field: 'share_price', multiplier: 0.5 },
-          },
-          {
-            id: 'SR08_buy_cash_rich_floated',
-            description: 'Buy shares in floated companies capable of buying a train next OR',
-            when: { action_type: 'buy_shares', is_floated: true, corp_trains_count: 0, corp_can_buy_train: true },
-            score_add: 120,
-          },
-          {
-            id: 'SR09_anti_herd_unfloated',
-            description: 'Do not buy into rival unfloated companies',
-            when: { action_type: 'buy_shares', other_is_president: true, is_floated: false },
             score_add: -400,
           },
           {
-            id: 'SR10_prefer_market_when_cheaper',
+            id: 'SR10_buy_train_ready_company',
+            description: 'Prefer floated companies that already own operating trains',
+            when: { action_type: 'buy_shares', is_floated: true, corp_trains_count_gt: 0 },
+            score_add: 180,
+            score_per_unit: { field: 'share_price', multiplier: 0.5 },
+          },
+          {
+            id: 'SR11_buy_cash_rich_floated',
+            description: 'Prefer floated companies with enough treasury cash to buy a train next OR',
+            when: { action_type: 'buy_shares', is_floated: true, corp_trains_count: 0, corp_can_buy_train: true },
+            score_add: 140,
+          },
+          {
+            id: 'SR12_anti_herd_unfloated',
+            description: 'Do not buy into a rival player unfloated company (scores below 0 so Pass wins)',
+            when: { action_type: 'buy_shares', other_is_president: true, is_floated: false },
+            score_add: -500,
+          },
+          {
+            id: 'SR13_prefer_market_when_cheaper',
             description: 'Prefer Bank Pool shares over IPO when priced lower',
             when: { action_type: 'buy_shares', source: :market, market_price_lt_ipo: true },
             score_add: 75,
           },
 
-          # --- SHARE ROUND: SELLING & PASS DISCIPLINE ---
+          # -------------------------------------------------------------------
+          # 3. STOCK ROUND & EMERGENCY FINANCING: SELLING SHARES & PASSING
+          # -------------------------------------------------------------------
           {
-            id: 'SR11_veto_unnecessary_sells',
-            description: 'Never sell shares unless over cert limit or liquidating to float own company',
-            when: { action_type: 'sell_shares', must_sell_or_raise_float_cash: false },
+            id: 'SR14_veto_unnecessary_sells',
+            description: 'Veto selling shares unless forced, raising cash for unfloated presidency, or triggered by trim roll',
+            when: { action_type: 'sell_shares', sell_justified: false },
             score_add: -10_000,
           },
           {
-            id: 'SR12_sell_to_float_own_company',
-            description: 'Sell external non-presidency share to raise cash to finish floating own company',
-            when: { action_type: 'sell_shares', unfloated_presidencies_gt: 0, player_is_president_of_sold: false },
+            id: 'SR15_emergency_cover_train_shortfall',
+            description: 'During emergency train financing, prefer a bundle that covers the shortfall with minimal overshoot',
+            when: { action_type: 'sell_shares', emergency_train_sale: true, covers_emergency_shortfall: true },
+            score_add: 2000,
+            score_per_unit: { field: 'emergency_shortfall_overshoot', multiplier: -1.0 },
+          },
+          {
+            id: 'SR16_emergency_largest_partial_bundle',
+            description: 'If no single bundle covers the emergency train shortfall, sell the largest bundle first',
+            when: { action_type: 'sell_shares', emergency_train_sale: true, covers_emergency_shortfall: false },
+            score_add: 200,
+            score_per_unit: { field: 'bundle_price', multiplier: 2.0 },
+          },
+          {
+            id: 'SR17_sell_to_float_own_company',
+            description: 'Sell a non-presidency share when cash-short to finish floating own unfloated corporation',
+            when: {
+              action_type: 'sell_shares',
+              need_cash_for_unfloated_presidency: true,
+              player_is_president_of_sold: false,
+              causes_president_dump: false,
+            },
             score_add: 400,
           },
           {
-            id: 'SR13_sell_weakest_when_over_cert_limit',
-            description: 'Sell non-presidency shares when over certificate limit',
-            when: { action_type: 'sell_shares', certs_free_lte: 0, player_is_president_of_sold: false },
+            id: 'SR18_sell_weakest_when_over_cert_limit',
+            description: 'When over certificate limit, sell smallest non-presidency bundles',
+            when: { action_type: 'sell_shares', must_sell: true, player_is_president_of_sold: false },
             score_add: 300,
+            score_per_unit: { field: 'bundle_num_shares', multiplier: -50.0 },
           },
           {
-            id: 'SR14_never_dump_own_presidency',
-            description: 'Veto selling own presidency share unless forced by game engine',
-            when: { action_type: 'sell_shares', causes_president_dump: true, must_sell: false },
+            id: 'SR19_voluntary_portfolio_trim',
+            description: 'Modest positive score when stable 5%/10% portfolio trim roll triggers after buying completes',
+            when: { action_type: 'sell_shares', voluntary_sell_roll: true, causes_president_dump: false },
+            score_add: 150,
+          },
+          {
+            id: 'SR20_never_dump_own_presidency',
+            description: 'Veto dumping own presidency in normal Stock Rounds',
+            when: {
+              action_type: 'sell_shares',
+              causes_president_dump: true,
+              must_sell: false,
+              emergency_train_sale: false,
+            },
             score_add: -10_000,
           },
           {
-            id: 'SR15_pass_baseline',
-            description: 'Pass has a modest negative baseline so valid profitable moves beat it, but it beats vetoed moves',
+            id: 'SR21_avoid_president_dump_in_emergency',
+            description: 'Penalize dumping presidency during emergency train financing if non-dump sales exist',
+            when: { action_type: 'sell_shares', causes_president_dump: true, emergency_train_sale: true },
+            score_add: -1500,
+          },
+          {
+            id: 'SR22_pass_baseline',
+            description: 'Pass stays below 0 so any positive action beats it, but it beats negative/penalized actions',
             when: { action_type: 'pass' },
             score_add: -100,
           },
 
+          # -------------------------------------------------------------------
+          # 4. OPERATING ROUND: DIVIDEND ALLOCATION
+          # -------------------------------------------------------------------
           {
-            id: 'OR01_payout_by_default',
-            description: 'Always pay revenue unless retaining revenue enables purchase of a permanent train',
-            when: { action_type: 'dividend', dividend_kind: 'payout' },
-            score_add: 1000,
+            id: 'OR_DIV01_withhold_if_zero_revenue',
+            description: 'Always withhold when route revenue is zero',
+            when: { action_type: 'dividend', dividend_kind: 'withhold', revenue: 0 },
+            score_add: 2000,
           },
           {
-            id: 'OR02_withhold_for_permanent_train',
-            description: 'Withhold if doing so makes a permanent train affordable',
+            id: 'OR_DIV02_half_pay_for_needed_train',
+            description: 'Prefer half/split pay when partial retention is sufficient to afford a needed or permanent train',
+            when: {
+              action_type: 'dividend',
+              dividend_kind_in: %w[half split],
+              retention_enables_needed_train: true,
+            },
+            score_add: 1800,
+          },
+          {
+            id: 'OR_DIV03_withhold_for_permanent_train',
+            description: 'Withhold when full retention makes a permanent train immediately affordable',
             when: {
               action_type: 'dividend',
               dividend_kind: 'withhold',
@@ -619,26 +661,43 @@ end
             score_add: 1500,
           },
           {
-            id: 'OR03_half_pay_for_permanent_train',
-            description: 'Prefer half pay if partial retention is sufficient to make a permanent train affordable',
+            id: 'OR_DIV04_withhold_when_trainless_and_short',
+            description: 'Withhold when the corporation owns zero trains and treasury is below the next train price',
             when: {
               action_type: 'dividend',
-              dividend_kind_in: %w[half split],
-              retention_enables_permanent_train: true,
+              dividend_kind: 'withhold',
+              trainless_needs_cash: true,
             },
-            score_add: 1600,
+            score_add: 1400,
           },
           {
-            id: 'OR04_avoid_unnecessary_retention',
-            description: 'Do not retain revenue unless it enables a permanent train purchase',
+            id: 'OR_DIV05_payout_by_default',
+            description: 'Pay full dividends by default when revenue is positive to advance share price and fund players',
+            when: { action_type: 'dividend', dividend_kind: 'payout', revenue_gt: 0 },
+            score_add: 1000,
+          },
+          {
+            id: 'OR_DIV06_half_pay_baseline',
+            description: 'Secondary positive baseline for half/split pay when revenue is positive',
+            when: { action_type: 'dividend', dividend_kind_in: %w[half split], revenue_gt: 0 },
+            score_add: 600,
+          },
+          {
+            id: 'OR_DIV07_avoid_unnecessary_withhold',
+            description: 'Penalize withholding positive revenue when the company has a train and cannot cross a permanent train threshold',
             when: {
               action_type: 'dividend',
+              dividend_kind: 'withhold',
+              revenue_gt: 0,
               retention_enables_permanent_train: false,
+              trainless_needs_cash: false,
             },
             score_add: -1000,
           },
 
-          # --- OPERATING ROUND: 1-TILE & 2-TILE HORIZON TRACK LAYING ---
+          # -------------------------------------------------------------------
+          # 5. OPERATING ROUND: TRACK LAYING (1-TILE & 2-TILE HORIZON)
+          # -------------------------------------------------------------------
           {
             id: 'OR_TL01_base_valid_tile',
             description: 'Baseline score for any verified legal tile lay',
@@ -661,7 +720,7 @@ end
           },
           {
             id: 'OR_TL04_upgrade_connected_city_or_town',
-            description: 'Reward laying or upgrading a city/town hex that increases printed revenue',
+            description: 'Reward laying or upgrading a connected city/town hex that increases printed revenue',
             when: { action_type: 'lay_tile', has_own_token: false, tile_rev_gain_gt: 0 },
             score_add: 120,
             score_per_unit: { field: 'tile_rev_gain', multiplier: 4.0 },
@@ -688,67 +747,58 @@ end
           },
           {
             id: 'OR_TL08_half_cost_value_penalty',
-            description: 'Penalize terrain cost proportionally, but allow profitable connections to override it',
+            description: 'Penalize terrain cost proportionally, allowing profitable connections to override it',
             when: { action_type: 'lay_tile', tile_cost_gt: 0 },
             score_add: -10,
             score_per_unit: { field: 'tile_cost', multiplier: -0.5 },
           },
           {
             id: 'OR_TL09_veto_expensive_tile_if_breaks_train_budget',
-            description: 'Never spend cash on terrain if trainless and it drops cash below cheapest depot train',
+            description: 'Never spend cash on terrain if trainless and doing so drops treasury below cheapest depot train',
             when: { action_type: 'lay_tile', breaks_train_budget: true },
             score_add: -10_000,
           },
 
-          # --- OPERATING ROUND: TOKENS, DIVIDENDS & TRAINS ---
+          # -------------------------------------------------------------------
+          # 6. OPERATING ROUND: TRAINS, TOKENS & CHOICES
+          # -------------------------------------------------------------------
           {
-            id: 'OR01_payout_if_revenue',
-            description: 'Payout dividends when revenue is positive',
-            when: { action_type: 'dividend', dividend_kind: 'payout', revenue_gt: 0 },
-            score_add: 450,
-          },
-          {
-            id: 'OR02_withhold_if_no_train',
-            description: 'Withhold revenue if company owns no train and needs cash',
-            when: { action_type: 'dividend', dividend_kind: 'withhold', corp_trains_count: 0 },
-            score_add: 500,
-          },
-          {
-            id: 'OR03_withhold_if_zero_revenue',
-            description: 'Always withhold if route revenue is zero',
-            when: { action_type: 'dividend', dividend_kind: 'withhold', revenue: 0 },
-            score_add: 600,
-          },
-          {
-            id: 'OR04_buy_depot_train',
-            description: 'Buy available train from depot if company has capacity',
+            id: 'OR_TR01_buy_depot_train',
+            description: 'Buy available train from depot when corporation has capacity',
             when: { action_type: 'buy_train', train_from_depot: true },
             score_add: 320,
           },
           {
-            id: 'OR05_veto_intercompany_train_if_has_train',
-            description: 'Veto inter-company train purchases if company already has an operational train',
+            id: 'OR_TR02_prefer_permanent_depot_train',
+            description: 'Extra priority for buying a permanent train from the depot',
+            when: { action_type: 'buy_train', train_from_depot: true, is_permanent_train: true },
+            score_add: 300,
+          },
+          {
+            id: 'OR_TR03_veto_intercompany_train_if_has_train',
+            description: 'Veto inter-company train purchases if corporation already owns an operational train',
             when: { action_type: 'buy_train', train_from_depot: false, corp_trains_count_gt: 0 },
             score_add: -10_000,
           },
           {
-            id: 'OR06_discard_cheapest_train',
-            description: 'Discard the lowest cost train when over train limit',
+            id: 'OR_TR04_discard_cheapest_train',
+            description: 'Discard the lowest-cost train when over train limit',
             when: { action_type: 'discard_train' },
             score_add: 300,
             score_per_unit: { field: 'train_cost', multiplier: -1.0 },
           },
           {
-            id: 'OR08_token_lay_baseline',
+            id: 'OR_TK01_token_lay_baseline',
+            description: 'Baseline score for placing a station token',
             when: { action_type: 'place_token' },
             score_add: 150,
           },
           {
-            id: 'OR09_choice_baseline',
+            id: 'OR_CH01_choice_baseline',
+            description: 'Baseline score for generic step choices',
             when: { action_type: 'choose' },
             score_add: 50,
           },
-
         ].freeze
       end
     end
