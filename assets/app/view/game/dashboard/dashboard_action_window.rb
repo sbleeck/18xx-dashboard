@@ -238,13 +238,184 @@ module View
         # COMMAND COLUMN ACTION LOGIC
         # ==========================================
 
-        def current_entity
+        # --- START FIX ---
+        def raw_step_entity
           @game.round.active_step&.current_entity ||
             (@game.round.respond_to?(:current_entity) ? @game.round.current_entity : nil) ||
             @game.current_entity
         rescue NotImplementedError, StandardError
           nil
         end
+
+        def current_entity
+          step = @game.round&.active_step
+          entity = raw_step_entity
+          return nil unless entity
+          return entity unless step &&
+                               entity.respond_to?(:corporation?) &&
+                               entity.corporation? &&
+                               entity.respond_to?(:owner) &&
+                               entity.owner
+
+          forced_train_purchase = begin
+            step.respond_to?(:must_buy_train?) && step.must_buy_train?(entity)
+          rescue StandardError
+            false
+          end
+          return entity unless forced_train_purchase
+
+          owner = entity.owner
+          owner_actions = begin
+            Array(@game.round.actions_for(owner)).map(&:to_s)
+          rescue StandardError
+            []
+          end
+          return entity unless owner_actions.include?('sell_shares') && owner.respond_to?(:shares_of)
+
+          has_legal_owner_sale = Array(@game.corporations).any? do |corporation|
+            owns_shares = begin
+              owner.shares_of(corporation).any?
+            rescue StandardError
+              false
+            end
+            next false unless owns_shares
+
+            bundles = begin
+              if step.respond_to?(:sellable_bundles)
+                Array(step.sellable_bundles(owner, corporation))
+              elsif @game.respond_to?(:bundles_for_corporation)
+                Array(@game.bundles_for_corporation(owner, corporation))
+              else
+                []
+              end
+            rescue StandardError
+              []
+            end
+
+            bundles.any? do |bundle|
+              !step.respond_to?(:can_sell?) || step.can_sell?(owner, bundle)
+            rescue StandardError
+              false
+            end
+          end
+
+          has_legal_owner_sale ? owner : entity
+        rescue NotImplementedError, StandardError
+          raw_step_entity
+        end
+
+        def emergency_train_sale_context?(step, entity)
+          return false unless step && entity && entity.respond_to?(:player?) && entity.player?
+
+          corp = raw_step_entity
+          return false unless corp &&
+                              corp.respond_to?(:corporation?) &&
+                              corp.corporation? &&
+                              corp.respond_to?(:owner) &&
+                              corp.owner == entity
+
+          must_buy = step.respond_to?(:must_buy_train?) && step.must_buy_train?(corp)
+          return false unless must_buy
+
+          Array(@game.round.actions_for(entity)).map(&:to_s).include?('sell_shares')
+        rescue StandardError
+          false
+        end
+
+        def emergency_train_shortfall(step, entity)
+          return 0 unless emergency_train_sale_context?(step, entity)
+
+          corp = raw_step_entity
+          trains = step.respond_to?(:buyable_trains) ? Array(step.buyable_trains(corp)) : []
+          cheapest = trains.filter_map { |t| t.price.to_i if t.respond_to?(:price) && t.price.to_i.positive? }.min
+          if cheapest.nil? && @game.respond_to?(:depot) && @game.depot.respond_to?(:min_depot_price)
+            cheapest = @game.depot.min_depot_price.to_i
+          end
+          return 0 unless cheapest.to_i.positive?
+
+          corp_cash = corp.respond_to?(:cash) ? corp.cash.to_i : 0
+          player_cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
+          [cheapest.to_i - corp_cash - player_cash, 0].max
+        rescue StandardError
+          0
+        end
+
+        def render_player_sell_shares(step, entity, label_override: nil)
+          player = if entity.respond_to?(:player?) && entity.player?
+                     entity
+                   else
+                     active_player
+                   end
+          return nil unless player && step && player.respond_to?(:shares_of)
+
+          corporations = Array(@game.corporations).select do |corp|
+            player.shares_of(corp).any?
+          rescue StandardError
+            false
+          end
+          return nil if corporations.empty?
+
+          sell_items = []
+          corporations.each do |corp|
+            bundles = []
+            if step.respond_to?(:sellable_bundles)
+              begin; bundles.concat(Array(step.sellable_bundles(player, corp))); rescue StandardError; end
+            end
+            if bundles.empty? && step.respond_to?(:bundles_for_corporation)
+              begin; bundles.concat(Array(step.bundles_for_corporation(player, corp))); rescue StandardError; end
+            end
+            if bundles.empty? && @game.respond_to?(:bundles_for_corporation)
+              begin; bundles.concat(Array(@game.bundles_for_corporation(player, corp))); rescue StandardError; end
+            end
+            if bundles.empty? && @game.respond_to?(:sellable_bundles)
+              begin; bundles.concat(Array(@game.sellable_bundles(player, corp))); rescue StandardError; end
+            end
+
+            bundles.compact.uniq.each do |raw_bundle|
+              bundle = raw_bundle.respond_to?(:to_bundle) && !raw_bundle.respond_to?(:num_shares) ? raw_bundle.to_bundle : raw_bundle
+              if step.respond_to?(:can_sell?)
+                can_sell = begin; step.can_sell?(player, bundle); rescue StandardError; false; end
+                next unless can_sell
+              end
+
+              shares = bundle.respond_to?(:shares) ? Array(bundle.shares).flatten.compact : Array(bundle).flatten.compact
+              next if shares.empty?
+
+              pct = bundle.respond_to?(:percent) && bundle.percent ? bundle.percent : (shares.size * 10)
+              price = bundle.respond_to?(:price) ? bundle.price.to_i : 0
+
+              click_handler = lambda do
+                kwargs = { bundle: bundle, shares: shares }
+                kwargs[:percent] = bundle.percent if bundle.respond_to?(:percent) && bundle.percent
+                kwargs[:share_price] = bundle.share_price if bundle.respond_to?(:share_price) && bundle.share_price
+                process_action(Engine::Action::SellShares.new(player, **kwargs))
+              end
+
+              card = render_railcard(
+                "#{corp.name} #{pct}%",
+                %w[game-card action-sell clickable],
+                click_handler,
+                nil,
+                nil,
+                "cmd_emergency_sell_#{corp.id}_#{pct}",
+                nil,
+                entity: corp
+              )
+
+              sell_items << h(:div, { style: { display: 'inline-flex', alignItems: 'center', gap: '0.3rem', margin: '0 0.2rem' } }, [
+                card,
+                h(:span, { style: { fontFamily: FONT_MONEY, color: COLOR_MONEY, fontWeight: 'bold', fontSize: '0.85rem', whiteSpace: 'nowrap' } }, @game.format_currency(price)),
+              ])
+            end
+          end
+
+          return nil if sell_items.empty?
+
+          shortfall = emergency_train_shortfall(step, player)
+          row_title = label_override || (shortfall.positive? ? "Raise #{@game.format_currency(shortfall)}:" : 'Sell Shares:')
+          render_action_row(row_title, sell_items)
+        end
+        # --- END FIX ---
 
         def active_routes
           @routes.select { |r| r.chains.any? }
@@ -851,6 +1022,37 @@ module View
           ])
         end
 
+        # --- START FIX ---
+        def render_generic_fallback(step, entity, actions)
+          return nil unless step && entity
+
+          if actions.include?('choose') && (step.respond_to?(:choices) || step.respond_to?(:choices_for))
+            choice_node = render_generic_choice(step, entity)
+            return choice_node if choice_node
+          end
+
+          supported = %w[
+            pass undo redo bankrupt lay_tile place_token hex_token buy_token
+            run_routes dividend payout withhold half split destination_connection
+            buy_train sell_train discard_train swap_train borrow_train buy_power
+            scrap_train surrender_train surrender
+            issue issue_shares reissue reissue_shares redeem redeem_shares
+            buy_shares sell_shares corporate_buy_shares corporate_sell_shares
+            short short_shares
+            take_loan payoff_loan buy_company buy_companies acquire_company
+            corporate_sell_company corporate_buy_company select_multiple_companies
+            choose assign special_buy convert switch_trains reassign_trains
+            double_head_trains combined_trains merge view_merge_options buy_corporation
+            par bid
+          ]
+          unhandled = unhandled_actions(actions, supported)
+          return nil if unhandled.empty?
+
+          step_desc = step_description(step) || step.class.name.to_s.split('::').last
+          h(:div, { style: { width: '100%', padding: '0.5rem 0.75rem', marginBottom: '0.5rem', backgroundColor: '#fef3c7', border: '2px solid #f59e0b', borderRadius: '6px', color: '#92400e', fontSize: '0.85rem', fontWeight: 'bold', boxSizing: 'border-box' } },
+            "⚠️ Unsupported Dashboard action: [#{unhandled.join(', ')}] (Step: #{step_desc})")
+        end
+
         def render_merger_step(step, entity, actions)
           return nil unless entity && step
 
@@ -867,55 +1069,41 @@ module View
           components << render_action_row('Action:', top_buttons) if top_buttons.any?
 
           if actions.include?('merge')
-            all_mergeables = if step.respond_to?(:mergeable_candidates)
-                               step.mergeable_candidates(entity)
-                             elsif step.respond_to?(:mergeable)
-                               step.mergeable(entity)
-                             elsif step.respond_to?(:mergeable_entities)
-                               step.mergeable_entities(entity)
-                             else
-                               []
-                             end || []
-
-            operating_player =
-              if entity.respond_to?(:player?) && entity.player?
-                entity
-              elsif entity.respond_to?(:owner) && entity.owner
-                if entity.owner.respond_to?(:player?) && entity.owner.player?
-                  entity.owner
-                else
-                  (entity.owner.respond_to?(:owner) ? entity.owner.owner : entity.owner)
-                end
-              else
-                active_player
+            targets = []
+            if step.respond_to?(:mergeable_candidates)
+              begin; targets.concat(Array(step.mergeable_candidates(entity))); rescue StandardError; end
+            end
+            if step.respond_to?(:mergeable)
+              begin
+                targets.concat(Array(step.mergeable(entity)))
+              rescue ArgumentError
+                begin; targets.concat(Array(step.mergeable)); rescue StandardError; end
+              rescue StandardError
               end
-
-            mergeables = all_mergeables.select do |target|
-              next false if target == entity
-
-              target_owner = target.respond_to?(:owner) ? target.owner : nil
-              target_director = if target_owner.respond_to?(:player?) && target_owner.player?
-                                  target_owner
-                                elsif target_owner.respond_to?(:owner) && target_owner.owner
-                                  target_owner.owner
-                                else
-                                  target_owner
-                                end
-
-              if operating_player
-                target_director == operating_player ||
-                  (target_director.respond_to?(:id) && operating_player.respond_to?(:id) && target_director.id.to_s == operating_player.id.to_s)
-              else
-                true
+            end
+            if step.respond_to?(:mergeable_entities)
+              begin
+                targets.concat(Array(step.mergeable_entities(entity)))
+              rescue ArgumentError
+                begin; targets.concat(Array(step.mergeable_entities)); rescue StandardError; end
+              rescue StandardError
               end
             end
 
+            mergeables = targets.compact.uniq.reject { |target| target == entity }
+
             if mergeables.any?
               merge_boxes = mergeables.map do |target|
-                click_handler = lambda {
-                  kwargs = target.respond_to?(:minor?) && target.minor? ? { minor: target } : { corporation: target }
-                  process_action(Engine::Action::Merge.new(entity, **kwargs))
-                }
+                click_handler = lambda do
+                  is_minor = target.respond_to?(:minor?) && target.minor?
+                  begin
+                    kwargs = is_minor ? { minor: target } : { corporation: target }
+                    process_action(Engine::Action::Merge.new(entity, **kwargs))
+                  rescue StandardError
+                    alt_kwargs = is_minor ? { corporation: target } : { minor: target }
+                    process_action(Engine::Action::Merge.new(entity, **alt_kwargs))
+                  end
+                end
 
                 render_major_railcard(
                   target,
@@ -924,10 +1112,11 @@ module View
                   "cmd_merge_target_#{target.id}"
                 )
               end
-              components << render_action_row('Merge with:', merge_boxes)
+              label = step.respond_to?(:merge_name) ? "#{step.merge_name}:" : 'Merge with:'
+              components << render_action_row(label, merge_boxes)
             else
               components << render_action_row('Merge with:', [
-                h(:span, { style: { fontStyle: 'italic', color: '#64748b', fontSize: '0.85rem' } }, 'No corporations with the same director available to merge'),
+                h(:span, { style: { fontStyle: 'italic', color: '#64748b', fontSize: '0.85rem' } }, 'No eligible merge targets available'),
               ])
             end
           end
@@ -969,13 +1158,201 @@ module View
                 ])
               end
               components << render_action_row('Buy Treasury Share:', buy_boxes)
-            else
-              components << render_action_row('Buy Treasury Share:', [h(:span, { style: { fontStyle: 'italic', color: '#666', fontSize: '0.85rem' } }, 'No shares available')])
             end
           end
 
-          h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%' } }, components)
+          return nil if components.compact.empty?
+
+          h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%' } }, components.compact)
         end
+
+        def render_special_buy_step(step, entity, actions)
+          return nil unless step && entity && actions.include?('special_buy')
+          return nil unless step.respond_to?(:buyable_items)
+
+          items = begin; Array(step.buyable_items(entity)); rescue StandardError; []; end
+          return nil if items.empty?
+
+          buttons = items.map do |item|
+            desc = item.respond_to?(:description) ? item.description.to_s : item.to_s
+            cost = item.respond_to?(:cost) ? item.cost.to_i : 0
+            label = cost.positive? ? "#{desc} (#{@game.format_currency(cost)})" : desc
+            can_afford = cost <= 0 || (entity.respond_to?(:cash) ? entity.cash.to_i >= cost : true)
+
+            h(:button, {
+                attrs: { disabled: !can_afford },
+                style: {
+                  padding: '0 10px',
+                  height: '1.85rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 'bold',
+                  backgroundColor: can_afford ? '#15803d' : '#e2e8f0',
+                  color: can_afford ? '#ffffff' : '#94a3b8',
+                  border: can_afford ? '1px solid #166534' : '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  cursor: can_afford ? 'pointer' : 'not-allowed',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  whiteSpace: 'nowrap',
+                },
+                on: can_afford ? { click: -> { process_action(Engine::Action::SpecialBuy.new(entity, item: item)) } } : {},
+              }, label)
+          end
+
+          render_action_row('Special Buy:', buttons)
+        end
+
+        def render_acquire_company_step(step, entity, actions)
+          return nil unless entity && actions.include?('acquire_company')
+
+          companies = []
+          if step.respond_to?(:purchasable_companies)
+            begin; companies.concat(Array(step.purchasable_companies(entity))); rescue StandardError; end
+          end
+          if companies.empty? && @game.respond_to?(:purchasable_companies)
+            begin; companies.concat(Array(@game.purchasable_companies(entity))); rescue StandardError; end
+          end
+          companies = companies.compact.uniq
+          return nil if companies.empty?
+
+          boxes = companies.map do |company|
+            card_text = (company.sym || company.name).to_s
+            price = company.respond_to?(:value) ? company.value.to_i : 0
+            click_handler = -> { process_action(Engine::Action::AcquireCompany.new(entity, company: company)) }
+
+            card = render_railcard(
+              card_text,
+              %w[game-card action-buy clickable card-private],
+              click_handler,
+              build_company_tooltip(company),
+              nil,
+              "cmd_acquire_company_#{company.id}",
+              %w[cmd-company-wrapper status-company-wrapper],
+              entity: company
+            )
+
+            h(:div, { style: { display: 'inline-flex', alignItems: 'center', gap: '0.3rem', margin: '0 0.2rem' } }, [
+              card,
+              (h(:span, { style: { fontFamily: FONT_MONEY, color: COLOR_MONEY, fontWeight: 'bold', fontSize: '0.85rem' } }, @game.format_currency(price)) if price.positive?),
+            ].compact)
+          end
+
+          render_action_row('Acquire Company:', boxes)
+        end
+
+        def render_select_multiple_companies_step(step, entity, actions)
+          return nil unless step && entity && actions.include?('select_multiple_companies')
+
+          available = begin; Array(step.available); rescue StandardError; []; end
+          return nil if available.empty?
+
+          required_count = begin
+            if step.respond_to?(:cards_to_keep)
+              step.cards_to_keep.to_i
+            elsif step.respond_to?(:selection_count)
+              step.selection_count.to_i
+            else
+              step.instance_variable_get(:@cards_to_keep).to_i
+            end
+          rescue StandardError
+            0
+          end
+
+          storage_key = "multi_comp_sel_#{entity.id}"
+          raw_selected = Lib::Storage[storage_key].to_s.split(',').reject(&:empty?)
+          available_ids = available.map { |c| c.id.to_s }
+          selected_ids = raw_selected & available_ids
+
+          toggle_company = lambda do |comp_id|
+            cur = selected_ids.dup
+            if cur.include?(comp_id)
+              cur.delete(comp_id)
+            else
+              cur << comp_id
+            end
+            Lib::Storage[storage_key] = cur.join(',')
+            update
+          end
+
+          cards = available.map do |company|
+            cid = company.id.to_s
+            is_sel = selected_ids.include?(cid)
+            classes = %w[game-card clickable card-private]
+            classes << 'action-buy' if is_sel
+            render_railcard(
+              (company.sym || company.name).to_s,
+              classes,
+              -> { toggle_company.call(cid) },
+              build_company_tooltip(company),
+              nil,
+              "cmd_multi_company_#{cid}",
+              %w[cmd-company-wrapper status-company-wrapper],
+              entity: company
+            )
+          end
+
+          valid_count = required_count.positive? ? (selected_ids.size == required_count) : selected_ids.any?
+          submit_selection = lambda do
+            next unless valid_count
+
+            chosen = available.select { |c| selected_ids.include?(c.id.to_s) }
+            Lib::Storage[storage_key] = ''
+            process_action(Engine::Action::SelectMultipleCompanies.new(entity, companies: chosen))
+          end
+
+          btn_label = required_count.positive? ? "Confirm (#{selected_ids.size}/#{required_count})" : "Confirm (#{selected_ids.size})"
+          confirm_btn = h(:button, {
+                            attrs: { disabled: !valid_count },
+                            style: {
+                              height: '1.85rem',
+                              padding: '0 12px',
+                              fontSize: '0.85rem',
+                              fontWeight: 'bold',
+                              backgroundColor: valid_count ? '#2563eb' : '#cbd5e1',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: valid_count ? 'pointer' : 'not-allowed',
+                            },
+                            on: valid_count ? { click: submit_selection } : {},
+                          }, btn_label)
+
+          render_action_row('Select Companies:', [*cards, confirm_btn])
+        end
+
+        def render_destination_connection_step(step, entity, actions)
+          return nil unless step && entity && actions.include?('destination_connection')
+          return nil unless step.respond_to?(:auto_actions)
+
+          candidates = begin
+            Array(step.auto_actions(entity)).select { |a| a.is_a?(Engine::Action::DestinationConnection) }
+          rescue StandardError
+            []
+          end
+          return nil if candidates.empty?
+
+          buttons = candidates.map do |act|
+            corps = act.respond_to?(:corporations) && act.corporations ? Array(act.corporations).map(&:name).join(', ') : entity.name
+            h(:button, {
+                style: {
+                  height: '1.85rem',
+                  padding: '0 12px',
+                  fontSize: '0.85rem',
+                  fontWeight: 'bold',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  border: '1px solid #1d4ed8',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                },
+                on: { click: -> { process_action(act) } },
+              }, "Connect Destination (#{corps})")
+          end
+
+          render_action_row('Destination:', buttons)
+        end
+        # --- END FIX ---
 
         def render_par_step(step, entity, corporation)
           return h(:div) unless step && corporation
@@ -1129,6 +1506,7 @@ module View
           nil
         end
 
+        # --- START FIX ---
         def render_buyable_companies(step, entity)
           return nil unless entity
 
@@ -1139,46 +1517,43 @@ module View
               entity.owner
             end
 
-          return nil unless operating_player
-
           buy_company_step =
             if @game.round.respond_to?(:steps)
               @game.round.steps.find do |candidate_step|
                 next false unless candidate_step.respond_to?(:buyable_companies) ||
-                                  candidate_step.respond_to?(:can_buy_company?)
+                                  candidate_step.respond_to?(:can_buy_company?) ||
+                                  candidate_step.respond_to?(:buyable_bank_owned_companies)
 
                 if candidate_step.respond_to?(:actions)
-                  (Array(candidate_step.actions(entity)).map(&:to_s) & %w[buy_company acquire_company]).any?
+                  (Array(candidate_step.actions(entity)).map(&:to_s) & %w[buy_company buy_companies acquire_company]).any?
                 else
                   true
                 end
               end || @game.round.steps.find do |candidate_step|
                 candidate_step.respond_to?(:buyable_companies) ||
-                  candidate_step.respond_to?(:can_buy_company?)
+                  candidate_step.respond_to?(:can_buy_company?) ||
+                  candidate_step.respond_to?(:buyable_bank_owned_companies)
               end
             end
 
           buy_company_step ||= step
 
           all_companies = []
+          bank_companies = []
+
           if buy_company_step.respond_to?(:buyable_companies)
-            begin
-              all_companies.concat(Array(buy_company_step.buyable_companies(entity)))
-            rescue StandardError
-            end
+            begin; all_companies.concat(Array(buy_company_step.buyable_companies(entity))); rescue StandardError; end
           end
           if all_companies.empty? && @game.respond_to?(:purchasable_companies)
-            begin
-              all_companies.concat(Array(@game.purchasable_companies(entity)))
-            rescue StandardError
-            end
+            begin; all_companies.concat(Array(@game.purchasable_companies(entity))); rescue StandardError; end
           end
-          if @game.respond_to?(:buyable_bank_owned_companies)
-            begin
-              all_companies.concat(Array(@game.buyable_bank_owned_companies))
-            rescue StandardError
-            end
+          if buy_company_step.respond_to?(:buyable_bank_owned_companies)
+            begin; bank_companies.concat(Array(buy_company_step.buyable_bank_owned_companies(entity))); rescue StandardError; end
+          elsif @game.respond_to?(:buyable_bank_owned_companies)
+            begin; bank_companies.concat(Array(@game.buyable_bank_owned_companies)); rescue StandardError; end
           end
+
+          all_companies.concat(bank_companies)
           all_companies.concat(Array(@game.companies)) if all_companies.empty? && @game.respond_to?(:companies)
           all_companies.uniq!
 
@@ -1187,18 +1562,24 @@ module View
             .reject { |company| company.respond_to?(:closed?) && company.closed? }
             .reject { |company| @game.respond_to?(:abilities) && @game.abilities(company, :no_buy) }
             .select do |company|
-              (company.owner == operating_player || !company.owner&.player?) &&
-                company.owner != entity
+              bank_companies.include?(company) ||
+                (((operating_player && company.owner == operating_player) || !company.owner&.player?) &&
+                  company.owner != entity)
             end
 
           return nil if companies.empty?
 
+          entity_cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
+
           company_boxes = companies.map do |company|
             owner_name = company.owner&.name || 'Bank'
+            is_bank_owned = bank_companies.include?(company) || company.owner.nil? || company.owner == @game.bank
 
             min_price =
-              if buy_company_step.respond_to?(:min_price)
-                buy_company_step.min_price(company)
+              if is_bank_owned && company.respond_to?(:value) && (!buy_company_step.respond_to?(:min_price) || buy_company_step.min_price(company).nil?)
+                company.value.to_i
+              elsif buy_company_step.respond_to?(:min_price)
+                begin; buy_company_step.min_price(company); rescue StandardError; company.respond_to?(:min_price) ? company.min_price : 1; end
               elsif company.respond_to?(:min_price)
                 company.min_price
               else
@@ -1206,71 +1587,61 @@ module View
               end
 
             max_price =
-              if buy_company_step.respond_to?(:max_price)
-                buy_company_step.max_price(entity, company)
+              if is_bank_owned && company.respond_to?(:value) && (!buy_company_step.respond_to?(:max_price) || buy_company_step.max_price(entity, company).nil?)
+                company.value.to_i
+              elsif buy_company_step.respond_to?(:max_price)
+                begin; buy_company_step.max_price(entity, company); rescue StandardError; company.respond_to?(:max_price) ? company.max_price : entity_cash; end
               elsif company.respond_to?(:max_price)
                 company.max_price
               else
-                entity.respond_to?(:cash) ? entity.cash : 0
+                entity_cash
               end
 
             next if min_price.nil? || max_price.nil?
+
+            min_price = min_price.to_i
+            max_price = [max_price.to_i, entity_cash].min
             next if max_price < min_price
 
             wrapper_id = "cmd_buy_company_#{company.id}"
 
-            company_click_handler = lambda do
-              menu_title =
-                "Buy #{company.name} from #{owner_name} " \
-                "(#{min_price}-#{max_price}):"
-
-              default_price = [
-                entity.respond_to?(:cash) ? entity.cash : min_price,
-                max_price,
-              ].min
-
-              default_price = [default_price, min_price].max
-
-              show_price_dialog(
-                menu_title,
-                min_price,
-                max_price,
-                default_price,
-                lambda do |price_value|
-                  source_owner = company.owner
-
-                  source_type =
-                    if source_owner.respond_to?(:player?) && source_owner&.player?
-                      :player
-                    elsif source_owner.respond_to?(:corporation?) &&
-                          source_owner&.corporation?
-                      :corporation
-                    elsif source_owner.respond_to?(:minor?) &&
-                          source_owner&.minor?
-                      :corporation
-                    else
-                      :bank
-                    end
-
-                  remember_card_transfer(
-                    kind: :company,
-                    item_id: company.id,
-                    source_type: source_type,
-                    source_id: (
-                      source_owner.id if source_owner.respond_to?(:id)
-                    ),
-                    source_selector: "[id='#{wrapper_id}']"
-                  )
-
-                  process_action(
-                    Engine::Action::BuyCompany.new(
-                      entity,
-                      company: company,
-                      price: price_value
-                    )
-                  )
+            dispatch_purchase = lambda do |price_value|
+              source_owner = company.owner
+              source_type =
+                if source_owner.respond_to?(:player?) && source_owner&.player?
+                  :player
+                elsif (source_owner.respond_to?(:corporation?) && source_owner&.corporation?) ||
+                      (source_owner.respond_to?(:minor?) && source_owner&.minor?)
+                  :corporation
+                else
+                  :bank
                 end
+
+              remember_card_transfer(
+                kind: :company,
+                item_id: company.id,
+                source_type: source_type,
+                source_id: (source_owner.id if source_owner.respond_to?(:id)),
+                source_selector: "[id='#{wrapper_id}']"
               )
+
+              process_action(
+                Engine::Action::BuyCompany.new(
+                  entity,
+                  company: company,
+                  price: price_value
+                )
+              )
+            end
+
+            company_click_handler = lambda do
+              if min_price == max_price
+                dispatch_purchase.call(min_price)
+              else
+                menu_title = "Buy #{company.name} from #{owner_name} (#{min_price}-#{max_price}):"
+                default_price = [[entity_cash, max_price].min, min_price].max
+                show_price_dialog(menu_title, min_price, max_price, default_price, dispatch_purchase)
+              end
             end
 
             card_text = (company.sym || company.name).to_s
@@ -1287,6 +1658,12 @@ module View
               entity: company
             )
 
+            price_badge = if min_price == max_price
+                            @game.format_currency(min_price)
+                          else
+                            "#{@game.format_currency(min_price)}–#{@game.format_currency(max_price)}"
+                          end
+
             h(
               :div,
               {
@@ -1295,13 +1672,16 @@ module View
                   class: 'buy-private-click-target',
                   role: 'button',
                   tabindex: '0',
-                  title: "Buy #{company.name}",
+                  title: "Buy #{company.name} (#{price_badge})",
                 },
                 style: {
-                  display: 'inline-block',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
                   position: 'relative',
                   cursor: 'pointer',
                   pointerEvents: 'auto',
+                  margin: '0 0.15rem',
                 },
                 on: {
                   click: company_click_handler,
@@ -1314,7 +1694,10 @@ module View
                   end,
                 },
               },
-              [card]
+              [
+                card,
+                h(:span, { style: { fontFamily: FONT_MONEY, color: COLOR_MONEY, fontWeight: 'bold', fontSize: '0.82rem', whiteSpace: 'nowrap' } }, price_badge),
+              ]
             )
           end.compact
 
@@ -1322,6 +1705,213 @@ module View
 
           render_action_row('Buy Privates:', company_boxes)
         end
+
+        def auction_candidates_for_step(step)
+          candidates = []
+          if step.respond_to?(:auctioning)
+            auc = begin; step.auctioning; rescue StandardError; nil; end
+            candidates << auc if auc
+          end
+          candidates.concat(Array(step.available)) if candidates.empty? && step.respond_to?(:available)
+          candidates.concat(Array(step.companies)) if candidates.empty? && step.respond_to?(:companies)
+          candidates.concat(Array(@game.companies)) if candidates.empty? && @game.respond_to?(:companies)
+          candidates.compact.uniq.reject { |c| c.respond_to?(:closed?) && c.closed? }
+        rescue StandardError
+          []
+        end
+
+        def step_current_bid(step, target)
+          values = []
+          if step.respond_to?(:highest_bid)
+            hb = begin; step.highest_bid(target); rescue ArgumentError; step.highest_bid; rescue StandardError; nil; end
+            values << hb.price.to_i if hb.respond_to?(:price)
+            values << hb.to_i if hb.is_a?(Numeric)
+          end
+          if step.respond_to?(:current_bid)
+            cb = begin; step.current_bid(target); rescue ArgumentError; step.current_bid; rescue StandardError; nil; end
+            values << cb.price.to_i if cb.respond_to?(:price)
+            values << cb.to_i if cb.is_a?(Numeric)
+          end
+          if step.respond_to?(:bids)
+            bids = begin; step.bids; rescue StandardError; nil; end
+            relevant = bids.is_a?(Hash) ? (bids[target] || (target.respond_to?(:id) && bids[target.id]) || []) : Array(bids)
+            Array(relevant).each do |b|
+              values << b.price.to_i if b.respond_to?(:price)
+              values << b.to_i if b.is_a?(Numeric)
+            end
+          end
+          values.max.to_i
+        rescue StandardError
+          0
+        end
+
+        def render_draft_and_auction_step(step, entity, actions)
+          return nil unless step && entity
+
+          rows = []
+          cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
+
+          if (actions & %w[buy_company buy_companies]).any?
+            buy_row = render_buyable_companies(step, entity)
+            rows << buy_row if buy_row
+          end
+
+          if actions.include?('bid')
+            candidates = auction_candidates_for_step(step)
+            if candidates.any?
+              sel_key = "draft_bid_target_#{entity.id}"
+              stored_id = Lib::Storage[sel_key]
+              active_target = candidates.find { |c| c.respond_to?(:id) && c.id.to_s == stored_id.to_s } || candidates.first
+
+              if candidates.size > 1
+                selector_cards = candidates.map do |cand|
+                  is_sel = (cand == active_target)
+                  is_corp_or_minor = corporation_or_minor?(cand)
+                  click_sel = lambda do
+                    Lib::Storage[sel_key] = cand.id.to_s
+                    update
+                  end
+                  if is_corp_or_minor
+                    cls = %w[major-railcard clickable]
+                    cls << 'action-buy' if is_sel
+                    render_major_railcard(cand, click_sel, cls, "cmd_draft_cand_#{cand.id}")
+                  else
+                    cls = %w[game-card clickable card-private]
+                    cls << 'action-buy' if is_sel
+                    render_railcard(
+                      (cand.sym || cand.name).to_s,
+                      cls,
+                      click_sel,
+                      build_company_tooltip(cand),
+                      nil,
+                      "cmd_draft_cand_#{cand.id}",
+                      %w[cmd-company-wrapper status-company-wrapper],
+                      entity: cand
+                    )
+                  end
+                end
+                rows << render_action_row('Available:', selector_cards)
+              end
+
+              if active_target
+                is_minor = active_target.respond_to?(:minor?) && active_target.minor?
+                is_corp = active_target.respond_to?(:corporation?) && active_target.corporation?
+                cur_bid = step_current_bid(step, active_target)
+                inc = begin; step.min_increment(active_target) if step.respond_to?(:min_increment); rescue StandardError; nil; end
+                inc ||= begin; step.bid_increment(active_target) if step.respond_to?(:bid_increment); rescue StandardError; nil; end
+                inc = 5 unless inc.to_i.positive?
+                inc = inc.to_i
+
+                open_bid = begin; step.min_bid(active_target) if step.respond_to?(:min_bid); rescue StandardError; nil; end
+                open_bid ||= active_target.min_price if active_target.respond_to?(:min_price)
+                open_bid ||= active_target.value if active_target.respond_to?(:value)
+                min_bid = if is_minor && open_bid.to_i.zero?
+                            0
+                          else
+                            (cur_bid.positive? ? cur_bid + inc : open_bid.to_i)
+                          end
+
+                max_b = begin; step.max_bid(entity, active_target) if step.respond_to?(:max_bid); rescue StandardError; nil; end
+                max_b ||= begin; step.maximum_bid(entity, active_target) if step.respond_to?(:maximum_bid); rescue StandardError; nil; end
+                max_bid = [max_b.nil? ? cash : max_b.to_i, cash].min
+                max_bid = [max_bid, min_bid].max
+
+                price_key = "draft_bid_price_#{active_target.id}"
+                stored_p = Lib::Storage[price_key]
+                current_price = stored_p.nil? ? min_bid : [[stored_p.to_i, min_bid].max, max_bid].min
+
+                set_p = lambda do |v|
+                  Lib::Storage[price_key] = [[v.to_i, min_bid].max, max_bid].min
+                  update
+                end
+
+                place_bid = lambda do
+                  kwargs = { price: current_price }
+                  if is_minor
+                    kwargs[:minor] = active_target
+                  elsif is_corp
+                    kwargs[:corporation] = active_target
+                  else
+                    kwargs[:company] = active_target
+                  end
+                  Lib::Storage[price_key] = nil
+                  process_action(Engine::Action::Bid.new(entity, **kwargs))
+                end
+
+                btn_style = {
+                  height: '1.85rem',
+                  padding: '0 9px',
+                  fontSize: '0.85rem',
+                  fontWeight: 'bold',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  backgroundColor: '#ffffff',
+                  color: '#0f172a',
+                  cursor: 'pointer',
+                }
+
+                target_name = active_target.respond_to?(:sym) && active_target.sym ? active_target.sym : active_target.name
+                can_afford_bid = current_price <= cash
+
+                bid_controls = [
+                  h(:button, {
+                      attrs: { disabled: current_price <= min_bid },
+                      style: btn_style,
+                      on: current_price <= min_bid ? {} : { click: -> { set_p.call(current_price - inc) } },
+                    }, "-#{inc}"),
+                  h(:input, {
+                      attrs: { type: 'number', min: min_bid, max: max_bid, step: inc, value: current_price.to_s },
+                      style: {
+                        width: '5rem',
+                        height: '1.85rem',
+                        fontFamily: FONT_MONEY,
+                        color: COLOR_MONEY,
+                        fontWeight: 'bold',
+                        textAlign: 'right',
+                        padding: '0 6px',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '4px',
+                      },
+                      on: {
+                        change: ->(e) { set_p.call(`#{e}.target.value`) },
+                        keydown: ->(e) { place_bid.call if `#{e}.key` == 'Enter' && can_afford_bid },
+                      },
+                    }),
+                  h(:button, {
+                      attrs: { disabled: current_price + inc > max_bid },
+                      style: btn_style,
+                      on: current_price + inc > max_bid ? {} : { click: -> { set_p.call(current_price + inc) } },
+                    }, "+#{inc}"),
+                  h(:button, {
+                      attrs: { disabled: !can_afford_bid },
+                      style: btn_style.merge(
+                        backgroundColor: can_afford_bid ? '#2563eb' : '#94a3b8',
+                        color: '#ffffff',
+                        border: 'none'
+                      ),
+                      on: can_afford_bid ? { click: place_bid } : {},
+                    }, "Bid #{target_name} (#{@game.format_currency(current_price)})"),
+                ]
+                rows << render_action_row('Place Bid:', bid_controls)
+              end
+            end
+          end
+
+          if actions.include?('choose')
+            choice_node = render_generic_choice(step, entity)
+            rows << choice_node if choice_node
+          end
+
+          if actions.include?('select_multiple_companies')
+            multi_node = render_select_multiple_companies_step(step, entity, actions)
+            rows << multi_node if multi_node
+          end
+
+          return nil if rows.compact.empty?
+
+          h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' } }, rows.compact)
+        end
+        # --- END FIX ---
 
         def render_discard_trains(step, entity)
           return nil unless step
@@ -3005,7 +3595,81 @@ module View
           nil
         end
 
+        # --- START FIX ---
         def render_assign_step(step, entity, actions)
+          return nil unless step && entity
+
+          # 1. Check for Hex Assignments (e.g. 18Uruguay Farm / Delivery hexes, Steamboat / Bridge hexes)
+          hex_targets = []
+          if step.respond_to?(:available_hex)
+            Array(@game.hexes).each do |hex|
+              hex_targets << hex if step.available_hex(entity, hex)
+            rescue StandardError
+            end
+          end
+
+          # 2. Check for Assignable Corporations
+          corp_targets = []
+          if step.respond_to?(:assignable_corporations)
+            begin
+              corp_targets.concat(Array(step.assignable_corporations(entity)))
+            rescue ArgumentError
+              begin; corp_targets.concat(Array(step.assignable_corporations)); rescue StandardError; end
+            rescue StandardError
+            end
+          end
+
+          rows = []
+
+          if hex_targets.any?
+            hex_buttons = hex_targets.map do |hex|
+              hex_label = hex.respond_to?(:location_name) && hex.location_name && !hex.location_name.to_s.empty? ? "#{hex.name} (#{hex.location_name})" : hex.name.to_s
+              h(:button, {
+                  style: {
+                    height: '1.85rem',
+                    padding: '0 10px',
+                    fontSize: '0.84rem',
+                    fontWeight: 'bold',
+                    backgroundColor: '#0891b2',
+                    color: '#ffffff',
+                    border: '1px solid #0e7490',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  },
+                  on: {
+                    mouseenter: lambda {
+                                  `window.highlightMapHexes && window.highlightMapHexes([#{hex.name}])`
+                                  nil
+                                },
+                    mouseleave: lambda {
+                                  `window.clearMapHexHighlights && window.clearMapHexHighlights()`
+                                  nil
+                                },
+                    click: lambda {
+                      `window.clearMapHexHighlights && window.clearMapHexHighlights()`
+                      process_action(Engine::Action::Assign.new(entity, target: hex))
+                    },
+                  },
+                }, "📍 #{hex_label}")
+            end
+            rows << render_action_row('Assign Hex:', hex_buttons)
+          end
+
+          if corp_targets.any?
+            corp_cards = corp_targets.compact.uniq.map do |corp|
+              render_major_railcard(
+                corp,
+                -> { process_action(Engine::Action::Assign.new(entity, target: corp)) },
+                %w[major-railcard action-buy clickable],
+                "cmd_assign_corp_#{corp.id}"
+              )
+            end
+            rows << render_action_row('Assign To:', corp_cards)
+          end
+
+          return h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' } }, rows) if rows.any?
+
+          # 3. Subsidiary / Private Company Assignments
           player = if entity.respond_to?(:player?) && entity.player?
                      entity
                    elsif entity.respond_to?(:owner) && entity.owner&.player?
@@ -3118,6 +3782,7 @@ module View
 
           render_action_row(label, items)
         end
+        # --- END FIX ---
 
         def render_acquisition_step(step, entity, actions)
           return nil unless step && entity && actions.include?('bid')
@@ -3400,14 +4065,38 @@ module View
             }, [row1, row2].compact)
         end
 
+        # --- START FIX ---
         def render_ground_truth_actions(actions, step)
           return h(:div) if @game.finished
+
+          acting_entity = current_entity || step&.current_entity
+
+          if emergency_train_sale_context?(step, acting_entity)
+            emerg_rows = []
+            sell_row = render_player_sell_shares(step, acting_entity)
+            emerg_rows << sell_row if sell_row
+            if raw_step_entity && actions_for(raw_step_entity).include?('buy_train')
+              train_row = render_buyable_trains(step, raw_step_entity)
+              emerg_rows << train_row if train_row
+            end
+            return h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' } }, emerg_rows.compact) if emerg_rows.any?
+          end
 
           return h(UpgradeOrDiscardTrains) if actions.include?('discard_train') && actions.include?('swap_train')
 
           if actions.include?('discard_train') && (actions & %w[lay_tile place_token run_routes dividend buy_train merge convert bid take_loan payoff_loan]).empty?
-            discard_node = render_discard_trains(step, step&.current_entity || current_entity)
+            discard_node = render_discard_trains(step, acting_entity)
             return discard_node if discard_node
+          end
+
+          if actions.include?('select_multiple_companies')
+            multi_node = render_select_multiple_companies_step(step, acting_entity, actions)
+            return multi_node if multi_node
+          end
+
+          if actions.include?('destination_connection')
+            dest_node = render_destination_connection_step(step, acting_entity, actions)
+            return dest_node if dest_node
           end
 
           is_acquisition = actions.include?('bid') && (
@@ -3416,17 +4105,17 @@ module View
              (step_description(step) =~ /Acquire/i)
            )
           if actions.include?('assign') && step&.class&.name =~ /Acquire|Acquisition/i
-            offer_node = render_offer_for_sale_step(step, step&.current_entity || current_entity, actions)
+            offer_node = render_offer_for_sale_step(step, acting_entity, actions)
             return offer_node if offer_node
           end
           if is_acquisition
-            acq_node = render_acquisition_step(step, step&.current_entity || current_entity, actions)
+            acq_node = render_acquisition_step(step, acting_entity, actions)
             return acq_node if acq_node
           end
 
           if actions.include?('par')
-            pending_corp = resolve_pending_par_corporation(step, step&.current_entity || current_entity)
-            return render_par_step(step, step&.current_entity || current_entity, pending_corp) if pending_corp
+            pending_corp = resolve_pending_par_corporation(step, acting_entity)
+            return render_par_step(step, acting_entity, pending_corp) if pending_corp
           end
 
           is_stock_round = (@game.round.respond_to?(:stock?) && @game.round.stock?) ||
@@ -3440,20 +4129,46 @@ module View
                                      (@game.respond_to?(:round) && @game.round.class.name =~ /Draft|Auction/i)
                                    ))
                                  )
-          return nil if is_draft_or_auction
+          return render_draft_and_auction_step(step, acting_entity, actions) if is_draft_or_auction
 
           case @game.round
           when Engine::Round::Stock
             if actions.include?('assign')
-              render_assign_step(step, step&.current_entity || current_entity, actions)
-
+              render_assign_step(step, acting_entity, actions)
             elsif actions.include?('choose')
-              render_generic_choice(step, step&.current_entity || current_entity)
+              render_generic_choice(step, acting_entity)
             else
               stock_components = []
+
+              if actions.include?('sell_shares') && step.respond_to?(:must_sell?) && (begin; step.must_sell?(acting_entity); rescue StandardError; false; end)
+                forced_sell_row = render_player_sell_shares(step, acting_entity, label_override: 'Must Sell:')
+                stock_components << forced_sell_row if forced_sell_row
+              end
+
               if actions.include?('bid') || (step.respond_to?(:auctioning) && step&.auctioning)
-                bidding_row = render_stock_bidding(step, step&.current_entity || current_entity, actions)
+                bidding_row = render_stock_bidding(step, acting_entity, actions)
                 stock_components << bidding_row if bidding_row
+              end
+
+              if (actions & %w[buy_company buy_companies]).any?
+                stock_buy_comp = render_buyable_companies(step, acting_entity)
+                stock_components << stock_buy_comp if stock_buy_comp
+              end
+
+              if actions.include?('merge') || actions.include?('convert')
+                stock_merge_row = render_merger_step(step, acting_entity, actions)
+                stock_components << stock_merge_row if stock_merge_row
+              end
+
+              corporate_action_entities.each do |corp_ent, _corp_acts|
+                corp_step = active_step_for(corp_ent) || step
+                issue_node = render_issue_shares(corp_step, corp_ent)
+                stock_components << issue_node if issue_node
+              end
+
+              if (%w[take_loan payoff_loan] & actions).any?
+                loan_row = render_loan_actions(step, acting_entity, actions)
+                stock_components << loan_row if loan_row
               end
 
               if stock_components.empty?
@@ -3463,6 +4178,7 @@ module View
 
               handled_stock_actions = %w[
                 buy_shares sell_shares par bid pass undo redo
+                buy_company buy_companies merge convert choose assign
                 short short_shares
                 issue issue_shares reissue reissue_shares corporate_sell_shares
                 redeem redeem_shares corporate_buy_shares
@@ -3472,7 +4188,7 @@ module View
               if unhandled_stock.any?
                 stock_components << render_generic_fallback(
                   step,
-                  step&.current_entity || current_entity,
+                  acting_entity,
                   unhandled_stock
                 )
               end
@@ -3485,34 +4201,40 @@ module View
 
             if is_pure_merger_step
               merger_items = [
-                              render_merger_step(step, step&.current_entity || current_entity, actions),
-                              render_loan_actions(step, step&.current_entity || current_entity, actions),
-                            ].compact
+                render_merger_step(step, acting_entity, actions),
+                render_loan_actions(step, acting_entity, actions),
+              ].compact
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, merger_items)
-
             else
               components = []
               convert_track = step.respond_to?(:conversion?) && step&.conversion?
               loans_rendered = false
 
               if actions.include?('choose')
-                choice_item = render_generic_choice(step, step&.current_entity || current_entity)
+                choice_item = render_generic_choice(step, acting_entity)
                 components << choice_item if choice_item
               end
 
               if actions.include?('assign')
-                assign_item = render_assign_step(step, step&.current_entity || current_entity, actions)
+                assign_item = render_assign_step(step, acting_entity, actions)
                 components << assign_item if assign_item
               end
 
-              components << h(SpecialBuy) if actions.include?('special_buy')
+              if actions.include?('special_buy')
+                sb_node = render_special_buy_step(step, acting_entity, actions)
+                components << (sb_node || h(SpecialBuy))
+              end
+
               components << h(TrackConversion) if actions.include?('run_routes') && convert_track
-              components << h(Convert) if actions.include?('convert')
+              if actions.include?('convert')
+                conv_node = render_merger_step(step, acting_entity, ['convert'])
+                components << (conv_node || h(Convert))
+              end
               components << h(SwitchTrains) if actions.include?('switch_trains')
               components << h(ReassignTrains) if actions.include?('reassign_trains')
               components << h(DoubleHeadTrains) if actions.include?('double_head_trains')
               components << h(CombinedTrains) if actions.include?('combined_trains')
-              components << render_buy_tokens(step, step&.current_entity || current_entity) if actions.include?('buy_token')
+              components << render_buy_tokens(step, acting_entity) if actions.include?('buy_token')
 
               rendered_issue_entities = []
               corporate_action_entities.each do |action_entity, _entity_actions|
@@ -3524,11 +4246,15 @@ module View
                 end
               end
 
-              op_entity = step&.current_entity || current_entity
+              op_entity = acting_entity
 
               if actions.include?('buy_train') || actions.include?('sell_train')
                 if (actions.include?('sell_shares') || actions.include?('buy_shares')) && !rendered_issue_entities.include?(op_entity)
-                  components << render_issue_shares(step, op_entity)
+                  components << if op_entity.respond_to?(:player?) && op_entity.player?
+                                  render_player_sell_shares(step, op_entity)
+                                else
+                                  render_issue_shares(step, op_entity)
+                                end
                   rendered_issue_entities << op_entity
                 end
               elsif actions.include?('buy_power')
@@ -3539,13 +4265,16 @@ module View
                 components << h(BuyPower)
               elsif actions.include?('borrow_train')
                 components << h(BorrowTrain)
-
               elsif step.respond_to?(:cash_crisis?) && step&.cash_crisis?
-                components << h(CashCrisis)
+                components << if actions.include?('sell_shares') && op_entity.respond_to?(:player?) && op_entity.player?
+                                render_player_sell_shares(step, op_entity, label_override: 'Cash Crisis Sale:')
+                              else
+                                h(CashCrisis)
+                              end
                 loans_rendered = true if (%w[take_loan payoff_loan] & actions).any?
               elsif (actions.include?('buy_shares') || actions.include?('sell_shares')) &&
-                corporation_or_minor?(op_entity) &&
-                !rendered_issue_entities.include?(op_entity)
+                    corporation_or_minor?(op_entity) &&
+                    !rendered_issue_entities.include?(op_entity)
 
                 price_protection = begin
                   step.price_protection if step.respond_to?(:price_protection)
@@ -3561,56 +4290,47 @@ module View
                   end
 
                 if price_protection_corporation
-                  components << h(
-                    Corporation,
-                    corporation: price_protection_corporation
-                  )
-
-                  components << h(
-                    BuySellShares,
-                    corporation: price_protection_corporation
-                  )
-
+                  components << h(Corporation, corporation: price_protection_corporation)
+                  components << h(BuySellShares, corporation: price_protection_corporation)
                 elsif @game.corporations_can_ipo?
                   components << h(CorporateBuySellShares)
                 elsif (%w[issue_shares reissue_shares reissue redeem redeem_shares] & actions).none? && !rendered_issue_entities.include?(op_entity)
                   components << render_issue_shares(step, op_entity)
                   rendered_issue_entities << op_entity
                 end
-                acting_entity = step&.current_entity || current_entity
 
                 if actions.include?('buy_shares') &&
-                !actions.include?('run_routes') &&
-                corporation_or_minor?(acting_entity)
-                  components << h(CorporateBuyShares)
+                   !actions.include?('run_routes') &&
+                   corporation_or_minor?(op_entity) &&
+                   !rendered_issue_entities.include?(op_entity)
+                  components << (render_issue_shares(step, op_entity) || h(CorporateBuyShares))
                 end
-              elsif actions.include?('corporate_sell_shares')
-                components << h(CorporateSellShares)
+              elsif actions.include?('corporate_sell_shares') && !rendered_issue_entities.include?(op_entity)
+                components << (render_issue_shares(step, op_entity) || h(CorporateSellShares))
               elsif actions.include?('swap_train')
                 components << h(SwapTrain)
               elsif actions.include?('buy_corporation')
-                acting_entity = step&.current_entity || current_entity
-                if corporation_or_minor?(acting_entity)
+                if corporation_or_minor?(op_entity)
                   components << h(BuyCorporation)
                 else
-                  fallback_item = render_generic_fallback(step, acting_entity, actions)
+                  fallback_item = render_generic_fallback(step, op_entity, actions)
                   components << fallback_item if fallback_item
                 end
               end
 
               if actions.include?('scrap_train') || actions.include?('surrender_train') || actions.include?('surrender')
-                components << render_surrender_trains(actions, step, step&.current_entity)
+                components << render_surrender_trains(actions, step, op_entity)
               end
-              components << render_loan_actions(step, step&.current_entity || current_entity, actions) if !loans_rendered && (%w[take_loan payoff_loan] & actions).any?
-              components << h(ViewMergeOptions, corporation: step&.current_entity) if actions.include?('view_merge_options')
+              components << render_loan_actions(step, op_entity, actions) if !loans_rendered && (%w[take_loan payoff_loan] & actions).any?
+              components << h(ViewMergeOptions, corporation: op_entity) if actions.include?('view_merge_options')
 
               if actions.include?('bankrupt')
-                entity = step&.current_entity
-                player = entity&.player? ? entity : entity&.owner
+                corp_ent = raw_step_entity || op_entity
+                player = corp_ent&.player? ? corp_ent : corp_ent&.owner
 
                 show_bankrupt = false
-                if step.respond_to?(:must_buy_train?) && step&.must_buy_train?(entity)
-                  show_bankrupt = @game.respond_to?(:can_go_bankrupt?) ? @game.can_go_bankrupt?(player, entity) : true
+                if step.respond_to?(:must_buy_train?) && step&.must_buy_train?(corp_ent)
+                  show_bankrupt = @game.respond_to?(:can_go_bankrupt?) ? @game.can_go_bankrupt?(player, corp_ent) : true
                 elsif @game.round.respond_to?(:stock?) && @game.round.stock? && step.respond_to?(:must_sell?) && step&.must_sell?(player)
                   show_bankrupt = true
                 end
@@ -3621,14 +4341,14 @@ module View
                   if b_options.empty?
                     components << h(:button, {
                                       style: { width: '100%', padding: '0.5rem', backgroundColor: '#dc3545', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer' },
-                                      on: { click: -> { process_action(Engine::Action::Bankrupt.new(entity)) } },
+                                      on: { click: -> { process_action(Engine::Action::Bankrupt.new(corp_ent)) } },
                                     }, 'Declare Bankruptcy')
                   else
                     b_options.each do |opt|
                       btn_text = @game.respond_to?(:bankruptcy_button_text) ? @game.bankruptcy_button_text(opt) : 'Declare Bankruptcy'
                       components << h(:button, {
                                         style: { width: '100%', padding: '0.5rem', backgroundColor: '#dc3545', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: '0.2rem' },
-                                        on: { click: -> { process_action(Engine::Action::Bankrupt.new(entity, option: opt)) } },
+                                        on: { click: -> { process_action(Engine::Action::Bankrupt.new(corp_ent, option: opt)) } },
                                       }, btn_text)
                     end
                   end
@@ -3638,101 +4358,73 @@ module View
               step_actions = step.respond_to?(:current_actions) ? (step.current_actions || []) : []
               player_actions = active_player ? actions_for(active_player) : []
               all_actions_here = (actions + step_actions + player_actions).compact.map(&:to_s).uniq
-              op_ent = step&.current_entity || current_entity
 
-              can_buy_companies = all_actions_here.include?('buy_company') ||
-                                  (step.respond_to?(:buyable_companies) && step.buyable_companies(op_ent)&.any?) ||
-                                  (step.respond_to?(:can_buy_company?) && @game.companies.any? { |c| step.can_buy_company?(op_ent, c) })
+              can_buy_companies = (all_actions_here & %w[buy_company buy_companies]).any? ||
+                                  (step.respond_to?(:buyable_companies) && step.buyable_companies(op_entity)&.any?) ||
+                                  (step.respond_to?(:can_buy_company?) && @game.companies.any? { |c| step.can_buy_company?(op_entity, c) })
 
-              components << render_buyable_companies(step, op_ent) if can_buy_companies
+              components << render_buyable_companies(step, op_entity) if can_buy_companies
+              components << render_buyable_trains(step, raw_step_entity || op_entity) if actions.include?('buy_train')
+              components << render_discard_trains(step, op_entity) if actions.include?('discard_train')
 
-              components << render_buyable_trains(step, step&.current_entity) if actions.include?('buy_train')
-              components << render_discard_trains(step, step&.current_entity || current_entity) if actions.include?('discard_train')
-              components << h(AcquireCompanies) if actions.include?('acquire_company')
+              if actions.include?('acquire_company')
+                acq_comp_node = render_acquire_company_step(step, op_entity, actions)
+                components << (acq_comp_node || h(AcquireCompanies))
+              end
               components << h(CorporateSellCompanies) if actions.include?('corporate_sell_company')
               components << h(CorporateBuyCompanies) if actions.include?('corporate_buy_company')
 
               handled_operating_actions = %w[
-                pass undo redo
+                pass undo redo destination_connection select_multiple_companies
                 choose assign special_buy convert switch_trains reassign_trains double_head_trains combined_trains
-                lay_tile place_token buy_token run_routes dividend payout withhold half split
+                lay_tile place_token hex_token buy_token run_routes dividend payout withhold half split
                 issue issue_shares reissue reissue_shares redeem redeem_shares
                 buy_shares sell_shares corporate_buy_shares corporate_sell_shares
                 buy_train sell_train discard_train swap_train borrow_train buy_power
                 scrap_train surrender_train surrender
                 take_loan payoff_loan
                 merge view_merge_options buy_corporation bankrupt
-                buy_company acquire_company corporate_sell_company corporate_buy_company
+                buy_company buy_companies acquire_company corporate_sell_company corporate_buy_company
               ]
               unhandled_operating = unhandled_actions(actions, handled_operating_actions)
               if unhandled_operating.any?
-                fallback_item = render_generic_fallback(
-                  step,
-                  step&.current_entity || current_entity,
-                  unhandled_operating
-                )
+                fallback_item = render_generic_fallback(step, op_entity, unhandled_operating)
                 components << fallback_item if fallback_item
               elsif components.compact.empty?
-                fallback_item = render_generic_fallback(step, step&.current_entity || current_entity, actions)
+                fallback_item = render_generic_fallback(step, op_entity, actions)
                 components << fallback_item if fallback_item
               end
 
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, components.compact)
             end
           when Engine::Round::Choices
-            if actions.include?('choose')
-              choice_item = render_generic_choice(step, step&.current_entity || current_entity)
-              if choice_item
-                h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, [choice_item])
-              else
-                (defined?(View::Game::Round::Choices) ? h(View::Game::Round::Choices, game: @game) : h(:div))
-              end
+            choice_components = []
+            choice_components << render_generic_choice(step, acting_entity) if actions.include?('choose')
+            choice_components << render_select_multiple_companies_step(step, acting_entity, actions) if actions.include?('select_multiple_companies')
+            choice_components << render_assign_step(step, acting_entity, actions) if actions.include?('assign')
+            choice_components.compact!
+
+            if choice_components.any?
+              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, choice_components)
             else
               defined?(View::Game::Round::Choices) ? h(View::Game::Round::Choices, game: @game) : h(:div)
             end
-
           when Engine::Round::Merger
-            merger_entity = step&.current_entity || current_entity
+            merger_entity = acting_entity
             components = []
 
-            if actions.include?('choose')
-              choice_item = render_generic_choice(step, merger_entity)
-              components << choice_item if choice_item
-            end
-
-            if actions.include?('assign')
-              assign_item = render_assign_step(step, merger_entity, actions)
-              components << assign_item if assign_item
-            end
-
-            if actions.include?('discard_train')
-              discard_node = render_discard_trains(step, merger_entity)
-              components << discard_node if discard_node
-            end
-
-            if actions.include?('buy_train')
-              buy_train_node = render_buyable_trains(step, merger_entity)
-              components << buy_train_node if buy_train_node
-            end
-
-            if actions.include?('scrap_train') || actions.include?('surrender_train') || actions.include?('surrender')
-              surrender_node = render_surrender_trains(actions, step, merger_entity)
-              components << surrender_node if surrender_node
-            end
-
+            components << render_generic_choice(step, merger_entity) if actions.include?('choose')
+            components << render_assign_step(step, merger_entity, actions) if actions.include?('assign')
+            components << render_special_buy_step(step, merger_entity, actions) if actions.include?('special_buy')
+            components << render_acquire_company_step(step, merger_entity, actions) if actions.include?('acquire_company')
+            components << render_discard_trains(step, merger_entity) if actions.include?('discard_train')
+            components << render_buyable_trains(step, merger_entity) if actions.include?('buy_train')
+            components << render_surrender_trains(actions, step, merger_entity) if (actions & %w[scrap_train surrender_train surrender]).any?
             components << h(ReassignTrains) if actions.include?('reassign_trains')
-
             components << h(SwapTrain) if actions.include?('swap_train')
-
-            if (%w[merge convert buy_shares corporate_buy_shares] & actions).any?
-              merger_node = render_merger_step(step, merger_entity, actions)
-              components << merger_node if merger_node
-            end
-
-            if (%w[take_loan payoff_loan] & actions).any?
-              loan_node = render_loan_actions(step, merger_entity, actions)
-              components << loan_node if loan_node
-            end
+            components << render_merger_step(step, merger_entity, actions) if (%w[merge convert buy_shares corporate_buy_shares] & actions).any?
+            components << render_loan_actions(step, merger_entity, actions) if (%w[take_loan payoff_loan] & actions).any?
+            components << render_player_sell_shares(step, merger_entity) if actions.include?('sell_shares') && merger_entity.respond_to?(:player?) && merger_entity.player?
 
             if components.compact.any?
               h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, components.compact)
@@ -3742,38 +4434,27 @@ module View
               h(:div)
             end
           else
-            if actions.include?('assign')
-              render_assign_step(step, step&.current_entity || current_entity, actions) || h(:div)
-            elsif actions.include?('choose')
-              choice_item = render_generic_choice(step, step&.current_entity || current_entity)
+            other_components = []
+            other_components << render_assign_step(step, acting_entity, actions) if actions.include?('assign')
+            other_components << render_generic_choice(step, acting_entity) if actions.include?('choose')
+            other_components << render_select_multiple_companies_step(step, acting_entity, actions) if actions.include?('select_multiple_companies')
+            other_components << render_special_buy_step(step, acting_entity, actions) if actions.include?('special_buy')
+            other_components << render_acquire_company_step(step, acting_entity, actions) if actions.include?('acquire_company')
+            other_components << render_discard_trains(step, acting_entity) if actions.include?('discard_train')
+            other_components << render_merger_step(step, acting_entity, actions) if (%w[merge convert] & actions).any?
+            other_components << render_draft_and_auction_step(step, acting_entity, actions) if (%w[bid buy_company buy_companies] & actions).any?
+            other_components.compact!
 
-              h(
-                :div,
-                {
-                  style: {
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.15rem',
-                    width: '100%',
-                    alignItems: 'flex-start',
-                  },
-                },
-                [choice_item].compact
-              )
-            elsif actions.include?('discard_train')
-              render_discard_trains(step, step&.current_entity || current_entity) || h(:div)
-
+            if other_components.any?
+              h(:div, { style: { display: 'flex', flexDirection: 'column', gap: '0.15rem', width: '100%', alignItems: 'flex-start' } }, other_components)
             elsif @game.round.unordered?
               defined?(View::Game::Round::Unordered) ? h(View::Game::Round::Unordered, game: @game, user: nil) : h(:div)
             else
-              render_generic_fallback(
-                step,
-                step&.current_entity || current_entity,
-                actions
-              ) || h(:div)
+              render_generic_fallback(step, acting_entity, actions) || h(:div)
             end
           end
         end
+        # --- END FIX ---
 
         def clean_round_name
           round = @game.round
