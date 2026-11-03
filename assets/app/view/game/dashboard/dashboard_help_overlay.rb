@@ -10,8 +10,8 @@ module View
         needs :on_close, default: nil
 
         # --- VERSION & BUILD METADATA ---
-        VERSION = '1.3.5'
-        BUILD_TIME = '2026-11-03 09:00:00 UTC'
+        VERSION = '1.3.6'
+        BUILD_TIME = '2026-11-03 21:00:00 UTC'
 
         SECTIONS = [
           {
