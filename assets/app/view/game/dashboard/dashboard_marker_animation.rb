@@ -111,10 +111,12 @@ module Lib
                  dashboardRoot.querySelector('.hex-' + rawHex) ||
                  dashboardRoot.querySelector('.hex-' + rawHex.toUpperCase());
           }
-          if (!el && !isHex && selector.indexOf('#tokens_') !== -1) {
-            var corp = selector.replace(/^#tokens_/, '');
-            el = dashboardRoot.querySelector('#tokens_cell_' + corp) ||
-                 dashboardRoot.querySelector('#status_major_' + corp);
+          if (!el && !isHex) {
+            var corp = String(activeData.corp_id || '');
+
+            el = document.getElementById('status_major_' + corp) ||
+                document.getElementById('tokens_cell_' + corp) ||
+                document.getElementById('tokens_' + corp);
           }
           return el;
         };
@@ -128,12 +130,14 @@ module Lib
         var toRect = toEl.getBoundingClientRect();
 
         if (fromRect.width === 0 || toRect.width === 0) return;
+var safeCorpId = String(activeData.corp_id || '').replace(/[^A-Za-z0-9_-]/g, '_');
 
-        var targetCitySlot = toEl.querySelector ? (
-          toEl.querySelector('.token-' + activeData.corp_id) ||
-          toEl.querySelector('circle[r]') ||
-          toEl.querySelector('.city-slot')
-        ) : null;
+var targetCitySlot = toEl.querySelector ? (
+  toEl.querySelector('.map-token-' + safeCorpId) ||
+  toEl.querySelector('[data-corp="' + String(activeData.corp_id || '').replace(/"/g, '\\"') + '"]') ||
+  toEl.querySelector('circle[r]') ||
+  toEl.querySelector('.city-slot')
+) : null;
 
         var targetRect = targetCitySlot ? targetCitySlot.getBoundingClientRect() : toRect;
 

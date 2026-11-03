@@ -31,7 +31,7 @@ module View
           return rendered unless corp
 
           corp_id = corp.id.to_s
-          safe_id = `CSS.escape(#{corp_id})`
+          safe_id = corp_id.gsub(/[^A-Za-z0-9_-]/, '_')
 
           %x{
           if (#{rendered} && #{rendered}.data) {
