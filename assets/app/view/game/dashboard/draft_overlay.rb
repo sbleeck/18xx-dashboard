@@ -566,10 +566,13 @@ module View
                                  raw_bids = step.bids[item]
                                  bids_list = raw_bids.is_a?(Array) ? raw_bids : [raw_bids].compact
                                  p_bid = bids_list.find { |b| (b.respond_to?(:entity) && b.entity == p) || (b.respond_to?(:player) && b.player == p) }
-                                 bid_text = @game.format_currency(p_bid.price) if p_bid.respond_to?(:price)
+                                 if p_bid.respond_to?(:price)
+                                   bid_price = p_bid.price
+                                   bid_text = @game.format_currency(bid_price) if bid_price && bid_price.to_i.positive?
+                                 end
                                end
 
-                               if bid_text
+                               if bid_text && !bid_text.to_s.empty?
                                  h(:span, {
                                      style: {
                                        backgroundColor: '#0284c7',
@@ -581,8 +584,6 @@ module View
                                        fontFamily: FONT_MONEY,
                                      },
                                    }, bid_text)
-                               else
-                                 h(:span, { style: { color: '#cbd5e1' } }, '-')
                                end
                              end
 
@@ -594,7 +595,7 @@ module View
                                  borderBottom: '1px solid #cbd5e1',
                                  borderRight: player_border,
                                },
-                             }, [cell_content])
+                             }, cell_content ? [cell_content] : [])
             end
 
             row_bg = if can_choose_item
@@ -607,7 +608,6 @@ module View
 
             h(:tr, { style: { backgroundColor: row_bg, opacity: is_owned ? '0.88' : '1' } }, row_cells)
           end
-          is_minimized = Lib::Storage['draft_overlay_minimized'] || false
 
           saved_left = %x((function() {
             try {
@@ -719,11 +719,6 @@ module View
             update
           end
 
-          toggle_minimize = lambda do
-            Lib::Storage['draft_overlay_minimized'] = !is_minimized
-            update
-          end
-
           dialog_style = {
             width: '90%',
             maxWidth: '920px',
@@ -749,114 +744,7 @@ module View
             dialog_style[:transform] = 'translate(-50%, -50%)'
           end
 
-          dialog_style[:maxHeight] = is_minimized ? 'auto' : '88vh'
-
-          header_controls = [
-
-           (if can_pass
-              h(:button, {
-                  attrs: { id: 'draft-overlay-pass-btn', title: has_blank_card ? 'Select a blank pass card' : 'Pass your turn' },
-                  style: {
-                    padding: '0 12px',
-                    height: '1.5rem',
-                    fontSize: '0.78rem',
-                    fontWeight: 'bold',
-                    backgroundColor: '#fd7e14',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                  },
-                  on: { click: exec_pass },
-                }, has_blank_card ? 'Pass (Blank Card)' : 'Pass')
-            end),
-           h(:div, { attrs: { class: 'draft-undo-redo-wrapper' } }, [
-             h(:style, {}, '
-                .draft-undo-redo-wrapper #history,
-                .draft-undo-redo-wrapper .history,
-                .draft-undo-redo-wrapper input,
-                .draft-undo-redo-wrapper button:not(#undo):not(#redo) {
-                  display: none !important;
-                }
-                .draft-undo-redo-wrapper,
-                .draft-undo-redo-wrapper * {
-                  box-sizing: border-box !important;
-                }
-                .draft-undo-redo-wrapper,
-                .draft-undo-redo-wrapper div,
-                .draft-undo-redo-wrapper #history_and_undo,
-                .draft-undo-redo-wrapper .history_and_undo {
-                  display: inline-flex !important;
-                  flex-direction: row !important;
-                  flex-wrap: nowrap !important;
-                  align-items: center !important;
-                  justify-content: center !important;
-                  gap: 0.3rem !important;
-                  margin: 0 !important;
-                  padding: 0 !important;
-                  border: none !important;
-                  background: transparent !important;
-                  box-shadow: none !important;
-                }
-                .draft-undo-redo-wrapper button#undo,
-                .draft-undo-redo-wrapper button#redo {
-                  display: inline-flex !important;
-                  height: 1.5rem !important;
-                  min-height: 1.5rem !important;
-                  max-height: 1.5rem !important;
-                  padding: 0 8px !important;
-                  font-size: 0.78rem !important;
-                  font-weight: 600 !important;
-                  background-color: #f1f5f9 !important;
-                  color: #475569 !important;
-                  border: 1px solid #cbd5e1 !important;
-                  border-radius: 4px !important;
-                  cursor: pointer !important;
-                  margin: 0 !important;
-                  line-height: 1 !important;
-                  box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
-                }
-                .draft-undo-redo-wrapper button#undo:hover:not(:disabled),
-                .draft-undo-redo-wrapper button#redo:hover:not(:disabled) {
-                  background-color: #e2e8f0 !important;
-                  color: #1e293b !important;
-                  border-color: #94a3b8 !important;
-                }
-                .draft-undo-redo-wrapper button#undo:disabled,
-                .draft-undo-redo-wrapper button#redo:disabled {
-                  background-color: #f8fafc !important;
-                  color: #cbd5e1 !important;
-                  border-color: #e2e8f0 !important;
-                  cursor: not-allowed !important;
-                  opacity: 0.6 !important;
-                  box-shadow: none !important;
-                }
-              '),
-             h(HistoryAndUndo, last_action_id: last_action_id),
-           ]),
-           h(:button, {
-               attrs: { title: is_minimized ? 'Expand overlay' : 'Minimize overlay' },
-               style: {
-                 padding: '0 8px',
-                 height: '1.5rem',
-                 fontSize: '0.78rem',
-                 fontWeight: '600',
-                 backgroundColor: '#f1f5f9',
-                 color: '#475569',
-                 border: '1px solid #cbd5e1',
-                 borderRadius: '4px',
-                 cursor: 'pointer',
-                 display: 'inline-flex',
-                 alignItems: 'center',
-                 justifyContent: 'center',
-               },
-               on: { click: toggle_minimize },
-             }, is_minimized ? 'Expand' : 'Minimize'),
-          ].compact
+          dialog_style[:maxHeight] = '88vh'
 
           empty_state_row = if rows.empty?
                               msg = if is_step_hidden && !can_view_hand
@@ -885,10 +773,7 @@ module View
                               rows
                             end
 
-          body_content = if is_minimized
-                           nil
-                         else
-                           h(:div, { style: { overflowY: 'auto', padding: '1rem' } }, [
+          body_content = h(:div, { style: { overflowY: 'auto', padding: '1rem' } }, [
                              h(:table, { style: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', border: '1px solid #cbd5e1' } }, [
                                h(:thead, [
                                  h(:tr, [
@@ -936,14 +821,13 @@ module View
                                ]),
                              ]),
                            ])
-                         end
 
           dialog_children = [
             h(:div, {
                 attrs: { id: 'draft-overlay-header' },
                 style: {
                   padding: '0.7rem 1.2rem',
-                  borderBottom: is_minimized ? 'none' : '1px solid #e2e8f0',
+                  borderBottom: '1px solid #e2e8f0',
                   backgroundColor: '#f8fafc',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -960,10 +844,9 @@ module View
                 h(:h2, { style: { margin: '0', fontSize: '1.25rem', color: '#0f172a' } }, 'Private Distribution Draft'),
                 h(:span, { style: { fontSize: '0.85rem', color: '#64748b' } }, "Active Player: #{entity.name}"),
               ]),
-              h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.4rem' } }, header_controls),
             ]),
           ]
-          dialog_children << body_content if body_content
+          dialog_children << body_content
 
           container_children = [
             h(:div, {

@@ -1751,7 +1751,12 @@ module View
           rows = []
           cash = entity.respond_to?(:cash) ? entity.cash.to_i : 0
 
-          if (actions & %w[buy_company buy_companies]).any?
+          is_draft_round =
+            step.class.name.to_s =~ /Draft/i ||
+            @game.round.class.name.to_s =~ /Draft/i ||
+            (step.respond_to?(:draft?) && step.draft?)
+
+          if !is_draft_round && (actions & %w[buy_company buy_companies]).any?
             buy_row = render_buyable_companies(step, entity)
             rows << buy_row if buy_row
           end
@@ -4129,7 +4134,16 @@ module View
                                      (@game.respond_to?(:round) && @game.round.class.name =~ /Draft|Auction/i)
                                    ))
                                  )
-          return render_draft_and_auction_step(step, acting_entity, actions) if is_draft_or_auction
+          if is_draft_or_auction
+            is_draft_round =
+              step&.class&.name.to_s =~ /Draft/i ||
+              @game.round.class.name.to_s =~ /Draft/i ||
+              (step.respond_to?(:draft?) && step.draft?)
+
+            return h(:div) if is_draft_round
+
+            return render_draft_and_auction_step(step, acting_entity, actions)
+          end
 
           case @game.round
           when Engine::Round::Stock
@@ -4442,7 +4456,19 @@ module View
             other_components << render_acquire_company_step(step, acting_entity, actions) if actions.include?('acquire_company')
             other_components << render_discard_trains(step, acting_entity) if actions.include?('discard_train')
             other_components << render_merger_step(step, acting_entity, actions) if (%w[merge convert] & actions).any?
-            other_components << render_draft_and_auction_step(step, acting_entity, actions) if (%w[bid buy_company buy_companies] & actions).any?
+            is_draft_round =
+              step&.class&.name.to_s =~ /Draft/i ||
+              @game.round.class.name.to_s =~ /Draft/i ||
+              (step.respond_to?(:draft?) && step.draft?)
+
+            if !is_draft_round && (%w[bid buy_company buy_companies] & actions).any? && (%w[bid buy_company buy_companies] & actions).any?
+              other_components << render_draft_and_auction_step(
+                step,
+                acting_entity,
+                actions
+              )
+            end
+
             other_components.compact!
 
             if other_components.any?
