@@ -694,17 +694,10 @@ module View
       end
 
       def status_corporation_actions(corporation)
-        actions = status_actions_for(corporation)
-        owner = corporation.respond_to?(:owner) ? corporation.owner : nil
-
-        if owner && owner == active_player
-          owner_actions = status_actions_for(owner)
-          step = @game.round.active_step
-          global_actions = step.respond_to?(:current_actions) ? (step.current_actions || []) : []
-          actions.concat(owner_actions)
-          actions.concat(global_actions)
-        end
-        actions.compact.map(&:to_s).uniq
+        # Keep player stock-round permissions separate from corporation actions.
+        # A player's buy_shares/sell_shares must not become corporate
+        # redeem/issue actions merely because that player directs the company.
+        status_actions_for(corporation).compact.map(&:to_s).uniq
       end
 
       def status_step_bundles(step, method_name, corporation)
@@ -802,7 +795,7 @@ module View
 
       def status_issuable_bundles(step, corporation)
         actions = status_corporation_actions(corporation)
-        issue_actions = %w[issue_shares reissue_shares reissue corporate_sell_shares issue sell_shares]
+        issue_actions = %w[issue_shares reissue_shares reissue corporate_sell_shares issue]
         return [] unless (actions & issue_actions).any?
 
         bundles = status_step_bundles(step, :issuable_shares, corporation)
@@ -947,7 +940,6 @@ module View
             reissue
             corporate_sell_shares
             issue
-            sell_shares
           ]).any?
 
         can_issue =
@@ -963,7 +955,6 @@ module View
             redeem
             redeem_shares
             corporate_buy_shares
-            buy_shares
           ]).any?
 
         can_redeem =
