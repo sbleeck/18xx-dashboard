@@ -17,35 +17,30 @@ module View
             end
           end
 
-          # Enforce starting at 0 for step-by-step reveal
-          reveal_index = Lib::Storage['results_reveal_index']
-          if reveal_index.nil?
-            reveal_index = 0
-            Lib::Storage['results_reveal_index'] = 0
-          else
-            reveal_index = reveal_index.to_i
-          end
-
           total_players = sorted_players.size
-          reveal_index = total_players if reveal_index > total_players
-
-          # Take only the revealed slice (starting with the last place player)
-          revealed_players = sorted_players.take(reveal_index).reverse
 
           children = []
-          children << h(:h2, { style: { textAlign: 'center', margin: '0 0 1rem 0' } }, 'Final Results')
+          children << h(:h2, {
+                          style: {
+                            textAlign: 'center',
+                            margin: '0 0 1rem 0',
+                          },
+                        }, 'Final Results')
 
-          revealed_players.each do |player|
+          # Show every finishing position immediately.
+          sorted_players.reverse_each do |player|
             place = total_players - sorted_players.index(player)
-            val = if @game.respond_to?(:player_value)
-                    @game.player_value(player)
-                  elsif @game.respond_to?(:result) && @game.result && @game.result[player]
-                    @game.result[player]
-                  else
-                    player.cash
-                  end
-            formatted_val = @game.format_currency(val)
 
+            val =
+              if @game.respond_to?(:player_value)
+                @game.player_value(player)
+              elsif @game.respond_to?(:result) && @game.result && @game.result[player]
+                @game.result[player]
+              else
+                player.cash
+              end
+
+            formatted_val = @game.format_currency(val)
             is_winner = place == 1
 
             row_style = {
@@ -60,54 +55,36 @@ module View
               borderRadius: is_winner ? '4px' : '0',
             }
 
-            row = h(:div, { style: row_style }, [
+            children << h(:div, { style: row_style }, [
               h(:span, "#{place}. #{player.name}#{' 👑' if is_winner}"),
               h(:span, formatted_val),
             ])
-            children << row
           end
 
-          reveal_handler = lambda do |e|
-            e&.JS&.stopPropagation
-            if reveal_index < total_players
-              Lib::Storage['results_reveal_index'] = reveal_index + 1
-              update
-            end
+          # Closing results is a UI/navigation action, not a game action.
+          # It must therefore be available to players and spectators alike.
+          close_handler = lambda do |e|
+            `#{e}.stopPropagation()`
+            Lib::Storage['show_results_overlay'] = false
+            Lib::Storage['results_reveal_index'] = 0
+            update
           end
 
-          if reveal_index < total_players
-            place_to_reveal = total_players - reveal_index
-            place_str = place_to_reveal == 1 ? 'Winner 👑' : "#{place_to_reveal}#{ordinal_suffix(place_to_reveal)} Place"
-
-            children << h(:button, {
-                            style: {
-                              width: '100%',
-                              padding: '1rem',
-                              marginTop: '1rem',
-                              fontSize: '1.2rem',
-                              backgroundColor: '#007bff',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontWeight: 'bold',
-                            },
-                            on: { click: reveal_handler },
-                          }, "Click to Reveal #{place_str}")
-          else
-            close_handler = lambda do |e|
-              e&.JS&.stopPropagation
-              Lib::Storage['show_results_overlay'] = false
-              Lib::Storage['results_reveal_index'] = 0
-              update
-            end
-            children << h(:button, {
-                            style: { width: '100%', padding: '0.5rem', marginTop: '1rem', fontSize: '1rem', cursor: 'pointer' },
-                            on: { click: close_handler },
-                          }, 'Close')
-          end
-
-          overlay_click_handler = reveal_index < total_players ? reveal_handler : nil
+          children << h(:button, {
+                          style: {
+                            width: '100%',
+                            padding: '0.75rem',
+                            marginTop: '1rem',
+                            fontSize: '1rem',
+                            cursor: 'pointer',
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                          },
+                          on: { click: close_handler },
+                        }, 'Close')
 
           overlay_bg = h(:div, {
                            style: {
@@ -118,9 +95,8 @@ module View
                              height: '100vh',
                              backgroundColor: 'rgba(0,0,0,0.65)',
                              zIndex: '9999',
-                             cursor: reveal_index < total_players ? 'pointer' : 'default',
                            },
-                           on: overlay_click_handler ? { click: overlay_click_handler } : {},
+                           on: { click: close_handler },
                          })
 
           overlay_box = h(:div, {
@@ -137,9 +113,12 @@ module View
                               width: '80%',
                               maxWidth: '500px',
                               color: 'black',
-                              cursor: reveal_index < total_players ? 'pointer' : 'default',
                             },
-                            on: overlay_click_handler ? { click: overlay_click_handler } : {},
+                            on: {
+                              click: lambda do |e|
+                                `#{e}.stopPropagation()`
+                              end,
+                            },
                           }, children)
 
           h(:div, [overlay_bg, overlay_box])
