@@ -98,20 +98,7 @@ The dashboard is built to drop cleanly into `18xx.games` without destabilizing u
 ### Option 1: Chrome Web Store (One-Click)
 *Automated background updates for Chrome, Brave, Edge, and Opera.*
 
-* **Status:** ⏳ *Currently under review by Google. Direct store link will be posted here upon approval.*
-
----
-
-### Option 2: Direct Install (Available Now)
-*Works immediately on any Chromium browser (takes 60 seconds).*
-
-1. Download the latest build: [**18xx-dashboard-v1.0.0.zip**](https://github.com/sbleeck/18xx-dashboard/releases/latest)
-2. Unzip the file on your computer.
-3. In your browser, open `chrome://extensions/`.
-4. Toggle **Developer mode** ON (top-right switch).
-5. Click **Load unpacked** (top-left) and select the unzipped `18xx-extension` directory.
-6. Open [18xx.games](https://18xx.games)—the **Dashboard** tab will appear in the navigation bar.
-
+[![download]https://chromewebstore.google.com/detail/18xxgames-desktop-dashboa/cemgiipmchoaoodgehmpefipbnefmifc]
 
 ---
 
