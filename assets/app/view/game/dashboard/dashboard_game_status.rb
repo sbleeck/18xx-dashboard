@@ -1493,7 +1493,7 @@ module View
               n_shares = num_shares_of(p, corporation)
               just_sold = begin; step&.did_sell?(corporation, p); rescue StandardError; false; end
 
-              if n_shares.zero? && !can_buy_from_player && !can_redeem_from_director && !just_sold
+              if n_shares.zero? && !can_buy_from_player && !can_redeem_from_director
                 players_row_content << h(:td, { attrs: { id: "player_shares_#{p.id}_#{corporation.id}" }, style: { backgroundColor: bg_color } }, '')
               else
                 base_share_pct = corporation.respond_to?(:share_percent) && corporation.share_percent ? corporation.share_percent : 10
@@ -1505,8 +1505,7 @@ module View
                 percent = raw_percent.positive? ? raw_percent : holding_percent
 
                 is_president = (corporation.respond_to?(:president?) && corporation.president?(p)) || (corporation.respond_to?(:owner) && corporation.owner == p)
-                text = n_shares.zero? ? '0%' : "#{percent}%"
-                text = '0%' if text.to_s.empty?
+                text = "#{percent}%"
 
                 card_classes = ['game-card']
                 card_classes << 'president-card' if is_president && !n_shares.zero?
@@ -1613,7 +1612,6 @@ module View
                 card = render_railcard(text, card_classes, click_handler, nil, dropdowns)
                 player_hover = n_shares.zero? ? '' : share_denomination_tooltip(player_shares, corporation)
                 card = h(:div, { attrs: { class: 'share-card-wrapper cert-share-card', 'data-corp': corporation.id, title: player_hover } }, [card])
-                card = h(:span, { style: { visibility: 'hidden', display: 'inline-block' } }, [card]) if n_shares.zero?
                 players_row_content << h(:td, { attrs: { id: "player_shares_#{p.id}_#{corporation.id}" }, style: { backgroundColor: bg_color, textAlign: 'center', position: 'relative' } }, [card])
               end
             end
