@@ -29,6 +29,7 @@ require 'view/game/dashboard/dashboard_upcoming_trains'
 require 'view/game/dashboard/dashboard_card_animation'
 require 'view/game/dashboard/dashboard_loan_animation'
 require 'view/game/dashboard/dashboard_money_animation'
+require 'view/game/dashboard/dashboard_marker_animation'
 require 'view/game/dashboard/railcard_helper'
 require 'view/game/dashboard/par_prompt_overlay'
 require 'view/game/dashboard/history_overlay'
@@ -461,25 +462,34 @@ module View
               variant: variant_name,
             }
 
+            if train_will_rust_now?(train, source_type)
+              rust_slugs = train_rust_slugs(train)
+              %x{
+                if (typeof window !== 'undefined' && window.triggerRustExplosion && #{rust_slugs}.length > 0) {
+                  window.triggerRustExplosion(#{rust_slugs});
+                }
+              }
+            end
+
             %x{
-      if (typeof window !== 'undefined') {
-        window._railcard_pending_transfer = #{transfer};
-        window._railcard_pending_source = #{source_selector};
+              if (typeof window !== 'undefined') {
+                window._railcard_pending_transfer = #{transfer};
+                window._railcard_pending_source = #{source_selector};
 
-        var el = document.querySelector(#{source_selector});
-        if (el) {
-          var card = el.querySelector('.game-card') || el;
-          var r = card.getBoundingClientRect();
+                var el = document.querySelector(#{source_selector});
+                if (el) {
+                  var card = el.querySelector('.game-card') || el;
+                  var r = card.getBoundingClientRect();
 
-          window._railcard_pending_source_rect = {
-            left: r.left,
-            top: r.top,
-            width: r.width,
-            height: r.height
-          };
-        }
-      }
-    }
+                  window._railcard_pending_source_rect = {
+                    left: r.left,
+                    top: r.top,
+                    width: r.width,
+                    height: r.height
+                  };
+                }
+              }
+            }
 
             process_action(
               Engine::Action::BuyTrain.new(
@@ -2164,6 +2174,7 @@ module View
           end
 
           wrapper_id = "train_wrapper_#{corporation.id}_#{t.id}"
+          train_card = render_railcard(t.obsolete ? "(#{t.name})" : t.name, card_classes, train_click_handler, nil, menu_dropdown, wrapper_id, entity: t)
           train_card = render_railcard(t.obsolete ? "(#{t.name})" : t.name, card_classes, train_click_handler, nil, menu_dropdown, wrapper_id)
           train_price = t.respond_to?(:price) && t.price ? @game.format_currency(t.price) : ''
           h(:div, { attrs: { title: train_price }, style: { display: 'inline-flex' } }, [train_card])

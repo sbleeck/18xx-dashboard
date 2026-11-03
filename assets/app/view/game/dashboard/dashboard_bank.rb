@@ -188,6 +188,7 @@ module View
 
             click_handler = lambda {
               variant_str = variant_name.to_s
+              display_train = train_entity_for_variant(train, variant_name, price)
 
               if @train_handler
                 @train_handler.call(
@@ -197,6 +198,15 @@ module View
                   type
                 )
               else
+                if train_will_rust_now?(display_train, type)
+                  rust_slugs = train_rust_slugs(display_train)
+                  %x{
+                    if (typeof window !== 'undefined' && window.triggerRustExplosion && #{rust_slugs}.length > 0) {
+                      window.triggerRustExplosion(#{rust_slugs});
+                    }
+                  }
+                end
+
                 process_action(
                   Engine::Action::BuyTrain.new(
                     entity,

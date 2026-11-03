@@ -903,6 +903,288 @@ module View
           mod ? mod.sub(/^G/, '').downcase : ''
         end
 
+        def resolve_train_entity(train_or_name)
+          return nil unless train_or_name && @game
+          return train_or_name if train_or_name.respond_to?(:rusts_on) || train_or_name.respond_to?(:distance)
+
+          name_str = train_or_name.to_s.tr('()', '').strip
+          depot_trains = @game.respond_to?(:depot) && @game.depot.respond_to?(:trains) ? (@game.depot.trains || []) : []
+          all_corps = @game.respond_to?(:all_corporations) ? (@game.all_corporations || []) : []
+          corp_trains = all_corps.flat_map { |c| c.trains || [] }
+
+          (depot_trains + corp_trains).find { |t| t.name.to_s == name_str || t.sym.to_s == name_str }
+        end
+
+        def game_phases
+          if @game.respond_to?(:phases) && @game.phases.is_a?(Array)
+            @game.phases
+          elsif @game.respond_to?(:phase) && @game.phase.respond_to?(:phases)
+            @game.phase.phases
+          else
+            []
+          end
+        end
+
+        def all_game_train_definitions
+          return @all_game_train_definitions if @all_game_train_definitions && @cached_game_trains == @game
+
+          @cached_game_trains = @game
+          list = []
+
+          list.concat(@game.depot.trains) if @game.respond_to?(:depot) && @game.depot.respond_to?(:trains) && @game.depot.trains
+          if @game.respond_to?(:all_corporations) && @game.all_corporations
+            list.concat(@game.all_corporations.flat_map { |c| c.trains || [] })
+          elsif @game.respond_to?(:corporations) && @game.corporations
+            list.concat(@game.corporations.flat_map { |c| c.trains || [] })
+          end
+          list.concat(@game.minors.flat_map { |m| m.trains || [] }) if @game.respond_to?(:minors) && @game.minors
+          list.concat(@game.class::TRAINS) if @game.class.const_defined?(:TRAINS) && @game.class::TRAINS.is_a?(Array)
+
+          @all_game_train_definitions = list.compact.uniq do |t|
+            (if t.is_a?(Hash)
+               t[:name]
+             else
+               (t.respond_to?(:name) ? t.name : t.to_s)
+             end).to_s
+          end
+        end
+
+        def train_phase_name(train_or_name)
+          return nil unless train_or_name && @game
+
+          phases = game_phases
+          return nil if phases.empty?
+
+          train = resolve_train_entity(train_or_name)
+
+          if train
+            if train.respond_to?(:available_on) && train.available_on
+              av = train.available_on.to_s
+              return av if phases.any? { |p| p[:name].to_s == av }
+            end
+            if train.respond_to?(:phase) && train.phase
+              ph = train.phase
+              ph_name = if ph.respond_to?(:name)
+                          ph.name.to_s
+                        else
+                          (ph.is_a?(Hash) ? (ph[:name] || ph['name']).to_s : ph.to_s)
+                        end
+              return ph_name if phases.any? { |p| p[:name].to_s == ph_name }
+            end
+          end
+
+          raw_str = (if train.respond_to?(:name)
+                       train.name
+                     elsif train_or_name.is_a?(Hash)
+                       train_or_name[:name]
+                     else
+                       train_or_name.to_s
+                     end).tr('()', '').strip
+          sym_str = (if train.respond_to?(:sym)
+                       train.sym
+                     elsif train_or_name.is_a?(Hash)
+                       train_or_name[:sym] || train_or_name[:name]
+                     else
+                       raw_str
+                     end).to_s
+
+          matching = phases.find do |p|
+            p[:name].to_s == raw_str ||
+              p[:name].to_s == sym_str ||
+              p[:train].to_s == sym_str ||
+              p[:train].to_s == raw_str ||
+              (p[:trains] && Array(p[:trains]).map(&:to_s).any? { |s| [sym_str, raw_str].include?(s) })
+          end
+          return matching[:name].to_s if matching
+
+          if raw_str =~ /^(\d+)[^0-9]/
+            base = Regexp.last_match(1)
+            return base if phases.any? { |p| p[:name].to_s == base }
+          end
+
+          nil
+        end
+
+        def phase_index(train_or_name)
+          return -1 unless train_or_name && @game
+
+          ph_name = train_phase_name(train_or_name)
+          if ph_name
+            idx = game_phases.index { |p| p[:name].to_s == ph_name }
+            return idx if idx
+          end
+
+          str = (if train_or_name.is_a?(Hash)
+                   train_or_name[:name]
+                 else
+                   (train_or_name.respond_to?(:name) ? train_or_name.name : train_or_name.to_s)
+                 end).to_s.tr('()', '').strip.downcase
+          protos = all_game_train_definitions
+          idx = protos.index do |t|
+            n = (if t.is_a?(Hash)
+                   t[:name]
+                 else
+                   (t.respond_to?(:name) ? t.name : t.to_s)
+                 end).to_s.tr('()', '').strip.downcase
+            s = (if t.is_a?(Hash)
+                   t[:sym] || t[:name]
+                 else
+                   (t.respond_to?(:sym) ? t.sym : t.to_s)
+                 end).to_s.tr('()', '').strip.downcase
+            n == str || s == str || n.start_with?(str)
+          end
+          return idx if idx
+
+          -1
+        end
+
+        def train_rust_slugs(train_or_name)
+          return [] unless train_or_name && @game
+
+          trigger_train = resolve_train_entity(train_or_name) || train_or_name
+          trigger_name = (trigger_train.respond_to?(:name) ? trigger_train.name : trigger_train.to_s).tr('()', '').strip
+          trigger_sym = (trigger_train.respond_to?(:sym) ? trigger_train.sym : trigger_name).to_s
+          trigger_phase_idx = phase_index(trigger_train)
+
+          candidates = all_game_train_definitions
+
+          rusted = candidates.select do |cand|
+            next false if cand == trigger_train
+
+            cand_name = (if cand.is_a?(Hash)
+                           cand[:name]
+                         else
+                           (cand.respond_to?(:name) ? cand.name : cand.to_s)
+                         end).tr('()', '').strip
+            cand_sym = (if cand.is_a?(Hash)
+                          cand[:sym] || cand[:name]
+                        else
+                          (cand.respond_to?(:sym) ? cand.sym : cand_name)
+                        end).to_s
+
+            next false if cand_name == trigger_name || cand_sym == trigger_sym
+            next false if cand_name.end_with?('*')
+
+            cand_phase_idx = phase_index(cand)
+            next false if cand_phase_idx >= 0 && trigger_phase_idx >= 0 && cand_phase_idx >= trigger_phase_idx
+
+            raw_rusts = cand.is_a?(Hash) ? (cand[:rusts_on] || cand['rusts_on']) : (cand.rusts_on if cand.respond_to?(:rusts_on))
+            next false unless raw_rusts
+
+            rust_triggers = Array(raw_rusts).map(&:to_s).reject(&:empty?)
+            next false if rust_triggers.empty?
+
+            direct = rust_triggers.any? { |r| r == trigger_sym || r == trigger_name }
+            next true if direct
+
+            if trigger_phase_idx >= 0
+              rust_triggers.any? do |r|
+                r_idx = phase_index(r)
+                r_idx >= 0 && r_idx <= trigger_phase_idx
+              end
+            else
+              false
+            end
+          end
+
+          rusted.map do |t|
+            raw = (if t.is_a?(Hash)
+                     t[:name]
+                   else
+                     (t.respond_to?(:name) ? t.name : t.sym)
+                   end).to_s
+            raw.tr('()', '').strip.downcase.tr('+/ ', 'p__').gsub(/[^a-z0-9_]/, '')
+          end.reject(&:empty?).uniq
+        end
+
+        def train_rusted_by_slugs(train_or_name)
+          return [] unless train_or_name && @game
+
+          victim = resolve_train_entity(train_or_name)
+          raw_rusts = if victim
+                        victim.is_a?(Hash) ? (victim[:rusts_on] || victim['rusts_on']) : (victim.rusts_on if victim.respond_to?(:rusts_on))
+                      end
+
+          if raw_rusts.nil? || (raw_rusts.respond_to?(:empty?) && raw_rusts.empty?)
+            v_name = (victim.respond_to?(:name) ? victim.name : train_or_name.to_s).tr('()', '').strip.downcase
+            cand = all_game_train_definitions.find do |c|
+              c_name = (if c.is_a?(Hash)
+                          c[:name]
+                        else
+                          (c.respond_to?(:name) ? c.name : c.to_s)
+                        end).tr('()', '').strip.downcase
+              c_name == v_name
+            end
+            if cand
+              raw_rusts = cand.is_a?(Hash) ? (cand[:rusts_on] || cand['rusts_on']) : (cand.rusts_on if cand.respond_to?(:rusts_on))
+            end
+          end
+
+          return [] unless raw_rusts
+
+          rust_triggers = Array(raw_rusts).map(&:to_s).reject(&:empty?)
+          return [] if rust_triggers.empty?
+
+          candidates = all_game_train_definitions
+          matching_candidates = candidates.select do |t|
+            t_name = (if t.is_a?(Hash)
+                        t[:name]
+                      else
+                        (t.respond_to?(:name) ? t.name : t.to_s)
+                      end).tr('()', '').strip
+            t_sym = (if t.is_a?(Hash)
+                       t[:sym] || t[:name]
+                     else
+                       (t.respond_to?(:sym) ? t.sym : t_name)
+                     end).to_s
+            rust_triggers.any? { |r| r == t_name || r == t_sym }
+          end
+
+          slugs = matching_candidates.map do |t|
+            raw = (if t.is_a?(Hash)
+                     t[:name]
+                   else
+                     (t.respond_to?(:name) ? t.name : t.sym)
+                   end).to_s
+            raw.tr('()', '').strip.downcase.tr('+/ ', 'p__').gsub(/[^a-z0-9_]/, '')
+          end
+
+          fallback_slugs = rust_triggers.map do |r|
+            r.tr('()', '').strip.downcase.tr('+/ ', 'p__').gsub(/[^a-z0-9_]/, '')
+          end
+
+          (slugs + fallback_slugs).reject(&:empty?).uniq
+        end
+
+        def train_will_rust_now?(train, source_type)
+          return false unless train && @game
+          return false if source_type.to_s == 'pool'
+
+          phases = game_phases
+          return false if phases.empty?
+
+          train_p_idx = phase_index(train)
+          return false if train_p_idx.negative?
+
+          current_p_name = if @game.respond_to?(:phase) && @game.phase
+                             @game.phase.respond_to?(:name) ? @game.phase.name : @game.phase.to_s
+                           end
+          current_p_idx = current_p_name ? phase_index(current_p_name) : -1
+
+          return false if current_p_idx >= 0 && train_p_idx <= current_p_idx
+
+          slugs = train_rust_slugs(train)
+          return false if slugs.empty?
+
+          corps = (@game.respond_to?(:all_corporations) && @game.all_corporations) || (@game.respond_to?(:corporations) && @game.corporations) || []
+          corp_trains = corps.flat_map { |c| c.trains || [] }
+          active_slugs = corp_trains.map do |t|
+            (t.respond_to?(:name) ? t.name : t.to_s).tr('()', '').strip.downcase.tr('+/ ', 'p__').gsub(/[^a-z0-9_]/, '')
+          end
+
+          (slugs & active_slugs).any?
+        end
+
         def train_hover_text(train_or_name)
           return nil unless train_or_name && @game
 
@@ -1378,7 +1660,6 @@ module View
               };
             }
 
-            // Single source of truth for synchronized 3-way corporate breathing animation
             var ensureTokenPulseStyle = function() {
               if (!document.getElementById('corp-token-pulse-style')) {
                 var s = document.createElement('style');
@@ -1392,6 +1673,38 @@ module View
                   '0% { transform: scale(1); } ' +
                   '50% { transform: scale(1.15); } ' +
                   '100% { transform: scale(1); } ' +
+                  '} ' +
+                  '@keyframes rust-corrode-shiver { ' +
+                  '0% { transform: scale(1) translate(0, 0) rotate(0deg); } ' +
+                  '20% { transform: scale(1.02) translate(-0.8px, 0.6px) rotate(-0.8deg); } ' +
+                  '40% { transform: scale(1.01) translate(0.8px, -0.6px) rotate(0.8deg); } ' +
+                  '60% { transform: scale(1.03) translate(-0.6px, -0.6px) rotate(-0.5deg); } ' +
+                  '80% { transform: scale(1.01) translate(0.6px, 0.6px) rotate(0.5deg); } ' +
+                  '100% { transform: scale(1) translate(0, 0) rotate(0deg); } ' +
+                  '} ' +
+                  '@keyframes rust-corrode-glow { ' +
+                  '0% { border-color: #b45309 !important; box-shadow: 0 0 5px #ea580c, inset 0 0 4px #78350f !important; } ' +
+                  '50% { border-color: #dc2626 !important; box-shadow: 0 0 12px #ef4444, inset 0 0 8px #991b1b !important; } ' +
+                  '100% { border-color: #b45309 !important; box-shadow: 0 0 5px #ea580c, inset 0 0 4px #78350f !important; } ' +
+                  '} ' +
+                  '@keyframes rust-trigger-beacon { ' +
+                  '0% { border-color: #dc2626 !important; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7) !important; transform: scale(1); } ' +
+                  '50% { border-color: #b91c1c !important; box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.35), 0 0 10px #ea580c !important; transform: scale(1.08); } ' +
+                  '100% { border-color: #dc2626 !important; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0) !important; transform: scale(1); } ' +
+                  '} ' +
+                  '@keyframes rust-cloud-expand { ' +
+                  '0% { transform: scale(0.3); opacity: 0.95; } ' +
+                  '40% { transform: scale(1.6); opacity: 0.85; } ' +
+                  '100% { transform: scale(2.6); opacity: 0; } ' +
+                  '} ' +
+                  '@keyframes rust-card-shatter { ' +
+                  '0% { transform: scale(1); filter: brightness(2) contrast(2); box-shadow: 0 0 15px #ea580c; opacity: 1; } ' +
+                  '30% { transform: scale(1.15) rotate(2deg); filter: sepia(1) saturate(4) hue-rotate(-30deg); box-shadow: 0 0 25px #c2410c; opacity: 0.9; } ' +
+                  '100% { transform: scale(0.4) rotate(-12deg); filter: brightness(0.2) blur(4px); opacity: 0; } ' +
+                  '} ' +
+                  '@keyframes rust-debris-scatter { ' +
+                  '0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; } ' +
+                  '100% { transform: translate(var(--tx), var(--ty)) scale(0.2) rotate(360deg); opacity: 0; } ' +
                   '} ' +
                   '#viz-master-frame .stock-market-token, .map-token, .major-railcard, .status-corp-wrapper, .cmd-corp-wrapper, .entity-order-token, .active-turn-corp-marker { ' +
                   'transform: scale(1); ' +
@@ -1418,6 +1731,20 @@ module View
                   'z-index: 99999 !important; ' +
                   'filter: drop-shadow(0 0 6px rgba(0, 255, 255, 0.8)) !important; ' +
                   '} ' +
+                  '#viz-master-frame .card-train.train-rust-victim { ' +
+                  'animation: rust-corrode-shiver 0.22s infinite linear, rust-corrode-glow 0.8s infinite ease-in-out !important; ' +
+                  'filter: sepia(0.85) saturate(3) hue-rotate(-25deg) contrast(1.15) !important; ' +
+                  'background-color: #fef3c7 !important; ' +
+                  'color: #78350f !important; ' +
+                  'z-index: 9999 !important; ' +
+                  '} ' +
+                  '#viz-master-frame .card-train.train-rust-trigger { ' +
+                  'animation: rust-trigger-beacon 0.85s infinite ease-in-out !important; ' +
+                  'border: 2px solid #dc2626 !important; ' +
+                  'background-color: #fef2f2 !important; ' +
+                  'color: #991b1b !important; ' +
+                  'z-index: 99999 !important; ' +
+                  '} ' +
                   '#viz-master-frame :has(> .stock-market-token-highlight), #viz-master-frame :has(.stock-market-token-highlight) { z-index: 99999 !important; }';
                 document.head.appendChild(s);
               }
@@ -1433,7 +1760,6 @@ module View
 
               var safeCorpAttr = String(corpId).replace(/["\\]/g, '\\$&');
 
-              // 1. Highlight stock market tokens
               var stockTokens = root.querySelectorAll(
                 '.stock-market-token[data-corp="' + safeCorpAttr + '"], [id="stock-token-' + safeCorpAttr + '"]'
               );
@@ -1447,7 +1773,6 @@ module View
                 }
               }
 
-              // 2. Highlight map tokens
               var mapTokens = root.querySelectorAll(
                 '.map-token[data-corp="' + safeCorpAttr + '"], [data-corp="' + safeCorpAttr + '"].map-token'
               );
@@ -1460,7 +1785,6 @@ module View
                 }
               }
 
-              // 3 & 4. Highlight status panel major railcards, Operating Order tokens, and Move Feed badges
               var statusCards = root.querySelectorAll(
                 '.major-railcard[data-corp="' + safeCorpAttr + '"], ' +
                 '.status-corp-wrapper[data-corp="' + safeCorpAttr + '"], ' +
@@ -1490,6 +1814,146 @@ module View
                 highlightedCards[j].classList.remove('status-corp-highlight');
               }
             };
+
+            if (!window._train_rust_hover_installed) {
+              window._train_rust_hover_installed = true;
+
+              var clearRustHighlights = function() {
+                var root = document.getElementById('viz-master-frame') || document;
+                var victims = root.querySelectorAll('.train-rust-victim');
+                for (var i = 0; i < victims.length; i++) {
+                  victims[i].classList.remove('train-rust-victim');
+                }
+                var triggers = root.querySelectorAll('.train-rust-trigger');
+                for (var j = 0; j < triggers.length; j++) {
+                  triggers[j].classList.remove('train-rust-trigger');
+                }
+              };
+
+              document.addEventListener('mouseover', function(e) {
+                if (!e.target || !e.target.closest) return;
+                var trainCard = e.target.closest('#viz-master-frame .card-train');
+                if (!trainCard) {
+                  if (!e.target.closest('#viz-master-frame .train-rust-victim, #viz-master-frame .train-rust-trigger')) {
+                    clearRustHighlights();
+                  }
+                  return;
+                }
+
+                clearRustHighlights();
+                var root = document.getElementById('viz-master-frame') || document;
+
+                var rustsThese = trainCard.getAttribute('data-rusts-these');
+                if (rustsThese) {
+                  var targetSlugs = rustsThese.split(',').filter(Boolean);
+                  for (var i = 0; i < targetSlugs.length; i++) {
+                    var matchingVictims = root.querySelectorAll('.card-train[data-train="' + targetSlugs[i] + '"]');
+                    for (var k = 0; k < matchingVictims.length; k++) {
+                      matchingVictims[k].classList.add('train-rust-victim');
+                    }
+                  }
+                }
+
+                var rustedBy = trainCard.getAttribute('data-rusted-by');
+                if (rustedBy) {
+                  var triggerSlugs = rustedBy.split(',').filter(Boolean);
+                  for (var j = 0; j < triggerSlugs.length; j++) {
+                    var matchingTriggers = root.querySelectorAll(
+                      '#upcoming_trains .card-train[data-train="' + triggerSlugs[j] + '"], ' +
+                      '#bank .card-train[data-train="' + triggerSlugs[j] + '"]'
+                    );
+                    for (var m = 0; m < matchingTriggers.length; m++) {
+                      matchingTriggers[m].classList.add('train-rust-trigger');
+                    }
+                  }
+                }
+              });
+
+              document.addEventListener('mouseout', function(e) {
+                if (!e.target || !e.target.closest) return;
+                var trainCard = e.target.closest('#viz-master-frame .card-train');
+                if (trainCard) {
+                  var rel = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#viz-master-frame .card-train');
+                  if (rel !== trainCard) {
+                    clearRustHighlights();
+                  }
+                }
+              });
+
+              window.addEventListener('scroll', clearRustHighlights, true);
+              window.addEventListener('click', clearRustHighlights, true);
+
+          window.triggerRustExplosion = function(slugs) {
+                if (!slugs || slugs.length === 0) return;
+                var root = document.getElementById('viz-master-frame') || document;
+
+                var targetCards = [];
+                for (var s = 0; s < slugs.length; s++) {
+                  var matches = root.querySelectorAll(
+                    '.corporation-trains .card-train[data-train="' + slugs[s] + '"], ' +
+                    '#bank [id^="bank_train_pool_"] .card-train[data-train="' + slugs[s] + '"]'
+                  );
+                  for (var m = 0; m < matches.length; m++) {
+                    targetCards.push(matches[m]);
+                  }
+                }
+                if (targetCards.length === 0) return;
+
+                var explosionLayer = document.getElementById('rust-explosion-layer');
+                if (!explosionLayer) {
+                  explosionLayer = document.createElement('div');
+                  explosionLayer.id = 'rust-explosion-layer';
+                  explosionLayer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:2147483646;overflow:hidden;';
+                  document.body.appendChild(explosionLayer);
+                }
+
+                var hiddenCards = [];
+
+                for (var i = 0; i < targetCards.length; i++) {
+                  var card = targetCards[i];
+                  var rect = card.getBoundingClientRect();
+                  if (rect.width === 0 || rect.height === 0) continue;
+
+                  card.style.opacity = '0';
+                  card.style.visibility = 'hidden';
+                  hiddenCards.push(card);
+
+                  var cloud = document.createElement('div');
+                  cloud.className = 'rust-smoke-cloud';
+                  cloud.style.cssText = 'position:fixed;left:' + (rect.left + rect.width / 2) + 'px;top:' + (rect.top + rect.height / 2) + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin-left:-' + (rect.width / 2) + 'px;margin-top:-' + (rect.height / 2) + 'px;border-radius:50%;background:radial-gradient(circle, rgba(234,88,12,0.95) 0%, rgba(180,83,9,0.8) 35%, rgba(120,53,15,0.6) 60%, rgba(71,85,105,0) 80%);filter:blur(3px);animation:rust-cloud-expand 0.75s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;pointer-events:none;';
+                  explosionLayer.appendChild(cloud);
+
+                  var flashCard = card.cloneNode(true);
+                  flashCard.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin:0;opacity:1;visibility:visible;pointer-events:none;animation:rust-card-shatter 0.65s ease-out forwards;z-index:2147483647;';
+                  explosionLayer.appendChild(flashCard);
+
+                  var particleCount = 12;
+                  for (var p = 0; p < particleCount; p++) {
+                    var particle = document.createElement('div');
+                    var angle = (Math.PI * 2 * p) / particleCount + (Math.random() - 0.5) * 0.5;
+                    var distance = 25 + Math.random() * 45;
+                    var tx = Math.cos(angle) * distance;
+                    var ty = Math.sin(angle) * distance;
+                    var size = 6 + Math.random() * 8;
+                    var colors = ['#b45309', '#ea580c', '#78350f', '#9a3412', '#475569', '#334155'];
+                    var color = colors[Math.floor(Math.random() * colors.length)];
+
+                    particle.style.cssText = 'position:fixed;left:' + (rect.left + rect.width / 2) + 'px;top:' + (rect.top + rect.height / 2) + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:' + (Math.random() > 0.4 ? '50%' : '2px') + ';background-color:' + color + ';opacity:0.95;pointer-events:none;--tx:' + tx + 'px;--ty:' + ty + 'px;animation:rust-debris-scatter 0.75s ease-out forwards;';
+                    explosionLayer.appendChild(particle);
+                  }
+                }
+
+                setTimeout(function() {
+                  if (explosionLayer && explosionLayer.parentNode) {
+                    explosionLayer.innerHTML = '';
+                  }
+                  for (var h = 0; h < hiddenCards.length; h++) {
+                    hiddenCards[h].style.opacity = '';
+                    hiddenCards[h].style.visibility = '';
+                  }
+                }, 750);
+              };
+            }
 
             var dashboardRoot = document.getElementById('viz-master-frame');
             if (dashboardRoot && !dashboardRoot.querySelector('#railcard-portal')) {
@@ -1569,7 +2033,6 @@ module View
                 p.style.top = y + 'px';
                 p.style.transform = 'none';
               };
-// --- END FIX ---
 
               document.addEventListener('mouseover', function(e) {
                 if (!e.target || !e.target.closest || !e.target.closest('#viz-master-frame')) return;
@@ -1630,7 +2093,6 @@ module View
               var getCorpFromElement = function(el) {
                 if (!el || !el.closest) return null;
 
-                // 1. Stock market token or container
                 var stockToken = el.closest('.stock-market-token');
                 if (stockToken) {
                   var stCorp = stockToken.getAttribute('data-corp');
@@ -1640,25 +2102,21 @@ module View
                   }
                 }
 
-                // 2. Map token
                 var mapToken = el.closest('.map-token');
                 if (mapToken) {
                   var mtCorp = mapToken.getAttribute('data-corp');
                   if (mtCorp) return mtCorp;
                 }
-                // 2b. Operating Order / Turn bar token or Move Feed corp badge
                 var orderToken = el.closest('.entity-order-token, .active-turn-corp-marker, .cmd-corp-wrapper, .status-corp-wrapper');
                 if (orderToken) {
                   var otCorp = orderToken.getAttribute('data-corp');
                   if (otCorp) return otCorp;
                 }
 
-                // 3. Operational columns: ignore cash/trains/empty slots
                 if (el.closest('.corporation-trains, .corporation-cash, .empty-train-slot, [id^="trains_"], [id^="tokens_"]')) {
                   return null;
                 }
 
-                // 4. Certificates and status cards
                 var certEl = el.closest('.cert-share-card, .game-card, .major-railcard, .short-card, .ghost-short-card, .major-railcard-wrapper');
                 if (!certEl) return null;
 
@@ -1817,6 +2275,7 @@ module View
                         end
 
           train_title = nil
+          train_target = nil
           if is_train
             train_target = entity
             if !train_target && wrapper_id.to_s =~ /train_wrapper_([^_]+)_(.+)/
@@ -1830,7 +2289,6 @@ module View
             train_title = train_hover_text(train_target)
           end
 
-          # Only compute plain-text title fallback if no rich HTML tooltip is attached
           company_title = nil
           if is_private && !has_tooltip
             comp_target = if entity && entity.respond_to?(:company?) && entity.company?
@@ -1857,6 +2315,8 @@ module View
             borderRadius: card_radius,
             fontSize: '0.85rem',
             fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+            opacity: '1',
+            visibility: 'visible',
             color: '#000000',
             backgroundColor: bg_color,
             border: "2px solid #{border_color}",
@@ -1871,8 +2331,14 @@ module View
           card_props[:attrs][:id] = clean_wrapper_id if has_wrapper_id
           card_props[:attrs][:title] = hover_title if hover_title && !needs_wrapper
           if is_train
-            t_slug = (entity.respond_to?(:name) ? entity.name : text).to_s.tr('()', '').strip.downcase.tr('+', 'p').gsub(/[^a-z0-9_]/, '')
+            t_slug = (train_target.respond_to?(:name) ? train_target.name : text).to_s.tr('()', '').strip.downcase.tr('+', 'p').gsub(/[^a-z0-9_]/, '')
             card_props[:attrs]['data-train'] = t_slug unless t_slug.empty?
+
+            r_these = train_rust_slugs(train_target)
+            card_props[:attrs]['data-rusts-these'] = r_these.join(',') unless r_these.empty?
+
+            r_by = train_rusted_by_slugs(train_target)
+            card_props[:attrs]['data-rusted-by'] = r_by.join(',') unless r_by.empty?
           end
           card_props[:on] = { click: click_handler } if is_clickable
 
