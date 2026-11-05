@@ -3204,7 +3204,7 @@ module View
                     mousedown: ->(e) { start_drag(e) },
                   },
                 }, [
-                  h(:span, '⚡ Actions Hub'),
+                  h(:span, '⚡ Action Hub'),
                   h(:button, {
                       attrs: {
                         id: 'btn-action-hub-assist',

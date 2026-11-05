@@ -574,7 +574,7 @@ module View
                                  width: '100%',
                                  textAlign: 'center',
                                  position: 'relative',
-                                 cursor: player_hover_text.empty? ? 'default' : 'help',
+                                 cursor: 'default',
                                },
                                on: {
                                  mouseenter: lambda {
@@ -756,9 +756,7 @@ module View
 
         percent = action_value(action, :percent).to_i
 
-        if percent.zero? && corporation && raw_shares.any?
-          percent = raw_shares.size * corporation.share_percent.to_i
-        end
+        percent = raw_shares.size * corporation.share_percent.to_i if percent.zero? && corporation && raw_shares.any?
 
         source = ''
 
@@ -2355,7 +2353,6 @@ module View
 
           wrapper_id = "train_wrapper_#{corporation.id}_#{t.id}"
           train_card = render_railcard(t.obsolete ? "(#{t.name})" : t.name, card_classes, train_click_handler, nil, menu_dropdown, wrapper_id, entity: t)
-          train_card = render_railcard(t.obsolete ? "(#{t.name})" : t.name, card_classes, train_click_handler, nil, menu_dropdown, wrapper_id)
           train_price = t.respond_to?(:price) && t.price ? @game.format_currency(t.price) : ''
           h(:div, { attrs: { title: train_price }, style: { display: 'inline-flex' } }, [train_card])
         end
@@ -2546,21 +2543,22 @@ module View
 
       def share_denomination_tooltip(shares, corporation)
         shares_list = Array(shares).compact
-        return '' if shares_list.size <= 1
+        return '' if shares_list.empty?
 
         counts = Hash.new(0)
+
         shares_list.each do |share|
-          raw_pct = if share.respond_to?(:percent) && share.percent
-                      share.percent
-                    elsif corporation.respond_to?(:share_percent) && corporation&.share_percent
-                      corporation.share_percent
-                    else
-                      10
-                    end
+          raw_pct =
+            if share.respond_to?(:percent) && share.percent
+              share.percent
+            elsif corporation.respond_to?(:share_percent) && corporation.share_percent
+              corporation.share_percent
+            else
+              10
+            end
+
           counts[raw_pct] += 1
         end
-
-        return '' if counts.empty? || counts.values.sum <= 1
 
         entries = counts.sort_by { |pct, _| -pct }.map do |pct, count|
           pct_str = (pct.to_f % 1).zero? ? "#{pct.to_i}%" : "#{pct.to_f.round(1)}%"
@@ -2568,6 +2566,8 @@ module View
         end
 
         case entries.size
+        when 0
+          ''
         when 1
           entries.first
         when 2
