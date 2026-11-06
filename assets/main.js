@@ -68032,7 +68032,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
           n_ipo_shares = ($truthy(corporation['$minor?']()) ? (0) : (self.$num_ipo_shares(corporation)));
           n_market_shares = self.$num_shares_of(self.game.$share_pool(), corporation);
           players_row_content = [];
-          $send(self.$display_players(), 'each', [], function $$74(p){var $e, $f, self = $$74.$$s == null ? this : $$74.$$s, is_active_col = nil, bg_color = nil, player_shares = nil, bundles = nil, active_step_actions = nil, can_sell_now = nil, emergency_active = nil, legal_bundles = nil, can_sell = nil, valid_player_buys = nil, can_buy_from_player = nil, director_redeem_bundles = nil, can_redeem_from_director = nil, card_classes = nil, card_props = nil, star_marker = nil, minor_card = nil, minor_hover = nil, wrapped_minor = nil, raw_percent = nil, is_short = nil, player_shorts = nil, can_short_cell = nil, cover_bundle = nil, can_cover = nil, can_short_more = nil, share_val = nil, short_unit_pct = nil, ghost_click = nil, ghost_card = nil, n_shares = nil, just_sold = nil, base_share_pct = nil, holding_percent = nil, percent = nil, is_president = nil, text = nil, cancel_handler = nil, player_hover = nil;
+          $send(self.$display_players(), 'each', [], function $$74(p){var $e, $f, self = $$74.$$s == null ? this : $$74.$$s, is_active_col = nil, bg_color = nil, player_shares = nil, bundles = nil, active_step_actions = nil, can_sell_now = nil, emergency_active = nil, legal_bundles = nil, can_sell = nil, valid_player_buys = nil, can_buy_from_player = nil, director_redeem_bundles = nil, can_redeem_from_director = nil, card_classes = nil, card_props = nil, star_marker = nil, minor_card = nil, minor_hover = nil, wrapped_minor = nil, raw_percent = nil, is_short = nil, player_shorts = nil, can_short_cell = nil, cover_bundle = nil, can_cover = nil, can_short_more = nil, share_val = nil, short_unit_pct = nil, ghost_click = nil, ghost_card = nil, n_shares = nil, just_sold = nil, td_children = nil, base_share_pct = nil, holding_percent = nil, percent = nil, is_president = nil, text = nil, cancel_handler = nil, player_hover = nil;
             if (self.game == null) self.game = nil;
 
             
@@ -68251,8 +68251,13 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
                     } finally { Opal.pop_exception($err); }
                   } else { throw $err; }
                 }})();
-                if (((($truthy(n_shares['$zero?']()) && ($not(can_buy_from_player))) && ($not(can_redeem_from_director))) && ($not(just_sold)))) {
-                  return players_row_content['$<<'](self.$h("td", (new Map([["attrs", (new Map([["id", "player_shares_" + (p.$id()) + "_" + (corporation.$id())]]))], ["style", (new Map([["backgroundColor", bg_color]]))]])), ""))
+                if ((($truthy(n_shares['$zero?']()) && ($not(can_buy_from_player))) && ($not(can_redeem_from_director)))) {
+                  
+                  td_children = [];
+                  if ($truthy(just_sold)) {
+                    td_children['$<<'](self.$h("span", (new Map([["attrs", (new Map([["class", "token-bond"]]))], ["style", (new Map([["position", "absolute"], ["top", "2px"], ["right", "2px"], ["width", "6px"], ["height", "6px"], ["borderRadius", "50%"], ["backgroundColor", "#dc2626"], ["pointerEvents", "none"], ["zIndex", "2"]]))]]))))
+                  };
+                  return players_row_content['$<<'](self.$h("td", (new Map([["attrs", (new Map([["id", "player_shares_" + (p.$id()) + "_" + (corporation.$id())]]))], ["style", (new Map([["backgroundColor", bg_color], ["textAlign", "center"], ["position", "relative"]]))]])), td_children));
                 } else {
                   
                   base_share_pct = (($truthy(corporation['$respond_to?']("share_percent")) && ($truthy(corporation.$share_percent()))) ? (corporation.$share_percent()) : (10));
