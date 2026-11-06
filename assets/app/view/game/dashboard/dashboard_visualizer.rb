@@ -108,6 +108,30 @@ module View
       needs :simple_logos, store: true, default: nil
       include Actionable
 
+      needs :high_contrast, store: true, default: nil
+
+      def contrast_mode_enabled?
+        return @high_contrast unless @high_contrast.nil?
+
+        [true, 'true'].include?(Lib::Storage['map_high_contrast'])
+      end
+
+      def toggle_contrast
+        new_val = !contrast_mode_enabled?
+
+        @high_contrast = new_val
+        Lib::Storage['map_high_contrast'] = new_val
+        store(:high_contrast, new_val, skip: true)
+
+        %x{
+          try {
+            localStorage.setItem('map_high_contrast', #{new_val} ? 'true' : 'false');
+          } catch(e) {}
+        }
+
+        update
+      end
+
       def meme_revenue_enabled?
         return @show_meme_revenue unless @show_meme_revenue.nil?
 
@@ -826,6 +850,24 @@ module View
                          style: logo_btn_style,
                          on: { click: -> { toggle_simple_logos } },
                        }, 'L')
+
+          # // --- START FIX ---
+          is_contrast_active = contrast_mode_enabled?
+          contrast_btn_style = button_style.merge(
+            backgroundColor: is_contrast_active ? '#10b981' : '#ffffff',
+            color: is_contrast_active ? '#ffffff' : '#333333',
+            borderColor: is_contrast_active ? '#059669' : '#999999'
+          )
+          buttons << h(:button, {
+                         attrs: {
+                           id: 'btn-toggle-contrast',
+                           title: is_contrast_active ? 'Contrast: White on Dark (click for Normal)' : 'Contrast: Normal (click for White on Dark)',
+                           type: 'button',
+                         },
+                         style: contrast_btn_style,
+                         on: { click: -> { toggle_contrast } },
+                       }, 'C')
+          # // --- END FIX ---
         end
 
         h(:div, {
@@ -3081,46 +3123,7 @@ createPanHandler('panel-ledger');
                      '  animation: map-hex-pulse 1.3s infinite ease-in-out !important; ' +
                      '}';
 
-                    window.highlightMapHexes = function(hexIds) {
-                      if (!hexIds) return;
-                      var ids = Array.isArray(hexIds) ? hexIds : [hexIds];
-                      if (!ids.length) return;
-                      var mapPanel = document.getElementById('map-panel-bot') || document;
-                      for (var i = 0; i < ids.length; i++) {
-                        var raw = String(ids[i]);
-                        var variants = [raw, raw.toUpperCase(), raw.toLowerCase()];
-                        for (var v = 0; v < variants.length; v++) {
-                          var hid = variants[v];
-                          var targets = mapPanel.querySelectorAll('#hex-' + hid + ', [data-hex="' + hid + '"], .hex-' + hid);
-                          for (var j = 0; j < targets.length; j++) {
-                            targets[j].classList.add('map-hex-highlight');
-                            var poly = targets[j].querySelector('.hex-highlight-poly');
-                            if (poly) {
-                              poly.setAttribute('stroke', '#ff0055');
-                              poly.setAttribute('stroke-width', '8');
-                              poly.setAttribute('fill', '#ff0055');
-                              poly.setAttribute('fill-opacity', '0.25');
-                            }
-                          }
-                        }
-                      }
-                    };
-
-                    window.clearMapHexHighlights = function() {
-                      var mapPanel = document.getElementById('map-panel-bot') || document;
-                      var highlighted = mapPanel.querySelectorAll('.map-hex-highlight');
-                      for (var i = 0; i < highlighted.length; i++) {
-                        highlighted[i].classList.remove('map-hex-highlight');
-                        var poly = highlighted[i].querySelector('.hex-highlight-poly');
-                        if (poly) {
-                          var origStroke = poly.getAttribute('data-orig-stroke') || 'transparent';
-                          var origWidth = poly.getAttribute('data-orig-width') || '0';
-                          poly.setAttribute('stroke', origStroke);
-                          poly.setAttribute('stroke-width', origWidth);
-                          poly.setAttribute('fill-opacity', '0');
-                        }
-                      }
-                    };
+                    // Map highlighting is owned by DashboardMap.
 
                     var fitObserver = new ResizeObserver(function(entries) {
                       var dynStyle = document.getElementById('dynamic-scaler-styles');
@@ -3411,98 +3414,101 @@ window.recalcAllPanels = function() {
             h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: '0.5rem' } }, [
               (render_temporal_hub if map_wider_than_high?),
               (h(:div, { attrs: { id: 'resizer-h-entity-map', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }) if map_wider_than_high?),
-              h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', width: '100%', height: '100%', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
+              h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', width: '100%', height: '100%', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: (contrast_mode_enabled? ? '#000000' : '#fff'), overflow: 'hidden', position: 'relative' } }, [
 
-render_zoom_controls('map-panel-bot', { top: '6px', right: '12px' }),
-render_map_phase_indicator,
-h(:div, {
-    attrs: { id: 'map-scroll-canvas' },
-    style: {
-      width: '100%',
-      height: '100%',
-      maxHeight: '100%',
-      minHeight: '0',
-      overflow: 'auto',
-      overflowX: 'auto',
-      overflowY: 'auto',
-      position: 'relative',
-      boxSizing: 'border-box',
-    },
-  }, [
-  h(:div, {
-      attrs: { class: 'map-sizer' },
-      style: {
-        position: 'relative',
-        display: 'block',
-        width: '100%',
-        height: '100%',
-        minWidth: '100%',
-        minHeight: '100%',
-      },
-    }, [
-    h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
-h(View::Game::DashboardMap,
-  game: @game,
-  user: @user,
-  show_meme_revenue: meme_revenue_enabled?,
-  show_location_names: location_names_enabled?,
-  simple_logos: simple_logos_enabled?),
-      ]),
-  ]),
-]),
-h(:div, {
-    attrs: { id: 'canvas-game-watermark' },
-    style: {
-      position: 'absolute',
-      bottom: '8px',
-      right: '16px',
-      zIndex: 15,
-      pointerEvents: 'none',
-      userSelect: 'none',
-      fontFamily: 'Impact, "Arial Black", sans-serif',
-      fontSize: '5.5rem',
-      fontWeight: '900',
-      lineHeight: '1',
-      letterSpacing: '2px',
-      color: 'rgba(15, 23, 42, 0.18)',
-      textShadow: '0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)',
-    },
-  }, game_title),
-h(:div, {
-    attrs: { class: 'panel-manifest-control' },
-    style: {
-      position: 'absolute',
-      top: '36px',
-      left: '6px',
-      zIndex: 30,
-      display: 'flex',
-    },
-  }, [
-  h(:button, {
-      attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
-      style: {
-        backgroundColor: '#ffffff',
-        color: '#1e293b',
-        border: '1px solid #94a3b8',
-        borderRadius: '4px',
-        padding: '4px 9px',
-        fontSize: '0.78rem',
-        fontWeight: 'bold',
-        cursor: 'pointer',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        lineHeight: '1.2',
-      },
-      on: {
-        click: lambda {
-          Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
-          update
-        },
-      },
-    }, 'Show Remaining Tiles'),
-]),
-].compact),
+              render_zoom_controls('map-panel-bot', { top: '6px', right: '12px' }),
+              render_map_phase_indicator,
+              h(:div, {
+                  attrs: { id: 'map-scroll-canvas' },
+                  style: {
+                    width: '100%',
+                    height: '100%',
+                    maxHeight: '100%',
+                    minHeight: '0',
+                    overflow: 'auto',
+                    overflowX: 'auto',
+                    overflowY: 'auto',
+                    position: 'relative',
+                    boxSizing: 'border-box',
+                    backgroundColor: (contrast_mode_enabled? ? '#000000' : 'transparent'),
+                  },
+                }, [
+                h(:div, {
+                    attrs: { class: 'map-sizer' },
+                    style: {
+                      position: 'relative',
+                      display: 'block',
+                      width: '100%',
+                      height: '100%',
+                      minWidth: '100%',
+                      minHeight: '100%',
+                    },
+                  }, [
+                  h(:div, { attrs: { class: 'scaler-content' }, style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left' } }, [
+              h(View::Game::DashboardMap,
+                game: @game,
+                user: @user,
+                show_meme_revenue: meme_revenue_enabled?,
+                show_location_names: location_names_enabled?,
+                simple_logos: simple_logos_enabled?,
+                high_contrast: contrast_mode_enabled?),
+
+                    ]),
+                ]),
+              ]),
+              h(:div, {
+                  attrs: { id: 'canvas-game-watermark' },
+                  style: {
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '16px',
+                    zIndex: 15,
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                    fontFamily: 'Impact, "Arial Black", sans-serif',
+                    fontSize: '5.5rem',
+                    fontWeight: '900',
+                    lineHeight: '1',
+                    letterSpacing: '2px',
+                    color: (contrast_mode_enabled? ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.18)'),
+                    textShadow: (contrast_mode_enabled? ? 'none' : '0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)'),
+                  },
+                }, game_title),
+              h(:div, {
+                  attrs: { class: 'panel-manifest-control' },
+                  style: {
+                    position: 'absolute',
+                    top: '36px',
+                    left: '6px',
+                    zIndex: 30,
+                    display: 'flex',
+                  },
+                }, [
+                h(:button, {
+                    attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
+                    style: {
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
+                      border: '1px solid #94a3b8',
+                      borderRadius: '4px',
+                      padding: '4px 9px',
+                      fontSize: '0.78rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      lineHeight: '1.2',
+                    },
+                    on: {
+                      click: lambda {
+                        Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
+                        update
+                      },
+                    },
+                  }, 'Show Remaining Tiles'),
+              ]),
+              ].compact),
               ].compact),
 
             h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),

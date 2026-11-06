@@ -518,6 +518,14 @@ module View
       needs :show_meme_revenue, default: nil, store: true
       needs :show_location_names, default: nil, store: true
       needs :simple_logos, default: nil, store: true
+      needs :high_contrast, default: nil, store: true
+
+      def high_contrast?
+        stored = [true, 'true'].include?(Lib::Storage['map_high_contrast'])
+        return stored if @high_contrast.nil?
+
+        @high_contrast
+      end
 
       EDGE_LENGTH = 50
       SIDE_TO_SIDE = 87
@@ -529,67 +537,99 @@ module View
         (min..max).to_a
       end
 
-      # Register highlighter immediately on load so cyan is active before any layout guards
+      # Canonical dashboard map highlighting API.
+      # opportunity = legal action; related = informational relationship.
       %x{
         if (typeof window !== 'undefined') {
+          window._dashboardHexHighlightChannels = window._dashboardHexHighlightChannels || { opportunity: [], related: [] };
 
+          window._dashboardHexIdList = function(hexIds) {
+            if (!hexIds) return [];
+            var list = Array.isArray(hexIds) ? hexIds : [hexIds];
+            var seen = {};
+            var result = [];
+            for (var i = 0; i < list.length; i++) {
+              var id = String(list[i] || '').trim();
+              if (!id) continue;
+              var key = id.toUpperCase();
+              if (seen[key]) continue;
+              seen[key] = true;
+              result.push(id);
+            }
+            return result;
+          };
 
-          window.highlightMapHexes = function(hexIds, _color, breatheLastBuilt) {
-            if (!hexIds) return;
+          window._dashboardFindMapHex = function(rawId) {
+            var dashboard = document.getElementById('viz-master-frame');
+            if (!dashboard) return null;
+            var id = String(rawId);
+            return dashboard.querySelector('#hex-' + id) ||
+              dashboard.querySelector('.hex-' + id) ||
+              dashboard.querySelector('#hex-' + id.toUpperCase()) ||
+              dashboard.querySelector('.hex-' + id.toUpperCase()) ||
+              dashboard.querySelector('#hex-' + id.toLowerCase()) ||
+              dashboard.querySelector('.hex-' + id.toLowerCase());
+          };
+
+          window._dashboardRenderHexHighlights = function() {
             var dashboard = document.getElementById('viz-master-frame');
             if (!dashboard) return;
-            window.clearMapHexHighlights();
-            var list = Array.isArray(hexIds) ? hexIds : (hexIds.to_a ? hexIds.to_a() : [hexIds]);
-
-            if (Array.isArray(window._hoveredCorpLastHexes) && window._hoveredCorpLastHexes.length > 0) {
-              list = list.concat(window._hoveredCorpLastHexes);
+            var allHexes = dashboard.querySelectorAll('.map-hex-container');
+            for (var i = 0; i < allHexes.length; i++) {
+              allHexes[i].classList.remove('map-highlight-opportunity', 'map-highlight-related');
             }
-
-            var len = list.length || 0;
-for (var i = 0; i < list.length; i++) {
-              var rawId = String(list[i]);
-             var targets = [
-  dashboard.querySelector('#hex-' + rawId),
-  dashboard.querySelector('.hex-' + rawId),
-  dashboard.querySelector('#hex-' + rawId.toUpperCase()),
-  dashboard.querySelector('.hex-' + rawId.toUpperCase()),
-  dashboard.querySelector('#hex-' + rawId.toLowerCase()),
-  dashboard.querySelector('.hex-' + rawId.toLowerCase())
-];
-              for (var t = 0; t < targets.length; t++) {
-                var hexEl = targets[t];
-                if (hexEl) {
-                  var poly = hexEl.querySelector('.hex-highlight-poly');
-                  if (poly) {
-                    poly.setAttribute('stroke', '#00ffff');
-                    poly.setAttribute('stroke-width', '8');
-                    poly.setAttribute('fill', '#00ffff');
-                    poly.setAttribute('fill-opacity', '0.35');
-                    if (breatheLastBuilt || (Array.isArray(window._hoveredCorpLastHexes) && window._hoveredCorpLastHexes.map(String).indexOf(rawId) >= 0)) {
-                      poly.classList.add('last-built-tile-breathing');
-                    }
-                  }
-                }
-              }
+            var channels = window._dashboardHexHighlightChannels || {};
+            var opportunity = window._dashboardHexIdList(channels.opportunity || []);
+            var related = window._dashboardHexIdList(channels.related || []);
+            var primary = {};
+            for (var oi = 0; oi < opportunity.length; oi++) {
+              primary[String(opportunity[oi]).toUpperCase()] = true;
+              var opportunityHex = window._dashboardFindMapHex(opportunity[oi]);
+              if (opportunityHex) opportunityHex.classList.add('map-highlight-opportunity');
+            }
+            for (var ri = 0; ri < related.length; ri++) {
+              if (primary[String(related[ri]).toUpperCase()]) continue;
+              var relatedHex = window._dashboardFindMapHex(related[ri]);
+              if (relatedHex) relatedHex.classList.add('map-highlight-related');
             }
           };
 
+          window.setMapHexHighlightChannel = function(channel, hexIds) {
+            if (channel !== 'opportunity' && channel !== 'related') return;
+            window._dashboardHexHighlightChannels = window._dashboardHexHighlightChannels || { opportunity: [], related: [] };
+            window._dashboardHexHighlightChannels[channel] = window._dashboardHexIdList(hexIds);
+            window._dashboardRenderHexHighlights();
+          };
+
+          window.clearMapHexHighlightChannel = function(channel) {
+            if (!window._dashboardHexHighlightChannels) return;
+            if (channel === 'opportunity' || channel === 'related') window._dashboardHexHighlightChannels[channel] = [];
+            window._dashboardRenderHexHighlights();
+          };
+
           window.clearMapHexHighlights = function() {
-var dashboard = document.getElementById('viz-master-frame');
-if (!dashboard) return;
-var polys = dashboard.querySelectorAll('.hex-highlight-poly');
-            for (var i = 0; i < polys.length; i++) {
-              var p = polys[i];
-              var origStroke = p.getAttribute('data-orig-stroke') || 'transparent';
-              var origWidth = p.getAttribute('data-orig-width') || '0';
-              var origFill = p.getAttribute('data-orig-fill') || 'transparent';
-              var origFillOpacity = p.getAttribute('data-orig-fill-opacity') || '0';
-              p.setAttribute('stroke', origStroke);
-              p.setAttribute('stroke-width', origWidth);
-              p.setAttribute('fill', origFill);
-              p.setAttribute('fill-opacity', origFillOpacity);
-              p.classList.remove('last-built-tile-breathing');
+            window._dashboardHexHighlightChannels = { opportunity: [], related: [] };
+            window._dashboardRenderHexHighlights();
+          };
+
+          // Compatibility for existing company/private hover callers.
+          window.highlightMapHexes = function(hexIds) {
+            window.setMapHexHighlightChannel('related', hexIds);
+          };
+
+          window.highlightMapTilesByName = function(tileName) {
+            var dashboard = document.getElementById('viz-master-frame');
+            if (!dashboard) return;
+            var wanted = String(tileName);
+            var hexes = dashboard.querySelectorAll('.map-hex-container[data-tile-name]');
+            var ids = [];
+            for (var i = 0; i < hexes.length; i++) {
+              if (String(hexes[i].getAttribute('data-tile-name')) === wanted) {
+                var hexId = hexes[i].getAttribute('data-hex');
+                if (hexId) ids.push(hexId);
+              }
             }
+            window.setMapHexHighlightChannel('related', ids);
           };
         }
       }
@@ -1122,7 +1162,11 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
         hovered_corp = if hovered_last_id
                          all_corps = (@game.respond_to?(:all_corporations) ? @game.all_corporations : @game.corporations) || []
                          all_corps.find { |c| c.id.to_s == hovered_last_id.to_s } ||
-                           ((@game.minors || []).find { |m| m.id.to_s == hovered_last_id.to_s } if @game.respond_to?(:minors))
+                           (if @game.respond_to?(:minors)
+                              (@game.minors || []).find do |m|
+                                m.id.to_s == hovered_last_id.to_s
+                              end
+                            end)
                        end
 
         hovered_routes = []
@@ -1218,6 +1262,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
 
         track_action_active = actions.include?('lay_tile')
         token_action_active = actions.include?('place_token') || actions.include?('hex_token')
+        actionable_turn = track_action_active || token_action_active
 
         hovered_c_id = Lib::Storage['hovered_company_id']
         hovered_hex_set = extract_hovered_hexes(hovered_c_id).map { |h| h.to_s.upcase }
@@ -1228,6 +1273,8 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
         tile_chosen = hex_selected && @tile_selector.tile &&
                       @tile_selector.hex.tile != @tile_selector.tile
         active_tile = tile_chosen ? @tile_selector.tile : nil
+
+        contrast = high_contrast?
 
         @hexes.map! do |hex|
           clickable = if @show_starting_map || !step || !current_entity
@@ -1246,10 +1293,40 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           end.include?(hex.id.to_s.upcase)
           is_hovered ||= is_last_built_hover
 
+          show_building_highlight = if hover_mode
+                                      false
+                                    elsif hex_selected
+                                      hex == selected_hex
+                                    else
+                                      clickable && track_action_active && (!step.respond_to?(:potential_tiles) ||
+                                        step.potential_tiles(entity_or_entities, hex).any?)
+                                    end
+
+          show_token_highlight = if hover_mode || hex_selected
+                                   false
+                                 else
+                                   clickable && token_action_active
+                                 end
+
+          can_build = show_building_highlight || show_token_highlight
+
+          # Standard 18xx games: Highlight buildable hexes at 1.0, darken all others to 0.35 over black
+          hex_opacity = if @show_starting_map
+                          1.0
+                        elsif contrast
+                          if actionable_turn
+                            can_build ? 1.0 : 0.35
+                          else
+                            1.0
+                          end
+                        else
+                          @opacity || 1.0
+                        end
+
           base_hex = h(
               Hex,
               hex: hex,
-              opacity: @show_starting_map ? 1.0 : (@opacity || 1.0),
+              opacity: hex_opacity,
               entity: current_entity,
               clickable: hex_selected ? (hex == selected_hex && clickable) : clickable,
               actions: current_entity ? actions : [],
@@ -1262,78 +1339,86 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           initial_stroke = border_color || 'transparent'
           initial_width = border_color ? (Hex::HIGHLIGHT_STROKE_WIDTH + 4) : 0
           initial_fill = is_hovered ? '#00ffff' : 'transparent'
-          initial_fill_opacity = is_hovered ? '0.35' : '0'
+          initial_fill_opacity = if is_hovered
+                                   contrast ? '0.25' : '0.35'
+                                 else
+                                   '0'
+                                 end
 
           x, y = Hex.coordinates(hex, @start_pos)
           transform_str = "translate(#{x}, #{y})#{' rotate(30)' if hex.layout == :pointy}"
 
           overlays = []
 
-          show_building_highlight = if hover_mode
-                                      false
-                                    elsif hex_selected
-                                      hex == selected_hex
-                                    else
-                                      clickable && track_action_active && step.respond_to?(:potential_tiles) &&
-                                        step.potential_tiles(entity_or_entities, hex).any?
-                                    end
-
           if show_building_highlight
-            # Cyan breathing means: this is a spatial opportunity available now.
-            # After selection the chosen hex stays cyan but becomes static; the
-            # committed tile change is then communicated by the tile-lay animation.
-            breathing = !hex_selected
-            hatch_children = []
-            border_children = []
+            if contrast
+              # Normal 18xx games: Static outline only, no hatch over tile, zero breathing
+              overlays << h(:polygon, {
+                              attrs: {
+                                points: Hex::HIGHLIGHT_POINTS,
+                                fill: 'none',
+                                stroke: '#00ffff',
+                                'stroke-width': hex_selected ? '7' : '5',
+                                'stroke-linejoin': 'round',
+                                'pointer-events': 'none',
+                              },
+                            })
+            else
+              # Untoggled: Original opportunity beacon with cyan hatch and breathing dashed border
+              breathing = !hex_selected
+              hatch_children = []
+              border_children = []
 
-            if breathing
-              hatch_children << h(:animate, attrs: {
-                                    attributeName: 'fill-opacity',
-                                    values: '0.18;0.52;0.18',
-                                    dur: '1.8s',
-                                    repeatCount: 'indefinite',
-                                  })
-              border_children << h(:animate, attrs: {
-                                     attributeName: 'stroke-opacity',
-                                     values: '0.45;1.0;0.45',
-                                     dur: '1.8s',
-                                     repeatCount: 'indefinite',
-                                   })
-              border_children << h(:animate, attrs: {
-                                     attributeName: 'stroke-width',
-                                     values: '8;14;8',
-                                     dur: '1.8s',
-                                     repeatCount: 'indefinite',
-                                   })
+              if breathing
+                hatch_children << h(:animate, attrs: {
+                                      attributeName: 'fill-opacity',
+                                      values: '0.18;0.52;0.18',
+                                      dur: '1.8s',
+                                      repeatCount: 'indefinite',
+                                    })
+                border_children << h(:animate, attrs: {
+                                       attributeName: 'stroke-opacity',
+                                       values: '0.45;1.0;0.45',
+                                       dur: '1.8s',
+                                       repeatCount: 'indefinite',
+                                     })
+                border_children << h(:animate, attrs: {
+                                       attributeName: 'stroke-width',
+                                       values: '8;14;8',
+                                       dur: '1.8s',
+                                       repeatCount: 'indefinite',
+                                     })
+              end
+
+              overlays << h(:polygon, {
+                              attrs: {
+                                points: Hex::HIGHLIGHT_POINTS,
+                                fill: 'url(#cyan-hatch)',
+                                'fill-opacity': breathing ? '0.18' : '0.34',
+                                'pointer-events': 'none',
+                              },
+                            }, hatch_children)
+
+              overlays << h(:polygon, {
+                              attrs: {
+                                points: Hex::HIGHLIGHT_POINTS,
+                                fill: 'none',
+                                stroke: '#00ffff',
+                                'stroke-width': breathing ? '8' : '12',
+                                'stroke-opacity': breathing ? '0.45' : '1',
+                                'stroke-linejoin': 'round',
+                                'stroke-linecap': 'square',
+                                pathLength: '576',
+                                'stroke-dasharray': '40 56',
+                                'stroke-dashoffset': '20',
+                                'pointer-events': 'none',
+                              },
+                            }, border_children)
             end
 
-            overlays << h(:polygon, {
-                            attrs: {
-                              points: Hex::HIGHLIGHT_POINTS,
-                              fill: 'url(#cyan-hatch)',
-                              'fill-opacity': breathing ? '0.18' : '0.34',
-                              'pointer-events': 'none',
-                            },
-                          }, hatch_children)
-
-            overlays << h(:polygon, {
-                            attrs: {
-                              points: Hex::HIGHLIGHT_POINTS,
-                              fill: 'none',
-                              stroke: '#00ffff',
-                              'stroke-width': breathing ? '8' : '12',
-                              'stroke-opacity': breathing ? '0.45' : '1',
-                              'stroke-linejoin': 'round',
-                              'stroke-linecap': 'square',
-                              pathLength: '576',
-                              'stroke-dasharray': '40 56',
-                              'stroke-dashoffset': '20',
-                              'pointer-events': 'none',
-                            },
-                          }, border_children)
-
             cost_str = if current_entity
-                         hex_cost_display(step, entity_or_entities, hex, tile: (hex == selected_hex ? active_tile : nil))
+                         hex_cost_display(step, entity_or_entities, hex,
+                                          tile: (hex == selected_hex ? active_tile : nil))
                        end
             if cost_str
               scale_factor = case cost_str.length
@@ -1344,13 +1429,16 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                              end
 
               rot_angle = hex.layout == :pointy ? 60 : 90
+              badge_fill = contrast ? '#000000' : '#f8fafc'
+              badge_stroke = contrast ? '#00ffff' : '#4c1d95'
+              badge_text_color = contrast ? '#00ffff' : '#4c1d95'
 
               overlays << h(:g, { attrs: { 'pointer-events': 'none' } }, [
                 h(:polygon, {
                     attrs: {
                       points: '8.5,-80 48.5,-80 76.5,-32 36.5,-32',
-                      fill: '#f8fafc',
-                      stroke: '#4c1d95',
+                      fill: badge_fill,
+                      stroke: badge_stroke,
                       'stroke-width': '2.5',
                       'stroke-linejoin': 'round',
                     },
@@ -1366,7 +1454,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                         y: '0',
                         'text-anchor': 'middle',
                         'dominant-baseline': 'central',
-                        fill: '#4c1d95',
+                        fill: badge_text_color,
                         class: 'dashboard-money dashboard-tile-cost',
                         'font-weight': '700',
                         'font-family': "'Courier New', monospace",
@@ -1377,10 +1465,6 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               ])
             end
           end
-          initial_stroke = border_color || 'transparent'
-          initial_width = border_color ? (Hex::HIGHLIGHT_STROKE_WIDTH + 4) : 0
-          initial_fill = is_hovered ? '#00ffff' : 'transparent'
-          initial_fill_opacity = is_hovered ? '0.35' : '0'
 
           hex_children = [
             base_hex,
@@ -1419,6 +1503,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               id: "hex-#{hex.id}",
               class: "map-hex-container hex-#{hex.id}",
               'data-hex': hex.id.to_s,
+              'data-tile-name': hex.tile.name.to_s,
               'data-tile-state': "#{hex.tile.name}-#{hex.tile.color}-#{hex.tile.rotation}",
               'data-transform': transform_str,
             },
@@ -1641,7 +1726,16 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
       end
 
       def render_map(width, height)
-        h(:svg, { attrs: { id: 'map', width: width.to_s, height: height.to_s } }, [
+        contrast = high_contrast?
+
+        svg_attrs = {
+          id: 'map',
+          width: width.to_s,
+          height: height.to_s,
+        }
+        svg_attrs[:class] = 'high-contrast-mode' if contrast
+
+        h(:svg, { attrs: svg_attrs }, [
           h(:defs, [
 h(:style, {}, %(
 
@@ -1685,6 +1779,56 @@ h(:style, {}, %(
     transform-box: fill-box;
     transform-origin: center;
   }
+
+
+  /* Primary: a legal spatial opportunity. */
+  #map .map-highlight-opportunity .hex-highlight-poly {
+    stroke: #00ffff !important; stroke-width: 9px !important; stroke-opacity: 0.92 !important;
+    fill: #00ffff !important; fill-opacity: 0.14 !important;
+    filter: drop-shadow(0 0 5px #00ffff);
+    animation: dashboard-opportunity-breathe 1.35s ease-in-out infinite !important;
+  }
+  @keyframes dashboard-opportunity-breathe {
+    0%, 100% { stroke-width: 7px; stroke-opacity: 0.58; fill-opacity: 0.08; filter: drop-shadow(0 0 2px #00ffff); }
+    50% { stroke-width: 13px; stroke-opacity: 1; fill-opacity: 0.24; filter: drop-shadow(0 0 10px #00ffff); }
+  }
+  /* Secondary: a related or informational location. */
+  #map .map-highlight-related .hex-highlight-poly {
+    stroke: #f59e0b !important; stroke-width: 8px !important; stroke-opacity: 1 !important;
+    fill: none !important; fill-opacity: 0 !important; stroke-dasharray: 18 8;
+    filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.85)); animation: none !important;
+  }
+  #map.high-contrast-mode .map-highlight-opportunity .hex-highlight-poly {
+    stroke: #ffffff !important; stroke-width: 10px !important; stroke-opacity: 1 !important;
+    fill: #ffffff !important; fill-opacity: 0.10 !important; stroke-dasharray: 24 10;
+    filter: none !important; animation: none !important;
+  }
+  #map.high-contrast-mode .map-highlight-related .hex-highlight-poly {
+    stroke: #9ca3af !important; stroke-width: 6px !important; stroke-opacity: 1 !important;
+    fill: none !important; fill-opacity: 0 !important; stroke-dasharray: 5 7;
+    filter: none !important; animation: none !important;
+  }
+  /* High Contrast: Pitch black canvas, white axes, no breathing */
+  #map.high-contrast-mode {
+    background-color: #000000 !important;
+  }
+  #map.high-contrast-mode #map-axis text,
+  #map.high-contrast-mode > g > g:not(#map-hexes) text {
+    fill: #ffffff !important;
+  }
+  #map.high-contrast-mode .last-built-tile-breathing {
+    animation: none !important;
+  }
+  #map-panel-bot:has(#map.high-contrast-mode) {
+    background-color: #000000 !important;
+  }
+  #map-panel-bot:has(#map.high-contrast-mode) #map-scroll-canvas {
+    background-color: #000000 !important;
+  }
+  #map-panel-bot:has(#map.high-contrast-mode) #canvas-game-watermark {
+    color: rgba(255, 255, 255, 0.08) !important;
+    text-shadow: none !important;
+  }
 )),
 h(:pattern, {
     attrs: {
@@ -1709,6 +1853,8 @@ h(:pattern, {
 ]),
           ]),
 
+          # // --- DELETE --- (h(:rect, attrs: { width: '100%', height: '100%', fill: '#000000' }) if contrast),
+
           h(:g, { attrs: { transform: "scale(#{@scale})" } }, [
             h(:g, { attrs: { id: 'map-hexes', transform: "translate(#{map_x} #{map_y})" } }, @hexes),
             h(:g, { attrs: { id: 'map-axis' } }, [
@@ -1725,7 +1871,7 @@ h(:pattern, {
 
              ]),
           ]),
-        ])
+        ].compact)
       end
 
       def map_zoom

@@ -102,6 +102,60 @@ module View
             ])
         end
 
+        def manifest_scale
+          raw = Lib::Storage['dashboard_tile_manifest_scale']
+          value = raw ? raw.to_f : 1.0
+          [[value, 0.5].max, 2.5].min
+        rescue StandardError
+          1.0
+        end
+
+        def change_manifest_scale(factor)
+          Lib::Storage['dashboard_tile_manifest_scale'] = [[manifest_scale * factor, 0.5].max, 2.5].min
+          update
+        end
+
+        def reset_manifest_scale
+          Lib::Storage['dashboard_tile_manifest_scale'] = 1.0
+          update
+        end
+
+        def install_manifest_tile_interactions
+          %x{
+            setTimeout(function() {
+              var manifest = document.getElementById('tile_manifest');
+              if (!manifest || manifest.__dashboardTileInteractions) return;
+              manifest.__dashboardTileInteractions = true;
+
+              function tileFromTarget(target) {
+                if (!target || !target.closest) return null;
+                return target.closest('[id^="tile_"]');
+              }
+
+              function tileName(tile) {
+                if (!tile || !tile.id) return null;
+                return tile.id.substring(5);
+              }
+
+              manifest.addEventListener('mouseover', function(ev) {
+                var tile = tileFromTarget(ev.target);
+                var name = tileName(tile);
+                if (!name) return;
+                if (window.highlightMapTilesByName) window.highlightMapTilesByName(name);
+              });
+
+              manifest.addEventListener('mouseout', function(ev) {
+                var oldTile = tileFromTarget(ev.target);
+                if (!oldTile) return;
+                var newTile = tileFromTarget(ev.relatedTarget);
+                if (newTile === oldTile) return;
+                if (window.clearMapHexHighlightChannel) window.clearMapHexHighlightChannel('related');
+              });
+            }, 0);
+          }
+          nil
+        end
+
         def render_tile_manifest
           remaining = @game.tiles.group_by(&:name)
 
@@ -179,6 +233,7 @@ module View
         end
 
         def render
+          install_manifest_tile_interactions
           is_minimized = Lib::Storage['dashboard_tile_manifest_minimized'] || false
 
           saved_left = %x((function() {
@@ -417,7 +472,36 @@ module View
             dialog_style[:maxHeight] = '82vh'
           end
 
+          zoom_button_style = {
+            width: '24px',
+            height: '24px',
+            padding: '0',
+            fontSize: '0.8rem',
+            fontWeight: 'bold',
+            backgroundColor: '#ffffff',
+            color: '#334155',
+            border: '1px solid #94a3b8',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            lineHeight: '20px',
+          }
+
           header_controls = [
+            h(:button, {
+                attrs: { type: 'button', title: 'Increase tile size' },
+                style: zoom_button_style,
+                on: { click: -> { change_manifest_scale(1.15) } },
+              }, '+'),
+            h(:button, {
+                attrs: { type: 'button', title: 'Decrease tile size' },
+                style: zoom_button_style,
+                on: { click: -> { change_manifest_scale(0.85) } },
+              }, '-'),
+            h(:button, {
+                attrs: { type: 'button', title: 'Reset tile size' },
+                style: zoom_button_style.merge(fontSize: '0.7rem'),
+                on: { click: -> { reset_manifest_scale } },
+              }, '0'),
             h(:button, {
                 attrs: { type: 'button', title: is_minimized ? 'Expand overlay' : 'Minimize overlay' },
                 style: {
@@ -461,7 +545,15 @@ module View
                                  minHeight: '0',
                                  padding: '0.5rem 1rem 1.25rem 1rem',
                                },
-                             }, [render_tile_manifest])
+                             }, [
+                               h(:div, {
+                                   style: {
+                                     transform: "scale(#{manifest_scale})",
+                                     transformOrigin: 'top left',
+                                     width: "#{100.0 / manifest_scale}%",
+                                   },
+                                 }, [render_tile_manifest]),
+                             ])
                          end
 
           resize_handle = if is_minimized
