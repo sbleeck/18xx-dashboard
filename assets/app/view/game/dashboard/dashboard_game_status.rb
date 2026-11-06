@@ -1673,8 +1673,28 @@ module View
               n_shares = num_shares_of(p, corporation)
               just_sold = begin; step&.did_sell?(corporation, p); rescue StandardError; false; end
 
-              if n_shares.zero? && !can_buy_from_player && !can_redeem_from_director && !just_sold
-                players_row_content << h(:td, { attrs: { id: "player_shares_#{p.id}_#{corporation.id}" }, style: { backgroundColor: bg_color } }, '')
+              if n_shares.zero? && !can_buy_from_player && !can_redeem_from_director
+                td_children = []
+                if just_sold
+                  td_children << h(:span, {
+                                     attrs: { class: 'token-bond' },
+                                     style: {
+                                       position: 'absolute',
+                                       top: '2px',
+                                       right: '2px',
+                                       width: '6px',
+                                       height: '6px',
+                                       borderRadius: '50%',
+                                       backgroundColor: '#dc2626',
+                                       pointerEvents: 'none',
+                                       zIndex: '2',
+                                     },
+                                   })
+                end
+                players_row_content << h(:td, {
+                                           attrs: { id: "player_shares_#{p.id}_#{corporation.id}" },
+                                           style: { backgroundColor: bg_color, textAlign: 'center', position: 'relative' },
+                                         }, td_children)
               else
                 base_share_pct = corporation.respond_to?(:share_percent) && corporation.share_percent ? corporation.share_percent : 10
                 holding_percent = if player_shares.any?
