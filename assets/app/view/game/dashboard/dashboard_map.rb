@@ -518,15 +518,6 @@ module View
       needs :show_meme_revenue, default: nil, store: true
       needs :show_location_names, default: nil, store: true
       needs :simple_logos, default: nil, store: true
-      needs :high_contrast, default: nil, store: true
-
-      def high_contrast?
-        stored = [true, 'true'].include?(Lib::Storage['map_high_contrast'])
-        return stored if @high_contrast.nil?
-
-        @high_contrast
-      end
-
       EDGE_LENGTH = 50
       SIDE_TO_SIDE = 87
       FONT_SIZE = 25
@@ -577,11 +568,20 @@ module View
             var allHexes = dashboard.querySelectorAll('.map-hex-container');
             for (var i = 0; i < allHexes.length; i++) {
               allHexes[i].classList.remove('map-highlight-opportunity', 'map-highlight-related');
+              if (allHexes[i].getAttribute('data-base-opportunity') === 'true') {
+                allHexes[i].classList.add('map-highlight-opportunity');
+              }
             }
             var channels = window._dashboardHexHighlightChannels || {};
             var opportunity = window._dashboardHexIdList(channels.opportunity || []);
             var related = window._dashboardHexIdList(channels.related || []);
             var primary = {};
+            for (var bi = 0; bi < allHexes.length; bi++) {
+              if (allHexes[bi].getAttribute('data-base-opportunity') === 'true') {
+                var baseId = allHexes[bi].getAttribute('data-hex');
+                if (baseId) primary[String(baseId).toUpperCase()] = true;
+              }
+            }
             for (var oi = 0; oi < opportunity.length; oi++) {
               primary[String(opportunity[oi]).toUpperCase()] = true;
               var opportunityHex = window._dashboardFindMapHex(opportunity[oi]);
@@ -1274,8 +1274,6 @@ module View
                       @tile_selector.hex.tile != @tile_selector.tile
         active_tile = tile_chosen ? @tile_selector.tile : nil
 
-        contrast = high_contrast?
-
         @hexes.map! do |hex|
           clickable = if @show_starting_map || !step || !current_entity
                         false
@@ -1310,19 +1308,7 @@ module View
 
           can_build = show_building_highlight || show_token_highlight
 
-          # Standard 18xx games: Highlight buildable hexes at 1.0, darken all others to 0.35 over black
-          hex_opacity = if @show_starting_map
-                          1.0
-                        elsif contrast
-                          if actionable_turn
-                            can_build ? 1.0 : 0.35
-                          else
-                            1.0
-                          end
-                        else
-                          @opacity || 1.0
-                        end
-
+          hex_opacity = @opacity || 1.0
           base_hex = h(
               Hex,
               hex: hex,
@@ -1339,11 +1325,7 @@ module View
           initial_stroke = border_color || 'transparent'
           initial_width = border_color ? (Hex::HIGHLIGHT_STROKE_WIDTH + 4) : 0
           initial_fill = is_hovered ? '#00ffff' : 'transparent'
-          initial_fill_opacity = if is_hovered
-                                   contrast ? '0.25' : '0.35'
-                                 else
-                                   '0'
-                                 end
+          initial_fill_opacity = is_hovered ? '0.18' : '0'
 
           x, y = Hex.coordinates(hex, @start_pos)
           transform_str = "translate(#{x}, #{y})#{' rotate(30)' if hex.layout == :pointy}"
@@ -1351,71 +1333,6 @@ module View
           overlays = []
 
           if show_building_highlight
-            if contrast
-              # Normal 18xx games: Static outline only, no hatch over tile, zero breathing
-              overlays << h(:polygon, {
-                              attrs: {
-                                points: Hex::HIGHLIGHT_POINTS,
-                                fill: 'none',
-                                stroke: '#00ffff',
-                                'stroke-width': hex_selected ? '7' : '5',
-                                'stroke-linejoin': 'round',
-                                'pointer-events': 'none',
-                              },
-                            })
-            else
-              # Untoggled: Original opportunity beacon with cyan hatch and breathing dashed border
-              breathing = !hex_selected
-              hatch_children = []
-              border_children = []
-
-              if breathing
-                hatch_children << h(:animate, attrs: {
-                                      attributeName: 'fill-opacity',
-                                      values: '0.18;0.52;0.18',
-                                      dur: '1.8s',
-                                      repeatCount: 'indefinite',
-                                    })
-                border_children << h(:animate, attrs: {
-                                       attributeName: 'stroke-opacity',
-                                       values: '0.45;1.0;0.45',
-                                       dur: '1.8s',
-                                       repeatCount: 'indefinite',
-                                     })
-                border_children << h(:animate, attrs: {
-                                       attributeName: 'stroke-width',
-                                       values: '8;14;8',
-                                       dur: '1.8s',
-                                       repeatCount: 'indefinite',
-                                     })
-              end
-
-              overlays << h(:polygon, {
-                              attrs: {
-                                points: Hex::HIGHLIGHT_POINTS,
-                                fill: 'url(#cyan-hatch)',
-                                'fill-opacity': breathing ? '0.18' : '0.34',
-                                'pointer-events': 'none',
-                              },
-                            }, hatch_children)
-
-              overlays << h(:polygon, {
-                              attrs: {
-                                points: Hex::HIGHLIGHT_POINTS,
-                                fill: 'none',
-                                stroke: '#00ffff',
-                                'stroke-width': breathing ? '8' : '12',
-                                'stroke-opacity': breathing ? '0.45' : '1',
-                                'stroke-linejoin': 'round',
-                                'stroke-linecap': 'square',
-                                pathLength: '576',
-                                'stroke-dasharray': '40 56',
-                                'stroke-dashoffset': '20',
-                                'pointer-events': 'none',
-                              },
-                            }, border_children)
-            end
-
             cost_str = if current_entity
                          hex_cost_display(step, entity_or_entities, hex,
                                           tile: (hex == selected_hex ? active_tile : nil))
@@ -1429,9 +1346,9 @@ module View
                              end
 
               rot_angle = hex.layout == :pointy ? 60 : 90
-              badge_fill = contrast ? '#000000' : '#f8fafc'
-              badge_stroke = contrast ? '#00ffff' : '#4c1d95'
-              badge_text_color = contrast ? '#00ffff' : '#4c1d95'
+              badge_fill = '#f8fafc'
+              badge_stroke = '#4c1d95'
+              badge_text_color = '#4c1d95'
 
               overlays << h(:g, { attrs: { 'pointer-events': 'none' } }, [
                 h(:polygon, {
@@ -1478,7 +1395,7 @@ module View
               h(:polygon, {
                   attrs: {
                     points: Hex::HIGHLIGHT_POINTS,
-                    class: 'hex-highlight-poly',
+                    class: 'hex-highlight-poly highlight-outline-outer',
                     'data-orig-stroke': initial_stroke,
                     'data-orig-width': initial_width.to_s,
                     'data-orig-fill': initial_fill,
@@ -1490,6 +1407,36 @@ module View
                   },
                   style: { pointerEvents: 'none' },
                 }),
+              h(:polygon, {
+                  attrs: {
+                    points: Hex::HIGHLIGHT_POINTS,
+                    class: 'highlight-outline-inner',
+                    fill: 'none',
+                    stroke: 'transparent',
+                    'stroke-width': '0',
+                    'pointer-events': 'none',
+                  },
+                }),
+              h(:g, { attrs: { class: 'highlight-primary-markers', 'pointer-events': 'none' } }, [
+                [-50, 0], [-25, -43.3], [25, -43.3], [50, 0], [25, 43.3], [-25, 43.3]
+              ].map do |mx, my|
+                h(:circle, { attrs: { cx: mx, cy: my, r: '5.5', class: 'highlight-primary-marker' } })
+              end),
+              h(:g, { attrs: { class: 'highlight-related-markers', 'pointer-events': 'none' } }, [
+                [-50, 0], [25, -43.3], [25, 43.3]
+              ].map do |mx, my|
+                h(:rect, {
+                    attrs: {
+                      x: mx - 5.5,
+                      y: my - 5.5,
+                      width: '11',
+                      height: '11',
+                      rx: '1',
+                      transform: "rotate(45 #{mx} #{my})",
+                      class: 'highlight-related-marker',
+                    },
+                  })
+              end),
               *overlays,
             ]),
           ]
@@ -1501,11 +1448,12 @@ module View
             key: "dash-g-#{hex.id}",
             attrs: {
               id: "hex-#{hex.id}",
-              class: "map-hex-container hex-#{hex.id}",
+              class: "map-hex-container hex-#{hex.id}#{' map-highlight-opportunity' if can_build}",
               'data-hex': hex.id.to_s,
               'data-tile-name': hex.tile.name.to_s,
               'data-tile-state': "#{hex.tile.name}-#{hex.tile.color}-#{hex.tile.rotation}",
               'data-transform': transform_str,
+              'data-base-opportunity': can_build ? 'true' : 'false',
             },
             hook: Lib::TileLayAnimation.hook,
           }
@@ -1726,14 +1674,11 @@ module View
       end
 
       def render_map(width, height)
-        contrast = high_contrast?
-
         svg_attrs = {
           id: 'map',
           width: width.to_s,
           height: height.to_s,
         }
-        svg_attrs[:class] = 'high-contrast-mode' if contrast
 
         h(:svg, { attrs: svg_attrs }, [
           h(:defs, [
@@ -1781,79 +1726,82 @@ h(:style, {}, %(
   }
 
 
-  /* Primary: a legal spatial opportunity. */
-  #map .map-highlight-opportunity .hex-highlight-poly {
-    stroke: #00ffff !important; stroke-width: 9px !important; stroke-opacity: 0.92 !important;
-    fill: #00ffff !important; fill-opacity: 0.14 !important;
-    filter: drop-shadow(0 0 5px #00ffff);
-    animation: dashboard-opportunity-breathe 1.35s ease-in-out infinite !important;
+
+/* ============================================================
+ * MAP HIGHLIGHTING: palette-independent geometric overlays
+ * Primary/actionable: solid black/white ring + breathing cyan dots
+ * Secondary/related: dashed black/white ring + breathing amber diamonds
+ * ============================================================ */
+  #map .highlight-outline-outer,
+  #map .highlight-outline-inner,
+  #map .highlight-primary-markers,
+  #map .highlight-related-markers {
+    display: none;
+    pointer-events: none;
   }
-  @keyframes dashboard-opportunity-breathe {
-    0%, 100% { stroke-width: 7px; stroke-opacity: 0.58; fill-opacity: 0.08; filter: drop-shadow(0 0 2px #00ffff); }
-    50% { stroke-width: 13px; stroke-opacity: 1; fill-opacity: 0.24; filter: drop-shadow(0 0 10px #00ffff); }
-  }
-  /* Secondary: a related or informational location. */
-  #map .map-highlight-related .hex-highlight-poly {
-    stroke: #f59e0b !important; stroke-width: 8px !important; stroke-opacity: 1 !important;
-    fill: none !important; fill-opacity: 0 !important; stroke-dasharray: 18 8;
-    filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.85)); animation: none !important;
-  }
-  #map.high-contrast-mode .map-highlight-opportunity .hex-highlight-poly {
-    stroke: #ffffff !important; stroke-width: 10px !important; stroke-opacity: 1 !important;
-    fill: #ffffff !important; fill-opacity: 0.10 !important; stroke-dasharray: 24 10;
-    filter: none !important; animation: none !important;
-  }
-  #map.high-contrast-mode .map-highlight-related .hex-highlight-poly {
-    stroke: #9ca3af !important; stroke-width: 6px !important; stroke-opacity: 1 !important;
-    fill: none !important; fill-opacity: 0 !important; stroke-dasharray: 5 7;
-    filter: none !important; animation: none !important;
-  }
-  /* High Contrast: Pitch black canvas, white axes, no breathing */
-  #map.high-contrast-mode {
-    background-color: #000000 !important;
-  }
-  #map.high-contrast-mode #map-axis text,
-  #map.high-contrast-mode > g > g:not(#map-hexes) text {
-    fill: #ffffff !important;
-  }
-  #map.high-contrast-mode .last-built-tile-breathing {
+  #map .map-highlight-opportunity .highlight-outline-outer,
+  #map .map-highlight-opportunity .highlight-outline-inner,
+  #map .map-highlight-opportunity .highlight-primary-markers,
+  #map .map-highlight-related .highlight-outline-outer,
+  #map .map-highlight-related .highlight-outline-inner,
+  #map .map-highlight-related .highlight-related-markers { display: inline; }
+  #map .map-highlight-opportunity .highlight-outline-outer,
+  #map .map-highlight-related .highlight-outline-outer {
+    fill: none !important;
+    stroke: #000000 !important;
+    stroke-width: 15px !important;
+    stroke-opacity: 1 !important;
+    stroke-linejoin: round !important;
+    filter: none !important;
     animation: none !important;
   }
-  #map-panel-bot:has(#map.high-contrast-mode) {
-    background-color: #000000 !important;
+  #map .map-highlight-opportunity .highlight-outline-inner {
+    fill: none !important;
+    stroke: #ffffff !important;
+    stroke-width: 7px !important;
+    stroke-opacity: 1 !important;
+    stroke-linejoin: round !important;
+    stroke-dasharray: none !important;
   }
-  #map-panel-bot:has(#map.high-contrast-mode) #map-scroll-canvas {
-    background-color: #000000 !important;
+  #map .map-highlight-related .highlight-outline-inner {
+    fill: none !important;
+    stroke: #ffffff !important;
+    stroke-width: 7px !important;
+    stroke-opacity: 1 !important;
+    stroke-linejoin: round !important;
+    stroke-linecap: round !important;
+    stroke-dasharray: 16 10 !important;
   }
-  #map-panel-bot:has(#map.high-contrast-mode) #canvas-game-watermark {
-    color: rgba(255, 255, 255, 0.08) !important;
-    text-shadow: none !important;
+  #map .highlight-primary-marker {
+    fill: #00d9ff !important;
+    stroke: #000000 !important;
+    stroke-width: 3px !important;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dashboard-primary-marker-breathe 1.25s ease-in-out infinite;
+  }
+  #map .highlight-related-marker {
+    fill: #ff9f0a !important;
+    stroke: #000000 !important;
+    stroke-width: 3px !important;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dashboard-related-marker-breathe 1.45s ease-in-out infinite;
+  }
+  @keyframes dashboard-primary-marker-breathe {
+    0%, 100% { transform: scale(0.82); opacity: 0.78; }
+    50% { transform: scale(1.42); opacity: 1; }
+  }
+  @keyframes dashboard-related-marker-breathe {
+    0%, 100% { transform: scale(0.86); opacity: 0.78; }
+    50% { transform: scale(1.35); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #map .highlight-primary-marker,
+    #map .highlight-related-marker { animation: none !important; }
   }
 )),
-h(:pattern, {
-    attrs: {
-      id: 'cyan-hatch',
-      width: '16',
-      height: '16',
-      patternUnits: 'userSpaceOnUse',
-      patternTransform: 'rotate(45)',
-    },
-  }, [
-  h(:line, {
-      attrs: {
-        x1: '0',
-        y1: '0',
-        x2: '0',
-        y2: '16',
-        stroke: '#00ffff',
-        'stroke-width': '3.5',
-        'stroke-opacity': '0.5',
-      },
-    }),
-]),
           ]),
-
-          # // --- DELETE --- (h(:rect, attrs: { width: '100%', height: '100%', fill: '#000000' }) if contrast),
 
           h(:g, { attrs: { transform: "scale(#{@scale})" } }, [
             h(:g, { attrs: { id: 'map-hexes', transform: "translate(#{map_x} #{map_y})" } }, @hexes),

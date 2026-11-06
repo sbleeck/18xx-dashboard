@@ -108,30 +108,6 @@ module View
       needs :simple_logos, store: true, default: nil
       include Actionable
 
-      needs :high_contrast, store: true, default: nil
-
-      def contrast_mode_enabled?
-        return @high_contrast unless @high_contrast.nil?
-
-        [true, 'true'].include?(Lib::Storage['map_high_contrast'])
-      end
-
-      def toggle_contrast
-        new_val = !contrast_mode_enabled?
-
-        @high_contrast = new_val
-        Lib::Storage['map_high_contrast'] = new_val
-        store(:high_contrast, new_val, skip: true)
-
-        %x{
-          try {
-            localStorage.setItem('map_high_contrast', #{new_val} ? 'true' : 'false');
-          } catch(e) {}
-        }
-
-        update
-      end
-
       def meme_revenue_enabled?
         return @show_meme_revenue unless @show_meme_revenue.nil?
 
@@ -851,23 +827,6 @@ module View
                          on: { click: -> { toggle_simple_logos } },
                        }, 'L')
 
-          # // --- START FIX ---
-          is_contrast_active = contrast_mode_enabled?
-          contrast_btn_style = button_style.merge(
-            backgroundColor: is_contrast_active ? '#10b981' : '#ffffff',
-            color: is_contrast_active ? '#ffffff' : '#333333',
-            borderColor: is_contrast_active ? '#059669' : '#999999'
-          )
-          buttons << h(:button, {
-                         attrs: {
-                           id: 'btn-toggle-contrast',
-                           title: is_contrast_active ? 'Contrast: White on Dark (click for Normal)' : 'Contrast: Normal (click for White on Dark)',
-                           type: 'button',
-                         },
-                         style: contrast_btn_style,
-                         on: { click: -> { toggle_contrast } },
-                       }, 'C')
-          # // --- END FIX ---
         end
 
         h(:div, {
@@ -2202,6 +2161,8 @@ badge_el,
                         `document.body.style.overflowX = 'hidden'`
                         `document.body.style.overflowY = 'auto'`
                         fetch_user_games(false)
+                        Lib::Storage['map_high_contrast'] = nil
+                        `try { localStorage.removeItem('map_high_contrast'); } catch(e) {}`
 
                         comp = self
                         %x(
@@ -3414,7 +3375,7 @@ window.recalcAllPanels = function() {
             h(:div, { attrs: { id: 'col-left' }, style: { flex: '0 0 55%', height: '100%', minHeight: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: '0.5rem' } }, [
               (render_temporal_hub if map_wider_than_high?),
               (h(:div, { attrs: { id: 'resizer-h-entity-map', title: 'Drag to resize Entity Order' }, style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10, backgroundColor: 'transparent', borderRadius: '0' } }) if map_wider_than_high?),
-              h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', width: '100%', height: '100%', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: (contrast_mode_enabled? ? '#000000' : '#fff'), overflow: 'hidden', position: 'relative' } }, [
+              h(:div, { attrs: { id: 'map-panel-bot' }, style: { flex: '1 1 auto', width: '100%', height: '100%', minHeight: '0', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', overflow: 'hidden', position: 'relative' } }, [
 
               render_zoom_controls('map-panel-bot', { top: '6px', right: '12px' }),
               render_map_phase_indicator,
@@ -3430,7 +3391,7 @@ window.recalcAllPanels = function() {
                     overflowY: 'auto',
                     position: 'relative',
                     boxSizing: 'border-box',
-                    backgroundColor: (contrast_mode_enabled? ? '#000000' : 'transparent'),
+                    backgroundColor: 'transparent',
                   },
                 }, [
                 h(:div, {
@@ -3450,8 +3411,7 @@ window.recalcAllPanels = function() {
                 user: @user,
                 show_meme_revenue: meme_revenue_enabled?,
                 show_location_names: location_names_enabled?,
-                simple_logos: simple_logos_enabled?,
-                high_contrast: contrast_mode_enabled?),
+                simple_logos: simple_logos_enabled?),
 
                     ]),
                 ]),
@@ -3470,8 +3430,8 @@ window.recalcAllPanels = function() {
                     fontWeight: '900',
                     lineHeight: '1',
                     letterSpacing: '2px',
-                    color: (contrast_mode_enabled? ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.18)'),
-                    textShadow: (contrast_mode_enabled? ? 'none' : '0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)'),
+                    color: 'rgba(15, 23, 42, 0.18)',
+                    textShadow: '0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)',
                   },
                 }, game_title),
               h(:div, {

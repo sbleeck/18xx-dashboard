@@ -122,37 +122,47 @@ module View
 
         def install_manifest_tile_interactions
           %x{
-            setTimeout(function() {
-              var manifest = document.getElementById('tile_manifest');
-              if (!manifest || manifest.__dashboardTileInteractions) return;
-              manifest.__dashboardTileInteractions = true;
+    // Install once at document level. This survives Snabberb replacing
+    // the tile manifest DOM during redraws.
+    if (!document.__dashboardTileManifestHoverInstalled) {
+      document.__dashboardTileManifestHoverInstalled = true;
 
-              function tileFromTarget(target) {
-                if (!target || !target.closest) return null;
-                return target.closest('[id^="tile_"]');
-              }
+      function manifestTileFromTarget(target) {
+        if (!target || !target.closest) return null;
 
-              function tileName(tile) {
-                if (!tile || !tile.id) return null;
-                return tile.id.substring(5);
-              }
+        var manifest = target.closest('#tile_manifest');
+        if (!manifest) return null;
 
-              manifest.addEventListener('mouseover', function(ev) {
-                var tile = tileFromTarget(ev.target);
-                var name = tileName(tile);
-                if (!name) return;
-                if (window.highlightMapTilesByName) window.highlightMapTilesByName(name);
-              });
+        return target.closest('[id^="tile_"]');
+      }
 
-              manifest.addEventListener('mouseout', function(ev) {
-                var oldTile = tileFromTarget(ev.target);
-                if (!oldTile) return;
-                var newTile = tileFromTarget(ev.relatedTarget);
-                if (newTile === oldTile) return;
-                if (window.clearMapHexHighlightChannel) window.clearMapHexHighlightChannel('related');
-              });
-            }, 0);
-          }
+      document.addEventListener('mouseover', function(ev) {
+        var tile = manifestTileFromTarget(ev.target);
+        if (!tile || !tile.id) return;
+
+        var name = tile.id.substring(5);
+        if (!name) return;
+
+        if (window.highlightMapTilesByName) {
+          window.highlightMapTilesByName(name);
+        }
+      });
+
+      document.addEventListener('mouseout', function(ev) {
+        var oldTile = manifestTileFromTarget(ev.target);
+        if (!oldTile) return;
+
+        var newTile = manifestTileFromTarget(ev.relatedTarget);
+
+        // We are only moving between children of the same rendered tile.
+        if (newTile === oldTile) return;
+
+        if (window.clearMapHexHighlightChannel) {
+          window.clearMapHexHighlightChannel('related');
+        }
+      });
+    }
+  }
           nil
         end
 
