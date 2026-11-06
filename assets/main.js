@@ -56460,7 +56460,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
 
               
               if (e == null) e = nil;
-              return self.$start_drag(e);}, {$$s: self})]]))]])), [self.$h("span", "⚡ Actions Hub"), self.$h("button", (new Map([["attrs", (new Map([["id", "btn-action-hub-assist"], ["title", "Play one computer-assisted action (R)"], ["type", "button"]]))], ["style", (new Map([["marginLeft", "auto"], ["height", "1.7rem"], ["padding", "0 0.55rem"], ["fontSize", "0.76rem"], ["fontWeight", "700"], ["letterSpacing", "0.01em"], ["color", "#e2e8f0"], ["backgroundColor", "rgba(255,255,255,0.06)"], ["border", "1px solid #64748b"], ["borderRadius", "4px"], ["cursor", "pointer"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["lineHeight", "1"], ["flexShrink", "0"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$123(e){
+              return self.$start_drag(e);}, {$$s: self})]]))]])), [self.$h("span", "⚡ Action Hub"), self.$h("button", (new Map([["attrs", (new Map([["id", "btn-action-hub-assist"], ["title", "Play one computer-assisted action (R)"], ["type", "button"]]))], ["style", (new Map([["marginLeft", "auto"], ["height", "1.7rem"], ["padding", "0 0.55rem"], ["fontSize", "0.76rem"], ["fontWeight", "700"], ["letterSpacing", "0.01em"], ["color", "#e2e8f0"], ["backgroundColor", "rgba(255,255,255,0.06)"], ["border", "1px solid #64748b"], ["borderRadius", "4px"], ["cursor", "pointer"], ["display", "inline-flex"], ["alignItems", "center"], ["justifyContent", "center"], ["lineHeight", "1"], ["flexShrink", "0"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$123(e){
               
               if (e == null) e = nil;
               e.preventDefault();
@@ -67069,7 +67069,7 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             props['$[]']("attrs")['$[]=']("class", [props['$[]']("attrs")['$[]']("class"), "header-player"].$compact().$join(" "));
             player_hover_text = self.$stock_round_player_hover(player);
             hover_open = $$$($$('Lib'), 'Storage')['$[]']("stock_player_hover").$to_s()['$=='](player.$id().$to_s());
-            name_container = self.$h("div", (new Map([["attrs", (new Map([["class", "player-action-hover-target"]]))], ["style", (new Map([["width", "100%"], ["textAlign", "center"], ["position", "relative"], ["cursor", ($truthy(player_hover_text['$empty?']()) ? ("default") : ("help"))]]))], ["on", (new Map([["mouseenter", $send(self, 'lambda', [], function $$21(){var self = $$21.$$s == null ? this : $$21.$$s;
+            name_container = self.$h("div", (new Map([["attrs", (new Map([["class", "player-action-hover-target"]]))], ["style", (new Map([["width", "100%"], ["textAlign", "center"], ["position", "relative"], ["cursor", "default"]]))], ["on", (new Map([["mouseenter", $send(self, 'lambda', [], function $$21(){var self = $$21.$$s == null ? this : $$21.$$s;
 
               
               $$$($$('Lib'), 'Storage')['$[]=']("stock_player_hover", player.$id());
@@ -68897,7 +68897,6 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             };
             wrapper_id = "train_wrapper_" + (corporation.$id()) + "_" + (t.$id());
             train_card = self.$render_railcard(($truthy(t.$obsolete()) ? ("(" + (t.$name()) + ")") : (t.$name())), card_classes, train_click_handler, nil, menu_dropdown, wrapper_id, (new Map([["entity", t]])));
-            train_card = self.$render_railcard(($truthy(t.$obsolete()) ? ("(" + (t.$name()) + ")") : (t.$name())), card_classes, train_click_handler, nil, menu_dropdown, wrapper_id);
             train_price = (($truthy(t['$respond_to?']("price")) && ($truthy(t.$price()))) ? (self.game.$format_currency(t.$price())) : (""));
             return self.$h("div", (new Map([["attrs", (new Map([["title", train_price]]))], ["style", (new Map([["display", "inline-flex"]]))]])), [train_card]);}, {$$s: self});
           raw_limit = (function() { try {
@@ -69163,19 +69162,16 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
 
           
           shares_list = self.$Array(shares).$compact();
-          if ($truthy($rb_le(shares_list.$size(), 1))) {
+          if ($truthy(shares_list['$empty?']())) {
             return ""
           };
           counts = $$('Hash').$new(0);
-          $send(shares_list, 'each', [], function $$167(share){var $a, $b, raw_pct = nil;
+          $send(shares_list, 'each', [], function $$167(share){var $a, raw_pct = nil;
 
             
             if (share == null) share = nil;
-            raw_pct = (($truthy(share['$respond_to?']("percent")) && ($truthy(share.$percent()))) ? (share.$percent()) : (($truthy(corporation['$respond_to?']("share_percent")) && ($truthy(($a = corporation, ($a === nil || $a == null) ? nil : $a.$share_percent())))) ? (corporation.$share_percent()) : (10)));
-            return ($b = [raw_pct, $rb_plus(counts['$[]'](raw_pct), 1)], $send(counts, '[]=', $b), $b[$b.length - 1]);});
-          if (($truthy(counts['$empty?']()) || ($truthy($rb_le(counts.$values().$sum(), 1))))) {
-            return ""
-          };
+            raw_pct = (($truthy(share['$respond_to?']("percent")) && ($truthy(share.$percent()))) ? (share.$percent()) : (($truthy(corporation['$respond_to?']("share_percent")) && ($truthy(corporation.$share_percent()))) ? (corporation.$share_percent()) : (10)));
+            return ($a = [raw_pct, $rb_plus(counts['$[]'](raw_pct), 1)], $send(counts, '[]=', $a), $a[$a.length - 1]);});
           entries = $send($send(counts, 'sort_by', [], function $$168(pct, _){
             
             if (pct == null) pct = nil;
@@ -69189,6 +69185,8 @@ Opal.modules["view/game/dashboard/dashboard_game_status"] = function(Opal) {/* G
             return "" + (count) + " x " + (pct_str);});
           
           switch (entries.$size().valueOf()) {
+            case 0:
+              return ""
             case 1:
               return entries.$first()
             case 2:
@@ -69875,7 +69873,7 @@ Opal.modules["view/game/dashboard/dashboard_help_overlay"] = function(Opal) {/* 
           
           self.$needs("game", (new Map([["default", nil]])));
           self.$needs("on_close", (new Map([["default", nil]])));
-          $const_set($nesting[0], 'VERSION', "1.3.8");
+          $const_set($nesting[0], 'VERSION', "1.3.10");
           $const_set($nesting[0], 'BUILD_TIME', "2026-11-04 21:00:00 UTC");
           $const_set($nesting[0], 'SECTIONS', [(new Map([["id", "overview"], ["title", "Spatial Architecture & Vision"], ["icon", "🧭"], ["content", ["Zero-Tab Continuity: Consolidates the entire game experience onto an immutable, three-quadrant command view: Map on the left, Corporate Ledger top-right, and Stock Market bottom-right.", "Pre-Attentive State Awareness: Train deliveries, dividend flows, and share acquisitions animate across physical coordinates, allowing you to track state deltas in peripheral vision without auditing textual logs.", "Relational Coupling: Hovering over any corporation, share certificate, or station token triggers a synchronous 1 Hz luminance pulse across all representations (Map tokens, Market markers, and Charter)."]]])), (new Map([["id", "map_controls"], ["title", "Interactive Map Canvas"], ["icon", "🗺️"], ["content", ["Viewport Navigation: Hold Alt + Left Click and drag anywhere to pan the board. Hold Alt + Mouse Wheel (or use the top-right +, −, ⟲ controls) for focal zooming.", "Route Revenue ($): Overlays calculated route revenue numbers directly onto running track hexes and station nodes.", "Hex Identifiers (T): Toggles alphanumeric coordinate labels and town names across the board.", "Corporate Emblems (L): Switches between full-color historical corporate logos and high-contrast simplified tokens.", "Track Manifest: Click \"Show Remaining Tiles\" (top left) to inspect available tile inventory sorted by phase color and tile number.", "Phase Indicator: Physical-style hex badges in the upper-left indicate the tile colors (yellow, green, brown, grey) currently unlocked."]]])), (new Map([["id", "ledger_market"], ["title", "Corporate Ledger & Stock Market"], ["icon", "📊"], ["content", ["Financial Ledger (Top Right): Real-time breakdown of player liquidity, certificate counts, total portfolio worth, and priority deal, alongside operating treasuries, train inventories, and token reserves.", "Stock Market (Bottom Right): Live market grid tracking share values, ledge bounds, par values, and ownership token stacks with independent zoom and pan.", "Flexible Real Estate: Drag the horizontal and vertical dividing gutters to resize viewports to match your display aspect ratio."]]])), (new Map([["id", "temporal_hub"], ["title", "Action Hub & Turn Sequences"], ["icon", "⚡"], ["content", ["Sequential Action Drawer: Slides open automatically during your turn to guide track lays, token placements, route runs, train purchases, and share trading.", "Turn Sound & Visual Beacon: Synthesizes a pentatonic audio alert and ignites an emerald ambient frame when action is required on your turn.", "Auto-Stow: Automatically retracts when your turn passes, maximizing active board real estate."]]])), (new Map([["id", "sparring_engine"], ["title", "Autonomous Sparring Companion"], ["icon", "♟️"], ["content", ["Contextual & Deliberate: Sits unobtrusively in the Action Hub header and acts only when invited. Never takes unsolicited turns or overrides player decisions.", "Exhaustive Candidate Discovery: Dynamically materializes the complete legal action set permitted by the rules engine—from share bidding and par values to revenue allocation and train purchases.", "Isolated Speculative Search: Complex tile layouts and station placements are evaluated on detached game clones, assessing immediate route yields and two-build expansions without mutating live game state.", "Single Atomic Dispatch: Each invocation (via the Action Hub button or R keystroke) commits exactly one validated engine action, ideal for solo study, sandbox analysis, and filled hotseat sessions.", "Progressive Rationale: Inspect concise decision rationale on demand (\"Why this move?\"), reviewing candidate scores and closest alternatives without visual clutter."]]])), (new Map([["id", "utility_buttons"], ["title", "Utility Cluster & Tools"], ["icon", "🛠️"], ["content", ["📜 Game Transcript: Review chronological history, dividend declarations, and operating logs.", "🕘 Recent Actions: Quick popup summarizing the last several table actions.", "🎮 Multi-Game Switcher: Rapid toggle menu showing all your active matches with turn notification badges.", "🎵 Audio Alerts: Toggle pentatonic turn chime notifications on or off.", "💬 Tabletop Chat: In-game communications overlay with speech bubbles and unread counters."]]])), (new Map([["id", "hotkeys"], ["title", "Dispatch Hotkeys"], ["icon", "⌨️"], ["content", ["Alt + Mouse Wheel: Smooth zoom in/out on Map, Ledger, or Stock Market.", "Alt + Drag: Smooth pan across any viewport canvas.", "Ret: Execute the current Default (blue) action", "Esc: Dismiss active overlays, close menus, or exit this help screen.", "R: Advance one move via the autonomous sparring engine (sandbox and hotseat modes)."]]]))].$freeze());
           return $def(self, '$render', function $$render() {
@@ -70213,7 +70211,7 @@ Opal.modules["view/game/dashboard/dashboard_loan_animation"] = function(Opal) {/
 Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated by Opal 1.8.3 */
   var $module = Opal.module, $klass = Opal.klass, $truthy = Opal.truthy, $alias = Opal.alias, $def = Opal.def, $send = Opal.send, $defs = Opal.defs, $to_a = Opal.to_a, $not = Opal.not, $neqeq = Opal.neqeq, $rb_times = Opal.rb_times, $eqeq = Opal.eqeq, $const_set = Opal.const_set, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $eqeqeq = Opal.eqeqeq, $range = Opal.range, $rb_divide = Opal.rb_divide, $rb_plus = Opal.rb_plus, $rb_minus = Opal.rb_minus, $to_ary = Opal.to_ary, $lambda = Opal.lambda, $rb_le = Opal.rb_le, $thrower = Opal.thrower, $rb_lt = Opal.rb_lt, self = Opal.top, $nesting = [], $$ = Opal.$r($nesting), nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,method_defined?,render,orig_pulse_render,respond_to?,corporation,to_s,id,gsub,lambda,needs,orig_render,flash_token_slot?,h,compact,!,hex,active_step,round,current_entity,actions,include?,available_hex,empty?,available_tokens,tokened_by?,any?,tokens,==,open_slot?,to_proc,!=,width_for_index,value_for_index,orig_width_for_index,*,[],to_i,orig_value_for_index,===,length,include,zero?,revenue_badge,map,start_with?,color_for,max,ceil,/,size,to_f,+,with_index,each_slice,-,-@,each_with_index,<<,minmax,to_a,first,Array,tile,upgrade_cost,get_tile_lay,color,select,borders,positive?,cost,exits,paths,uniq,flat_map,edges,a,b,edge?,border_cost,sum,edge,call,hex_neighbors,all?,active_entities,operating?,entities,nil?,is_a?,=~,phase,name,to_sym,match?,each,tiles,reverse_each,keys,<=,max_by,values,instance_variable_get,base_revenue,revenue,resolve_revenue_val,parts,class,show_meme_revenue?,revenue_for,train,route_revenue,stop_base_revenue,stops,cities,concat,towns,offboards,tile_base_revenue,visited_stops,none?,find,stop_revenue_value,%,layout,install_revenue_button_bridge,hexes,clone,dup,reject,compute_axes,dashboard_current_entity,company_by_id,delete,historical?,all_corporations,corporations,minors,game_data,raw_actions,reverse,type,entity,routes,trains,train_by_id,new,extract_hovered_hexes,upcase,map!,last_laid_hexes_for,coordinates,potential_tiles,hex_cost_display,hex_meme_revenue_overlay,rotation,hook,compact!,map_size,render_map,x,map_x,y,map_y,render_selector,unshift,role,upgradeable_tiles,all_potential_upgrades,potential_tile_colors,tile_valid_for_phase?,append,<,companies,sym,placed?,city,all_abilities,abilities,const_defined?,corporation_by_id,minor,minor_by_id,desc,scan,hex_by_id,laid_hexes,operating_history,owner,axes');
+  Opal.add_stubs('require,method_defined?,render,orig_pulse_render,respond_to?,corporation,to_s,id,gsub,lambda,needs,orig_render,flash_token_slot?,h,compact,!,hex,active_step,round,current_entity,actions,include?,available_hex,empty?,available_tokens,tokened_by?,any?,tokens,==,open_slot?,to_proc,!=,width_for_index,value_for_index,orig_width_for_index,*,[],to_i,orig_value_for_index,===,length,include,zero?,revenue_badge,map,start_with?,color_for,max,ceil,/,size,to_f,+,with_index,each_slice,-,-@,each_with_index,<<,minmax,to_a,first,Array,tile,upgrade_cost,get_tile_lay,color,select,borders,positive?,cost,exits,paths,uniq,flat_map,edges,a,b,edge?,border_cost,sum,edge,call,hex_neighbors,all?,active_entities,operating?,entities,nil?,is_a?,=~,phase,name,to_sym,match?,each,tiles,reverse_each,keys,<=,max_by,values,instance_variable_get,base_revenue,revenue,resolve_revenue_val,parts,class,show_meme_revenue?,revenue_for,train,route_revenue,stop_base_revenue,stops,cities,concat,towns,offboards,tile_base_revenue,visited_stops,none?,find,stop_revenue_value,%,layout,install_revenue_button_bridge,hexes,clone,dup,reject,compute_axes,dashboard_current_entity,company_by_id,delete,historical?,all_corporations,corporations,minors,game_data,raw_actions,reverse,type,entity,routes,trains,train_by_id,new,extract_hovered_hexes,upcase,map!,last_laid_hexes_for,potential_tiles,coordinates,hex_cost_display,hex_meme_revenue_overlay,rotation,hook,compact!,map_size,render_map,x,map_x,y,map_y,render_selector,unshift,role,upgradeable_tiles,all_potential_upgrades,potential_tile_colors,tile_valid_for_phase?,append,<,companies,sym,placed?,city,all_abilities,abilities,const_defined?,corporation_by_id,minor,minor_by_id,desc,scan,hex_by_id,laid_hexes,operating_history,owner,axes');
   
   self.$require("../lib/storage");
   self.$require("../lib/settings");
@@ -70774,64 +70772,104 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
         });
         
         if (typeof window !== 'undefined') {
+          window._dashboardHexHighlightChannels = window._dashboardHexHighlightChannels || { opportunity: [], related: [] };
 
+          window._dashboardHexIdList = function(hexIds) {
+            if (!hexIds) return [];
+            var list = Array.isArray(hexIds) ? hexIds : [hexIds];
+            var seen = {};
+            var result = [];
+            for (var i = 0; i < list.length; i++) {
+              var id = String(list[i] || '').trim();
+              if (!id) continue;
+              var key = id.toUpperCase();
+              if (seen[key]) continue;
+              seen[key] = true;
+              result.push(id);
+            }
+            return result;
+          };
 
-          window.highlightMapHexes = function(hexIds, _color, breatheLastBuilt) {
-            if (!hexIds) return;
+          window._dashboardFindMapHex = function(rawId) {
+            var dashboard = document.getElementById('viz-master-frame');
+            if (!dashboard) return null;
+            var id = String(rawId);
+            return dashboard.querySelector('#hex-' + id) ||
+              dashboard.querySelector('.hex-' + id) ||
+              dashboard.querySelector('#hex-' + id.toUpperCase()) ||
+              dashboard.querySelector('.hex-' + id.toUpperCase()) ||
+              dashboard.querySelector('#hex-' + id.toLowerCase()) ||
+              dashboard.querySelector('.hex-' + id.toLowerCase());
+          };
+
+          window._dashboardRenderHexHighlights = function() {
             var dashboard = document.getElementById('viz-master-frame');
             if (!dashboard) return;
-            window.clearMapHexHighlights();
-            var list = Array.isArray(hexIds) ? hexIds : (hexIds.to_a ? hexIds.to_a() : [hexIds]);
-
-            if (Array.isArray(window._hoveredCorpLastHexes) && window._hoveredCorpLastHexes.length > 0) {
-              list = list.concat(window._hoveredCorpLastHexes);
-            }
-
-            var len = list.length || 0;
-for (var i = 0; i < list.length; i++) {
-              var rawId = String(list[i]);
-             var targets = [
-  dashboard.querySelector('#hex-' + rawId),
-  dashboard.querySelector('.hex-' + rawId),
-  dashboard.querySelector('#hex-' + rawId.toUpperCase()),
-  dashboard.querySelector('.hex-' + rawId.toUpperCase()),
-  dashboard.querySelector('#hex-' + rawId.toLowerCase()),
-  dashboard.querySelector('.hex-' + rawId.toLowerCase())
-];
-              for (var t = 0; t < targets.length; t++) {
-                var hexEl = targets[t];
-                if (hexEl) {
-                  var poly = hexEl.querySelector('.hex-highlight-poly');
-                  if (poly) {
-                    poly.setAttribute('stroke', '#00ffff');
-                    poly.setAttribute('stroke-width', '8');
-                    poly.setAttribute('fill', '#00ffff');
-                    poly.setAttribute('fill-opacity', '0.35');
-                    if (breatheLastBuilt || (Array.isArray(window._hoveredCorpLastHexes) && window._hoveredCorpLastHexes.map(String).indexOf(rawId) >= 0)) {
-                      poly.classList.add('last-built-tile-breathing');
-                    }
-                  }
-                }
+            var allHexes = dashboard.querySelectorAll('.map-hex-container');
+            for (var i = 0; i < allHexes.length; i++) {
+              allHexes[i].classList.remove('map-highlight-opportunity', 'map-highlight-related');
+              if (allHexes[i].getAttribute('data-base-opportunity') === 'true') {
+                allHexes[i].classList.add('map-highlight-opportunity');
               }
+            }
+            var channels = window._dashboardHexHighlightChannels || {};
+            var opportunity = window._dashboardHexIdList(channels.opportunity || []);
+            var related = window._dashboardHexIdList(channels.related || []);
+            var primary = {};
+            for (var bi = 0; bi < allHexes.length; bi++) {
+              if (allHexes[bi].getAttribute('data-base-opportunity') === 'true') {
+                var baseId = allHexes[bi].getAttribute('data-hex');
+                if (baseId) primary[String(baseId).toUpperCase()] = true;
+              }
+            }
+            for (var oi = 0; oi < opportunity.length; oi++) {
+              primary[String(opportunity[oi]).toUpperCase()] = true;
+              var opportunityHex = window._dashboardFindMapHex(opportunity[oi]);
+              if (opportunityHex) opportunityHex.classList.add('map-highlight-opportunity');
+            }
+            for (var ri = 0; ri < related.length; ri++) {
+              if (primary[String(related[ri]).toUpperCase()]) continue;
+              var relatedHex = window._dashboardFindMapHex(related[ri]);
+              if (relatedHex) relatedHex.classList.add('map-highlight-related');
             }
           };
 
+          window.setMapHexHighlightChannel = function(channel, hexIds) {
+            if (channel !== 'opportunity' && channel !== 'related') return;
+            window._dashboardHexHighlightChannels = window._dashboardHexHighlightChannels || { opportunity: [], related: [] };
+            window._dashboardHexHighlightChannels[channel] = window._dashboardHexIdList(hexIds);
+            window._dashboardRenderHexHighlights();
+          };
+
+          window.clearMapHexHighlightChannel = function(channel) {
+            if (!window._dashboardHexHighlightChannels) return;
+            if (channel === 'opportunity' || channel === 'related') window._dashboardHexHighlightChannels[channel] = [];
+            window._dashboardRenderHexHighlights();
+          };
+
           window.clearMapHexHighlights = function() {
-var dashboard = document.getElementById('viz-master-frame');
-if (!dashboard) return;
-var polys = dashboard.querySelectorAll('.hex-highlight-poly');
-            for (var i = 0; i < polys.length; i++) {
-              var p = polys[i];
-              var origStroke = p.getAttribute('data-orig-stroke') || 'transparent';
-              var origWidth = p.getAttribute('data-orig-width') || '0';
-              var origFill = p.getAttribute('data-orig-fill') || 'transparent';
-              var origFillOpacity = p.getAttribute('data-orig-fill-opacity') || '0';
-              p.setAttribute('stroke', origStroke);
-              p.setAttribute('stroke-width', origWidth);
-              p.setAttribute('fill', origFill);
-              p.setAttribute('fill-opacity', origFillOpacity);
-              p.classList.remove('last-built-tile-breathing');
+            window._dashboardHexHighlightChannels = { opportunity: [], related: [] };
+            window._dashboardRenderHexHighlights();
+          };
+
+          // Compatibility for existing company/private hover callers.
+          window.highlightMapHexes = function(hexIds) {
+            window.setMapHexHighlightChannel('related', hexIds);
+          };
+
+          window.highlightMapTilesByName = function(tileName) {
+            var dashboard = document.getElementById('viz-master-frame');
+            if (!dashboard) return;
+            var wanted = String(tileName);
+            var hexes = dashboard.querySelectorAll('.map-hex-container[data-tile-name]');
+            var ids = [];
+            for (var i = 0; i < hexes.length; i++) {
+              if (String(hexes[i].getAttribute('data-tile-name')) === wanted) {
+                var hexId = hexes[i].getAttribute('data-hex');
+                if (hexId) ids.push(hexId);
+              }
             }
+            window.setMapHexHighlightChannel('related', ids);
           };
         }
       ;
@@ -71481,7 +71519,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
         });
         
         $def(self, '$render', function $$render() {
-          var $a, $b, $c, $d, self = this, axes_hexes = nil, step = nil, current_entity = nil, combo_entities = nil, $ret_or_1 = nil, entity_or_entities = nil, actions = nil, selected_hex = nil, route_actions = nil, route_phase_active = nil, is_history_mode = nil, $ret_or_2 = nil, hovered_last_id = nil, hovered_corp = nil, all_corps = nil, hovered_routes = nil, actions_list = nil, run_action = nil, raw_routes = nil, candidate_routes = nil, routes = nil, track_action_active = nil, token_action_active = nil, hovered_c_id = nil, hovered_hex_set = nil, hex_selected = nil, $ret_or_3 = nil, tile_chosen = nil, active_tile = nil, map_w = nil, map_h = nil, children = nil, left = nil, top = nil, selector = nil, props = nil;
+          var $a, $b, $c, $d, self = this, axes_hexes = nil, step = nil, current_entity = nil, combo_entities = nil, $ret_or_1 = nil, entity_or_entities = nil, actions = nil, selected_hex = nil, route_actions = nil, route_phase_active = nil, is_history_mode = nil, $ret_or_2 = nil, hovered_last_id = nil, hovered_corp = nil, all_corps = nil, hovered_routes = nil, actions_list = nil, run_action = nil, raw_routes = nil, candidate_routes = nil, routes = nil, track_action_active = nil, token_action_active = nil, actionable_turn = nil, hovered_c_id = nil, hovered_hex_set = nil, hex_selected = nil, $ret_or_3 = nil, tile_chosen = nil, active_tile = nil, map_w = nil, map_h = nil, children = nil, left = nil, top = nil, selector = nil, props = nil;
 
           
           if ($eqeq((self.layout = self.game.$layout()), "none")) {
@@ -71636,6 +71674,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             return r['$respond_to?']("paths_for");});
           track_action_active = actions['$include?']("lay_tile");
           token_action_active = ($truthy(($ret_or_1 = actions['$include?']("place_token"))) ? ($ret_or_1) : (actions['$include?']("hex_token")));
+          actionable_turn = ($truthy(($ret_or_1 = track_action_active)) ? ($ret_or_1) : (token_action_active));
           hovered_c_id = $$$($$('Lib'), 'Storage')['$[]']("hovered_company_id");
           hovered_hex_set = $send(self.$extract_hovered_hexes(hovered_c_id), 'map', [], function $$41(h){
             
@@ -71645,7 +71684,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           selected_hex = ($truthy(hex_selected) ? (self.tile_selector.$hex()) : (nil));
           tile_chosen = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = hex_selected)) ? (self.tile_selector.$tile()) : ($ret_or_2)))) ? (self.tile_selector.$hex().$tile()['$!='](self.tile_selector.$tile())) : ($ret_or_1));
           active_tile = ($truthy(tile_chosen) ? (self.tile_selector.$tile()) : (nil));
-          $send(self.hexes, 'map!', [], function $$42(hex){var $c, $d, self = $$42.$$s == null ? this : $$42.$$s, clickable = nil, hover_mode = nil, is_hovered = nil, is_last_built_hover = nil, base_hex = nil, border_color = nil, initial_stroke = nil, initial_width = nil, initial_fill = nil, initial_fill_opacity = nil, x = nil, y = nil, transform_str = nil, overlays = nil, show_building_highlight = nil, breathing = nil, hatch_children = nil, border_children = nil, cost_str = nil, scale_factor = nil, rot_angle = nil, hex_children = nil, meme_overlay = nil, g_props = nil;
+          $send(self.hexes, 'map!', [], function $$42(hex){var $c, $d, self = $$42.$$s == null ? this : $$42.$$s, clickable = nil, hover_mode = nil, is_hovered = nil, is_last_built_hover = nil, show_building_highlight = nil, show_token_highlight = nil, can_build = nil, hex_opacity = nil, base_hex = nil, border_color = nil, initial_stroke = nil, initial_width = nil, initial_fill = nil, initial_fill_opacity = nil, x = nil, y = nil, transform_str = nil, overlays = nil, cost_str = nil, scale_factor = nil, rot_angle = nil, badge_fill = nil, badge_stroke = nil, badge_text_color = nil, hex_children = nil, meme_overlay = nil, g_props = nil;
             if (self.show_starting_map == null) self.show_starting_map = nil;
             if (self.opacity == null) self.opacity = nil;
             if (self.start_pos == null) self.start_pos = nil;
@@ -71668,47 +71707,48 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               if (h == null) h = nil;
               return h.$to_s().$upcase();})['$include?'](hex.$id().$to_s().$upcase())) : ($ret_or_1));
             is_hovered = ($truthy(($ret_or_1 = is_hovered)) ? ($ret_or_1) : (is_last_built_hover));
-            base_hex = self.$h($$('Hex'), (new Map([["hex", hex], ["opacity", ($truthy(self.show_starting_map) ? (1.0) : (($truthy(($ret_or_1 = self.opacity)) ? ($ret_or_1) : (1.0))))], ["entity", current_entity], ["clickable", ($truthy(hex_selected) ? (($truthy(($ret_or_1 = hex['$=='](selected_hex))) ? (clickable) : ($ret_or_1))) : (clickable))], ["actions", ($truthy(current_entity) ? (actions) : ([]))], ["routes", routes], ["start_pos", self.start_pos], ["highlight", false]])));
+            show_building_highlight = ($truthy(hover_mode) ? (false) : ($truthy(hex_selected) ? (hex['$=='](selected_hex)) : ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = clickable)) ? (track_action_active) : ($ret_or_2)))) ? (($truthy(($ret_or_2 = step['$respond_to?']("potential_tiles")['$!']())) ? ($ret_or_2) : (step.$potential_tiles(entity_or_entities, hex)['$any?']()))) : ($ret_or_1))));
+            show_token_highlight = (($truthy(hover_mode) || ($truthy(hex_selected))) ? (false) : ($truthy(($ret_or_1 = clickable)) ? (token_action_active) : ($ret_or_1)));
+            can_build = ($truthy(($ret_or_1 = show_building_highlight)) ? ($ret_or_1) : (show_token_highlight));
+            hex_opacity = ($truthy(($ret_or_1 = self.opacity)) ? ($ret_or_1) : (1.0));
+            base_hex = self.$h($$('Hex'), (new Map([["hex", hex], ["opacity", hex_opacity], ["entity", current_entity], ["clickable", ($truthy(hex_selected) ? (($truthy(($ret_or_1 = hex['$=='](selected_hex))) ? (clickable) : ($ret_or_1))) : (clickable))], ["actions", ($truthy(current_entity) ? (actions) : ([]))], ["routes", routes], ["start_pos", self.start_pos], ["highlight", false]])));
             border_color = ($truthy(is_hovered) ? ("#00ffff") : (nil));
             initial_stroke = ($truthy(($ret_or_1 = border_color)) ? ($ret_or_1) : ("transparent"));
             initial_width = ($truthy(border_color) ? ($rb_plus($$$($$('Hex'), 'HIGHLIGHT_STROKE_WIDTH'), 4)) : (0));
             initial_fill = ($truthy(is_hovered) ? ("#00ffff") : ("transparent"));
-            initial_fill_opacity = ($truthy(is_hovered) ? ("0.35") : ("0"));
+            initial_fill_opacity = ($truthy(is_hovered) ? ("0.18") : ("0"));
             $d = $$('Hex').$coordinates(hex, self.start_pos), $c = $to_ary($d), (x = ($c[0] == null ? nil : $c[0])), (y = ($c[1] == null ? nil : $c[1])), $d;
             transform_str = "translate(" + (x) + ", " + (y) + ")" + (($eqeq(hex.$layout(), "pointy") ? (" rotate(30)") : nil));
             overlays = [];
-            show_building_highlight = ($truthy(hover_mode) ? (false) : ($truthy(hex_selected) ? (hex['$=='](selected_hex)) : ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = clickable)) ? (track_action_active) : ($ret_or_3)))) ? (step['$respond_to?']("potential_tiles")) : ($ret_or_2)))) ? (step.$potential_tiles(entity_or_entities, hex)['$any?']()) : ($ret_or_1))));
             if ($truthy(show_building_highlight)) {
               
-              breathing = hex_selected['$!']();
-              hatch_children = [];
-              border_children = [];
-              if ($truthy(breathing)) {
-                
-                hatch_children['$<<'](self.$h("animate", (new Map([["attrs", (new Map([["attributeName", "fill-opacity"], ["values", "0.18;0.52;0.18"], ["dur", "1.8s"], ["repeatCount", "indefinite"]]))]]))));
-                border_children['$<<'](self.$h("animate", (new Map([["attrs", (new Map([["attributeName", "stroke-opacity"], ["values", "0.45;1.0;0.45"], ["dur", "1.8s"], ["repeatCount", "indefinite"]]))]]))));
-                border_children['$<<'](self.$h("animate", (new Map([["attrs", (new Map([["attributeName", "stroke-width"], ["values", "8;14;8"], ["dur", "1.8s"], ["repeatCount", "indefinite"]]))]]))));
-              };
-              overlays['$<<'](self.$h("polygon", (new Map([["attrs", (new Map([["points", $$$($$('Hex'), 'HIGHLIGHT_POINTS')], ["fill", "url(#cyan-hatch)"], ["fill-opacity", ($truthy(breathing) ? ("0.18") : ("0.34"))], ["pointer-events", "none"]]))]])), hatch_children));
-              overlays['$<<'](self.$h("polygon", (new Map([["attrs", (new Map([["points", $$$($$('Hex'), 'HIGHLIGHT_POINTS')], ["fill", "none"], ["stroke", "#00ffff"], ["stroke-width", ($truthy(breathing) ? ("8") : ("12"))], ["stroke-opacity", ($truthy(breathing) ? ("0.45") : ("1"))], ["stroke-linejoin", "round"], ["stroke-linecap", "square"], ["pathLength", "576"], ["stroke-dasharray", "40 56"], ["stroke-dashoffset", "20"], ["pointer-events", "none"]]))]])), border_children));
               cost_str = ($truthy(current_entity) ? (self.$hex_cost_display(step, entity_or_entities, hex, (new Map([["tile", ($eqeq(hex, selected_hex) ? (active_tile) : (nil))]])))) : nil);
               if ($truthy(cost_str)) {
                 
                 scale_factor = ($eqeqeq($range(1, 2, false), ($ret_or_1 = cost_str.$length())) ? (1.2) : ($eqeqeq(3, $ret_or_1) ? (1.0) : ($eqeqeq(4, $ret_or_1) ? (0.85) : (0.75))));
                 rot_angle = ($eqeq(hex.$layout(), "pointy") ? (60) : (90));
-                overlays['$<<'](self.$h("g", (new Map([["attrs", (new Map([["pointer-events", "none"]]))]])), [self.$h("polygon", (new Map([["attrs", (new Map([["points", "8.5,-80 48.5,-80 76.5,-32 36.5,-32"], ["fill", "#f8fafc"], ["stroke", "#4c1d95"], ["stroke-width", "2.5"], ["stroke-linejoin", "round"]]))]]))), self.$h("g", (new Map([["attrs", (new Map([["transform", "translate(42.5, -56) rotate(" + (rot_angle) + ") scale(" + (scale_factor) + ")"]]))]])), [self.$h("text", (new Map([["attrs", (new Map([["x", "0"], ["y", "0"], ["text-anchor", "middle"], ["dominant-baseline", "central"], ["fill", "#4c1d95"], ["class", "dashboard-money dashboard-tile-cost"], ["font-weight", "700"], ["font-family", "'Courier New', monospace"], ["letter-spacing", "-0.5px"]]))]])), cost_str)])]));
+                badge_fill = "#f8fafc";
+                badge_stroke = "#4c1d95";
+                badge_text_color = "#4c1d95";
+                overlays['$<<'](self.$h("g", (new Map([["attrs", (new Map([["pointer-events", "none"]]))]])), [self.$h("polygon", (new Map([["attrs", (new Map([["points", "8.5,-80 48.5,-80 76.5,-32 36.5,-32"], ["fill", badge_fill], ["stroke", badge_stroke], ["stroke-width", "2.5"], ["stroke-linejoin", "round"]]))]]))), self.$h("g", (new Map([["attrs", (new Map([["transform", "translate(42.5, -56) rotate(" + (rot_angle) + ") scale(" + (scale_factor) + ")"]]))]])), [self.$h("text", (new Map([["attrs", (new Map([["x", "0"], ["y", "0"], ["text-anchor", "middle"], ["dominant-baseline", "central"], ["fill", badge_text_color], ["class", "dashboard-money dashboard-tile-cost"], ["font-weight", "700"], ["font-family", "'Courier New', monospace"], ["letter-spacing", "-0.5px"]]))]])), cost_str)])]));
               };
             };
-            initial_stroke = ($truthy(($ret_or_1 = border_color)) ? ($ret_or_1) : ("transparent"));
-            initial_width = ($truthy(border_color) ? ($rb_plus($$$($$('Hex'), 'HIGHLIGHT_STROKE_WIDTH'), 4)) : (0));
-            initial_fill = ($truthy(is_hovered) ? ("#00ffff") : ("transparent"));
-            initial_fill_opacity = ($truthy(is_hovered) ? ("0.35") : ("0"));
-            hex_children = [base_hex, self.$h("g", (new Map([["attrs", (new Map([["transform", transform_str], ["class", "hex-highlight-wrapper"]]))], ["style", (new Map([["pointerEvents", "none"]]))]])), [self.$h("polygon", (new Map([["attrs", (new Map([["points", $$$($$('Hex'), 'HIGHLIGHT_POINTS')], ["class", "hex-highlight-poly"], ["data-orig-stroke", initial_stroke], ["data-orig-width", initial_width.$to_s()], ["data-orig-fill", initial_fill], ["data-orig-fill-opacity", initial_fill_opacity], ["stroke", initial_stroke], ["stroke-width", initial_width.$to_s()], ["fill", initial_fill], ["fill-opacity", initial_fill_opacity]]))], ["style", (new Map([["pointerEvents", "none"]]))]])))].concat($to_a(overlays)))];
+            hex_children = [base_hex, self.$h("g", (new Map([["attrs", (new Map([["transform", transform_str], ["class", "hex-highlight-wrapper"]]))], ["style", (new Map([["pointerEvents", "none"]]))]])), [self.$h("polygon", (new Map([["attrs", (new Map([["points", $$$($$('Hex'), 'HIGHLIGHT_POINTS')], ["class", "hex-highlight-poly highlight-outline-outer"], ["data-orig-stroke", initial_stroke], ["data-orig-width", initial_width.$to_s()], ["data-orig-fill", initial_fill], ["data-orig-fill-opacity", initial_fill_opacity], ["stroke", initial_stroke], ["stroke-width", initial_width.$to_s()], ["fill", initial_fill], ["fill-opacity", initial_fill_opacity]]))], ["style", (new Map([["pointerEvents", "none"]]))]]))), self.$h("polygon", (new Map([["attrs", (new Map([["points", $$$($$('Hex'), 'HIGHLIGHT_POINTS')], ["class", "highlight-outline-inner"], ["fill", "none"], ["stroke", "transparent"], ["stroke-width", "0"], ["pointer-events", "none"]]))]]))), self.$h("g", (new Map([["attrs", (new Map([["class", "highlight-primary-markers"], ["pointer-events", "none"]]))]])), $send([[-50, 0], [-25, -43.3], [25, -43.3], [50, 0], [25, 43.3], [-25, 43.3]], 'map', [], function $$44(mx, my){var self = $$44.$$s == null ? this : $$44.$$s;
+
+              
+              if (mx == null) mx = nil;
+              if (my == null) my = nil;
+              return self.$h("circle", (new Map([["attrs", (new Map([["cx", mx], ["cy", my], ["r", "5.5"], ["class", "highlight-primary-marker"]]))]])));}, {$$s: self})), self.$h("g", (new Map([["attrs", (new Map([["class", "highlight-related-markers"], ["pointer-events", "none"]]))]])), $send([[-50, 0], [25, -43.3], [25, 43.3]], 'map', [], function $$45(mx, my){var self = $$45.$$s == null ? this : $$45.$$s;
+
+              
+              if (mx == null) mx = nil;
+              if (my == null) my = nil;
+              return self.$h("rect", (new Map([["attrs", (new Map([["x", $rb_minus(mx, 5.5)], ["y", $rb_minus(my, 5.5)], ["width", "11"], ["height", "11"], ["rx", "1"], ["transform", "rotate(45 " + (mx) + " " + (my) + ")"], ["class", "highlight-related-marker"]]))]])));}, {$$s: self}))].concat($to_a(overlays)))];
             meme_overlay = self.$hex_meme_revenue_overlay(hex, x, y, routes);
             if ($truthy(meme_overlay)) {
               hex_children['$<<'](meme_overlay)
             };
-            g_props = (new Map([["key", "dash-g-" + (hex.$id())], ["attrs", (new Map([["id", "hex-" + (hex.$id())], ["class", "map-hex-container hex-" + (hex.$id())], ["data-hex", hex.$id().$to_s()], ["data-tile-state", "" + (hex.$tile().$name()) + "-" + (hex.$tile().$color()) + "-" + (hex.$tile().$rotation())], ["data-transform", transform_str]]))], ["hook", $$$($$('Lib'), 'TileLayAnimation').$hook()]]));
+            g_props = (new Map([["key", "dash-g-" + (hex.$id())], ["attrs", (new Map([["id", "hex-" + (hex.$id())], ["class", "map-hex-container hex-" + (hex.$id()) + (($truthy(can_build) ? (" map-highlight-opportunity") : nil))], ["data-hex", hex.$id().$to_s()], ["data-tile-name", hex.$tile().$name().$to_s()], ["data-tile-state", "" + (hex.$tile().$name()) + "-" + (hex.$tile().$color()) + "-" + (hex.$tile().$rotation())], ["data-transform", transform_str], ["data-base-opportunity", ($truthy(can_build) ? ("true") : ("false"))]]))], ["hook", $$$($$('Lib'), 'TileLayAnimation').$hook()]]));
             return self.$h("g", g_props, hex_children);}, {$$s: self});
           self.hexes['$compact!']();
           $d = self.$map_size(), $c = $to_ary($d), (map_w = ($c[0] == null ? nil : $c[0])), (map_h = ($c[1] == null ? nil : $c[1])), $d;
@@ -71739,13 +71779,13 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             tiles = step.$upgradeable_tiles(entity_or_entities, self.tile_selector.$hex());
             all_upgrades = self.game.$all_potential_upgrades(self.tile_selector.$hex().$tile(), (new Map([["selected_company", self.selected_company]])));
             phase_colors = step.$potential_tile_colors(current_entity, self.tile_selector.$hex());
-            select_tiles = $send(all_upgrades, 'map', [], function $$44(tile){var self = $$44.$$s == null ? this : $$44.$$s, real_tile = nil;
+            select_tiles = $send(all_upgrades, 'map', [], function $$46(tile){var self = $$46.$$s == null ? this : $$46.$$s, real_tile = nil;
               if (self.game == null) self.game = nil;
               if (self.tile_selector == null) self.tile_selector = nil;
 
               
               if (tile == null) tile = nil;
-              real_tile = $send(tiles, 'find', [], function $$45(t){
+              real_tile = $send(tiles, 'find', [], function $$47(t){
                 
                 if (t == null) t = nil;
                 return t.$name()['$=='](tile.$name());});
@@ -71755,7 +71795,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                 return [real_tile, nil];
               } else if ($not(self.game['$tile_valid_for_phase?'](tile, (new Map([["hex", self.tile_selector.$hex()], ["phase_color_cache", phase_colors]]))))) {
                 return [tile, "Later Phase"]
-              } else if ($truthy($send(self.game.$tiles(), 'none?', [], function $$46(t){
+              } else if ($truthy($send(self.game.$tiles(), 'none?', [], function $$48(t){
                 
                 if (t == null) t = nil;
                 return t.$name()['$=='](tile.$name());}))) {
@@ -71763,7 +71803,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               } else {
                 return nil
               };}, {$$s: self}).$compact();
-            $send(select_tiles, 'append', $to_a($send(tiles, 'map', [], function $$47(t){
+            $send(select_tiles, 'append', $to_a($send(tiles, 'map', [], function $$49(t){
               
               if (t == null) t = nil;
               return [t, nil];})));
@@ -71785,7 +71825,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
           };
           target_hexes = [];
           all_companies = ($truthy(self.game['$respond_to?']("companies")) ? (($truthy(($ret_or_1 = self.game.$companies())) ? ($ret_or_1) : ([]))) : ([]));
-          hovered_company = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = $send(all_companies, 'find', [], function $$48(c){var $ret_or_3 = nil, $ret_or_4 = nil;
+          hovered_company = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = $send(all_companies, 'find', [], function $$50(c){var $ret_or_3 = nil, $ret_or_4 = nil;
 
             
             if (c == null) c = nil;
@@ -71798,7 +71838,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               } else {
                 return $ret_or_4
               };
-            };}))) ? ($ret_or_2) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(self.game.$minors(), 'find', [], function $$49(m){var $ret_or_3 = nil, $ret_or_4 = nil;
+            };}))) ? ($ret_or_2) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(self.game.$minors(), 'find', [], function $$51(m){var $ret_or_3 = nil, $ret_or_4 = nil;
 
             
             if (m == null) m = nil;
@@ -71811,7 +71851,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               } else {
                 return $ret_or_4
               };
-            };})) : nil))))) ? ($ret_or_1) : ($send(self.game.$corporations(), 'find', [], function $$50(corp){var $ret_or_3 = nil;
+            };})) : nil))))) ? ($ret_or_1) : ($send(self.game.$corporations(), 'find', [], function $$52(corp){var $ret_or_3 = nil;
 
             
             if (corp == null) corp = nil;
@@ -71830,7 +71870,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             last_laid = self.$last_laid_hexes_for(hovered_company);
             has_placed = false;
             if (($truthy(hovered_company['$respond_to?']("tokens")) && ($truthy(hovered_company.$tokens())))) {
-              has_placed = $send(hovered_company.$tokens(), 'any?', [], function $$51(t){var $a, $ret_or_3 = nil;
+              has_placed = $send(hovered_company.$tokens(), 'any?', [], function $$53(t){var $a, $ret_or_3 = nil;
 
                 
                 if (t == null) t = nil;
@@ -71850,7 +71890,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             };
             target_hexes.$concat(last_laid);
             if (($truthy(hovered_company['$respond_to?']("coordinates")) && ($truthy(hovered_company.$coordinates())))) {
-              $send(self.$Array(hovered_company.$coordinates()), 'each', [], function $$52(coord){
+              $send(self.$Array(hovered_company.$coordinates()), 'each', [], function $$54(coord){
                 
                 if (coord == null) coord = nil;
                 return target_hexes['$<<'](coord.$to_s());})
@@ -71867,7 +71907,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             };
             if ($truthy(self.game.$class()['$const_defined?']("COMPANIES"))) {
               
-              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$53(c_def){
+              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$55(c_def){
                 
                 if (c_def == null) c_def = nil;
                 if ($truthy(($ret_or_1 = c_def['$[]']("sym").$to_s()['$=='](hovered_c_id)))) {
@@ -71876,12 +71916,12 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                   return c_def['$[]']("name").$to_s()['$=='](hovered_c_id)
                 };});
               if (($truthy(raw_def) && ($truthy(raw_def['$[]']("abilities"))))) {
-                $send(raw_def['$[]']("abilities"), 'each', [], function $$54(raw_ab){var self = $$54.$$s == null ? this : $$54.$$s;
+                $send(raw_def['$[]']("abilities"), 'each', [], function $$56(raw_ab){var self = $$56.$$s == null ? this : $$56.$$s;
 
                   
                   if (raw_ab == null) raw_ab = nil;
                   if ($truthy(raw_ab['$[]']("hexes"))) {
-                    $send(self.$Array(raw_ab['$[]']("hexes")), 'each', [], function $$55(coord){
+                    $send(self.$Array(raw_ab['$[]']("hexes")), 'each', [], function $$57(coord){
                       
                       if (coord == null) coord = nil;
                       return target_hexes['$<<'](coord.$to_s());})
@@ -71893,13 +71933,13 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                   };}, {$$s: self})
               };
             };
-            $send(abilities, 'each', [], function $$56(ab){var $a, self = $$56.$$s == null ? this : $$56.$$s, target_corp = nil;
+            $send(abilities, 'each', [], function $$58(ab){var $a, self = $$58.$$s == null ? this : $$58.$$s, target_corp = nil;
               if (self.game == null) self.game = nil;
 
               
               if (ab == null) ab = nil;
               if (($truthy(ab['$respond_to?']("hexes")) && ($truthy(ab.$hexes())))) {
-                $send(self.$Array(ab.$hexes()), 'each', [], function $$57(coord){
+                $send(self.$Array(ab.$hexes()), 'each', [], function $$59(coord){
                   
                   if (coord == null) coord = nil;
                   return target_hexes['$<<'](coord.$to_s());})
@@ -71908,7 +71948,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                 target_hexes['$<<'](($truthy(ab.$hex()['$respond_to?']("id")) ? (ab.$hex().$id()) : (ab.$hex())).$to_s())
               };
               if (($truthy(ab['$respond_to?']("coordinates")) && ($truthy(ab.$coordinates())))) {
-                $send(self.$Array(ab.$coordinates()), 'each', [], function $$58(coord){
+                $send(self.$Array(ab.$coordinates()), 'each', [], function $$60(coord){
                   
                   if (coord == null) coord = nil;
                   return target_hexes['$<<'](coord.$to_s());})
@@ -71922,12 +71962,12 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
               if (!($truthy(target_corp['$respond_to?']("coordinates")) && ($truthy(($a = target_corp, ($a === nil || $a == null) ? nil : $a.$coordinates()))))) {
                 return nil
               };
-              return $send(self.$Array(target_corp.$coordinates()), 'each', [], function $$59(coord){
+              return $send(self.$Array(target_corp.$coordinates()), 'each', [], function $$61(coord){
                 
                 if (coord == null) coord = nil;
                 return target_hexes['$<<'](coord.$to_s());});}, {$$s: self});
             if (($truthy(hovered_company['$respond_to?']("desc")) && ($truthy(hovered_company.$desc())))) {
-              $send(hovered_company.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$60(h_id){var self = $$60.$$s == null ? this : $$60.$$s;
+              $send(hovered_company.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$62(h_id){var self = $$62.$$s == null ? this : $$62.$$s;
                 if (self.game == null) self.game = nil;
 
                 
@@ -71953,7 +71993,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             step = self.game.$round().$active_step(self.selected_company);
             curr = self.$dashboard_current_entity(step);
             if ((($truthy(self.game.$round()['$respond_to?']("laid_hexes")) && ($eqeq(curr, corporation))) && ($truthy(($a = self.game.$round().$laid_hexes(), ($a === nil || $a == null) ? nil : $a['$any?']()))))) {
-              return $send(self.game.$round().$laid_hexes(), 'map', [], function $$61(h){
+              return $send(self.game.$round().$laid_hexes(), 'map', [], function $$63(h){
                 
                 if (h == null) h = nil;
                 if ($truthy(h['$respond_to?']("id"))) {
@@ -71964,7 +72004,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             };
             if (($truthy(corporation['$respond_to?']("operating_history")) && ($truthy(($b = corporation.$operating_history(), ($b === nil || $b == null) ? nil : $b['$any?']()))))) {
               
-              last_info = $send(corporation.$operating_history().$values().$reverse(), 'find', [], function $$62(info){var $c, $ret_or_1 = nil;
+              last_info = $send(corporation.$operating_history().$values().$reverse(), 'find', [], function $$64(info){var $c, $ret_or_1 = nil;
 
                 
                 if (info == null) info = nil;
@@ -71974,7 +72014,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                   return $ret_or_1
                 };});
               if ($truthy(last_info)) {
-                return $send(last_info.$laid_hexes(), 'map', [], function $$63(h){
+                return $send(last_info.$laid_hexes(), 'map', [], function $$65(h){
                   
                   if (h == null) h = nil;
                   if ($truthy(h['$respond_to?']("id"))) {
@@ -71986,7 +72026,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
             };
             actions_list = ($truthy(self.game['$respond_to?']("actions")) ? (($truthy(($ret_or_1 = self.game.$actions())) ? ($ret_or_1) : ([]))) : ([]));
             laid = [];
-            (function(){try { var $t_break = $thrower('break'); return $send(actions_list, 'reverse_each', [], function $$64(act){var a_type = nil, a_ent = nil, ent_id = nil, owner_id = nil, is_corp = nil, hex = nil, hex_id = nil;
+            (function(){try { var $t_break = $thrower('break'); return $send(actions_list, 'reverse_each', [], function $$66(act){var a_type = nil, a_ent = nil, ent_id = nil, owner_id = nil, is_corp = nil, hex = nil, hex_id = nil;
 
               
               if (act == null) act = nil;
@@ -72005,7 +72045,7 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
                   return laid['$<<'](hex_id)
                 };
               } else if (($truthy(laid['$any?']()) && (($not(is_corp) || ($truthy(["run_routes", "dividend", "pass"]['$include?'](a_type.$to_s()))))))) {
-                $t_break.$throw(nil, $$64.$$is_lambda)
+                $t_break.$throw(nil, $$66.$$is_lambda)
               } else {
                 return nil
               };})} catch($e) {
@@ -72044,15 +72084,17 @@ var polys = dashboard.querySelectorAll('.hex-highlight-poly');
         });
         
         $def(self, '$render_map', function $$render_map(width, height) {
-          var self = this, $ret_or_1 = nil;
+          var self = this, svg_attrs = nil, $ret_or_1 = nil;
 
-          return self.$h("svg", (new Map([["attrs", (new Map([["id", "map"], ["width", width.$to_s()], ["height", height.$to_s()]]))]])), [self.$h("defs", [self.$h("style", (new Map()), $rb_plus($rb_plus("\n" + "\n" + "\n" + "  #map {\n" + "    --font-money: 'Courier New', monospace;\n" + "    --color-money-text: #4c1d95;\n" + "    --map-money-size: 150%;\n" + "  }\n" + "\n" + "#map .dashboard-money,\n" + "#map .dashboard-money text {\n" + "  font-family: var(--font-money) !important;\n" + "  font-weight: 700 !important;\n" + "}\n" + "\n", "\n" + "  #map-axis text,\n" + "  #map > g > g:not(#map-hexes) text {\n" + "    fill: #000000 !important;\n" + "  }\n" + "  #map-hexes g.tile__text text {\n" + "    font-size: 14.85px !important;\n" + "    font-weight: bold !important;\n" + "  }\n"), "\n" + "\n" + "\n" + "  #map .dashboard-tile-cost {\n" + "    font-size: 12px !important;\n" + "    letter-spacing: 0 !important;\n" + "  }\n" + "  @keyframes dashboard-last-built-tile-breathe {\n" + "    0%, 100% { stroke-width: 7px; stroke-opacity: 0.55; fill-opacity: 0.16; filter: drop-shadow(0 0 2px #00ffff); }\n" + "    50% { stroke-width: 14px; stroke-opacity: 1; fill-opacity: 0.46; filter: drop-shadow(0 0 10px #00ffff); }\n" + "  }\n" + "  #map .last-built-tile-breathing {\n" + "    animation: dashboard-last-built-tile-breathe 0.95s ease-in-out infinite !important;\n" + "    transform-box: fill-box;\n" + "    transform-origin: center;\n" + "  }\n")), self.$h("pattern", (new Map([["attrs", (new Map([["id", "cyan-hatch"], ["width", "16"], ["height", "16"], ["patternUnits", "userSpaceOnUse"], ["patternTransform", "rotate(45)"]]))]])), [self.$h("line", (new Map([["attrs", (new Map([["x1", "0"], ["y1", "0"], ["x2", "0"], ["y2", "16"], ["stroke", "#00ffff"], ["stroke-width", "3.5"], ["stroke-opacity", "0.5"]]))]])))])]), self.$h("g", (new Map([["attrs", (new Map([["transform", "scale(" + (self.scale) + ")"]]))]])), [self.$h("g", (new Map([["attrs", (new Map([["id", "map-hexes"], ["transform", "translate(" + (self.$map_x()) + " " + (self.$map_y()) + ")"]]))]])), self.hexes), self.$h("g", (new Map([["attrs", (new Map([["id", "map-axis"]]))]])), [self.$h($$('Axis'), (new Map([["cols", $send(self.cols, 'map', [], function $$65(c){
+          
+          svg_attrs = (new Map([["id", "map"], ["width", width.$to_s()], ["height", height.$to_s()]]));
+          return self.$h("svg", (new Map([["attrs", svg_attrs]])), [self.$h("defs", [self.$h("style", (new Map()), $rb_plus($rb_plus("\n" + "\n" + "\n" + "  #map {\n" + "    --font-money: 'Courier New', monospace;\n" + "    --color-money-text: #4c1d95;\n" + "    --map-money-size: 150%;\n" + "  }\n" + "\n" + "#map .dashboard-money,\n" + "#map .dashboard-money text {\n" + "  font-family: var(--font-money) !important;\n" + "  font-weight: 700 !important;\n" + "}\n" + "\n", "\n" + "  #map-axis text,\n" + "  #map > g > g:not(#map-hexes) text {\n" + "    fill: #000000 !important;\n" + "  }\n" + "  #map-hexes g.tile__text text {\n" + "    font-size: 14.85px !important;\n" + "    font-weight: bold !important;\n" + "  }\n"), "\n" + "\n" + "\n" + "  #map .dashboard-tile-cost {\n" + "    font-size: 12px !important;\n" + "    letter-spacing: 0 !important;\n" + "  }\n" + "  @keyframes dashboard-last-built-tile-breathe {\n" + "    0%, 100% { stroke-width: 7px; stroke-opacity: 0.55; fill-opacity: 0.16; filter: drop-shadow(0 0 2px #00ffff); }\n" + "    50% { stroke-width: 14px; stroke-opacity: 1; fill-opacity: 0.46; filter: drop-shadow(0 0 10px #00ffff); }\n" + "  }\n" + "  #map .last-built-tile-breathing {\n" + "    animation: dashboard-last-built-tile-breathe 0.95s ease-in-out infinite !important;\n" + "    transform-box: fill-box;\n" + "    transform-origin: center;\n" + "  }\n" + "\n" + "\n" + "\n" + "/* ============================================================\n" + " * MAP HIGHLIGHTING: palette-independent geometric overlays\n" + " * Primary/actionable: solid black/white ring + breathing cyan dots\n" + " * Secondary/related: dashed black/white ring + breathing amber diamonds\n" + " * ============================================================ */\n" + "  #map .highlight-outline-outer,\n" + "  #map .highlight-outline-inner,\n" + "  #map .highlight-primary-markers,\n" + "  #map .highlight-related-markers {\n" + "    display: none;\n" + "    pointer-events: none;\n" + "  }\n" + "  #map .map-highlight-opportunity .highlight-outline-outer,\n" + "  #map .map-highlight-opportunity .highlight-outline-inner,\n" + "  #map .map-highlight-opportunity .highlight-primary-markers,\n" + "  #map .map-highlight-related .highlight-outline-outer,\n" + "  #map .map-highlight-related .highlight-outline-inner,\n" + "  #map .map-highlight-related .highlight-related-markers { display: inline; }\n" + "  #map .map-highlight-opportunity .highlight-outline-outer,\n" + "  #map .map-highlight-related .highlight-outline-outer {\n" + "    fill: none !important;\n" + "    stroke: #000000 !important;\n" + "    stroke-width: 15px !important;\n" + "    stroke-opacity: 1 !important;\n" + "    stroke-linejoin: round !important;\n" + "    filter: none !important;\n" + "    animation: none !important;\n" + "  }\n" + "  #map .map-highlight-opportunity .highlight-outline-inner {\n" + "    fill: none !important;\n" + "    stroke: #ffffff !important;\n" + "    stroke-width: 7px !important;\n" + "    stroke-opacity: 1 !important;\n" + "    stroke-linejoin: round !important;\n" + "    stroke-dasharray: none !important;\n" + "  }\n" + "  #map .map-highlight-related .highlight-outline-inner {\n" + "    fill: none !important;\n" + "    stroke: #ffffff !important;\n" + "    stroke-width: 7px !important;\n" + "    stroke-opacity: 1 !important;\n" + "    stroke-linejoin: round !important;\n" + "    stroke-linecap: round !important;\n" + "    stroke-dasharray: 16 10 !important;\n" + "  }\n" + "  #map .highlight-primary-marker {\n" + "    fill: #00d9ff !important;\n" + "    stroke: #000000 !important;\n" + "    stroke-width: 3px !important;\n" + "    transform-box: fill-box;\n" + "    transform-origin: center;\n" + "    animation: dashboard-primary-marker-breathe 1.25s ease-in-out infinite;\n" + "  }\n" + "  #map .highlight-related-marker {\n" + "    fill: #ff9f0a !important;\n" + "    stroke: #000000 !important;\n" + "    stroke-width: 3px !important;\n" + "    transform-box: fill-box;\n" + "    transform-origin: center;\n" + "    animation: dashboard-related-marker-breathe 1.45s ease-in-out infinite;\n" + "  }\n" + "  @keyframes dashboard-primary-marker-breathe {\n" + "    0%, 100% { transform: scale(0.82); opacity: 0.78; }\n" + "    50% { transform: scale(1.42); opacity: 1; }\n" + "  }\n" + "  @keyframes dashboard-related-marker-breathe {\n" + "    0%, 100% { transform: scale(0.86); opacity: 0.78; }\n" + "    50% { transform: scale(1.35); opacity: 1; }\n" + "  }\n" + "  @media (prefers-reduced-motion: reduce) {\n" + "    #map .highlight-primary-marker,\n" + "    #map .highlight-related-marker { animation: none !important; }\n" + "  }\n"))]), self.$h("g", (new Map([["attrs", (new Map([["transform", "scale(" + (self.scale) + ")"]]))]])), [self.$h("g", (new Map([["attrs", (new Map([["id", "map-hexes"], ["transform", "translate(" + (self.$map_x()) + " " + (self.$map_y()) + ")"]]))]])), self.hexes), self.$h("g", (new Map([["attrs", (new Map([["id", "map-axis"]]))]])), [self.$h($$('Axis'), (new Map([["cols", $send(self.cols, 'map', [], function $$67(c){
             
             if (c == null) c = nil;
-            return $rb_plus(c, 1);})], ["rows", $send(self.rows, 'map', [], function $$66(r){
+            return $rb_plus(c, 1);})], ["rows", $send(self.rows, 'map', [], function $$68(r){
             
             if (r == null) r = nil;
-            return $rb_plus(r, 1);})], ["axes", self.game.$axes()], ["layout", self.layout], ["font_size", $$('FONT_SIZE')], ["gap", $$('GAP')], ["map_x", self.$map_x()], ["map_y", self.$map_y()], ["start_pos", [$rb_plus(($truthy(($ret_or_1 = self.start_pos['$[]'](0))) ? ($ret_or_1) : (0)), 1), $rb_plus(($truthy(($ret_or_1 = self.start_pos['$[]'](1))) ? ($ret_or_1) : (0)), 1)]]])))])])])
+            return $rb_plus(r, 1);})], ["axes", self.game.$axes()], ["layout", self.layout], ["font_size", $$('FONT_SIZE')], ["gap", $$('GAP')], ["map_x", self.$map_x()], ["map_y", self.$map_y()], ["start_pos", [$rb_plus(($truthy(($ret_or_1 = self.start_pos['$[]'](0))) ? ($ret_or_1) : (0)), 1), $rb_plus(($truthy(($ret_or_1 = self.start_pos['$[]'](1))) ? ($ret_or_1) : (0)), 1)]]])))])])].$compact());
         });
         return $def(self, '$map_zoom', function $$map_zoom() {
           var $ret_or_1 = nil;
@@ -75079,9 +75121,9 @@ Opal.modules["view/game/dashboard/dashboard_stock_market"] = function(Opal) {/* 
 };
 
 Opal.modules["view/game/dashboard/dashboard_tile_manifest"] = function(Opal) {/* Generated by Opal 1.8.3 */
-  var $module = Opal.module, $klass = Opal.klass, $eqeq = Opal.eqeq, $send2 = Opal.send2, $find_super = Opal.find_super, $def = Opal.def, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $truthy = Opal.truthy, $neqeq = Opal.neqeq, $send = Opal.send, $rb_le = Opal.rb_le, $thrower = Opal.thrower, $rb_minus = Opal.rb_minus, $rb_lt = Opal.rb_lt, $rb_plus = Opal.rb_plus, $rb_times = Opal.rb_times, $rb_divide = Opal.rb_divide, $to_ary = Opal.to_ary, $const_set = Opal.const_set, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
+  var $module = Opal.module, $klass = Opal.klass, $eqeq = Opal.eqeq, $send2 = Opal.send2, $find_super = Opal.find_super, $def = Opal.def, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $truthy = Opal.truthy, $neqeq = Opal.neqeq, $send = Opal.send, $rb_le = Opal.rb_le, $thrower = Opal.thrower, $rb_minus = Opal.rb_minus, $rb_lt = Opal.rb_lt, $rb_plus = Opal.rb_plus, $rb_times = Opal.rb_times, $rb_divide = Opal.rb_divide, $to_ary = Opal.to_ary, $lambda = Opal.lambda, $const_set = Opal.const_set, self = Opal.top, $nesting = [], nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,include,needs,==,to_s,!=,name,tile,hex,role,map,all_potential_upgrades,select,all?,paths,any?,<=,rotate!,[],empty?,Native,max,-,<,left,right,+,bottom,top,*,/,h,layout,group_by,tiles,to_proc,tile_groups,compact,flat_map,sort,all_tiles,size,positive?,first,hidden,render_tile_selector,render_count_badge,render_tile_blocks,one?,render_tile_sides,lambda,update,[]=,!,call,render_tile_manifest,<<');
+  Opal.add_stubs('require,include,needs,==,to_s,!=,name,tile,hex,role,map,all_potential_upgrades,select,all?,paths,any?,<=,rotate!,[],empty?,Native,max,-,<,left,right,+,bottom,top,*,/,h,layout,to_f,min,[]=,manifest_scale,update,group_by,tiles,to_proc,tile_groups,compact,flat_map,sort,all_tiles,size,positive?,first,hidden,render_tile_selector,render_count_badge,render_tile_blocks,one?,render_tile_sides,install_manifest_tile_interactions,lambda,!,call,change_manifest_scale,merge,reset_manifest_scale,render_tile_manifest,<<');
   
   self.$require("lib/settings");
   self.$require("view/tiles");
@@ -75188,6 +75230,87 @@ Opal.modules["view/game/dashboard/dashboard_tile_manifest"] = function(Opal) {/*
             return self.$h("div", (new Map([["style", (new Map([["position", "absolute"], ["top", "0px"], ["left", "" + ($rb_plus($rb_times($$('WIDTH'), shift), 1)) + "px"], ["width", "" + ($rb_minus($$('WIDTH'), 2)) + "px"], ["boxSizing", "border-box"], ["display", "flex"], ["justifyContent", "space-between"], ["alignItems", "center"], ["padding", "1px 4px"], ["backgroundColor", "#ffffff"], ["color", "#000000"], ["border", "1px solid #000000"], ["fontSize", "11px"], ["fontWeight", "bold"], ["lineHeight", "1.2"], ["borderRadius", "2px"], ["zIndex", "5"], ["pointerEvents", "none"]]))]])), [self.$h("span", label.$to_s()), self.$h("span", (new Map([["style", (new Map([["fontWeight", "bold"], ["color", "#000000"]]))]])), "×" + (num))]);
           }, -3);
           
+          $def(self, '$manifest_scale', function $$manifest_scale() {
+            var raw = nil, value = nil;
+
+            try {
+              
+              raw = $$$($$('Lib'), 'Storage')['$[]']("dashboard_tile_manifest_scale");
+              value = ($truthy(raw) ? (raw.$to_f()) : (1.0));
+              return [[value, 0.5].$max(), 2.5].$min();
+            } catch ($err) {
+              if (Opal.rescue($err, [$$('StandardError')])) {
+                try {
+                  return 1.0
+                } finally { Opal.pop_exception($err); }
+              } else { throw $err; }
+            }
+          });
+          
+          $def(self, '$change_manifest_scale', function $$change_manifest_scale(factor) {
+            var self = this;
+
+            
+            $$$($$('Lib'), 'Storage')['$[]=']("dashboard_tile_manifest_scale", [[$rb_times(self.$manifest_scale(), factor), 0.5].$max(), 2.5].$min());
+            return self.$update();
+          });
+          
+          $def(self, '$reset_manifest_scale', function $$reset_manifest_scale() {
+            var self = this;
+
+            
+            $$$($$('Lib'), 'Storage')['$[]=']("dashboard_tile_manifest_scale", 1.0);
+            return self.$update();
+          });
+          
+          $def(self, '$install_manifest_tile_interactions', function $$install_manifest_tile_interactions() {
+            
+            
+            
+    // Install once at document level. This survives Snabberb replacing
+    // the tile manifest DOM during redraws.
+    if (!document.__dashboardTileManifestHoverInstalled) {
+      document.__dashboardTileManifestHoverInstalled = true;
+
+      function manifestTileFromTarget(target) {
+        if (!target || !target.closest) return null;
+
+        var manifest = target.closest('#tile_manifest');
+        if (!manifest) return null;
+
+        return target.closest('[id^="tile_"]');
+      }
+
+      document.addEventListener('mouseover', function(ev) {
+        var tile = manifestTileFromTarget(ev.target);
+        if (!tile || !tile.id) return;
+
+        var name = tile.id.substring(5);
+        if (!name) return;
+
+        if (window.highlightMapTilesByName) {
+          window.highlightMapTilesByName(name);
+        }
+      });
+
+      document.addEventListener('mouseout', function(ev) {
+        var oldTile = manifestTileFromTarget(ev.target);
+        if (!oldTile) return;
+
+        var newTile = manifestTileFromTarget(ev.relatedTarget);
+
+        // We are only moving between children of the same rendered tile.
+        if (newTile === oldTile) return;
+
+        if (window.clearMapHexHighlightChannel) {
+          window.clearMapHexHighlightChannel('related');
+        }
+      });
+    }
+  ;
+            return nil;
+          });
+          
           $def(self, '$render_tile_manifest', function $$render_tile_manifest() {
             var self = this, remaining = nil, children = nil, all_tiles = nil, props = nil;
 
@@ -75246,9 +75369,10 @@ Opal.modules["view/game/dashboard/dashboard_tile_manifest"] = function(Opal) {/*
             return self.$h("div#tiles", [self.$h("div#tile_manifest", props, children)]);
           });
           return $def(self, '$render', function $$render() {
-            var self = this, is_minimized = nil, $ret_or_1 = nil, saved_left = nil, saved_top = nil, saved_width = nil, saved_height = nil, on_header_mousedown = nil, on_resize_mousedown = nil, reset_pos = nil, toggle_minimize = nil, close_overlay = nil, dialog_style = nil, header_controls = nil, body_content = nil, resize_handle = nil, remaining_count = nil, dialog_children = nil;
+            var self = this, is_minimized = nil, $ret_or_1 = nil, saved_left = nil, saved_top = nil, saved_width = nil, saved_height = nil, on_header_mousedown = nil, on_resize_mousedown = nil, reset_pos = nil, toggle_minimize = nil, close_overlay = nil, dialog_style = nil, zoom_button_style = nil, header_controls = nil, body_content = nil, resize_handle = nil, remaining_count = nil, dialog_children = nil;
 
             
+            self.$install_manifest_tile_interactions();
             is_minimized = ($truthy(($ret_or_1 = $$$($$('Lib'), 'Storage')['$[]']("dashboard_tile_manifest_minimized"))) && ($ret_or_1));
             saved_left = (function() {
             try {
@@ -75473,8 +75597,15 @@ Opal.modules["view/game/dashboard/dashboard_tile_manifest"] = function(Opal) {/*
             } else {
               dialog_style['$[]=']("maxHeight", "82vh")
             };
-            header_controls = [self.$h("button", (new Map([["attrs", (new Map([["type", "button"], ["title", ($truthy(is_minimized) ? ("Expand overlay") : ("Minimize overlay"))]]))], ["style", (new Map([["padding", "0 8px"], ["height", "1.6rem"], ["fontSize", "0.78rem"], ["fontWeight", "600"], ["backgroundColor", "#f1f5f9"], ["color", "#334155"], ["border", "1px solid #cbd5e1"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", toggle_minimize]]))]])), ($truthy(is_minimized) ? ("Expand") : ("Minimize"))), self.$h("button", (new Map([["attrs", (new Map([["type", "button"], ["title", "Close overlay"]]))], ["style", (new Map([["padding", "0 8px"], ["height", "1.6rem"], ["fontSize", "0.85rem"], ["fontWeight", "bold"], ["backgroundColor", "#fee2e2"], ["color", "#991b1b"], ["border", "1px solid #fca5a5"], ["borderRadius", "4px"], ["cursor", "pointer"], ["lineHeight", "1"]]))], ["on", (new Map([["click", close_overlay]]))]])), "✕")];
-            body_content = ($truthy(is_minimized) ? (nil) : (self.$h("div", (new Map([["style", (new Map([["overflowY", "auto"], ["flex", "1 1 auto"], ["minHeight", "0"], ["padding", "0.5rem 1rem 1.25rem 1rem"]]))]])), [self.$render_tile_manifest()])));
+            zoom_button_style = (new Map([["width", "24px"], ["height", "24px"], ["padding", "0"], ["fontSize", "0.8rem"], ["fontWeight", "bold"], ["backgroundColor", "#ffffff"], ["color", "#334155"], ["border", "1px solid #94a3b8"], ["borderRadius", "3px"], ["cursor", "pointer"], ["lineHeight", "20px"]]));
+            header_controls = [self.$h("button", (new Map([["attrs", (new Map([["type", "button"], ["title", "Increase tile size"]]))], ["style", zoom_button_style], ["on", (new Map([["click", $lambda(function $$12(){var self = $$12.$$s == null ? this : $$12.$$s;
+
+              return self.$change_manifest_scale(1.15)}, {$$s: self})]]))]])), "+"), self.$h("button", (new Map([["attrs", (new Map([["type", "button"], ["title", "Decrease tile size"]]))], ["style", zoom_button_style], ["on", (new Map([["click", $lambda(function $$13(){var self = $$13.$$s == null ? this : $$13.$$s;
+
+              return self.$change_manifest_scale(0.85)}, {$$s: self})]]))]])), "-"), self.$h("button", (new Map([["attrs", (new Map([["type", "button"], ["title", "Reset tile size"]]))], ["style", zoom_button_style.$merge((new Map([["fontSize", "0.7rem"]])))], ["on", (new Map([["click", $lambda(function $$14(){var self = $$14.$$s == null ? this : $$14.$$s;
+
+              return self.$reset_manifest_scale()}, {$$s: self})]]))]])), "0"), self.$h("button", (new Map([["attrs", (new Map([["type", "button"], ["title", ($truthy(is_minimized) ? ("Expand overlay") : ("Minimize overlay"))]]))], ["style", (new Map([["padding", "0 8px"], ["height", "1.6rem"], ["fontSize", "0.78rem"], ["fontWeight", "600"], ["backgroundColor", "#f1f5f9"], ["color", "#334155"], ["border", "1px solid #cbd5e1"], ["borderRadius", "4px"], ["cursor", "pointer"]]))], ["on", (new Map([["click", toggle_minimize]]))]])), ($truthy(is_minimized) ? ("Expand") : ("Minimize"))), self.$h("button", (new Map([["attrs", (new Map([["type", "button"], ["title", "Close overlay"]]))], ["style", (new Map([["padding", "0 8px"], ["height", "1.6rem"], ["fontSize", "0.85rem"], ["fontWeight", "bold"], ["backgroundColor", "#fee2e2"], ["color", "#991b1b"], ["border", "1px solid #fca5a5"], ["borderRadius", "4px"], ["cursor", "pointer"], ["lineHeight", "1"]]))], ["on", (new Map([["click", close_overlay]]))]])), "✕")];
+            body_content = ($truthy(is_minimized) ? (nil) : (self.$h("div", (new Map([["style", (new Map([["overflowY", "auto"], ["flex", "1 1 auto"], ["minHeight", "0"], ["padding", "0.5rem 1rem 1.25rem 1rem"]]))]])), [self.$h("div", (new Map([["style", (new Map([["transform", "scale(" + (self.$manifest_scale()) + ")"], ["transformOrigin", "top left"], ["width", "" + ($rb_divide(100.0, self.$manifest_scale())) + "%"]]))]])), [self.$render_tile_manifest()])])));
             resize_handle = ($truthy(is_minimized) ? (nil) : (self.$h("div", (new Map([["attrs", (new Map([["title", "Drag to resize"]]))], ["style", (new Map([["position", "absolute"], ["right", "0"], ["bottom", "0"], ["width", "18px"], ["height", "18px"], ["cursor", "nwse-resize"], ["zIndex", "10"], ["background", "linear-gradient(135deg, transparent 50%, #94a3b8 50%, #94a3b8 65%, transparent 65%, transparent 80%, #94a3b8 80%)"]]))], ["on", (new Map([["mousedown", on_resize_mousedown]]))]])))));
             remaining_count = self.game.$tiles().$size();
             dialog_children = [self.$h("div", (new Map([["attrs", (new Map([["id", "dashboard-tile-manifest-header"]]))], ["style", (new Map([["padding", "0.6rem 1rem"], ["borderBottom", ($truthy(is_minimized) ? ("none") : ("1px solid #e2e8f0"))], ["backgroundColor", "#f8fafc"], ["display", "flex"], ["justifyContent", "space-between"], ["alignItems", "center"], ["cursor", "grab"], ["userSelect", "none"], ["flexShrink", "0"]]))], ["on", (new Map([["mousedown", on_header_mousedown], ["dblclick", reset_pos]]))]])), [self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["alignItems", "baseline"], ["gap", "0.6rem"]]))]])), [self.$h("h2", (new Map([["style", (new Map([["margin", "0"], ["fontSize", "1.15rem"], ["color", "#0f172a"], ["fontWeight", "bold"]]))]])), "Tile Manifest"), self.$h("span", (new Map([["style", (new Map([["fontSize", "0.8rem"], ["color", "#64748b"]]))]])), "(" + (remaining_count) + " remaining tiles • drag header to move, dblclick to reset)")]), self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["alignItems", "center"], ["gap", "0.4rem"]]))]])), header_controls)])];
@@ -77792,6 +77923,8 @@ Opal.modules["view/game/dashboard/dashboard_visualizer"] = function(Opal) {/* Ge
             document.body.style.overflowX = 'hidden';
             document.body.style.overflowY = 'auto';
             self.$fetch_user_games(false);
+            $$$($$('Lib'), 'Storage')['$[]=']("map_high_contrast", nil);
+            try { localStorage.removeItem('map_high_contrast'); } catch(e) {};
             comp = self;
             
                     if (window._other_games_timer) {
@@ -78708,46 +78841,7 @@ createPanHandler('panel-ledger');
                      '  animation: map-hex-pulse 1.3s infinite ease-in-out !important; ' +
                      '}';
 
-                    window.highlightMapHexes = function(hexIds) {
-                      if (!hexIds) return;
-                      var ids = Array.isArray(hexIds) ? hexIds : [hexIds];
-                      if (!ids.length) return;
-                      var mapPanel = document.getElementById('map-panel-bot') || document;
-                      for (var i = 0; i < ids.length; i++) {
-                        var raw = String(ids[i]);
-                        var variants = [raw, raw.toUpperCase(), raw.toLowerCase()];
-                        for (var v = 0; v < variants.length; v++) {
-                          var hid = variants[v];
-                          var targets = mapPanel.querySelectorAll('#hex-' + hid + ', [data-hex="' + hid + '"], .hex-' + hid);
-                          for (var j = 0; j < targets.length; j++) {
-                            targets[j].classList.add('map-hex-highlight');
-                            var poly = targets[j].querySelector('.hex-highlight-poly');
-                            if (poly) {
-                              poly.setAttribute('stroke', '#ff0055');
-                              poly.setAttribute('stroke-width', '8');
-                              poly.setAttribute('fill', '#ff0055');
-                              poly.setAttribute('fill-opacity', '0.25');
-                            }
-                          }
-                        }
-                      }
-                    };
-
-                    window.clearMapHexHighlights = function() {
-                      var mapPanel = document.getElementById('map-panel-bot') || document;
-                      var highlighted = mapPanel.querySelectorAll('.map-hex-highlight');
-                      for (var i = 0; i < highlighted.length; i++) {
-                        highlighted[i].classList.remove('map-hex-highlight');
-                        var poly = highlighted[i].querySelector('.hex-highlight-poly');
-                        if (poly) {
-                          var origStroke = poly.getAttribute('data-orig-stroke') || 'transparent';
-                          var origWidth = poly.getAttribute('data-orig-width') || '0';
-                          poly.setAttribute('stroke', origStroke);
-                          poly.setAttribute('stroke-width', origWidth);
-                          poly.setAttribute('fill-opacity', '0');
-                        }
-                      }
-                    };
+                    // Map highlighting is owned by DashboardMap.
 
                     var fitObserver = new ResizeObserver(function(entries) {
                       var dynStyle = document.getElementById('dynamic-scaler-styles');
@@ -79007,7 +79101,7 @@ window.recalcAllPanels = function() {
             document.body.style.margin = '';
             document.body.style.padding = '';
             document.getElementById('app') && Object.assign(document.getElementById('app').style, { overflow: '', padding: '', margin: '', maxWidth: '', width: '', height: '' });
-            return document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: '', flexDirection: '', overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' });;})]]))], ["attrs", (new Map([["id", "viz-master-frame"], ["class", frame_class]]))], ["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["flex", "1 1 auto"], ["width", "100vw"], ["height", "calc(100% - 56px)"], ["minHeight", "0"], ["boxSizing", "border-box"], ["position", "relative"], ["overflow", "hidden"], ["padding", "0.4rem 0.5rem 0.5rem 0.5rem"], ["backgroundColor", frame_bg], ["border", frame_border], ["borderTop", "none"], ["transition", "background-color 0.3s ease, border 0.3s ease"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "col-left"]]))], ["style", (new Map([["flex", "0 0 55%"], ["height", "100%"], ["minHeight", "0"], ["display", "flex"], ["flexDirection", "column"], ["overflow", "hidden"], ["gap", "0.5rem"]]))]])), [($truthy(self['$map_wider_than_high?']()) ? (self.$render_temporal_hub()) : nil), ($truthy(self['$map_wider_than_high?']()) ? (self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-h-entity-map"], ["title", "Drag to resize Entity Order"]]))], ["style", (new Map([["flex", "0 0 0.5rem"], ["minHeight", "0.5rem"], ["cursor", "row-resize"], ["zIndex", 10], ["backgroundColor", "transparent"], ["borderRadius", "0"]]))]])))) : nil), self.$h("div", (new Map([["attrs", (new Map([["id", "map-panel-bot"]]))], ["style", (new Map([["flex", "1 1 auto"], ["width", "100%"], ["height", "100%"], ["minHeight", "0"], ["boxSizing", "border-box"], ["border", "1px solid #ccc"], ["borderRadius", "4px"], ["backgroundColor", "#fff"], ["overflow", "hidden"], ["position", "relative"]]))]])), [self.$render_zoom_controls("map-panel-bot", (new Map([["top", "6px"], ["right", "12px"]]))), self.$render_map_phase_indicator(), self.$h("div", (new Map([["attrs", (new Map([["id", "map-scroll-canvas"]]))], ["style", (new Map([["width", "100%"], ["height", "100%"], ["maxHeight", "100%"], ["minHeight", "0"], ["overflow", "auto"], ["overflowX", "auto"], ["overflowY", "auto"], ["position", "relative"], ["boxSizing", "border-box"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "map-sizer"]]))], ["style", (new Map([["position", "relative"], ["display", "block"], ["width", "100%"], ["height", "100%"], ["minWidth", "100%"], ["minHeight", "100%"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "scaler-content"]]))], ["style", (new Map([["position", "absolute"], ["top", "0"], ["left", "0"], ["width", "max-content"], ["height", "max-content"], ["transformOrigin", "top left"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardMap'), (new Map([["game", self.game], ["user", self.user], ["show_meme_revenue", self['$meme_revenue_enabled?']()], ["show_location_names", self['$location_names_enabled?']()], ["simple_logos", self['$simple_logos_enabled?']()]])))])])]), self.$h("div", (new Map([["attrs", (new Map([["id", "canvas-game-watermark"]]))], ["style", (new Map([["position", "absolute"], ["bottom", "8px"], ["right", "16px"], ["zIndex", 15], ["pointerEvents", "none"], ["userSelect", "none"], ["fontFamily", "Impact, \"Arial Black\", sans-serif"], ["fontSize", "5.5rem"], ["fontWeight", "900"], ["lineHeight", "1"], ["letterSpacing", "2px"], ["color", "rgba(15, 23, 42, 0.18)"], ["textShadow", "0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)"]]))]])), self.$game_title()), self.$h("div", (new Map([["attrs", (new Map([["class", "panel-manifest-control"]]))], ["style", (new Map([["position", "absolute"], ["top", "36px"], ["left", "6px"], ["zIndex", 30], ["display", "flex"]]))]])), [self.$h("button", (new Map([["attrs", (new Map([["id", "btn-show-tile-manifest"], ["type", "button"], ["title", "Toggle tile manifest overlay"]]))], ["style", (new Map([["backgroundColor", "#ffffff"], ["color", "#1e293b"], ["border", "1px solid #94a3b8"], ["borderRadius", "4px"], ["padding", "4px 9px"], ["fontSize", "0.78rem"], ["fontWeight", "bold"], ["cursor", "pointer"], ["boxShadow", "0 1px 3px rgba(0,0,0,0.2)"], ["display", "inline-flex"], ["alignItems", "center"], ["lineHeight", "1.2"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$59(){var self = $$59.$$s == null ? this : $$59.$$s;
+            return document.getElementById('game') && Object.assign(document.getElementById('game').style, { display: '', flexDirection: '', overflow: '', width: '', height: '', maxWidth: '', maxHeight: '' });;})]]))], ["attrs", (new Map([["id", "viz-master-frame"], ["class", frame_class]]))], ["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["flex", "1 1 auto"], ["width", "100vw"], ["height", "calc(100% - 56px)"], ["minHeight", "0"], ["boxSizing", "border-box"], ["position", "relative"], ["overflow", "hidden"], ["padding", "0.4rem 0.5rem 0.5rem 0.5rem"], ["backgroundColor", frame_bg], ["border", frame_border], ["borderTop", "none"], ["transition", "background-color 0.3s ease, border 0.3s ease"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["id", "col-left"]]))], ["style", (new Map([["flex", "0 0 55%"], ["height", "100%"], ["minHeight", "0"], ["display", "flex"], ["flexDirection", "column"], ["overflow", "hidden"], ["gap", "0.5rem"]]))]])), [($truthy(self['$map_wider_than_high?']()) ? (self.$render_temporal_hub()) : nil), ($truthy(self['$map_wider_than_high?']()) ? (self.$h("div", (new Map([["attrs", (new Map([["id", "resizer-h-entity-map"], ["title", "Drag to resize Entity Order"]]))], ["style", (new Map([["flex", "0 0 0.5rem"], ["minHeight", "0.5rem"], ["cursor", "row-resize"], ["zIndex", 10], ["backgroundColor", "transparent"], ["borderRadius", "0"]]))]])))) : nil), self.$h("div", (new Map([["attrs", (new Map([["id", "map-panel-bot"]]))], ["style", (new Map([["flex", "1 1 auto"], ["width", "100%"], ["height", "100%"], ["minHeight", "0"], ["boxSizing", "border-box"], ["border", "1px solid #ccc"], ["borderRadius", "4px"], ["backgroundColor", "#fff"], ["overflow", "hidden"], ["position", "relative"]]))]])), [self.$render_zoom_controls("map-panel-bot", (new Map([["top", "6px"], ["right", "12px"]]))), self.$render_map_phase_indicator(), self.$h("div", (new Map([["attrs", (new Map([["id", "map-scroll-canvas"]]))], ["style", (new Map([["width", "100%"], ["height", "100%"], ["maxHeight", "100%"], ["minHeight", "0"], ["overflow", "auto"], ["overflowX", "auto"], ["overflowY", "auto"], ["position", "relative"], ["boxSizing", "border-box"], ["backgroundColor", "transparent"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "map-sizer"]]))], ["style", (new Map([["position", "relative"], ["display", "block"], ["width", "100%"], ["height", "100%"], ["minWidth", "100%"], ["minHeight", "100%"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "scaler-content"]]))], ["style", (new Map([["position", "absolute"], ["top", "0"], ["left", "0"], ["width", "max-content"], ["height", "max-content"], ["transformOrigin", "top left"]]))]])), [self.$h($$$($$$($$('View'), 'Game'), 'DashboardMap'), (new Map([["game", self.game], ["user", self.user], ["show_meme_revenue", self['$meme_revenue_enabled?']()], ["show_location_names", self['$location_names_enabled?']()], ["simple_logos", self['$simple_logos_enabled?']()]])))])])]), self.$h("div", (new Map([["attrs", (new Map([["id", "canvas-game-watermark"]]))], ["style", (new Map([["position", "absolute"], ["bottom", "8px"], ["right", "16px"], ["zIndex", 15], ["pointerEvents", "none"], ["userSelect", "none"], ["fontFamily", "Impact, \"Arial Black\", sans-serif"], ["fontSize", "5.5rem"], ["fontWeight", "900"], ["lineHeight", "1"], ["letterSpacing", "2px"], ["color", "rgba(15, 23, 42, 0.18)"], ["textShadow", "0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)"]]))]])), self.$game_title()), self.$h("div", (new Map([["attrs", (new Map([["class", "panel-manifest-control"]]))], ["style", (new Map([["position", "absolute"], ["top", "36px"], ["left", "6px"], ["zIndex", 30], ["display", "flex"]]))]])), [self.$h("button", (new Map([["attrs", (new Map([["id", "btn-show-tile-manifest"], ["type", "button"], ["title", "Toggle tile manifest overlay"]]))], ["style", (new Map([["backgroundColor", "#ffffff"], ["color", "#1e293b"], ["border", "1px solid #94a3b8"], ["borderRadius", "4px"], ["padding", "4px 9px"], ["fontSize", "0.78rem"], ["fontWeight", "bold"], ["cursor", "pointer"], ["boxShadow", "0 1px 3px rgba(0,0,0,0.2)"], ["display", "inline-flex"], ["alignItems", "center"], ["lineHeight", "1.2"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$59(){var self = $$59.$$s == null ? this : $$59.$$s;
 
             
             $$$($$('Lib'), 'Storage')['$[]=']("dashboard_tile_manifest", $$$($$('Lib'), 'Storage')['$[]']("dashboard_tile_manifest")['$!']());
@@ -103095,3 +103189,4 @@ Opal.modules["view/welcome"] = function(Opal) {/* Generated by Opal 1.8.3 */
 };
 
 Opal.load('app')
+//# sourceMappingURL=/assets/main.js.map
