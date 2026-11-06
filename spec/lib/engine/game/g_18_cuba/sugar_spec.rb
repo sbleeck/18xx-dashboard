@@ -1,32 +1,18 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative 'helpers'
 
 module Engine
   module Game
     module G18Cuba
       # Method-level tests for the sugar transport mechanic (Sugar module mixed into Game).
       describe Game do
+        include G18CubaSpecHelpers
+
         let(:players) { %w[a b c] }
         let(:game) { Engine::Game::G18Cuba::Game.new(players) }
         let(:minor) { game.corporations.find { |c| c.type == :minor } }
-
-        # Finds a train by name in the depot (includes upcoming trains).
-        def depot_train(name)
-          game.depot.depot_trains.find { |t| t.name == name } ||
-            game.depot.upcoming.find { |t| t.name == name }
-        end
-
-        # Injects a train directly into a corporation, bypassing cash / buy-step validation.
-        def give_train(corp, name)
-          train = depot_train(name)
-          return nil unless train
-
-          game.depot.remove_train(train)
-          train.owner = corp
-          corp.trains << train
-          train
-        end
 
         describe '#sugar_production' do
           it 'maps revenue to sugar cubes at Table 10 boundaries' do
@@ -100,19 +86,9 @@ module Engine
             expect(game.sugar_cubes_for(minor_b)).to eq(0)
           end
 
-          def act(klass, entity = game.current_entity, **args)
-            game.process_action(klass.new(entity, **args)).maybe_raise!
-          end
-
           it 'ends the game after the set when the cube payment breaks the bank in its last OR' do
-            until game.round.is_a?(Engine::Round::Stock)
-              step = game.round.active_step
-              company = game.round.is_a?(Engine::Round::Auction) && step.companies.first
-              company && step.bids[company].empty? ? act(Action::Bid, company: company, price: 0) : act(Action::Pass)
-            end
             ms = game.corporation_by_id('MS')
-            act(Action::Par, corporation: ms, share_price: game.stock_market.par_prices.first)
-            act(Action::BuyShares, shares: ms.ipo_shares.first, share_price: ms.share_price.price) until ms.floated?
+            float_major!(ms)
             act(Action::Pass) until game.round.is_a?(Engine::Round::Operating)
             act(Action::Pass) until game.round.active_step.is_a?(G18Cuba::Step::BuyTrain)
             train = game.round.active_step.buyable_trains(ms).find { |t| t.track_type == :broad && !game.wagon?(t) }
