@@ -1671,7 +1671,7 @@ module View
                                        }, [ghost_card])
             else
               n_shares = num_shares_of(p, corporation)
-              just_sold = begin; step&.did_sell?(p, corporation); rescue StandardError; false; end
+              just_sold = begin; step&.did_sell?(corporation, p); rescue StandardError; false; end
 
               if n_shares.zero? && !can_buy_from_player && !can_redeem_from_director && !just_sold
                 players_row_content << h(:td, { attrs: { id: "player_shares_#{p.id}_#{corporation.id}" }, style: { backgroundColor: bg_color } }, '')
