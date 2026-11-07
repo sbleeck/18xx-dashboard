@@ -257,36 +257,17 @@ module View
       end
 
       def displayed_train_variants(train)
-        variants =
-          if train.respond_to?(:names_to_prices) &&
-             train.names_to_prices &&
-             !train.names_to_prices.empty?
-            train.names_to_prices.dup
-          elsif train.respond_to?(:variants) &&
-                train.variants &&
-                !train.variants.empty?
-            train.variants.transform_values { |v| v[:price] || train.price }
-          else
-            { train.name => train.price }
-          end
-
-        # Some games, notably 1862, use the base train name
-        # (A, B, C, D, ...) as the train/band identifier while the
-        # actual purchasable train types are stored as variants
-        # (2F, 2L, 2E, 3F, 3L, 3E, etc.).
-        #
-        # Do not render that parent identifier as an additional train
-        # type when genuine variants exist.
-        if train.respond_to?(:variants) &&
-           train.variants &&
-           !train.variants.empty? &&
-           variants.size > 1
-          variants.delete(train.name)
-          variants.delete(train.name.to_s)
-          variants.delete(train.name.to_sym)
+        if train.respond_to?(:names_to_prices) &&
+           train.names_to_prices &&
+           !train.names_to_prices.empty?
+          train.names_to_prices
+        elsif train.respond_to?(:variants) &&
+              train.variants &&
+              !train.variants.empty?
+          train.variants.transform_values { |variant| variant[:price] || train.price }
+        else
+          { train.name => train.price }
         end
-
-        variants
       end
 
       def train_variant_buyable?(step, entity, train, variant_name)

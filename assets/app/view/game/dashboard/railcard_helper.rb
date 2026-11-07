@@ -1068,11 +1068,32 @@ module View
             cand_phase_idx = phase_index(cand)
             next false if cand_phase_idx >= 0 && trigger_phase_idx >= 0 && cand_phase_idx >= trigger_phase_idx
 
-            raw_rusts = cand.is_a?(Hash) ? (cand[:rusts_on] || cand['rusts_on']) : (cand.rusts_on if cand.respond_to?(:rusts_on))
-            next false unless raw_rusts
+            raw_rusts =
+              if cand.is_a?(Hash)
+                Array(cand[:rusts_on] || cand['rusts_on']) +
+                  Array(cand[:obsolete_on] || cand['obsolete_on'])
+              else
+                rusts_on = cand.respond_to?(:rusts_on) ? cand.rusts_on : nil
+                obsolete_on = cand.respond_to?(:obsolete_on) ? cand.obsolete_on : nil
 
-            rust_triggers = Array(raw_rusts).map(&:to_s).reject(&:empty?)
+                Array(rusts_on) + Array(obsolete_on)
+              end
+
+            rust_triggers = raw_rusts.map(&:to_s).reject(&:empty?)
             next false if rust_triggers.empty?
+
+            # For rust/phase-out relationships, '+' is only a train-state
+            # suffix. Treat e.g. 4 and 4+ as the same rust trigger.
+            rust_key = ->(value) { value.to_s.tr('()', '').strip.delete('+') }
+
+            trigger_sym_key = rust_key.call(trigger_sym)
+            trigger_name_key = rust_key.call(trigger_name)
+
+            direct = rust_triggers.any? do |r|
+              r_key = rust_key.call(r)
+              r_key == trigger_sym_key || r_key == trigger_name_key
+            end
+            next true if direct
 
             direct = rust_triggers.any? { |r| r == trigger_sym || r == trigger_name }
             next true if direct
@@ -1125,6 +1146,11 @@ module View
           rust_triggers = Array(raw_rusts).map(&:to_s).reject(&:empty?)
           return [] if rust_triggers.empty?
 
+          # For rust/phase-out relationships, ignore a '+' suffix.
+          # Thus a rust trigger "4" also matches train "4+".
+          # The displayed train names and DOM slugs remain unchanged.
+          rust_key = ->(value) { value.to_s.tr('()', '').strip.delete('+') }
+
           candidates = all_game_train_definitions
           matching_candidates = candidates.select do |t|
             t_name = (if t.is_a?(Hash)
@@ -1132,12 +1158,20 @@ module View
                       else
                         (t.respond_to?(:name) ? t.name : t.to_s)
                       end).tr('()', '').strip
+
             t_sym = (if t.is_a?(Hash)
                        t[:sym] || t[:name]
                      else
                        (t.respond_to?(:sym) ? t.sym : t_name)
                      end).to_s
-            rust_triggers.any? { |r| r == t_name || r == t_sym }
+
+            t_name_key = rust_key.call(t_name)
+            t_sym_key = rust_key.call(t_sym)
+
+            rust_triggers.any? do |r|
+              r_key = rust_key.call(r)
+              r_key == t_name_key || r_key == t_sym_key
+            end
           end
 
           slugs = matching_candidates.map do |t|
