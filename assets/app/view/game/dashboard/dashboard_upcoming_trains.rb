@@ -262,13 +262,38 @@ module View
           entries = []
           items.each do |item|
             train = item[:train]
-            variants = if train.respond_to?(:names_to_prices) && train.names_to_prices && !train.names_to_prices.empty?
-                         train.names_to_prices
-                       elsif train.respond_to?(:variants) && train.variants && !train.variants.empty?
-                         train.variants.transform_values { |v| v[:price] || train.price }
-                       else
-                         { train.name || train.sym => train.price }
-                       end
+
+            variants =
+              if train.respond_to?(:names_to_prices) &&
+                 train.names_to_prices &&
+                 !train.names_to_prices.empty?
+
+                names_to_prices = train.names_to_prices.dup
+
+                # Some games, notably 1862, use the base train name
+                # (A, B, C, D, ...) as the train/band identifier while
+                # names_to_prices also contains the actual purchasable
+                # variants (3F, 3L, 3E, etc.).
+                #
+                # If real variants exist, do not display the base train
+                # identifier as an additional train type.
+                if train.respond_to?(:variants) &&
+                   train.variants &&
+                   !train.variants.empty? &&
+                   names_to_prices.size > 1
+                  names_to_prices.delete(train.name)
+                  names_to_prices.delete(train.name.to_s)
+                  names_to_prices.delete(train.name.to_sym)
+                end
+
+                names_to_prices
+              elsif train.respond_to?(:variants) &&
+                    train.variants &&
+                    !train.variants.empty?
+                train.variants.transform_values { |v| v[:price] || train.price }
+              else
+                { train.name || train.sym => train.price }
+              end
 
             variants.each do |v_name, v_price|
               entries << {
