@@ -679,11 +679,26 @@ module View
 
         is_stock_round = (@game.round.respond_to?(:stock?) && @game.round.stock?) || round_name.include?('Stock')
 
+        # Some games, notably 1822, conduct their opening multi-item
+        # bidding during a Stock Round. At that point there is no
+        # step.auctioning target yet, but the bid boxes are live.
+        has_bidbox_targets =
+          begin
+            [
+              (@game.bidbox_minors if @game.respond_to?(:bidbox_minors)),
+              (@game.bidbox_concessions if @game.respond_to?(:bidbox_concessions)),
+              (@game.bidbox_privates if @game.respond_to?(:bidbox_privates)),
+            ].compact.any? { |items| Array(items).any? }
+          rescue StandardError
+            false
+          end
+
         is_draft_or_auction =
           round_name.match?(/Draft|Auction/i) ||
           step_name.match?(/Draft|Auction|Waterfall|Initial/i) ||
           (step.respond_to?(:draft?) && step.draft?) ||
-          (is_stock_round && auction_target && !has_winning_bid)
+          (is_stock_round && auction_target && !has_winning_bid) ||
+          (is_stock_round && has_bidbox_targets)
 
         return nil unless is_draft_or_auction
 
@@ -725,13 +740,44 @@ module View
             false
           end
 
+        # Multi-target bidding includes games such as 1822, where the
+        # opening Stock Round presents the bid boxes before there is an
+        # auction_target.
+        multi_bid_targets =
+          begin
+            targets = []
+
+            targets.concat(Array(@game.bidbox_minors)) if @game.respond_to?(:bidbox_minors)
+            targets.concat(Array(@game.bidbox_concessions)) if @game.respond_to?(:bidbox_concessions)
+            targets.concat(Array(@game.bidbox_privates)) if @game.respond_to?(:bidbox_privates)
+
+            targets.compact.any?
+          rescue StandardError
+            false
+          end
+
         use_bidding_overlay =
           (actions.include?('bid') || actions.include?('pass')) &&
           (
             auction_target ||
+            multi_bid_targets ||
             (!is_stock_round && step.respond_to?(:visible_corporations)) ||
             free_choice_selection
           )
+
+        if use_bidding_overlay
+          h(::View::Game::Dashboard::BiddingOverlay,
+            game: @game,
+            game_data: @game_data,
+            user: @user,
+            bidder: actor)
+        else
+          h(::View::Game::Dashboard::DraftOverlay,
+            game: @game,
+            game_data: @game_data,
+            user: @user,
+            actor: actor)
+        end
 
         if use_bidding_overlay
           h(::View::Game::Dashboard::BiddingOverlay,

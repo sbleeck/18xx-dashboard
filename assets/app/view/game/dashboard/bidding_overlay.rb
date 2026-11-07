@@ -378,23 +378,51 @@ module View
         end
 
         def selectable_targets
-          # In a Stock Round (e.g. 1817 IPO auction), an auction is already
-          # bound to a single corporation via step.auctioning; do not mount
-          # the multi-item target picker behind the bidding panel.
-          is_stock_round = (@game.round.respond_to?(:stock?) && @game.round.stock?) ||
-                           @game.round.class.name.to_s.include?('Stock')
-          return [] if is_stock_round
+          is_stock_round =
+            (@game.round.respond_to?(:stock?) && @game.round.stock?) ||
+            @game.round.class.name.to_s.include?('Stock')
 
-          items =
-            if step.respond_to?(:visible_corporations)
-              step.visible_corporations
-            elsif step.respond_to?(:available)
-              step.available
-            else
-              []
+          auction_target =
+            begin
+              step.auctioning if step.respond_to?(:auctioning)
+            rescue StandardError
+              nil
             end
 
-          Array(items).map { |it| resolve_entity(it) }.compact.uniq
+          # Normal Stock Round auction already attached to a single
+          # corporation, e.g. 1817. There is no multi-item picker.
+          return [] if is_stock_round && auction_target
+
+          items = []
+
+          # 1822-family opening bid boxes.
+          # These may exist during a Stock Round before any individual
+          # auction target has been selected.
+          items.concat(Array(@game.bidbox_minors)) if @game.respond_to?(:bidbox_minors)
+
+          items.concat(Array(@game.bidbox_concessions)) if @game.respond_to?(:bidbox_concessions)
+
+          items.concat(Array(@game.bidbox_privates)) if @game.respond_to?(:bidbox_privates)
+
+          # Generic auction/draft fallbacks for other games.
+          if items.empty?
+            if step.respond_to?(:visible_corporations)
+              items.concat(Array(step.visible_corporations))
+            elsif step.respond_to?(:available)
+              begin
+                items.concat(Array(step.available))
+              rescue ArgumentError
+                # Some steps require the acting entity.
+                actor = auction_actor(step) if respond_to?(:auction_actor)
+                items.concat(Array(step.available(actor))) if actor
+              end
+            end
+          end
+
+          items
+            .map { |item| resolve_entity(item) || item }
+            .compact
+            .uniq
         rescue StandardError
           []
         end
