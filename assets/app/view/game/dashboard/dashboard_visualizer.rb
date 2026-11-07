@@ -615,18 +615,10 @@ module View
           on_cancel: cancel_handler)
       end
 
-      def render_tile_manifest_overlay
-        return nil unless Lib::Storage['dashboard_tile_manifest']
-
-        close_handler = lambda {
-          Lib::Storage['dashboard_tile_manifest'] = false
-          update
-        }
-
+      def render_tile_manifest_panel
         h(::View::Game::Dashboard::TileManifest,
           game: @game,
-          tile_selector: @tile_selector,
-          on_close: close_handler)
+          tile_selector: @tile_selector)
       end
 
       def auction_actor(step)
@@ -2794,6 +2786,7 @@ if (liveComp && liveComp.$trigger_random_ai_move) {
       'map-panel-bot': 1.0,
       'panel-market': 1.0,
       'panel-ledger': 1.0,
+      'tile-manifest-panel': 1.0,
     };
 
   window.scalerPanOffset =
@@ -2801,18 +2794,21 @@ if (liveComp && liveComp.$trigger_random_ai_move) {
       'map-panel-bot': { x: 0, y: 0 },
       'panel-market': { x: 0, y: 0 },
       'panel-ledger': { x: 0, y: 0 },
+      'tile-manifest-panel': { x: 0, y: 0 },
     };
 } catch(e) {
   window.scalerUserZoom = {
     'map-panel-bot': 1.0,
     'panel-market': 1.0,
     'panel-ledger': 1.0,
+    'tile-manifest-panel': 1.0,
   };
 
   window.scalerPanOffset = {
     'map-panel-bot': { x: 0, y: 0 },
     'panel-market': { x: 0, y: 0 },
     'panel-ledger': { x: 0, y: 0 },
+    'tile-manifest-panel': { x: 0, y: 0 },
   };
 }
 
@@ -2879,6 +2875,7 @@ if (liveComp && liveComp.$trigger_random_ai_move) {
 
                     createResizer('resizer-v-main', 'col-left', 'col-right', false);
                   createResizer('resizer-h-entity-map', 'temporal-hub', 'map-panel-bot', true);
+                    createResizer('resizer-h-map-manifest', 'map-panel-bot', 'tile-manifest-panel', true);
                     createResizer('resizer-h-entity-ledger', 'temporal-hub', 'panel-ledger', true);
                     createResizer('resizer-h-ledger-market', 'panel-ledger', 'panel-market', true);
 
@@ -2943,6 +2940,23 @@ window.applyPanelTransform = function(panelId) {
                         }
                       }
 
+                      if (panelId === 'tile-manifest-panel') {
+                        var sizer = panel.querySelector('.manifest-sizer');
+                        var inner = wrapper.firstElementChild || wrapper;
+                        var cw = Math.max(wrapper.scrollWidth || 0, inner.scrollWidth || 0, inner.offsetWidth || 0);
+                        var ch = Math.max(wrapper.scrollHeight || 0, inner.scrollHeight || 0, inner.offsetHeight || 0);
+                        if (sizer && cw > 0 && ch > 0) {
+                          var scrollCanvas = panel.querySelector('#tile-manifest-scroll') || panel;
+                          var viewportW = scrollCanvas.clientWidth || panel.clientWidth;
+                          var viewportH = scrollCanvas.clientHeight || panel.clientHeight;
+                          var scaledW = Math.ceil(cw * effScale + Math.max(0, offset.x) + 12);
+                          var scaledH = Math.ceil(ch * effScale + Math.max(0, offset.y) + 12);
+                          sizer.style.width = Math.max(scaledW, viewportW) + 'px';
+                          sizer.style.height = Math.max(scaledH, viewportH) + 'px';
+                          sizer.style.minWidth = sizer.style.width;
+                          sizer.style.minHeight = sizer.style.height;
+                        }
+                      }
                       if (panelId === 'panel-market') {
                         var sizer = panel.querySelector('.market-sizer');
                         var cw = parseFloat(wrapper.style.width) || wrapper.scrollWidth || 0;
@@ -2996,6 +3010,7 @@ window.applyPanelTransform = function(panelId) {
                           panel.querySelector('#map-scroll-canvas') ||
                           panel.querySelector('#panel-ledger-scroll') ||
                           panel.querySelector('#panel-market-scroll') ||
+                          panel.querySelector('#tile-manifest-scroll') ||
                           panel;
                         scrollCanvas.scrollLeft = 0;
                         scrollCanvas.scrollTop = 0;
@@ -3260,7 +3275,7 @@ createPanHandler('panel-ledger');
                         var pw = entries[i].contentRect.width - 16;
                         var ph = entries[i].contentRect.height - 16;
 if (cw > 50 && ch > 50 && pw > 50 && ph > 50) {
-                            if (panel.id === 'panel-ledger') {
+                            if (panel.id === 'panel-ledger' || panel.id === 'tile-manifest-panel') {
                             // Fit width (up to 1.0x) so tall status tables remain readable and scroll vertically
                             window.scalerScales[panel.id] = Math.min(1.0, pw / cw);
                           } else {
@@ -3295,7 +3310,7 @@ window.recalcAllPanels = function() {
                         var pw = panel.clientWidth - 16;
                         var ph = panel.clientHeight - 16;
                         if (cw > 50 && ch > 50 && pw > 50 && ph > 50) {
-                          if (id === 'panel-ledger') {
+                          if (id === 'panel-ledger' || id === 'tile-manifest-panel') {
                             window.scalerScales[id] = Math.min(1.0, pw / cw);
                           } else {
                             window.scalerScales[id] = Math.min(pw / cw, ph / ch);
@@ -3317,6 +3332,95 @@ window.recalcAllPanels = function() {
 
                     setTimeout(window.recalcAllPanels, 100);
                     setTimeout(window.recalcAllPanels, 400);
+
+                    // Tile manifest uses its own exhaustive fit calculation. It tries
+                    // every useful row width and selects the arrangement producing
+                    // the largest possible tiles while keeping every tile visible.
+                    window.fitTileManifestPanel = function() {
+                      var panel = document.getElementById('tile-manifest-panel');
+                      if (!panel) return;
+                      var viewport = panel.querySelector('#tile-manifest-scroll');
+                      var wrapper = panel.querySelector('.scaler-content');
+                      var manifest = panel.querySelector('#tile_manifest');
+                      if (!viewport || !wrapper || !manifest) return;
+
+                      var items = Array.prototype.slice.call(manifest.children || []);
+                      if (!items.length) return;
+
+                      wrapper.style.transform = 'none';
+                      wrapper.style.left = '0px';
+                      wrapper.style.top = '0px';
+                      wrapper.style.padding = '0';
+                      manifest.style.transform = 'none';
+                      manifest.style.margin = '0';
+                      manifest.style.display = 'flex';
+                      manifest.style.flexWrap = 'wrap';
+                      manifest.style.alignContent = 'flex-start';
+                      manifest.style.justifyContent = 'center';
+                      manifest.style.gap = '0';
+
+                      var availableW = Math.max(1, viewport.clientWidth - 10);
+                      var availableH = Math.max(1, viewport.clientHeight - 10);
+
+                      // Measure the smallest ordinary block as the basic column unit.
+                      var widths = items.map(function(el) { return Math.max(1, el.offsetWidth); });
+                      var positive = widths.filter(function(w) { return w > 8; }).sort(function(a, b) { return a - b; });
+                      var unit = positive.length ? positive[Math.floor(positive.length * 0.25)] : 100;
+                      unit = Math.max(40, unit);
+
+                      var totalUnits = widths.reduce(function(sum, w) {
+                        return sum + Math.max(1, Math.round(w / unit));
+                      }, 0);
+
+                      var best = null;
+                      for (var cols = 1; cols <= totalUnits; cols++) {
+                        manifest.style.width = Math.ceil(cols * unit) + 'px';
+                        // Force layout before measuring the wrapped result.
+                        void manifest.offsetHeight;
+                        var naturalW = Math.max(1, manifest.scrollWidth);
+                        var naturalH = Math.max(1, manifest.scrollHeight);
+                        var scale = Math.min(availableW / naturalW, availableH / naturalH);
+                        if (!best || scale > best.scale) {
+                          best = { cols: cols, width: naturalW, height: naturalH, scale: scale };
+                        }
+                      }
+                      if (!best) return;
+
+                      manifest.style.width = Math.ceil(best.cols * unit) + 'px';
+                      void manifest.offsetHeight;
+                      best.width = Math.max(1, manifest.scrollWidth);
+                      best.height = Math.max(1, manifest.scrollHeight);
+                      best.scale = Math.min(availableW / best.width, availableH / best.height);
+
+                      wrapper.style.width = best.width + 'px';
+                      wrapper.style.height = best.height + 'px';
+                      wrapper.style.transformOrigin = 'top left';
+                      wrapper.style.transform = 'scale(' + best.scale + ')';
+                      wrapper.style.left = Math.max(5, (viewport.clientWidth - best.width * best.scale) / 2) + 'px';
+                      wrapper.style.top = Math.max(5, (viewport.clientHeight - best.height * best.scale) / 2) + 'px';
+
+                      var sizer = panel.querySelector('.manifest-sizer');
+                      if (sizer) {
+                        sizer.style.width = '100%';
+                        sizer.style.height = '100%';
+                        sizer.style.minWidth = '100%';
+                        sizer.style.minHeight = '100%';
+                      }
+                    };
+
+                    var manifestPanel = document.getElementById('tile-manifest-panel');
+                    if (manifestPanel) {
+                      var fitManifestSoon = function() {
+                        if (window._fitManifestFrame) cancelAnimationFrame(window._fitManifestFrame);
+                        window._fitManifestFrame = requestAnimationFrame(window.fitTileManifestPanel);
+                      };
+                      var manifestResizeObserver = new ResizeObserver(fitManifestSoon);
+                      manifestResizeObserver.observe(manifestPanel);
+                      var manifestMutationObserver = new MutationObserver(fitManifestSoon);
+                      manifestMutationObserver.observe(manifestPanel, { childList: true, subtree: true });
+                      setTimeout(fitManifestSoon, 50);
+                      setTimeout(fitManifestSoon, 250);
+                    }
                   };
                   setTimeout(window.init18xxResizers, 200);)
                       },
@@ -3329,6 +3433,9 @@ window.recalcAllPanels = function() {
   }
     if (window.recalcAllPanels) {
     requestAnimationFrame(window.recalcAllPanels);
+  }
+  if (window.fitTileManifestPanel) {
+    requestAnimationFrame(window.fitTileManifestPanel);
   }
 }
                            check_and_pop_new_chat!
@@ -3480,41 +3587,40 @@ window.recalcAllPanels = function() {
                     textShadow: '0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)',
                   },
                 }, game_title),
+              ].compact),
               h(:div, {
-                  attrs: { class: 'panel-manifest-control' },
+                  attrs: { id: 'resizer-h-map-manifest', title: 'Drag to resize map and remaining tiles' },
+                  style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10 },
+                }),
+              h(:div, {
+                  attrs: { id: 'tile-manifest-panel' },
                   style: {
-                    position: 'absolute',
-                    top: '36px',
-                    left: '6px',
-                    zIndex: 30,
-                    display: 'flex',
+                    flex: '0 0 22%',
+                    width: '100%',
+                    minHeight: '5rem',
+                    overflow: 'hidden',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: '#fff',
+                    boxSizing: 'border-box',
+                    position: 'relative',
                   },
                 }, [
-                h(:button, {
-                    attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
-                    style: {
-                      backgroundColor: '#ffffff',
-                      color: '#1e293b',
-                      border: '1px solid #94a3b8',
-                      borderRadius: '4px',
-                      padding: '4px 9px',
-                      fontSize: '0.78rem',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      lineHeight: '1.2',
-                    },
-                    on: {
-                      click: lambda {
-                        Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
-                        update
-                      },
-                    },
-                  }, 'Show Remaining Tiles'),
-              ]),
-              ].compact),
+                  h(:div, {
+                      attrs: { id: 'tile-manifest-scroll' },
+                      style: { width: '100%', height: '100%', minHeight: '0', overflow: 'hidden', position: 'relative', boxSizing: 'border-box' },
+                    }, [
+                      h(:div, {
+                          attrs: { class: 'manifest-sizer' },
+                          style: { position: 'relative', display: 'block', width: '100%', height: '100%', minWidth: '100%', minHeight: '100%' },
+                        }, [
+                          h(:div, {
+                              attrs: { class: 'scaler-content' },
+                              style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left', padding: '0.35rem', boxSizing: 'border-box' },
+                            }, [render_tile_manifest_panel]),
+                        ]),
+                    ]),
+                ]),
               ].compact),
 
             h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
@@ -3659,7 +3765,6 @@ window.recalcAllPanels = function() {
 ].compact),
             render_global_auction_overlay,
             render_par_overlay,
-            render_tile_manifest_overlay,
             render_history_overlay,
             render_dashboard_move_feed_overlay,
             render_other_games_overlay,

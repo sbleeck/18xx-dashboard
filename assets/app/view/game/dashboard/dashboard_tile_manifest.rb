@@ -122,45 +122,195 @@ module View
 
         def install_manifest_tile_interactions
           %x{
-    // Install once at document level. This survives Snabberb replacing
-    // the tile manifest DOM during redraws.
-    if (!document.__dashboardTileManifestHoverInstalled) {
-      document.__dashboardTileManifestHoverInstalled = true;
+    // Mouse-driven desktop drag. This intentionally avoids the browser's
+    // native HTML5 drag API because Snabberb may redraw the source vnode
+    // during dragstart/dragend, leaving Snabbdom with detached DOM nodes.
+    if (!document.__dashboardTileManifestMouseDragInstalled) {
+      document.__dashboardTileManifestMouseDragInstalled = true;
+      var d = { armed: false, active: false, tileName: null, source: null,
+                startX: 0, startY: 0, ghost: null, overHex: null };
 
-      function manifestTileFromTarget(target) {
-        if (!target || !target.closest) return null;
-
-        var manifest = target.closest('#tile_manifest');
-        if (!manifest) return null;
-
+      function manifestTile(target) {
+        if (!target || !target.closest || !target.closest('#tile_manifest')) return null;
         return target.closest('[id^="tile_"]');
+      }
+      function nameOf(tile) {
+        return tile && tile.id && tile.id.indexOf('tile_') === 0 ? tile.id.substring(5) : null;
+      }
+      function hasStock(tile) {
+        var m = String((tile && tile.textContent) || '').match(/[x×]\\s*(\\d+)/i);
+        return !m || parseInt(m[1], 10) > 0;
+      }
+      function pointHex(x, y) {
+        var el = document.elementFromPoint(x, y);
+        return el && el.closest ? el.closest('.map-hex-container') : null;
+      }
+      function legal(hex, name) {
+        if (!hex || !name) return false;
+        var names = String(hex.getAttribute('data-tile-drop-names') || '').split(',');
+        return names.indexOf(String(name)) !== -1;
+      }
+      function markExactLegal(name) {
+        document.querySelectorAll('.map-hex-container').forEach(function(hex) {
+          hex.classList.toggle('dashboard-tile-drop-exact-legal', legal(hex, name));
+        });
+      }
+      function clearExactLegal() {
+        document.querySelectorAll('.map-hex-container.dashboard-tile-drop-exact-legal').forEach(function(hex) {
+          hex.classList.remove('dashboard-tile-drop-exact-legal');
+        });
+      }
+      function clearOver() {
+        if (d.overHex) d.overHex.classList.remove('dashboard-tile-drop-over');
+        d.overHex = null;
+      }
+      function removeGhost() {
+        if (d.ghost && d.ghost.parentNode) d.ghost.parentNode.removeChild(d.ghost);
+        d.ghost = null;
+      }
+      function reset() {
+        clearOver(); removeGhost();
+        var map = document.getElementById('map');
+        if (map) map.classList.remove('dashboard-tile-drag-active');
+        document.documentElement.classList.remove('dashboard-clean-tile-drag');
+        clearExactLegal();
+        d.armed = false; d.active = false; d.tileName = null; d.source = null;
+      }
+      function reject(hex) {
+        if (!hex) return;
+        hex.classList.add('dashboard-tile-drop-rejected');
+        setTimeout(function() { if (hex && hex.classList) hex.classList.remove('dashboard-tile-drop-rejected'); }, 320);
+      }
+      function makeGhost(tile, x, y) {
+        var visual = tile.closest('svg') || tile;
+        var rect = visual.getBoundingClientRect();
+        var ghost = visual.cloneNode(true);
+        ghost.removeAttribute('id');
+        ghost.querySelectorAll('[id]').forEach(function(el) { el.removeAttribute('id'); });
+        ghost.style.position = 'fixed';
+        ghost.style.left = '0'; ghost.style.top = '0';
+        ghost.style.width = rect.width + 'px'; ghost.style.height = rect.height + 'px';
+        ghost.style.margin = '0'; ghost.style.zIndex = '2147483647';
+        ghost.style.pointerEvents = 'none'; ghost.style.opacity = '0.92';
+        ghost.style.filter = 'drop-shadow(0 5px 7px rgba(0,0,0,.45))';
+        ghost.style.transformOrigin = 'center center';
+        document.body.appendChild(ghost);
+        d.ghost = ghost;
+        moveGhost(x, y);
+      }
+      function moveGhost(x, y) {
+        if (!d.ghost) return;
+        var w = d.ghost.getBoundingClientRect().width;
+        var h = d.ghost.getBoundingClientRect().height;
+        d.ghost.style.transform = 'translate(' + (x - w / 2) + 'px,' + (y - h / 2) + 'px) scale(1.08)';
+      }
+      function choose(name, attempt) {
+        var focus = document.querySelector('.dashboard-tile-selector-focus[data-drag-tile-name="' + String(name) + '"]');
+        if (!focus) {
+          if (attempt < 24) setTimeout(function() { choose(name, attempt + 1); }, 25);
+          return;
+        }
+
+        // Prefer an explicitly named candidate, but the map deliberately
+        // renders only one candidate for a drag drop, so the fallback is safe.
+        var wanted = focus.querySelector('[data-tile-name="' + String(name) + '"]') ||
+                     focus.querySelector('#tile_' + String(name)) ||
+                     focus.querySelector('[id^="tile_' + String(name) + '"]');
+        if (!wanted) {
+          var svgs = focus.querySelectorAll('svg');
+          wanted = svgs.length ? svgs[svgs.length - 1] : null;
+        }
+        if (!wanted) {
+          if (attempt < 24) setTimeout(function() { choose(name, attempt + 1); }, 25);
+          return;
+        }
+
+        // TileSelector may attach its handler to a group within the SVG.
+        var clickTarget = wanted.querySelector &&
+          (wanted.querySelector('[data-tile-name]') || wanted.querySelector('[id^="tile_"]') || wanted.querySelector('g'));
+        clickTarget = clickTarget || wanted;
+        clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        try { localStorage.removeItem('dashboard_drag_tile_name'); } catch(e) {}
+      }
+
+      function dropOn(name, hex, hitTarget) {
+        if (!name || !legal(hex, name)) { reject(hex); return; }
+        // Tell DashboardMap which exact legal tile was dragged before opening
+        // the normal map selector. The Ruby renderer then reduces that selector
+        // to this one tile only.
+        try { localStorage.setItem('dashboard_drag_tile_name', String(name)); } catch(e) {}
+        var clickTarget = (hitTarget && hex.contains(hitTarget)) ? hitTarget : hex;
+        clickTarget.dispatchEvent(new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        }));
       }
 
       document.addEventListener('mouseover', function(ev) {
-        var tile = manifestTileFromTarget(ev.target);
-        if (!tile || !tile.id) return;
-
-        var name = tile.id.substring(5);
-        if (!name) return;
-
-        if (window.highlightMapTilesByName) {
-          window.highlightMapTilesByName(name);
-        }
+        if (d.armed || d.active) return;
+        var tile = manifestTile(ev.target), name = nameOf(tile);
+        if (name && window.highlightMapTilesByName) window.highlightMapTilesByName(name);
       });
-
       document.addEventListener('mouseout', function(ev) {
-        var oldTile = manifestTileFromTarget(ev.target);
-        if (!oldTile) return;
-
-        var newTile = manifestTileFromTarget(ev.relatedTarget);
-
-        // We are only moving between children of the same rendered tile.
-        if (newTile === oldTile) return;
-
-        if (window.clearMapHexHighlightChannel) {
-          window.clearMapHexHighlightChannel('related');
-        }
+        if (d.armed || d.active) return;
+        var oldTile = manifestTile(ev.target);
+        if (!oldTile || manifestTile(ev.relatedTarget) === oldTile) return;
+        if (window.clearMapHexHighlightChannel) window.clearMapHexHighlightChannel('related');
       });
+
+      document.addEventListener('mousedown', function(ev) {
+        if (ev.button !== 0) return;
+        var tile = manifestTile(ev.target), name = nameOf(tile);
+        if (!tile || !name || !hasStock(tile)) return;
+        var map = document.getElementById('map');
+        if (!map) return;
+        markExactLegal(name);
+        if (!map.querySelector('.dashboard-tile-drop-exact-legal')) { clearExactLegal(); return; }
+        ev.preventDefault();
+        document.documentElement.classList.add('dashboard-clean-tile-drag');
+        d.armed = true; d.active = false; d.tileName = name; d.source = tile;
+        d.startX = ev.clientX; d.startY = ev.clientY;
+      }, true);
+
+      document.addEventListener('mousemove', function(ev) {
+        if (!d.armed) return;
+        if (!d.active) {
+          var dx = ev.clientX - d.startX, dy = ev.clientY - d.startY;
+          if ((dx * dx + dy * dy) < 36) return;
+          d.active = true;
+          var map = document.getElementById('map');
+          if (map) map.classList.add('dashboard-tile-drag-active');
+          if (window.clearMapHexHighlightChannel) window.clearMapHexHighlightChannel('related');
+          makeGhost(d.source, ev.clientX, ev.clientY);
+        }
+        ev.preventDefault();
+        moveGhost(ev.clientX, ev.clientY);
+        clearOver();
+        var hex = pointHex(ev.clientX, ev.clientY);
+        if (legal(hex, d.tileName)) {
+          d.overHex = hex;
+          hex.classList.add('dashboard-tile-drop-over');
+        }
+      }, true);
+
+      document.addEventListener('mouseup', function(ev) {
+        if (!d.armed) return;
+        var wasActive = d.active, name = d.tileName;
+        var hitTarget = wasActive ? document.elementFromPoint(ev.clientX, ev.clientY) : null;
+        var hex = hitTarget && hitTarget.closest ? hitTarget.closest('.map-hex-container') : null;
+        var valid = wasActive && legal(hex, name);
+        if (wasActive) { ev.preventDefault(); ev.stopPropagation(); }
+        reset();
+        if (wasActive) {
+          if (valid) dropOn(name, hex, hitTarget); else reject(hex);
+        }
+      }, true);
+
+      document.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Escape' && d.armed) reset();
+      }, true);
+      window.addEventListener('blur', function() { if (d.armed) reset(); });
     }
   }
           nil
@@ -244,396 +394,27 @@ module View
 
         def render
           install_manifest_tile_interactions
-          is_minimized = Lib::Storage['dashboard_tile_manifest_minimized'] || false
-
-          saved_left = %x((function() {
-            try {
-              var l = sessionStorage.getItem('dashboard_tile_manifest_left');
-              return (l && l !== 'undefined' && l !== 'null' && !isNaN(parseFloat(l))) ? parseFloat(l) : null;
-            } catch(e) { return null; }
-          })())
-          saved_top = %x((function() {
-            try {
-              var t = sessionStorage.getItem('dashboard_tile_manifest_top');
-              return (t && t !== 'undefined' && t !== 'null' && !isNaN(parseFloat(t))) ? parseFloat(t) : null;
-            } catch(e) { return null; }
-          })())
-          saved_width = %x((function() {
-            try {
-              var w = sessionStorage.getItem('dashboard_tile_manifest_width');
-              return (w && w !== 'undefined' && w !== 'null' && !isNaN(parseFloat(w))) ? parseFloat(w) : null;
-            } catch(e) { return null; }
-          })())
-          saved_height = %x((function() {
-            try {
-              var h = sessionStorage.getItem('dashboard_tile_manifest_height');
-              return (h && h !== 'undefined' && h !== 'null' && !isNaN(parseFloat(h))) ? parseFloat(h) : null;
-            } catch(e) { return null; }
-          })())
-
-          on_header_mousedown = lambda do |event|
-            %x(
-            var ev = #{event} || (typeof arguments !== 'undefined' ? arguments[0] : null) || window.event;
-            if (!ev) return;
-
-            var target = ev.target || ev.srcElement;
-            if (target) {
-              var tag = (target.tagName || '').toUpperCase();
-              if (tag === 'BUTTON' || tag === 'INPUT' || (target.closest && target.closest('button'))) {
-                return;
-              }
-            }
-
-            if (ev.preventDefault) {
-              ev.preventDefault();
-            }
-
-            var modal = document.getElementById('dashboard-tile-manifest-dialog');
-            if (!modal) return;
-
-            var header = document.getElementById('dashboard-tile-manifest-header');
-            if (header) {
-              header.style.cursor = 'grabbing';
-            }
-
-            var rect = modal.getBoundingClientRect();
-            var shiftX = ev.clientX - rect.left;
-            var shiftY = ev.clientY - rect.top;
-
-            modal.style.position = 'fixed';
-            modal.style.left = rect.left + 'px';
-            modal.style.top = rect.top + 'px';
-            modal.style.margin = '0';
-            modal.style.transform = 'none';
-
-            function onMouseMove(moveEv) {
-              var mEv = moveEv || window.event;
-              if (mEv.preventDefault) mEv.preventDefault();
-
-              var newLeft = mEv.clientX - shiftX;
-              var newTop = mEv.clientY - shiftY;
-
-              var maxLeft = window.innerWidth - 60;
-              var maxTop = window.innerHeight - 40;
-
-              if (newLeft < 10) newLeft = 10;
-              if (newLeft > maxLeft) newLeft = maxLeft;
-              if (newTop < 0) newTop = 0;
-              if (newTop > maxTop) newTop = maxTop;
-
-              modal.style.left = newLeft + 'px';
-              modal.style.top = newTop + 'px';
-            }
-
-            function onMouseUp(upEv) {
-              document.removeEventListener('mousemove', onMouseMove, true);
-              document.removeEventListener('mouseup', onMouseUp, true);
-              window.removeEventListener('mousemove', onMouseMove, true);
-              window.removeEventListener('mouseup', onMouseUp, true);
-
-              if (header) {
-                header.style.cursor = 'grab';
-              }
-
-              var finalRect = modal.getBoundingClientRect();
-              if (finalRect && !isNaN(finalRect.left) && !isNaN(finalRect.top)) {
-                try {
-                  sessionStorage.setItem('dashboard_tile_manifest_left', finalRect.left);
-                  sessionStorage.setItem('dashboard_tile_manifest_top', finalRect.top);
-                } catch(err) {}
-              }
-            }
-
-            document.addEventListener('mousemove', onMouseMove, true);
-            document.addEventListener('mouseup', onMouseUp, true);
-            window.addEventListener('mousemove', onMouseMove, true);
-            window.addEventListener('mouseup', onMouseUp, true);
-            )
-          end
-
-          on_resize_mousedown = lambda do |event|
-            %x(
-            var ev = #{event} || (typeof arguments !== 'undefined' ? arguments[0] : null) || window.event;
-            if (!ev) return;
-            if (ev.preventDefault) ev.preventDefault();
-            if (ev.stopPropagation) ev.stopPropagation();
-
-            var modal = document.getElementById('dashboard-tile-manifest-dialog');
-            if (!modal) return;
-
-            var rect = modal.getBoundingClientRect();
-            modal.style.position = 'fixed';
-            modal.style.left = rect.left + 'px';
-            modal.style.top = rect.top + 'px';
-            modal.style.width = rect.width + 'px';
-            modal.style.height = rect.height + 'px';
-            modal.style.maxWidth = 'none';
-            modal.style.maxHeight = 'none';
-            modal.style.margin = '0';
-            modal.style.transform = 'none';
-
-            var startX = ev.clientX;
-            var startY = ev.clientY;
-            var startW = rect.width;
-            var startH = rect.height;
-
-            function onResizeMove(moveEv) {
-              var mEv = moveEv || window.event;
-              if (mEv.preventDefault) mEv.preventDefault();
-
-              var newW = Math.max(320, Math.min(window.innerWidth - rect.left - 10, startW + (mEv.clientX - startX)));
-              var newH = Math.max(180, Math.min(window.innerHeight - rect.top - 10, startH + (mEv.clientY - startY)));
-
-              modal.style.width = newW + 'px';
-              modal.style.height = newH + 'px';
-            }
-
-            function onResizeUp(upEv) {
-              document.removeEventListener('mousemove', onResizeMove, true);
-              document.removeEventListener('mouseup', onResizeUp, true);
-              window.removeEventListener('mousemove', onResizeMove, true);
-              window.removeEventListener('mouseup', onResizeUp, true);
-
-              var finalRect = modal.getBoundingClientRect();
-              if (finalRect && !isNaN(finalRect.width) && !isNaN(finalRect.height)) {
-                try {
-                  sessionStorage.setItem('dashboard_tile_manifest_left', finalRect.left);
-                  sessionStorage.setItem('dashboard_tile_manifest_top', finalRect.top);
-                  sessionStorage.setItem('dashboard_tile_manifest_width', finalRect.width);
-                  sessionStorage.setItem('dashboard_tile_manifest_height', finalRect.height);
-                } catch(err) {}
-              }
-            }
-
-            document.addEventListener('mousemove', onResizeMove, true);
-            document.addEventListener('mouseup', onResizeUp, true);
-            window.addEventListener('mousemove', onResizeMove, true);
-            window.addEventListener('mouseup', onResizeUp, true);
-            )
-          end
-
-          reset_pos = lambda do
-            %x(
-            try {
-              sessionStorage.removeItem('dashboard_tile_manifest_left');
-              sessionStorage.removeItem('dashboard_tile_manifest_top');
-              sessionStorage.removeItem('dashboard_tile_manifest_width');
-              sessionStorage.removeItem('dashboard_tile_manifest_height');
-            } catch(e) {}
-            var modal = document.getElementById('dashboard-tile-manifest-dialog');
-            if (modal) {
-              modal.style.left = '50%';
-              modal.style.top = '50%';
-              modal.style.width = '92%';
-              modal.style.height = 'auto';
-              modal.style.maxWidth = '1120px';
-              modal.style.maxHeight = '82vh';
-              modal.style.transform = 'translate(-50%, -50%)';
-              modal.style.margin = '0';
-            }
-            )
-            update
-          end
-
-          toggle_minimize = lambda do
-            Lib::Storage['dashboard_tile_manifest_minimized'] = !is_minimized
-            update
-          end
-
-          close_overlay = lambda do
-            Lib::Storage['dashboard_tile_manifest'] = false
-            @on_close&.call
-            update
-          end
-
-          dialog_style = {
-            width: saved_width ? "#{saved_width}px" : '92%',
-            maxWidth: saved_width ? 'none' : '1120px',
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            border: '1px solid #cbd5e1',
-            pointerEvents: 'auto',
-            position: 'fixed',
-            margin: '0',
-            zIndex: '90000',
-          }
-
-          if saved_left && saved_top
-            dialog_style[:left] = "#{saved_left}px"
-            dialog_style[:top] = "#{saved_top}px"
-            dialog_style[:transform] = 'none'
-          else
-            dialog_style[:left] = '50%'
-            dialog_style[:top] = '50%'
-            dialog_style[:transform] = 'translate(-50%, -50%)'
-          end
-
-          if is_minimized
-            dialog_style[:height] = 'auto'
-            dialog_style[:maxHeight] = 'auto'
-          elsif saved_height
-            dialog_style[:height] = "#{saved_height}px"
-            dialog_style[:maxHeight] = 'none'
-          else
-            dialog_style[:maxHeight] = '82vh'
-          end
-
-          zoom_button_style = {
-            width: '24px',
-            height: '24px',
-            padding: '0',
-            fontSize: '0.8rem',
-            fontWeight: 'bold',
-            backgroundColor: '#ffffff',
-            color: '#334155',
-            border: '1px solid #94a3b8',
-            borderRadius: '3px',
-            cursor: 'pointer',
-            lineHeight: '20px',
-          }
-
-          header_controls = [
-            h(:button, {
-                attrs: { type: 'button', title: 'Increase tile size' },
-                style: zoom_button_style,
-                on: { click: -> { change_manifest_scale(1.15) } },
-              }, '+'),
-            h(:button, {
-                attrs: { type: 'button', title: 'Decrease tile size' },
-                style: zoom_button_style,
-                on: { click: -> { change_manifest_scale(0.85) } },
-              }, '-'),
-            h(:button, {
-                attrs: { type: 'button', title: 'Reset tile size' },
-                style: zoom_button_style.merge(fontSize: '0.7rem'),
-                on: { click: -> { reset_manifest_scale } },
-              }, '0'),
-            h(:button, {
-                attrs: { type: 'button', title: is_minimized ? 'Expand overlay' : 'Minimize overlay' },
-                style: {
-                  padding: '0 8px',
-                  height: '1.6rem',
-                  fontSize: '0.78rem',
-                  fontWeight: '600',
-                  backgroundColor: '#f1f5f9',
-                  color: '#334155',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                },
-                on: { click: toggle_minimize },
-              }, is_minimized ? 'Expand' : 'Minimize'),
-            h(:button, {
-                attrs: { type: 'button', title: 'Close overlay' },
-                style: {
-                  padding: '0 8px',
-                  height: '1.6rem',
-                  fontSize: '0.85rem',
-                  fontWeight: 'bold',
-                  backgroundColor: '#fee2e2',
-                  color: '#991b1b',
-                  border: '1px solid #fca5a5',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  lineHeight: '1',
-                },
-                on: { click: close_overlay },
-              }, '✕'),
-          ]
-
-          body_content = if is_minimized
-                           nil
-                         else
-                           h(:div, {
-                               style: {
-                                 overflowY: 'auto',
-                                 flex: '1 1 auto',
-                                 minHeight: '0',
-                                 padding: '0.5rem 1rem 1.25rem 1rem',
-                               },
-                             }, [
-                               h(:div, {
-                                   style: {
-                                     transform: "scale(#{manifest_scale})",
-                                     transformOrigin: 'top left',
-                                     width: "#{100.0 / manifest_scale}%",
-                                   },
-                                 }, [render_tile_manifest]),
-                             ])
-                         end
-
-          resize_handle = if is_minimized
-                            nil
-                          else
-                            h(:div, {
-                                attrs: { title: 'Drag to resize' },
-                                style: {
-                                  position: 'absolute',
-                                  right: '0',
-                                  bottom: '0',
-                                  width: '18px',
-                                  height: '18px',
-                                  cursor: 'nwse-resize',
-                                  zIndex: '10',
-                                  background: 'linear-gradient(135deg, transparent 50%, #94a3b8 50%, #94a3b8 65%, transparent 65%, transparent 80%, #94a3b8 80%)',
-                                },
-                                on: { mousedown: on_resize_mousedown },
-                              })
-                          end
-
-          remaining_count = @game.tiles.size
-
-          dialog_children = [
-            h(:div, {
-                attrs: { id: 'dashboard-tile-manifest-header' },
-                style: {
-                  padding: '0.6rem 1rem',
-                  borderBottom: is_minimized ? 'none' : '1px solid #e2e8f0',
-                  backgroundColor: '#f8fafc',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'grab',
-                  userSelect: 'none',
-                  flexShrink: '0',
-                },
-                on: {
-                  mousedown: on_header_mousedown,
-                  dblclick: reset_pos,
-                },
-              }, [
-              h(:div, { style: { display: 'flex', alignItems: 'baseline', gap: '0.6rem' } }, [
-                h(:h2, { style: { margin: '0', fontSize: '1.15rem', color: '#0f172a', fontWeight: 'bold' } }, 'Tile Manifest'),
-                h(:span, { style: { fontSize: '0.8rem', color: '#64748b' } },
-                  "(#{remaining_count} remaining tiles • drag header to move, dblclick to reset)"),
-              ]),
-              h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.4rem' } }, header_controls),
-            ]),
-          ]
-          dialog_children << body_content if body_content
-          dialog_children << resize_handle if resize_handle
-
           h(:div, {
-              attrs: { id: 'dashboard-tile-manifest-container' },
+              attrs: { id: 'dashboard-tile-manifest-embedded' },
               style: {
-                position: 'fixed',
-                top: '0',
-                left: '0',
-                right: '0',
-                bottom: '0',
-                backgroundColor: 'transparent',
-                pointerEvents: 'none',
-                zIndex: '89999',
+                display: 'block',
+                width: 'max-content',
+                height: 'max-content',
+                backgroundColor: '#ffffff',
+                boxSizing: 'border-box',
               },
             }, [
-              h(:div, {
-                  attrs: { id: 'dashboard-tile-manifest-dialog' },
-                  style: dialog_style,
-                }, dialog_children),
+              h(:style, {}, %(
+                html.dashboard-clean-tile-drag, html.dashboard-clean-tile-drag * {
+                  user-select: none !important; -webkit-user-select: none !important;
+                  cursor: grabbing !important;
+                }
+                #tile_manifest, #tile_manifest * { user-select: none !important; -webkit-user-select: none !important; }
+                #tile_manifest [id^='tile_'] { cursor: grab; user-select: none; }
+                #tile_manifest [id^='tile_']:active { cursor: grabbing; }
+                .dashboard-tile-selector-focus.dashboard-drag-tile-not-available { outline: 6px solid #dc2626 !important; outline-offset: 4px; }
+              )),
+              render_tile_manifest,
             ])
         end
       end

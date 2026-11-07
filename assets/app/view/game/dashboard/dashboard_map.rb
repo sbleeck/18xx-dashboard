@@ -1125,6 +1125,63 @@ module View
         ])
       end
 
+      # Consume a tile selected by the embedded tile manifest.
+      #
+      # The ordinary Hex click has already created @tile_selector and
+      # triggered this render. We therefore change the selector's tile
+      # during this render without calling TileSelector#tile=, because
+      # tile= would trigger a nested root update while Snabberb is patching.
+      def consume_pending_manifest_tile(step, entity_or_entities)
+        dragged_tile_name =
+          Lib::Storage['dashboard_drag_tile_name']
+
+        return unless dragged_tile_name
+        return if dragged_tile_name.to_s.empty?
+        return unless step
+        return unless @tile_selector
+        return if @tile_selector.is_a?(Lib::TokenSelector)
+        return unless @tile_selector.role == :map
+        return unless @tile_selector.hex
+
+        begin
+          dragged_tile = Array(
+            step.upgradeable_tiles(
+              entity_or_entities,
+              @tile_selector.hex
+            )
+          ).find do |candidate|
+            candidate.name.to_s == dragged_tile_name.to_s
+          end
+
+          return unless dragged_tile
+
+          # The engine's normal Tracker workflow assigns the rotations
+          # that are legal for this tile on this particular hex.
+          # Manifest drag/drop bypasses the normal TileSelector candidate
+          # click, so prepare the tile here before selecting it.
+          if step.respond_to?(:legal_tile_rotations)
+            dragged_tile.legal_rotations =
+              step.legal_tile_rotations(
+                entity_or_entities,
+                @tile_selector.hex,
+                dragged_tile
+              )
+          end
+
+          # DashboardMap is already rendering because the ordinary map
+          # click created this selector. Set the selector state directly
+          # so this same clean render produces TileConfirmation.
+          @tile_selector.instance_variable_set(
+            :@tile,
+            dragged_tile
+          )
+        ensure
+          Lib::Storage.delete(
+            'dashboard_drag_tile_name'
+          )
+        end
+      end
+
       # File: dashboard_map.rb
       # Method: render
 
@@ -1148,6 +1205,11 @@ module View
         combo_entities = (@selected_combos || []).map { |id| @game.company_by_id(id) }.compact
         entity_or_entities = combo_entities.empty? ? current_entity : [current_entity, *combo_entities].compact
         actions = step && current_entity ? (step.actions(current_entity) || []) : []
+
+        consume_pending_manifest_tile(
+          step,
+          entity_or_entities
+        )
 
         selected_hex = @tile_selector&.hex
         @hexes << @hexes.delete(selected_hex) if @hexes.include?(selected_hex)
@@ -1306,13 +1368,33 @@ module View
 
           can_build = show_building_highlight || show_token_highlight
 
+          # Exact tile names legal on this hex for the current entity/action.
+          # The drag UI reads this list, while the engine remains authoritative.
+          # Calculate exact drag/drop destinations only while no map tile is
+          # selected. Tracker#upgradeable_tiles resets candidate rotations
+          # before calculating legality, so calling it after selection would
+          # reset the preview tile on every dashboard render.
+          legal_drop_tile_names =
+            if show_building_highlight && !hex_selected
+              begin
+                step
+                  .upgradeable_tiles(entity_or_entities, hex)
+                  .map { |tile| tile.name.to_s }
+                  .uniq
+              rescue StandardError
+                []
+              end
+            else
+              []
+            end
+
           hex_opacity = @opacity || 1.0
           base_hex = h(
               Hex,
               hex: hex,
               opacity: hex_opacity,
               entity: current_entity,
-              clickable: hex_selected ? (hex == selected_hex && clickable) : clickable,
+              clickable: hex_selected ? (hex == selected_hex) : clickable,
               actions: current_entity ? actions : [],
               routes: routes,
               start_pos: @start_pos,
@@ -1458,6 +1540,54 @@ module View
           meme_overlay = hex_meme_revenue_overlay(hex, x, y, routes)
           hex_children << meme_overlay if meme_overlay
 
+          # ============================================================
+          # DASHBOARD TILE ROTATION SURFACE
+          #
+          # Once a replacement tile has been selected, put a transparent
+          # dashboard-owned click surface over that hex. This deliberately
+          # bypasses Hex#on_hex_click and rotates the existing TileSelector
+          # directly. It works for both ordinary tile selection and
+          # manifest drag/drop without modifying files outside dashboard/.
+          # ============================================================
+          if tile_chosen && hex == selected_hex
+            hex_children << h(
+              :polygon,
+              {
+                attrs: {
+                  transform: transform_str,
+                  points: Hex::HIGHLIGHT_POINTS,
+                  fill: '#ffffff',
+                  'fill-opacity': '0',
+                  stroke: 'none',
+                  'pointer-events': 'all',
+                  class: 'dashboard-tile-rotation-surface',
+                },
+                style: {
+                  cursor: 'pointer',
+                  pointerEvents: 'all',
+                },
+                on: {
+                  click: lambda do |event|
+                    %x{
+    console.log('[DASH ROTATE] click received');
+
+    if (#{event} && #{event}.stopPropagation) {
+      #{event}.stopPropagation();
+    }
+  }
+
+                    puts '[DASH ROTATE] click'
+                    puts @tile_selector.tile.name
+                    puts @tile_selector.tile.rotation
+                    puts @tile_selector.tile.legal_rotations.inspect
+
+                    @tile_selector.rotate! if @tile_selector
+                  end,
+                },
+              }
+            )
+          end
+
           g_props = {
             key: "dash-g-#{hex.id}",
             attrs: {
@@ -1468,6 +1598,8 @@ module View
               'data-tile-state': "#{hex.tile.name}-#{hex.tile.color}-#{hex.tile.rotation}",
               'data-transform': transform_str,
               'data-base-opportunity': can_build ? 'true' : 'false',
+              'data-tile-drop-legal': legal_drop_tile_names.any? ? 'true' : 'false',
+              'data-tile-drop-names': legal_drop_tile_names.join(','),
             },
             hook: Lib::TileLayAnimation.hook,
           }
@@ -1493,6 +1625,7 @@ module View
               left: "#{left + 18}px",
               top: "#{top - 18}px",
               zIndex: '100',
+
             },
           }
           children.unshift(h(:div, props, [selector]))
@@ -1515,7 +1648,6 @@ module View
         top
       )
         selector_zoom = 2
-
         if @tile_selector.is_a?(Lib::TokenSelector)
           h(TokenSelector, zoom: selector_zoom)
         elsif @tile_selector.role != :map
@@ -1978,6 +2110,30 @@ h(:style, {}, %(
 
   filter: none !important;
   animation: none !important;
+}
+
+/* DESKTOP TILE DRAG AND DROP */
+#map.dashboard-tile-drag-active .map-hex-container.dashboard-tile-drop-exact-legal .dashboard-related-edge-outer,
+#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-outer {
+  display: inline !important; fill: rgba(34,197,94,0.14) !important;
+  stroke: #111827 !important; stroke-width: 16px !important; stroke-opacity: 1 !important;
+}
+#map.dashboard-tile-drag-active .map-hex-container.dashboard-tile-drop-exact-legal .dashboard-related-edge-inner,
+#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-inner {
+  display: inline !important; fill: none !important;
+  stroke: #22c55e !important; stroke-width: 9px !important; stroke-opacity: 1 !important;
+}
+#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-inner { stroke-width: 12px !important; }
+#map .map-hex-container.dashboard-tile-drop-rejected .dashboard-related-edge-outer {
+  display: inline !important; fill: rgba(220,38,38,0.16) !important;
+  stroke: #7f1d1d !important; stroke-width: 16px !important; stroke-opacity: 1 !important;
+}
+#map .map-hex-container.dashboard-tile-drop-rejected .dashboard-related-edge-inner {
+  display: inline !important; fill: none !important;
+  stroke: #ef4444 !important; stroke-width: 10px !important; stroke-opacity: 1 !important;
+}
+#map.dashboard-tile-drag-active .map-hex-container:not(.dashboard-tile-drop-exact-legal) .dashboard-dim-overlay {
+  display: inline !important; fill: #000 !important; fill-opacity: 0.42 !important;
 }
 
 /* ============================================================
