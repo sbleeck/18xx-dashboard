@@ -16,6 +16,13 @@ module View
       needs :role, default: :tile_selector
       needs :unavailable_clickable, default: false
       needs :zoom, default: 1
+
+      # Candidate size is independent of arrangement distance.
+      # The standard game keeps SCALE = 0.3. The dashboard can
+      # request candidate_scale: 1.0 for full-size map tiles.
+      needs :candidate_scale, default: nil
+      needs :candidate_background, default: false
+
       needs :left_col, default: false
       needs :right_col, default: false
       needs :top_row, default: false
@@ -51,10 +58,68 @@ module View
             unavailable: unavailable)
         end
 
-        hexes = coordinates_for(tiles).map do |hex, left, bottom|
-          h(:svg,
-            { style: style(left * @zoom, bottom * @zoom, TILE_SIZE * @zoom) },
-            [h(:g, { attrs: { transform: "scale(#{SCALE * @zoom})" } }, [hex])])
+        candidate_scale = @candidate_scale || SCALE
+        candidate_size = Hex::SIZE * candidate_scale
+        svg_size = candidate_size * 2
+        render_scale = candidate_scale * @zoom
+
+        hexes = coordinates_for(tiles, candidate_size).map do |hex, left, bottom|
+          contents = []
+
+          if @candidate_background
+            # The candidate Hex renders around local coordinate
+            # Hex::SIZE, Hex::SIZE, which is 100,100.
+            #
+            # The backing must use that same origin. Pointy hexes
+            # also need the same 30-degree rotation as View::Game::Hex.
+            backing_transform =
+              "translate(#{Hex::SIZE} #{Hex::SIZE})" \
+              "#{@layout == :pointy ? ' rotate(30)' : ''}" \
+              " scale(1.10)"
+
+            contents << h(
+              :polygon,
+              {
+                attrs: {
+                  points: Lib::Hex::POINTS,
+                  transform: backing_transform,
+
+                  fill: '#fffdf5',
+                  'fill-opacity': '1',
+
+                  stroke: '#111827',
+                  'stroke-width': '6',
+                  'stroke-linejoin': 'round',
+
+                  'pointer-events': 'none',
+                },
+              }
+            )
+          end
+
+          contents << hex
+
+          h(
+            :svg,
+            {
+              style: style(
+                left * @zoom,
+                bottom * @zoom,
+                svg_size * @zoom
+              ),
+            },
+            [
+              h(
+                :g,
+                {
+                  attrs: {
+                    transform: "scale(#{render_scale})",
+                  },
+                },
+                contents
+              ),
+            ]
+          )
         end
 
         h(:div, hexes)
@@ -85,7 +150,7 @@ module View
         [angle, rotation]
       end
 
-      def coordinates_for(hexes)
+      def coordinates_for(hexes, candidate_size = SIZE)
         n_hexes = hexes.size
 
         if @angle < FULL_CIRCLE && @angle / (n_hexes - 1) < MIN_ANGLE
@@ -96,8 +161,8 @@ module View
           angle = [((hexes2.size * MIN_ANGLE) / 2) + (ADDITIONAL_ANGLE / DISTANCE_SCALE_OUTER_FAN), 105].min
           rotation = @rotation + ((@angle - angle) / 2)
 
-          list_coordinates(hexes1, @distance, SIZE, @angle, @rotation).concat(
-            list_coordinates(hexes2, @distance * DISTANCE_SCALE_OUTER_FAN, SIZE, angle, rotation)
+          list_coordinates(hexes1, @distance, candidate_size, @angle, @rotation).concat(
+            list_coordinates(hexes2, @distance * DISTANCE_SCALE_OUTER_FAN, candidate_size, angle, rotation)
           )
         else
           @distance *= DISTANCE_SCALE if n_hexes <= 8
@@ -106,7 +171,7 @@ module View
           # rotate tile fan to cover seams between adjacent hexes instead of hexes themselves
           @rotation += 30 if @layout == :pointy && @angle == FULL_CIRCLE && @role != :tile_page
 
-          list_coordinates(hexes, @distance, SIZE, angle, @rotation)
+          list_coordinates(hexes, @distance, candidate_size, angle, @rotation)
         end
       end
     end

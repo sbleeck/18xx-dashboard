@@ -592,6 +592,14 @@ module View
               var relatedHex = window._dashboardFindMapHex(related[ri]);
               if (relatedHex) relatedHex.classList.add('map-highlight-related');
             }
+
+            var map = document.getElementById('map');
+            if (map) {
+              var active = dashboard.querySelector(
+                '.map-highlight-opportunity, .map-highlight-related'
+              ) !== null;
+              map.classList.toggle('has-dashboard-highlight', active);
+            }
           };
 
           window.setMapHexHighlightChannel = function(channel, hexIds) {
@@ -1395,7 +1403,7 @@ module View
               h(:polygon, {
                   attrs: {
                     points: Hex::HIGHLIGHT_POINTS,
-                    class: 'hex-highlight-poly highlight-outline-outer',
+                    class: 'hex-highlight-poly highlight-related-outer',
                     'data-orig-stroke': initial_stroke,
                     'data-orig-width': initial_width.to_s,
                     'data-orig-fill': initial_fill,
@@ -1410,34 +1418,50 @@ module View
               h(:polygon, {
                   attrs: {
                     points: Hex::HIGHLIGHT_POINTS,
-                    class: 'highlight-outline-inner',
+                    class: 'highlight-related-inner',
                     fill: 'none',
                     stroke: 'transparent',
                     'stroke-width': '0',
                     'pointer-events': 'none',
                   },
                 }),
-              h(:g, { attrs: { class: 'highlight-primary-markers', 'pointer-events': 'none' } }, [
-                [-50, 0], [-25, -43.3], [25, -43.3], [50, 0], [25, 43.3], [-25, 43.3]
-              ].map do |mx, my|
-                h(:circle, { attrs: { cx: mx, cy: my, r: '5.5', class: 'highlight-primary-marker' } })
-              end),
-              h(:g, { attrs: { class: 'highlight-related-markers', 'pointer-events': 'none' } }, [
-                [-50, 0], [25, -43.3], [25, 43.3]
-              ].map do |mx, my|
-                h(:rect, {
-                    attrs: {
-                      x: mx - 5.5,
-                      y: my - 5.5,
-                      width: '11',
-                      height: '11',
-                      rx: '1',
-                      transform: "rotate(45 #{mx} #{my})",
-                      class: 'highlight-related-marker',
-                    },
-                  })
-              end),
               *overlays,
+
+              # Dark overlay for unrelated hexes.
+              h(:polygon, {
+                  attrs: {
+                    points: Hex::HIGHLIGHT_POINTS,
+                    class: 'dashboard-dim-overlay',
+                    fill: '#000000',
+                    'fill-opacity': '0',
+                    stroke: 'none',
+                    'pointer-events': 'none',
+                  },
+                }),
+
+              # Black backing edge for secondary highlights.
+              h(:polygon, {
+                  attrs: {
+                    points: Hex::HIGHLIGHT_POINTS,
+                    class: 'dashboard-related-edge-outer',
+                    fill: 'none',
+                    stroke: 'transparent',
+                    'stroke-width': '0',
+                    'pointer-events': 'none',
+                  },
+                }),
+
+              # Amber inner edge for secondary highlights.
+              h(:polygon, {
+                  attrs: {
+                    points: Hex::HIGHLIGHT_POINTS,
+                    class: 'dashboard-related-edge-inner',
+                    fill: 'none',
+                    stroke: 'transparent',
+                    'stroke-width': '0',
+                    'pointer-events': 'none',
+                  },
+                }),
             ]),
           ]
 
@@ -1471,7 +1495,15 @@ module View
           selector = render_selector(step, current_entity, entity_or_entities, actions, map_w, map_h, left, top)
 
           props = {
-            style: { position: 'absolute', left: "#{left}px", top: "#{top}px" },
+            attrs: {
+              class: 'dashboard-tile-selector-focus',
+            },
+            style: {
+              position: 'absolute',
+              left: "#{left + 18}px",
+              top: "#{top - 18}px",
+              zIndex: '100',
+            },
           }
           children.unshift(h(:div, props, [selector]))
         end
@@ -1482,41 +1514,121 @@ module View
         h(:div, props, children)
       end
 
-      def render_selector(step, current_entity, entity_or_entities, actions, map_w, map_h, left, top)
+      def render_selector(
+        step,
+        current_entity,
+        entity_or_entities,
+        actions,
+        map_w,
+        map_h,
+        left,
+        top
+      )
+        selector_zoom = 2
+
         if @tile_selector.is_a?(Lib::TokenSelector)
-          h(TokenSelector, zoom: 1.0)
+          h(TokenSelector, zoom: selector_zoom)
         elsif @tile_selector.role != :map
           nil
         elsif @tile_selector.hex.tile != @tile_selector.tile
-          h(TileConfirmation, zoom: 1.0)
+          h(
+            TileConfirmation,
+            zoom: 1.0,
+            large: true
+          )
         else
-          tiles = step.upgradeable_tiles(entity_or_entities, @tile_selector.hex)
-          all_upgrades = @game.all_potential_upgrades(@tile_selector.hex.tile, selected_company: @selected_company)
-          phase_colors = step.potential_tile_colors(current_entity, @tile_selector.hex)
+          tiles = step.upgradeable_tiles(
+            entity_or_entities,
+            @tile_selector.hex
+          )
+
+          all_upgrades = @game.all_potential_upgrades(
+            @tile_selector.hex.tile,
+            selected_company: @selected_company
+          )
+
+          phase_colors = step.potential_tile_colors(
+            current_entity,
+            @tile_selector.hex
+          )
+
           select_tiles = all_upgrades.map do |tile|
-            real_tile = tiles.find { |t| t.name == tile.name }
+            real_tile = tiles.find do |candidate|
+              candidate.name == tile.name
+            end
+
             if real_tile
               tiles.delete(real_tile)
               [real_tile, nil]
-            elsif !@game.tile_valid_for_phase?(tile, hex: @tile_selector.hex, phase_color_cache: phase_colors)
+            elsif !@game.tile_valid_for_phase?(
+              tile,
+              hex: @tile_selector.hex,
+              phase_color_cache: phase_colors
+            )
               [tile, 'Later Phase']
-            elsif @game.tiles.none? { |t| t.name == tile.name }
+            elsif @game.tiles.none? do |candidate|
+              candidate.name == tile.name
+            end
               [tile, 'None Left']
             end
           end.compact
 
-          select_tiles.append(*tiles.map { |t| [t, nil] })
+          select_tiles.append(
+            *tiles.map { |tile| [tile, nil] }
+          )
 
           return h(:div) if select_tiles.empty?
 
-          distance = TileSelector::DISTANCE * 1.0
-          ts_ds = [TileSelector::DROP_SHADOW_SIZE - 5, 0].max
+          # Candidate tiles are full map size. Arrangement distance
+          # grows separately when more candidate tiles are available.
+          # Full-size candidate hexes are roughly 200 px wide.
+          # Keep centre spacing safely above 200 px.
+          #
+          # Tile size never shrinks. Larger candidate sets use
+          # progressively larger arrangement radii.
+          selector_distance =
+            case select_tiles.size
+            when 1
+              Hex::SIZE * 1.80
+            when 2
+              Hex::SIZE * 2.20
+            when 3..6
+              Hex::SIZE * 2.45
+            when 7..8
+              Hex::SIZE * 3.40
+            when 9..12
+              Hex::SIZE * 4.10
+            else
+              Hex::SIZE * 4.80
+            end
 
-          h(TileSelector, layout: @layout, tiles: select_tiles, actions: actions, zoom: 1.0,
-                          top_row: (top < distance),
-                          left_col: (left < distance),
-                          right_col: (map_w - left < distance + ts_ds),
-                          bottom_row: (map_h - top < distance + ts_ds))
+          edge_distance = selector_distance + (Hex::SIZE * 1.20)
+
+          ts_ds = [
+            TileSelector::DROP_SHADOW_SIZE - 5,
+            0,
+          ].max
+
+          h(
+            TileSelector,
+            layout: @layout,
+            tiles: select_tiles,
+            actions: actions,
+
+            # A map tile renders at scale 1.0. Candidate size and
+            # arrangement radius are intentionally independent.
+            zoom: 1.0,
+            candidate_scale: 1.0,
+            candidate_background: true,
+            distance: selector_distance,
+
+            top_row: top < edge_distance,
+            left_col: left < edge_distance,
+            right_col:
+              map_w - left < edge_distance + ts_ds,
+            bottom_row:
+              map_h - top < edge_distance + ts_ds
+          )
         end
       end
 
@@ -1673,6 +1785,34 @@ module View
         end
       end
 
+      def map_highlight_refresh_hook
+        refresh = lambda do
+          %x{
+            if (window._dashboardHighlightRefreshTimer) {
+              clearTimeout(window._dashboardHighlightRefreshTimer);
+            }
+
+            window._dashboardHighlightRefreshTimer =
+              setTimeout(function() {
+                window._dashboardHighlightRefreshTimer = null;
+
+                if (window._dashboardRenderHexHighlights) {
+                  window._dashboardRenderHexHighlights();
+                }
+              }, 0);
+          }
+        end
+
+        {
+          insert: lambda do |_vnode|
+            refresh.call
+          end,
+          postpatch: lambda do |_old_vnode, _vnode|
+            refresh.call
+          end,
+        }
+      end
+
       def render_map(width, height)
         svg_attrs = {
           id: 'map',
@@ -1680,7 +1820,12 @@ module View
           height: height.to_s,
         }
 
-        h(:svg, { attrs: svg_attrs }, [
+        svg_props = {
+          attrs: svg_attrs,
+          hook: map_highlight_refresh_hook,
+        }
+
+        h(:svg, svg_props, [
           h(:defs, [
 h(:style, {}, %(
 
@@ -1728,78 +1873,199 @@ h(:style, {}, %(
 
 
 /* ============================================================
- * MAP HIGHLIGHTING: palette-independent geometric overlays
- * Primary/actionable: solid black/white ring + breathing cyan dots
- * Secondary/related: dashed black/white ring + breathing amber diamonds
+ * MAP HIGHLIGHTING
+ *
+ * Primary/actionable:
+ *   Original tile remains completely unchanged.
+ *
+ * Secondary/related:
+ *   Original tile remains bright, with a static black-backed
+ *   amber outline.
+ *
+ * Everything else:
+ *   Darkened using an SVG black overlay.
+ *
+ * Adjust --dashboard-map-dim-amount:
+ *   0.16 = subtle
+ *   0.22 = moderate
+ *   0.28 = clear
+ *   0.34 = strong
  * ============================================================ */
-  #map .highlight-outline-outer,
-  #map .highlight-outline-inner,
-  #map .highlight-primary-markers,
-  #map .highlight-related-markers {
-    display: none;
-    pointer-events: none;
-  }
-  #map .map-highlight-opportunity .highlight-outline-outer,
-  #map .map-highlight-opportunity .highlight-outline-inner,
-  #map .map-highlight-opportunity .highlight-primary-markers,
-  #map .map-highlight-related .highlight-outline-outer,
-  #map .map-highlight-related .highlight-outline-inner,
-  #map .map-highlight-related .highlight-related-markers { display: inline; }
-  #map .map-highlight-opportunity .highlight-outline-outer,
-  #map .map-highlight-related .highlight-outline-outer {
-    fill: none !important;
-    stroke: #000000 !important;
-    stroke-width: 15px !important;
-    stroke-opacity: 1 !important;
-    stroke-linejoin: round !important;
-    filter: none !important;
-    animation: none !important;
-  }
-  #map .map-highlight-opportunity .highlight-outline-inner {
-    fill: none !important;
-    stroke: #ffffff !important;
-    stroke-width: 7px !important;
-    stroke-opacity: 1 !important;
-    stroke-linejoin: round !important;
-    stroke-dasharray: none !important;
-  }
-  #map .map-highlight-related .highlight-outline-inner {
-    fill: none !important;
-    stroke: #ffffff !important;
-    stroke-width: 7px !important;
-    stroke-opacity: 1 !important;
-    stroke-linejoin: round !important;
-    stroke-linecap: round !important;
-    stroke-dasharray: 16 10 !important;
-  }
-  #map .highlight-primary-marker {
-    fill: #00d9ff !important;
-    stroke: #000000 !important;
-    stroke-width: 3px !important;
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: dashboard-primary-marker-breathe 1.25s ease-in-out infinite;
-  }
-  #map .highlight-related-marker {
-    fill: #ff9f0a !important;
-    stroke: #000000 !important;
-    stroke-width: 3px !important;
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: dashboard-related-marker-breathe 1.45s ease-in-out infinite;
-  }
-  @keyframes dashboard-primary-marker-breathe {
-    0%, 100% { transform: scale(0.82); opacity: 0.78; }
-    50% { transform: scale(1.42); opacity: 1; }
-  }
-  @keyframes dashboard-related-marker-breathe {
-    0%, 100% { transform: scale(0.86); opacity: 0.78; }
-    50% { transform: scale(1.35); opacity: 1; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    #map .highlight-primary-marker,
-    #map .highlight-related-marker { animation: none !important; }
-  }
+
+#map {
+  --dashboard-map-dim-amount: 0.22;
+}
+
+#map .map-hex-container {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/*
+ * Hidden by default.
+ */
+#map .dashboard-dim-overlay,
+#map .dashboard-related-edge-outer,
+#map .dashboard-related-edge-inner {
+  display: none;
+  pointer-events: none;
+}
+
+/*
+ * Darken only unrelated hexes.
+ *
+ * Primary and secondary hexes are both excluded.
+ */
+#map.has-dashboard-highlight
+  .map-hex-container:not(.map-highlight-opportunity):not(.map-highlight-related)
+  .dashboard-dim-overlay {
+  display: inline !important;
+
+  fill: #000000 !important;
+  fill-opacity: var(--dashboard-map-dim-amount) !important;
+
+  stroke: none !important;
+}
+
+/*
+ * Primary/actionable tiles remain completely natural.
+ */
+#map .map-highlight-opportunity {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/*
+ * Secondary/related tiles also remain completely natural.
+ */
+#map .map-highlight-related {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/*
+ * Disable the older underlying highlight polygons.
+ */
+#map .highlight-related-outer,
+#map .highlight-related-inner {
+  display: none !important;
+}
+
+/*
+ * Secondary black backing edge.
+ */
+#map .map-highlight-related .dashboard-related-edge-outer {
+  display: inline !important;
+
+  fill: none !important;
+
+  stroke: #111827 !important;
+  stroke-width: 13px !important;
+  stroke-opacity: 1 !important;
+
+  stroke-linejoin: round !important;
+  stroke-dasharray: none !important;
+
+  filter: none !important;
+  animation: none !important;
+}
+
+/*
+ * Secondary amber inner edge.
+ */
+#map .map-highlight-related .dashboard-related-edge-inner {
+  display: inline !important;
+
+  fill: none !important;
+
+  stroke: #f59e0b !important;
+  stroke-width: 7px !important;
+  stroke-opacity: 1 !important;
+
+  stroke-linejoin: round !important;
+  stroke-linecap: round !important;
+  stroke-dasharray: none !important;
+
+  filter: none !important;
+  animation: none !important;
+}
+
+/* ============================================================
+ * TILE UPGRADE SELECTOR
+ * ============================================================ */
+
+/* ============================================================
+ * TILE UPGRADE SELECTOR
+ *
+ * The selector is a foreground control, not part of the map.
+ * The opaque neutral backing solves green-on-green and other
+ * same-colour combinations.
+ * ============================================================ */
+
+.dashboard-tile-selector-focus {
+  isolation: isolate;
+  z-index: 100 !important;
+
+  /*
+   * Neutral opaque panel prevents map colours, routes, tokens,
+   * and labels from competing with replacement tiles.
+   */
+  background: #fffdf5;
+
+  border* 4px solid #111827;
+  border-radiu*: 18px;
+
+  padding: 14px;
+
+  box-s*adow:
+    0 0 0 4px rgba(255, 255,*255, 0.95),
+    0 8px 18px rgba(0,*0, 0, 0.55);
+
+  box-sizing: border-box;
+}
+
+/*
+ * Do not apply glow to the tile artwork. The opaque panel and
+ * black perimeter provide cleaner separation.
+ */
+.dashboard-tile-selector-focus svg {
+  overflow: visible;
+  filter: none !important;
+}
+
+/*
+ * Make buttons and other clickable selector controls easier to hit.
+ */
+.dashboard*tile-selector-focus button {
+  min*width: 34px !important;
+  min-heig*t: 34px !important;
+
+  padding: 5p* !important;
+
+  border: 3px solid *111827 !important;
+  border-radius* 7px !important;
+
+  font-size: 20p* !important;
+  line-height: 1 !imp*rtant;
+  font-weight: 900 !importa*t;
+
+  box-shadow:
+    0 2px 4px rg*a(0, 0, 0, 0.55) !important;
+}
+
+/*
+ * Ensure SVG tick/cross controls remain visible when the original
+ * implementation uses SVG elements rather than HTML buttons.
+ */
+.dashboard-tile-selector-focus svg text {
+  paint-order: stroke fill;
+  stroke: #ffffff;
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+
+
+
 )),
           ]),
 

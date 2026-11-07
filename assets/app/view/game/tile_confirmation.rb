@@ -11,50 +11,128 @@ module View
 
       needs :tile_selector, store: true
       needs :zoom, default: 1
+      needs :large, default: false
 
       def render
-        button_style = {
-          display: 'inline-block',
-          cursor: 'pointer',
-          fontSize: '35px',
-          color: '#FFFFFF',
-          filter: 'drop-shadow(3px 3px 2px #888)',
-          padding: '6px 2px 8px 2px',
-        }
+        if @large
+          button_style = {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
 
-        confirm = {
-          props: { innerHTML: '✔' },
-          style: {
-            backgroundColor: default_for(:green),
-            **button_style,
-          },
-          on: { click: confirm_click },
-        }
+            width: '76px',
+            height: '76px',
+            minWidth: '76px',
+            minHeight: '76px',
 
-        cancel = {
-          props: { innerHTML: '✖' },
-          style: {
-            backgroundColor: default_for(:red),
-            **button_style,
-          },
-          on: { click: -> { store(:tile_selector, nil) } },
-        }
+            padding: '0',
+            margin: '0',
 
-        div_props = {
-          style: {
+            border: '4px solid #111827',
+            borderRadius: '12px',
+
+            fontSize: '44px',
+            lineHeight: '1',
+            fontWeight: '900',
+
+            color: '#FFFFFF',
+
+            boxShadow:
+              '0 0 0 3px #ffffff, ' \
+              '0 6px 12px rgba(0, 0, 0, 0.65)',
+          }
+
+          panel_style = {
+            display: 'grid',
+            gridAutoFlow: 'column',
+            gridGap: '18px',
+
+            position: 'absolute',
+            left: '-92px',
+            top: "#{-116 * @zoom}px",
+
+            padding: '15px',
+
+            backgroundColor: '#fffdf5',
+            border: '4px solid #111827',
+            borderRadius: '18px',
+
+            boxShadow:
+              '0 0 0 4px rgba(255, 255, 255, 0.95), ' \
+              '0 8px 18px rgba(0, 0, 0, 0.65)',
+
+            zIndex: '250',
+          }
+        else
+          button_style = {
+            display: 'inline-block',
+            cursor: 'pointer',
+            fontSize: '35px',
+            color: '#FFFFFF',
+            filter: 'drop-shadow(3px 3px 2px #888)',
+            padding: '6px 2px 8px 2px',
+          }
+
+          panel_style = {
             display: 'grid',
             gridAutoFlow: 'column',
             gridGap: '5px',
             position: 'absolute',
             left: '-38px',
             top: "#{-68 * @zoom}px",
+          }
+        end
+
+        confirm = {
+          props: {
+            innerHTML: '&#10004;',
+            title: 'Confirm tile placement',
+          },
+          attrs: {
+            'aria-label': 'Confirm tile placement',
+          },
+          style: {
+            backgroundColor: default_for(:green),
+            **button_style,
+          },
+          on: {
+            click: confirm_click,
           },
         }
 
-        h(:div, div_props, [
-          h('button.no_margin', cancel),
-          h('button.no_margin', confirm),
-        ])
+        cancel = {
+          props: {
+            innerHTML: '&#10006;',
+            title: 'Cancel tile placement',
+          },
+          attrs: {
+            'aria-label': 'Cancel tile placement',
+          },
+          style: {
+            backgroundColor: default_for(:red),
+            **button_style,
+          },
+          on: {
+            click: -> { store(:tile_selector, nil) },
+          },
+        }
+
+        h(
+          :div,
+          {
+            attrs: {
+              class: @large ?
+                'dashboard-tile-confirmation' :
+                'tile-confirmation',
+            },
+            style: panel_style,
+          },
+          [
+            h('button.no_margin', cancel),
+            h('button.no_margin', confirm),
+          ]
+        )
       end
 
       def confirm_click
