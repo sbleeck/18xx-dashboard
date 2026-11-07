@@ -459,7 +459,7 @@ module View
             pointerEvents: 'auto',
             position: 'fixed',
             margin: '0',
-            zIndex: '100001',
+            zIndex: '90000',
           }
 
           if saved_left && saved_top
@@ -627,7 +627,7 @@ module View
                 bottom: '0',
                 backgroundColor: 'transparent',
                 pointerEvents: 'none',
-                zIndex: '100000',
+                zIndex: '89999',
               },
             }, [
               h(:div, {
