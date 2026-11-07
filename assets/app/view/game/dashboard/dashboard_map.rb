@@ -1074,13 +1074,9 @@ module View
 
         # // --- START FIX ---
         text_str = total_rev.to_s
-        font_size = 44
-        pill_w = [(text_str.length * 24) + 20, 56].max
-        pill_h = 48
-        # // --- DELETE --- font_size = 28
-        # // --- DELETE --- pill_w = [(text_str.length * 17) + 16, 46].max
-        # // --- DELETE --- pill_h = 32
-        # // --- END FIX ---
+        font_size = 66
+        pill_w = [(text_str.length * 36) + 30, 84].max
+        pill_h = 72
 
         h(:g, {
             attrs: {
@@ -1096,19 +1092,13 @@ module View
                 width: pill_w.to_s,
                 height: pill_h.to_s,
                 # // --- START FIX ---
-                rx: '8',
-                ry: '8',
+                rx: '12',
+                ry: '12',
                 fill: '#ffffff',
                 'fill-opacity': '0.92',
                 stroke: is_visited ? fill_color : '#334155',
-                'stroke-width': is_visited ? '3.5' : '1.5',
-                # // --- DELETE --- rx: '7',
-                # // --- DELETE --- ry: '7',
-                # // --- DELETE --- fill: '#0f172a',
-                # // --- DELETE --- 'fill-opacity': is_visited ? '0.85' : '0.65',
-                # // --- DELETE --- stroke: is_visited ? fill_color : '#475569',
-                # // --- DELETE --- 'stroke-width': is_visited ? '2.5' : '1.5',
-                # // --- END FIX ---
+                'stroke-width': is_visited ? '5.25' : '2.25',
+
               },
             }),
           h(:text, {

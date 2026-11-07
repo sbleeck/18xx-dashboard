@@ -58,7 +58,6 @@ module View
 
         FONT_MONEY = '"Courier New", Courier, monospace'
         COLOR_MONEY = '#4c1d95'
-        SCREAMING_PALETTE = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff'].freeze
 
         needs :game, store: true
         needs :game_data, store: true, default: nil

@@ -1122,9 +1122,18 @@ module View
           return [] unless train_or_name && @game
 
           victim = resolve_train_entity(train_or_name)
-          raw_rusts = if victim
-                        victim.is_a?(Hash) ? (victim[:rusts_on] || victim['rusts_on']) : (victim.rusts_on if victim.respond_to?(:rusts_on))
-                      end
+          raw_rusts =
+            if victim
+              if victim.is_a?(Hash)
+                Array(victim[:rusts_on] || victim['rusts_on']) +
+                  Array(victim[:obsolete_on] || victim['obsolete_on'])
+              else
+                rusts_on = victim.respond_to?(:rusts_on) ? victim.rusts_on : nil
+                obsolete_on = victim.respond_to?(:obsolete_on) ? victim.obsolete_on : nil
+
+                Array(rusts_on) + Array(obsolete_on)
+              end
+            end
 
           if raw_rusts.nil? || (raw_rusts.respond_to?(:empty?) && raw_rusts.empty?)
             v_name = (victim.respond_to?(:name) ? victim.name : train_or_name.to_s).tr('()', '').strip.downcase
@@ -1137,7 +1146,16 @@ module View
               c_name == v_name
             end
             if cand
-              raw_rusts = cand.is_a?(Hash) ? (cand[:rusts_on] || cand['rusts_on']) : (cand.rusts_on if cand.respond_to?(:rusts_on))
+              if cand.is_a?(Hash)
+                raw_rusts =
+                  Array(cand[:rusts_on] || cand['rusts_on']) +
+                  Array(cand[:obsolete_on] || cand['obsolete_on'])
+              else
+                rusts_on = cand.respond_to?(:rusts_on) ? cand.rusts_on : nil
+                obsolete_on = cand.respond_to?(:obsolete_on) ? cand.obsolete_on : nil
+
+                raw_rusts = Array(rusts_on) + Array(obsolete_on)
+              end
             end
           end
 

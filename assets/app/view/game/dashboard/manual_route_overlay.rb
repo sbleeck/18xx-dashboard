@@ -17,7 +17,6 @@ module View
 
         FONT_MONEY = '"Courier New", Courier, monospace'
         COLOR_MONEY = '#4c1d95'
-        SCREAMING_PALETTE = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff'].freeze
 
         needs :game, store: true
         needs :routes, store: true, default: []
@@ -107,10 +106,10 @@ module View
                              }, entity&.id || entity&.name || 'N/A')
                          end
 
-          train_cards = trains.map.with_index do |train, idx|
+          train_cards = trains.map.with_index do |train, _idx|
             route = @routes.find { |r| r.train == train }
             selected = @selected_route&.train == train
-            track_color = SCREAMING_PALETTE[idx % SCREAMING_PALETTE.size]
+            track_color = route_prop(@routes.index(route), :color)
 
             rev_val = begin
               if route&.chains&.any?
@@ -196,7 +195,7 @@ module View
           end
 
           curr_idx = @routes.index(@selected_route) || 0
-          active_color = SCREAMING_PALETTE[curr_idx % SCREAMING_PALETTE.size]
+          active_color = route_prop(curr_idx, :color)
           err_msg = nil
           begin
             @selected_route&.revenue if @selected_route&.chains&.any?
