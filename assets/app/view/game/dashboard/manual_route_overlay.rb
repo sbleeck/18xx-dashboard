@@ -35,7 +35,26 @@ module View
         end
 
         def active_routes
-          @routes.select { |r| r.chains.any? }
+          # // --- DELETE --- @routes.select { |r| r.chains.any? }
+          # // --- START FIX ---
+          ent = current_entity
+          return [] unless ent
+
+          valid_trains = begin
+            if @game.respond_to?(:route_trains)
+              @game.route_trains(ent)
+            elsif ent.respond_to?(:trains)
+              ent.trains
+            else
+              []
+            end
+          rescue StandardError
+            ent.respond_to?(:trains) ? ent.trains : []
+          end || []
+          valid_trains = ent.trains || [] if valid_trains.empty? && ent.respond_to?(:trains)
+
+          @routes.select { |r| valid_trains.include?(r.train) && r.chains.any? }
+          # // --- END FIX ---
         end
 
         def render
@@ -56,14 +75,28 @@ module View
 
           trains = entity.trains || [] if trains.empty? && entity.respond_to?(:trains)
 
-          if @routes.empty? && trains.any?
-            trains.each do |t|
-              @routes << Engine::Route.new(@game, @game.phase, t, routes: @routes)
+          # // --- DELETE --- if @routes.empty? && trains.any?
+          # // --- DELETE ---   trains.each do |t|
+          # // --- DELETE ---     @routes << Engine::Route.new(@game, @game.phase, t, routes: @routes)
+          # // --- DELETE ---   end
+          # // --- DELETE ---   store(:routes, @routes, skip: true)
+          # // --- DELETE --- end
+          # // --- START FIX ---
+          routes_stale = @routes.empty? || @routes.any? { |r| !trains.include?(r.train) }
+          if routes_stale && trains.any?
+            @routes = trains.map do |t|
+              Engine::Route.new(@game, @game.phase, t, routes: @routes)
             end
             store(:routes, @routes, skip: true)
+            @selected_route = @routes.first
+            store(:selected_route, @selected_route, skip: true)
           end
+          # // --- END FIX ---
 
           current_route = @selected_route || @routes.first
+          # // --- START FIX ---
+          current_route = @routes.first if current_route && !trains.include?(current_route.train)
+          # // --- END FIX ---
           if current_route != @selected_route && current_route
             @selected_route = current_route
             store(:selected_route, @selected_route, skip: true)
@@ -228,7 +261,10 @@ module View
                   store(:flash_opts, { message: msg }, skip: false)
                 end
                 router = Engine::AutoRouter.new(@game, flash_cb)
-                router_entity = @game.current_entity || entity
+                # // --- DELETE --- router_entity = @game.current_entity || entity
+                # // --- START FIX ---
+                router_entity = entity
+                # // --- END FIX ---
                 p_timeout = setting_for(:path_timeout).to_i
                 p_timeout = 10_000 if p_timeout.zero?
                 r_timeout = setting_for(:route_timeout).to_i
@@ -286,6 +322,9 @@ module View
               routes: routes_to_submit,
               extra_revenue: @game.extra_revenue(entity, routes_to_submit) + (current_revenue - base_revenue)
             ))
+            # // --- START FIX ---
+            store(:routes, [], skip: true)
+            # // --- END FIX ---
             store(:selected_route, nil, skip: true)
             store(:show_manual_routes, false)
             Lib::Storage['cmd_manual_routes'] = false
@@ -293,6 +332,9 @@ module View
           }
 
           close_manual = lambda {
+            # // --- START FIX ---
+            store(:routes, [], skip: true)
+            # // --- END FIX ---
             store(:selected_route, nil, skip: true)
             store(:show_manual_routes, false)
             Lib::Storage['cmd_manual_routes'] = false
@@ -673,7 +715,8 @@ module View
               }, [
               h(:div, [
                 h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem' } }, [
-                  h(:span, { style: { fontWeight: 'bold', fontSize: '1rem' } }, "Manual Route Selection — #{entity.name}"),
+                  h(:span, { style: { fontWeight: 'bold', fontSize: '1rem' } },
+                    "Manual Route Selection — #{entity.name}"),
                   h(:span, { style: { fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' } },
                     '(drag to move, dbl-click center)'),
                 ]),
