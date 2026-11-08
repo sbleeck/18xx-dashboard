@@ -102,18 +102,12 @@ module View
 
         # // --- START FIX ---
         def telemetry_enabled?
-          %x{
-            (function() {
-              try {
-                var v = localStorage.getItem('telemetry_enabled');
-                return v === null || v === 'true';
-              } catch (e) {
-                return true;
-              }
-            })()
-          }
+          stored = Lib::Storage['telemetry_enabled']
+          return true if stored.nil?
+          return stored if [true, false].include?(stored)
+
+          stored.to_s != 'false'
         end
-        # // --- END FIX ---
 
         def render
           close_handler = lambda do |e = nil|
@@ -265,14 +259,9 @@ module View
           end
 
           # // --- START FIX ---
-          toggle_telemetry = lambda do
-            new_val = !telemetry_enabled?
-            Lib::Storage['telemetry_enabled'] = new_val
-            %x{
-              try {
-                localStorage.setItem('telemetry_enabled', #{new_val} ? 'true' : 'false');
-              } catch(err) {}
-            }
+          toggle_telemetry = lambda do |event = nil|
+            checked = `#{event}.target.checked`
+            Lib::Storage['telemetry_enabled'] = checked
             update
           end
           # // --- END FIX ---
@@ -544,6 +533,54 @@ module View
                        end),
                 ])
               end,
+
+              # Anonymous usage telemetry - deliberately placed at the very bottom
+              # of the scrollable guide so it is available but not prominent.
+              h(:div, {
+                  style: {
+                    backgroundColor: '#f8fafc',
+                    borderTop: '1px solid #e2e8f0',
+                    padding: '1rem 0.2rem 0.35rem 0.2rem',
+                    marginTop: '0.25rem',
+                    color: '#334155',
+                    fontSize: '0.85rem',
+                    lineHeight: '1.45',
+                  },
+                }, [
+                h(:div, { style: { marginBottom: '0.55rem' } },
+                  'To help decide which 18xx titles to prioritise and test, the dashboard sends the game title when it is used. No player names or game data are sent. You can turn this off at any time; your choice is remembered on this browser.'),
+                h(:label, {
+                    attrs: { id: 'dashboard-telemetry-toggle-label' },
+                    style: {
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      color: '#334155',
+                      fontSize: '0.85rem',
+                      lineHeight: '1.45',
+                    },
+                  }, [
+                  h(:input, {
+                      attrs: {
+                        type: 'checkbox',
+                        id: 'dashboard-telemetry-checkbox',
+                      },
+                      props: {
+                        checked: telemetry_enabled?,
+                      },
+                      style: {
+                        cursor: 'pointer',
+                        width: '14px',
+                        height: '14px',
+                        accentColor: '#64748b',
+                      },
+                      on: { change: toggle_telemetry },
+                    }),
+                  h(:span, 'Send anonymous game usage'),
+                ]),
+              ]),
             ]),
 
             # Footer
@@ -632,36 +669,6 @@ module View
                 ]),
               ]),
               h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.75rem' } }, [
-                h(:label, {
-                    attrs: { id: 'dashboard-telemetry-toggle-label' },
-                    style: {
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      fontSize: '0.70rem',
-                      color: '#94a3b8',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                    },
-                  }, [
-                  h(:input, {
-                      attrs: {
-                        type: 'checkbox',
-                        id: 'dashboard-telemetry-checkbox',
-                      },
-                      props: {
-                        checked: telemetry_enabled?,
-                      },
-                      style: {
-                        cursor: 'pointer',
-                        width: '13px',
-                        height: '13px',
-                        accentColor: '#64748b',
-                      },
-                      on: { change: toggle_telemetry },
-                    }),
-                  h(:span, 'Anonymous game usage'),
-                ]),
                 h(:span, { style: { fontSize: '0.73rem', color: '#64748b' } },
                   "v#{VERSION} (#{BUILD_TIME}) • Drag bar to move"),
                 h(:button, {

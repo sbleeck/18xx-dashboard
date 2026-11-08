@@ -2021,66 +2021,64 @@ badge_el,
         title.to_s
       end
 
-      # // --- START FIX ---
       def telemetry_enabled?
         %x{
-          (function() {
-            try {
-              var v = localStorage.getItem('telemetry_enabled');
-              return v === null || v === 'true';
-            } catch (e) {
-              return true;
-            }
-          })()
+    (function() {
+      try {
+        var v = localStorage.getItem('telemetry_enabled');
+
+        // Default ON
+        if (v === null) {
+          localStorage.setItem('telemetry_enabled', 'true');
+          return true;
         }
+
+        return v === 'true';
+      } catch (e) {
+        return true;
+      }
+    })()
+  }
       end
 
       def log_telemetry
-        return unless telemetry_enabled?
-
         title = game_title
-        return if !title || title.to_s.strip.empty?
 
         game_id =
-          if @game.respond_to?(:id) && @game.id
+          if @game.respond_to?(:id)
             @game.id
           elsif @game_data
             @game_data['id'] || @game_data[:id]
           end
 
-        return if !game_id || game_id.to_s.strip.empty?
-
         endpoint = 'https://script.google.com/macros/s/AKfycbz2vEL6e83JAgJpVUBDESaQLz4phuvgWQNrdJC6q56FtY4Z19ufM3yXQO4fMn5s3S11iw/exec'
 
         %x{
-    try {
-      var g = String(#{title}).trim();
-      var gid = String(#{game_id}).trim();
+    console.log(
+      '[18xx telemetry]',
+      'title=', #{title},
+      'id=', #{game_id},
+      'enabled=', localStorage.getItem('telemetry_enabled')
+    );
 
-      if (!g || !gid) return;
+    var url =
+      #{endpoint} +
+      '?game=' + encodeURIComponent(String(#{title})) +
+      '&id=' + encodeURIComponent(String(#{game_id}));
 
-      // Log once per actual game per browser-tab session.
-      var key = '18xx_telemetry_game_' + gid;
+    console.log('[18xx telemetry] sending:', url);
 
-      if (!sessionStorage.getItem(key)) {
-        sessionStorage.setItem(key, '1');
-
-        var url =
-          #{endpoint} +
-          '?game=' + encodeURIComponent(g) +
-          '&id=' + encodeURIComponent(gid);
-
-        if (window.fetch) {
-          fetch(url, {
-            method: 'GET',
-            mode: 'no-cors',
-            keepalive: true
-          }).catch(function() {});
-        } else if (navigator.sendBeacon) {
-          navigator.sendBeacon(url);
-        }
-      }
-    } catch (e) {}
+    fetch(url, {
+      method: 'GET',
+      mode: 'no-cors',
+      keepalive: true
+    })
+    .then(function() {
+      console.log('[18xx telemetry] SENT');
+    })
+    .catch(function(e) {
+      console.error('[18xx telemetry] FAILED', e);
+    });
   }
       end
 
