@@ -554,7 +554,7 @@ module View
                   },
                 }, [
                 h(:div, { style: { marginBottom: '0.55rem' } },
-                  'To help decide which 18xx titles to prioritise and test, the Dashboard can send the game title and when a game is opened in the dasbboard. A timestamp is recorded when the report is received. No other iformation is collected. This is all information that is also available on 18xx.games publicly. You can change this choice at any time; the setting is remembered on this browser.'),
+                  'To help inform which 18xx titles to prioritise test and improve, the Dashboard can send the game title, ID and when it is opened in the dasbboard. No other iformation is collected. no user ID, names or any game specific information. You can change this choice at any time; the setting is remembered on this browser. This will help me to further develop the dashboard'),
                 h(:label, {
                     attrs: { id: 'dashboard-telemetry-toggle-label' },
                     style: {
