@@ -2021,65 +2021,191 @@ badge_el,
         title.to_s
       end
 
+      TELEMETRY_CONSENT_KEY = 'dashboard_telemetry_consent_v1'
+
+      def telemetry_consent
+        stored = Lib::Storage[TELEMETRY_CONSENT_KEY]
+        return true if stored == true || stored.to_s == 'true'
+        return false if stored == false || stored.to_s == 'false'
+
+        nil
+      end
+
       def telemetry_enabled?
+        telemetry_consent == true
+      end
+
+      def set_telemetry_consent(value)
+        Lib::Storage[TELEMETRY_CONSENT_KEY] = value
+        Lib::Storage['telemetry_enabled'] = value
         %x{
-    (function() {
-      try {
-        var v = localStorage.getItem('telemetry_enabled');
-
-        // Default ON
-        if (v === null) {
-          localStorage.setItem('telemetry_enabled', 'true');
-          return true;
+          try {
+            localStorage.setItem(#{TELEMETRY_CONSENT_KEY}, #{value} ? 'true' : 'false');
+            localStorage.setItem('telemetry_enabled', #{value} ? 'true' : 'false');
+          } catch (e) {}
         }
-
-        return v === 'true';
-      } catch (e) {
-        return true;
-      }
-    })()
-  }
       end
 
       def log_telemetry
+        return unless telemetry_enabled?
+
         title = game_title
+        return if !title || title.to_s.strip.empty?
 
         game_id =
-          if @game.respond_to?(:id)
+          if @game.respond_to?(:id) && @game.id
             @game.id
           elsif @game_data
             @game_data['id'] || @game_data[:id]
           end
+        return if !game_id || game_id.to_s.strip.empty?
 
         endpoint = 'https://script.google.com/macros/s/AKfycbz2vEL6e83JAgJpVUBDESaQLz4phuvgWQNrdJC6q56FtY4Z19ufM3yXQO4fMn5s3S11iw/exec'
 
         %x{
-    console.log(
-      '[18xx telemetry]',
-      'title=', #{title},
-      'id=', #{game_id},
-      'enabled=', localStorage.getItem('telemetry_enabled')
-    );
+          try {
+            var g = String(#{title}).trim();
+            var gid = String(#{game_id}).trim();
+            var key = '18xx_telemetry_game_' + gid;
 
-    var url =
-      #{endpoint} +
-      '?game=' + encodeURIComponent(String(#{title})) +
-      '&id=' + encodeURIComponent(String(#{game_id}));
+            if (!sessionStorage.getItem(key)) {
+              var url =
+                #{endpoint} +
+                '?game=' + encodeURIComponent(g) +
+                '&id=' + encodeURIComponent(gid);
 
-    console.log('[18xx telemetry] sending:', url);
+              fetch(url, {
+                method: 'GET',
+                mode: 'no-cors',
+                keepalive: true
+              }).then(function() {
+                sessionStorage.setItem(key, '1');
+              }).catch(function() {});
+            }
+          } catch (e) {}
+        }
+      end
 
-    fetch(url, {
-      method: 'GET',
-      mode: 'no-cors',
-      keepalive: true
-    })
-    .then(function() {
-      console.log('[18xx telemetry] SENT');
-    })
-    .catch(function(e) {
-      console.error('[18xx telemetry] FAILED', e);
-    });
-  }
+      def render_telemetry_consent_overlay
+        return nil unless telemetry_consent.nil?
+
+        allow_handler = lambda do
+          set_telemetry_consent(true)
+          log_telemetry
+          update
+        end
+
+        decline_handler = lambda do
+          set_telemetry_consent(false)
+          update
+        end
+
+        h(:div, {
+            attrs: { id: 'dashboard-telemetry-consent-backdrop' },
+            style: {
+              position: 'fixed',
+              inset: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1rem',
+              backgroundColor: 'rgba(15, 23, 42, 0.62)',
+              zIndex: '10000080',
+              boxSizing: 'border-box',
+              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+            },
+          }, [
+          h(:div, {
+              attrs: {
+                id: 'dashboard-telemetry-consent-dialog',
+                role: 'dialog',
+                'aria-modal': 'true',
+                'aria-labelledby': 'dashboard-telemetry-consent-title',
+              },
+              style: {
+                width: '520px',
+                maxWidth: '94vw',
+                backgroundColor: '#ffffff',
+                color: '#0f172a',
+                borderRadius: '10px',
+                border: '1px solid #cbd5e1',
+                boxShadow: '0 24px 60px rgba(15, 23, 42, 0.38)',
+                padding: '1.4rem 1.5rem 1.25rem',
+                boxSizing: 'border-box',
+              },
+            }, [
+            h(:h2, {
+                attrs: { id: 'dashboard-telemetry-consent-title' },
+                style: {
+                  margin: '0 0 0.75rem',
+                  fontSize: '1.2rem',
+                  lineHeight: '1.3',
+                  color: '#1e3a8a',
+                },
+              }, 'Help improve the 18xx Dashboard'),
+            h(:p, {
+                style: {
+                  margin: '0 0 0.75rem',
+                  fontSize: '0.92rem',
+                  lineHeight: '1.5',
+                  color: '#334155',
+                },
+              }, 'I would like to collect a small amount of usage information to understand which games people use with the Dashboard and to prioritise compatibility, testing, and development.'),
+            h(:p, {
+                style: {
+                  margin: '0 0 0.75rem',
+                  fontSize: '0.92rem',
+                  lineHeight: '1.5',
+                  color: '#334155',
+                },
+              }, 'If you allow usage reporting, the Dashboard sends the game title and game ID when you open a game. A timestamp is recorded when the report is received. No player names, email addresses, moves, financial information, credentials, or advertising identifiers are collected.'),
+            h(:p, {
+                style: {
+                  margin: '0 0 1rem',
+                  fontSize: '0.84rem',
+                  lineHeight: '1.45',
+                  color: '#64748b',
+                },
+              }, 'Your choice is remembered on this browser. You can change it later at the bottom of Dashboard Help.'),
+            h(:div, {
+                style: {
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '0.65rem',
+                  flexWrap: 'wrap',
+                },
+              }, [
+              h(:button, {
+                  attrs: { type: 'button', id: 'dashboard-telemetry-decline' },
+                  style: {
+                    padding: '0.55rem 0.9rem',
+                    borderRadius: '6px',
+                    border: '1px solid #94a3b8',
+                    backgroundColor: '#ffffff',
+                    color: '#334155',
+                    fontSize: '0.88rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  },
+                  on: { click: decline_handler },
+                }, 'No thanks'),
+              h(:button, {
+                  attrs: { type: 'button', id: 'dashboard-telemetry-allow' },
+                  style: {
+                    padding: '0.55rem 0.95rem',
+                    borderRadius: '6px',
+                    border: '1px solid #1d4ed8',
+                    backgroundColor: '#2563eb',
+                    color: '#ffffff',
+                    fontSize: '0.88rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  },
+                  on: { click: allow_handler },
+                }, 'Allow usage reporting'),
+            ]),
+          ]),
+        ])
       end
 
       # Tile colours belong with the map: physical-looking hexes show the
@@ -3834,6 +3960,7 @@ window.recalcAllPanels = function() {
             render_top_nav_utility_cluster,
             render_chat_overlay,
             render_help_overlay,
+            render_telemetry_consent_overlay,
             render_phases_overlay,
             render_action_window,
 

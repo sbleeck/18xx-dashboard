@@ -101,12 +101,11 @@ module View
         ].freeze
 
         # // --- START FIX ---
-        def telemetry_enabled?
-          stored = Lib::Storage['telemetry_enabled']
-          return true if stored.nil?
-          return stored if [true, false].include?(stored)
+        TELEMETRY_CONSENT_KEY = 'dashboard_telemetry_consent_v1'
 
-          stored.to_s != 'false'
+        def telemetry_enabled?
+          stored = Lib::Storage[TELEMETRY_CONSENT_KEY]
+          stored == true || stored.to_s == 'true'
         end
 
         def render
@@ -261,7 +260,14 @@ module View
           # // --- START FIX ---
           toggle_telemetry = lambda do |event = nil|
             checked = `#{event}.target.checked`
+            Lib::Storage[TELEMETRY_CONSENT_KEY] = checked
             Lib::Storage['telemetry_enabled'] = checked
+            %x{
+              try {
+                localStorage.setItem(#{TELEMETRY_CONSENT_KEY}, #{checked} ? 'true' : 'false');
+                localStorage.setItem('telemetry_enabled', #{checked} ? 'true' : 'false');
+              } catch (e) {}
+            }
             update
           end
           # // --- END FIX ---
@@ -548,7 +554,7 @@ module View
                   },
                 }, [
                 h(:div, { style: { marginBottom: '0.55rem' } },
-                  'To help decide which 18xx titles to prioritise and test, the dashboard sends the game title when it is used. No player names or game data are sent. You can turn this off at any time; your choice is remembered on this browser.'),
+                  'To help decide which 18xx titles to prioritise and test, the Dashboard can send the game title and game ID when a game is opened. A timestamp is recorded when the report is received. No player names, email addresses, moves, financial information, credentials, or advertising identifiers are collected. You can change this choice at any time; the setting is remembered on this browser.'),
                 h(:label, {
                     attrs: { id: 'dashboard-telemetry-toggle-label' },
                     style: {
@@ -578,7 +584,7 @@ module View
                       },
                       on: { change: toggle_telemetry },
                     }),
-                  h(:span, 'Send anonymous game usage'),
+                  h(:span, 'Allow usage reporting'),
                 ]),
               ]),
             ]),
