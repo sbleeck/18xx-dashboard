@@ -2034,7 +2034,6 @@ badge_el,
           })()
         }
       end
-      # // --- END FIX ---
 
       def log_telemetry
         return unless telemetry_enabled?
@@ -2042,29 +2041,48 @@ badge_el,
         title = game_title
         return if !title || title.to_s.strip.empty?
 
+        game_id =
+          if @game.respond_to?(:id) && @game.id
+            @game.id
+          elsif @game_data
+            @game_data['id'] || @game_data[:id]
+          end
+
+        return if !game_id || game_id.to_s.strip.empty?
+
         endpoint = 'https://script.google.com/macros/s/AKfycbz2vEL6e83JAgJpVUBDESaQLz4phuvgWQNrdJC6q56FtY4Z19ufM3yXQO4fMn5s3S11iw/exec'
 
         %x{
-          try {
-            var g = String(#{title}).trim();
-            if (!g) return;
-            var key = '18xx_telemetry_' + g;
+    try {
+      var g = String(#{title}).trim();
+      var gid = String(#{game_id}).trim();
 
-            // Log once per game title per browser tab session
-            if (!sessionStorage.getItem(key)) {
-              sessionStorage.setItem(key, '1');
-              var url = #{endpoint} + '?game=' + encodeURIComponent(g);
+      if (!g || !gid) return;
 
-              if (window.fetch) {
-                fetch(url, { method: 'GET', mode: 'no-cors', keepalive: true }).catch(function() {});
-              } else if (navigator.sendBeacon) {
-                navigator.sendBeacon(url);
-              }
-            }
-          } catch (e) {}
+      // Log once per actual game per browser-tab session.
+      var key = '18xx_telemetry_game_' + gid;
+
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+
+        var url =
+          #{endpoint} +
+          '?game=' + encodeURIComponent(g) +
+          '&id=' + encodeURIComponent(gid);
+
+        if (window.fetch) {
+          fetch(url, {
+            method: 'GET',
+            mode: 'no-cors',
+            keepalive: true
+          }).catch(function() {});
+        } else if (navigator.sendBeacon) {
+          navigator.sendBeacon(url);
         }
+      }
+    } catch (e) {}
+  }
       end
-      # // --- END FIX ---
 
       # Tile colours belong with the map: physical-looking hexes show the
       # colours currently available in the phase without colouring the round label.

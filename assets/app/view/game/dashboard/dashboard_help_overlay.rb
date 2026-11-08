@@ -492,48 +492,6 @@ module View
                     },
                   },
                   'An alternative, persistent spatial interface for 18xx.games. Eliminates tab navigation friction by anchoring the Map, Corporate Ledgers, and Stock Market simultaneously on screen.'),
-                # // --- START FIX ---
-                h(:div, {
-                    style: {
-                      display: 'flex',
-                      alignItems: 'center',
-                      paddingTop: '0.65rem',
-                      borderTop: '1px solid #334155',
-                      marginTop: '0.1rem',
-                    },
-                  }, [
-                  h(:label, {
-                      attrs: { id: 'dashboard-telemetry-toggle-label' },
-                      style: {
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.55rem',
-                        fontSize: '0.8rem',
-                        color: '#cbd5e1',
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                      },
-                    }, [
-                    h(:input, {
-                        attrs: {
-                          type: 'checkbox',
-                          id: 'dashboard-telemetry-checkbox',
-                        },
-                        props: {
-                          checked: telemetry_enabled?,
-                        },
-                        style: {
-                          cursor: 'pointer',
-                          width: '15px',
-                          height: '15px',
-                          accentColor: '#0284c7',
-                        },
-                        on: { change: toggle_telemetry },
-                      }),
-                    h(:span, 'Send anonymous game title pings (helps prioritize compatibility)'),
-                  ]),
-                ]),
-                # // --- END FIX ---
               ]),
 
               # Guide Sections
@@ -674,6 +632,36 @@ module View
                 ]),
               ]),
               h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.75rem' } }, [
+                h(:label, {
+                    attrs: { id: 'dashboard-telemetry-toggle-label' },
+                    style: {
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontSize: '0.70rem',
+                      color: '#94a3b8',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                    },
+                  }, [
+                  h(:input, {
+                      attrs: {
+                        type: 'checkbox',
+                        id: 'dashboard-telemetry-checkbox',
+                      },
+                      props: {
+                        checked: telemetry_enabled?,
+                      },
+                      style: {
+                        cursor: 'pointer',
+                        width: '13px',
+                        height: '13px',
+                        accentColor: '#64748b',
+                      },
+                      on: { change: toggle_telemetry },
+                    }),
+                  h(:span, 'Anonymous game usage'),
+                ]),
                 h(:span, { style: { fontSize: '0.73rem', color: '#64748b' } },
                   "v#{VERSION} (#{BUILD_TIME}) • Drag bar to move"),
                 h(:button, {
