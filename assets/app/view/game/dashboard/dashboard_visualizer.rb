@@ -2158,7 +2158,7 @@ badge_el,
                   lineHeight: '1.5',
                   color: '#334155',
                 },
-              }, 'If you allow usage reporting, the Dashboard sends the game title and game ID when you open a game. A timestamp is recorded when the report is received. No player names, email addresses, moves, financial information, credentials, or advertising identifiers are collected.'),
+              }, 'If you allow usage reporting, the Dashboard can send the game title and game ID when you open a game in dashbbaord. A timestamp is recorded when the report is received. No other information is collected. This is only information that is also publicly available on 18xx.games '),
             h(:p, {
                 style: {
                   margin: '0 0 1rem',
