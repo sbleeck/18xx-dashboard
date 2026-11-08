@@ -100,6 +100,21 @@ module View
           },
         ].freeze
 
+        # // --- START FIX ---
+        def telemetry_enabled?
+          %x{
+            (function() {
+              try {
+                var v = localStorage.getItem('telemetry_enabled');
+                return v === null || v === 'true';
+              } catch (e) {
+                return true;
+              }
+            })()
+          }
+        end
+        # // --- END FIX ---
+
         def render
           close_handler = lambda do |e = nil|
             %x{
@@ -248,6 +263,19 @@ module View
               }
             }
           end
+
+          # // --- START FIX ---
+          toggle_telemetry = lambda do
+            new_val = !telemetry_enabled?
+            Lib::Storage['telemetry_enabled'] = new_val
+            %x{
+              try {
+                localStorage.setItem('telemetry_enabled', #{new_val} ? 'true' : 'false');
+              } catch(err) {}
+            }
+            update
+          end
+          # // --- END FIX ---
 
           dialog_style = {
             position: 'fixed',
@@ -464,6 +492,48 @@ module View
                     },
                   },
                   'An alternative, persistent spatial interface for 18xx.games. Eliminates tab navigation friction by anchoring the Map, Corporate Ledgers, and Stock Market simultaneously on screen.'),
+                # // --- START FIX ---
+                h(:div, {
+                    style: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      paddingTop: '0.65rem',
+                      borderTop: '1px solid #334155',
+                      marginTop: '0.1rem',
+                    },
+                  }, [
+                  h(:label, {
+                      attrs: { id: 'dashboard-telemetry-toggle-label' },
+                      style: {
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.55rem',
+                        fontSize: '0.8rem',
+                        color: '#cbd5e1',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                      },
+                    }, [
+                    h(:input, {
+                        attrs: {
+                          type: 'checkbox',
+                          id: 'dashboard-telemetry-checkbox',
+                        },
+                        props: {
+                          checked: telemetry_enabled?,
+                        },
+                        style: {
+                          cursor: 'pointer',
+                          width: '15px',
+                          height: '15px',
+                          accentColor: '#0284c7',
+                        },
+                        on: { change: toggle_telemetry },
+                      }),
+                    h(:span, 'Send anonymous game title pings (helps prioritize compatibility)'),
+                  ]),
+                ]),
+                # // --- END FIX ---
               ]),
 
               # Guide Sections

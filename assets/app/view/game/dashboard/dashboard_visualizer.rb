@@ -2021,6 +2021,51 @@ badge_el,
         title.to_s
       end
 
+      # // --- START FIX ---
+      def telemetry_enabled?
+        %x{
+          (function() {
+            try {
+              var v = localStorage.getItem('telemetry_enabled');
+              return v === null || v === 'true';
+            } catch (e) {
+              return true;
+            }
+          })()
+        }
+      end
+      # // --- END FIX ---
+
+      def log_telemetry
+        return unless telemetry_enabled?
+
+        title = game_title
+        return if !title || title.to_s.strip.empty?
+
+        endpoint = 'https://script.google.com/macros/s/AKfycbz2vEL6e83JAgJpVUBDESaQLz4phuvgWQNrdJC6q56FtY4Z19ufM3yXQO4fMn5s3S11iw/exec'
+
+        %x{
+          try {
+            var g = String(#{title}).trim();
+            if (!g) return;
+            var key = '18xx_telemetry_' + g;
+
+            // Log once per game title per browser tab session
+            if (!sessionStorage.getItem(key)) {
+              sessionStorage.setItem(key, '1');
+              var url = #{endpoint} + '?game=' + encodeURIComponent(g);
+
+              if (window.fetch) {
+                fetch(url, { method: 'GET', mode: 'no-cors', keepalive: true }).catch(function() {});
+              } else if (navigator.sendBeacon) {
+                navigator.sendBeacon(url);
+              }
+            }
+          } catch (e) {}
+        }
+      end
+      # // --- END FIX ---
+
       # Tile colours belong with the map: physical-looking hexes show the
       # colours currently available in the phase without colouring the round label.
       def render_map_phase_indicator
@@ -2192,6 +2237,7 @@ badge_el,
 
         h(:div, {
             hook: {
+
               insert: lambda {
                         Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
                         # `window.scrollTo(0, 0)`
@@ -2199,6 +2245,7 @@ badge_el,
                         `document.body.style.overflowX = 'hidden'`
                         `document.body.style.overflowY = 'auto'`
                         fetch_user_games(false)
+                        log_telemetry
                         Lib::Storage['map_high_contrast'] = nil
                         `try { localStorage.removeItem('map_high_contrast'); } catch(e) {}`
 
