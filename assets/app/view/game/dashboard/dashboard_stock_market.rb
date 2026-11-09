@@ -952,14 +952,15 @@ module View
             }
           }
 
-          function setPulsingForOthers(corpId, currentType) {
-            clearPulsing();
-            if (!corpId) return;
+function setPulsingForOthers(corpId, currentType) {
+  clearPulsing();
+  if (!corpId) return;
 
-            // Pulse Stock Market token if not the trigger
-            if (currentType !== 'stock') {
-              var root = window.document.getElementById('viz-master-frame');
-              if (!root) return;
+  var root = window.document.getElementById('viz-master-frame');
+  if (!root || !root.isConnected) return;
+
+  // Pulse Stock Market token if not the trigger
+  if (currentType !== 'stock') {
               var stockTokens = root.querySelectorAll(
                 '.stock-market-token[data-corp="' + corpId + '"], #stock-token-' + corpId
               );

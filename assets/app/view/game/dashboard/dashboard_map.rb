@@ -1526,6 +1526,16 @@ module View
               )
           end
 
+          # Normal TileSelector candidates are rendered inside a temporary
+          # Engine::Hex. Besides rendering the candidate, that gives the tile
+          # a hex and therefore a valid layout. Manifest drag/drop bypasses
+          # that candidate-render path, so reproduce that preparation here.
+          Engine::Hex.new(
+            'A1',
+            layout: @tile_selector.hex.layout,
+            tile: dragged_tile
+          )
+
           # DashboardMap is already rendering because the ordinary map
           # click created this selector. Set the selector state directly
           # so this same clean render produces TileConfirmation.
