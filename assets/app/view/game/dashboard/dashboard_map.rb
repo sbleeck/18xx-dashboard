@@ -1518,12 +1518,21 @@ module View
           # Manifest drag/drop bypasses the normal TileSelector candidate
           # click, so prepare the tile here before selecting it.
           if step.respond_to?(:legal_tile_rotations)
-            dragged_tile.legal_rotations =
+            legal_rotations =
               step.legal_tile_rotations(
                 entity_or_entities,
                 @tile_selector.hex,
                 dragged_tile
               )
+
+            return if legal_rotations.empty?
+
+            dragged_tile.legal_rotations = legal_rotations
+
+            # legal_tile_rotations tests every orientation by mutating the tile,
+            # leaving it at the final tested rotation. Reset it to the first
+            # verified legal orientation before showing the confirmation UI.
+            dragged_tile.rotate!(legal_rotations.first)
           end
 
           # Normal TileSelector candidates are rendered inside a temporary
@@ -1578,9 +1587,6 @@ module View
           step,
           entity_or_entities
         )
-
-        selected_hex = @tile_selector&.hex
-        @hexes << @hexes.delete(selected_hex) if @hexes.include?(selected_hex)
 
         route_actions = %w[run_routes dividend]
         route_phase_active = actions.any? { |a| route_actions.include?(a) }
@@ -1704,7 +1710,14 @@ module View
                       @tile_selector.hex.tile != @tile_selector.tile
         active_tile = tile_chosen ? @tile_selector.tile : nil
 
-        @hexes.map! do |hex|
+        ordered_hexes =
+          if selected_hex && @hexes.include?(selected_hex)
+            @hexes.reject { |hex| hex == selected_hex } + [selected_hex]
+          else
+            @hexes.dup
+          end
+
+        rendered_hexes = ordered_hexes.map do |hex|
           clickable = if @show_starting_map || !step || !current_entity
                         false
                       else
@@ -1971,15 +1984,14 @@ module View
               'data-tile-drop-legal': legal_drop_tile_names.any? ? 'true' : 'false',
               'data-tile-drop-names': legal_drop_tile_names.join(','),
             },
-            hook: Lib::TileLayAnimation.hook,
+            # hook: Lib::TileLayAnimation.hook,
           }
 
           h(:g, g_props, hex_children)
-        end
-        @hexes.compact!
+        end.compact
 
         map_w, map_h = map_size
-        children = [render_map(map_w, map_h)]
+        children = [render_map(map_w, map_h, rendered_hexes)]
 
         if current_entity && @tile_selector
           left = (@tile_selector.x + map_x) * @scale
@@ -1987,6 +1999,7 @@ module View
           selector = render_selector(step, current_entity, entity_or_entities, actions, map_w, map_h, left, top)
 
           props = {
+            key: "dashboard-selector-#{@tile_selector.hex.id}",
             attrs: {
               class: 'dashboard-tile-selector-focus',
             },
@@ -1998,7 +2011,7 @@ module View
 
             },
           }
-          children.unshift(h(:div, props, [selector]))
+          children << h(:div, props, [selector])
         end
 
         props = {
@@ -2305,7 +2318,7 @@ module View
         }
       end
 
-      def render_map(width, height)
+      def render_map(width, height, rendered_hexes)
         svg_attrs = {
           id: 'map',
           width: width.to_s,
@@ -2313,6 +2326,7 @@ module View
         }
 
         svg_props = {
+          key: 'dashboard-map-svg',
           attrs: svg_attrs,
           hook: map_highlight_refresh_hook,
         }
@@ -2586,7 +2600,17 @@ h(:style, {}, %(
           ]),
 
           h(:g, { attrs: { transform: "scale(#{@scale})" } }, [
-            h(:g, { attrs: { id: 'map-hexes', transform: "translate(#{map_x} #{map_y})" } }, @hexes),
+            h(
+  :g,
+  {
+    attrs: {
+      id: 'map-hexes',
+      transform: "translate(#{map_x} #{map_y})",
+    },
+  },
+  rendered_hexes
+),
+
             h(:g, { attrs: { id: 'map-axis' } }, [
              h(Axis,
                cols: @cols.map { |c| c + 1 },
