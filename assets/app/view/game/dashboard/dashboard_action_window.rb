@@ -1573,28 +1573,33 @@ module View
           company_boxes = companies.map do |company|
             owner_name = company.owner&.name || 'Bank'
             is_bank_owned = bank_companies.include?(company) || company.owner.nil? || company.owner == @game.bank
+            if is_bank_owned && company.respond_to?(:interval) && company.interval
+              prices = company.interval.sort
+              min_price = prices.first
+              max_price = prices.last
+            else
+              min_price =
+                if is_bank_owned && company.respond_to?(:value) && (!buy_company_step.respond_to?(:min_price) || buy_company_step.min_price(company).nil?)
+                  company.value.to_i
+                elsif buy_company_step.respond_to?(:min_price)
+                  begin; buy_company_step.min_price(company); rescue StandardError; company.respond_to?(:min_price) ? company.min_price : 1; end
+                elsif company.respond_to?(:min_price)
+                  company.min_price
+                else
+                  1
+                end
 
-            min_price =
-              if is_bank_owned && company.respond_to?(:value) && (!buy_company_step.respond_to?(:min_price) || buy_company_step.min_price(company).nil?)
-                company.value.to_i
-              elsif buy_company_step.respond_to?(:min_price)
-                begin; buy_company_step.min_price(company); rescue StandardError; company.respond_to?(:min_price) ? company.min_price : 1; end
-              elsif company.respond_to?(:min_price)
-                company.min_price
-              else
-                1
-              end
-
-            max_price =
-              if is_bank_owned && company.respond_to?(:value) && (!buy_company_step.respond_to?(:max_price) || buy_company_step.max_price(entity, company).nil?)
-                company.value.to_i
-              elsif buy_company_step.respond_to?(:max_price)
-                begin; buy_company_step.max_price(entity, company); rescue StandardError; company.respond_to?(:max_price) ? company.max_price : entity_cash; end
-              elsif company.respond_to?(:max_price)
-                company.max_price
-              else
-                entity_cash
-              end
+              max_price =
+                if is_bank_owned && company.respond_to?(:value) && (!buy_company_step.respond_to?(:max_price) || buy_company_step.max_price(entity, company).nil?)
+                  company.value.to_i
+                elsif buy_company_step.respond_to?(:max_price)
+                  begin; buy_company_step.max_price(entity, company); rescue StandardError; company.respond_to?(:max_price) ? company.max_price : entity_cash; end
+                elsif company.respond_to?(:max_price)
+                  company.max_price
+                else
+                  entity_cash
+                end
+            end
 
             next if min_price.nil? || max_price.nil?
 

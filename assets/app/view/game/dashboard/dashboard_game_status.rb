@@ -1279,15 +1279,49 @@ module View
             click_handler = nil
 
             if buyable_share_company && !can_issue_treasury
-              click_handler = lambda { |_event|
-                process_action(
-                  Engine::Action::BuyCompany.new(
-                    active_player,
-                    company: buyable_share_company,
-                    price: buyable_share_company.value
+              if buyable_share_company.interval
+                click_handler = lambda {
+                  Lib::Storage['buy_company_menu_corp'] = corporation.id
+                  update
+                }
+
+                if Lib::Storage['buy_company_menu_corp'] == corporation.id
+                  options = buyable_share_company.interval.sort.map do |price|
+                    {
+                      label: @game.format_currency(price).to_s,
+                      action: lambda { |_event|
+                        Lib::Storage['buy_company_menu_corp'] = nil
+                        process_action(
+                          Engine::Action::BuyCompany.new(
+                            active_player,
+                            company: buyable_share_company,
+                            price: price
+                          )
+                        )
+                      },
+                    }
+                  end
+
+                  dropdowns << render_choice_menu(
+                    "Buy #{buyable_share_company.sym}:",
+                    options,
+                    lambda {
+                      Lib::Storage['buy_company_menu_corp'] = nil
+                      update
+                    }
                   )
-                )
-              }
+                end
+              else
+                click_handler = lambda { |_event|
+                  process_action(
+                    Engine::Action::BuyCompany.new(
+                      active_player,
+                      company: buyable_share_company,
+                      price: buyable_share_company.value
+                    )
+                  )
+                }
+              end
 
             elsif can_buy_treasury && !can_issue_treasury
               click_handler = if valid_treasury_buys.uniq { |s| s.to_bundle.percent }.size > 1
@@ -1391,11 +1425,15 @@ module View
           extra << h('td.column-zone-corporate', { style: { textAlign: 'center' } }, "#{taken}/#{total}")
         end
 
-        pool_shares = if @game.share_pool.respond_to?(:shares_of)
-                        @game.share_pool.shares_of(corporation)
-                      else
-                        @game.share_pool.shares_by_corporation[corporation] || []
-                      end
+        pool_shares =
+          if @game.share_pool.respond_to?(:shares_of)
+            @game.share_pool.shares_of(corporation) || []
+          elsif @game.share_pool.respond_to?(:shares_by_corporation)
+            shares_by_corporation = @game.share_pool.shares_by_corporation || {}
+            shares_by_corporation[corporation] || []
+          else
+            []
+          end
         valid_pool_shares = []
         if active_player && step.respond_to?(:can_buy?)
           valid_pool_shares = pool_shares.select do |share|
@@ -2135,7 +2173,8 @@ module View
                        else
                          @game.stock_market.par_prices.sort_by(&:price)
                        end
-          if @game.respond_to?(:par_chart)
+          if @game.respond_to?(:par_chart) && @game.par_chart
+
             par_prices = par_prices.reject do |sp|
               slots = @game.par_chart[sp]
               slots&.none?(&:nil?)

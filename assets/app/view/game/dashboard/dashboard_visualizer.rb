@@ -43,49 +43,49 @@ module Engine
   end
 end
 
-# Snabbdom Extensibility Shield:
-# Prevents Opal.nil and NilClass singletons from being frozen so Snabbdom
-# can assign `.elm` anchors safely if a component's render method returns nil.
-%x{
-  (function() {
-    if (window.__snabbdom_extensibility_shield) return;
-    window.__snabbdom_extensibility_shield = true;
+# # Snabbdom Extensibility Shield:
+# # Prevents Opal.nil and NilClass singletons from being frozen so Snabbdom
+# # can assign `.elm` anchors safely if a component's render method returns nil.
+# %x{
+#   (function() {
+#     if (window.__snabbdom_extensibility_shield) return;
+#     window.__snabbdom_extensibility_shield = true;
 
-    var origFreeze = Object.freeze;
-    Object.freeze = function(obj) {
-      if (obj && (
-        (typeof Opal !== 'undefined' && obj === Opal.nil) ||
-        (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
-        (obj.constructor && obj.constructor.name === 'NilClass')
-      )) {
-        return obj;
-      }
-      return origFreeze.call(Object, obj);
-    };
+#     var origFreeze = Object.freeze;
+#     Object.freeze = function(obj) {
+#       if (obj && (
+#         (typeof Opal !== 'undefined' && obj === Opal.nil) ||
+#         (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
+#         (obj.constructor && obj.constructor.name === 'NilClass')
+#       )) {
+#         return obj;
+#       }
+#       return origFreeze.call(Object, obj);
+#     };
 
-    var origPreventExtensions = Object.preventExtensions;
-    Object.preventExtensions = function(obj) {
-      if (obj && (
-        (typeof Opal !== 'undefined' && obj === Opal.nil) ||
-        (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
-        (obj.constructor && obj.constructor.name === 'NilClass')
-      )) {
-        return obj;
-      }
-      return origPreventExtensions.call(Object, obj);
-    };
+#     var origPreventExtensions = Object.preventExtensions;
+#     Object.preventExtensions = function(obj) {
+#       if (obj && (
+#         (typeof Opal !== 'undefined' && obj === Opal.nil) ||
+#         (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
+#         (obj.constructor && obj.constructor.name === 'NilClass')
+#       )) {
+#         return obj;
+#       }
+#       return origPreventExtensions.call(Object, obj);
+#     };
 
-    if (typeof Opal !== 'undefined' && Opal.nil) {
-      try {
-        Object.defineProperty(Opal.nil, 'elm', {
-          writable: true,
-          configurable: true,
-          value: null
-        });
-      } catch (e) {}
-    }
-  })();
-}
+#     if (typeof Opal !== 'undefined' && Opal.nil) {
+#       try {
+#         Object.defineProperty(Opal.nil, 'elm', {
+#           writable: true,
+#           configurable: true,
+#           value: null
+#         });
+#       } catch (e) {}
+#     }
+#   })();
+# }
 
 module View
   module Game
@@ -756,20 +756,6 @@ module View
             (!is_stock_round && step.respond_to?(:visible_corporations)) ||
             free_choice_selection
           )
-
-        if use_bidding_overlay
-          h(::View::Game::Dashboard::BiddingOverlay,
-            game: @game,
-            game_data: @game_data,
-            user: @user,
-            bidder: actor)
-        else
-          h(::View::Game::Dashboard::DraftOverlay,
-            game: @game,
-            game_data: @game_data,
-            user: @user,
-            actor: actor)
-        end
 
         if use_bidding_overlay
           h(::View::Game::Dashboard::BiddingOverlay,
