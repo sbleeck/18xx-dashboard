@@ -125,7 +125,7 @@ module Lib
               }
             }
           }
-          var safeSel = s.replace(/#([^\s.,>+~:#\[\]]+)/g, function(_, idPart) {
+var safeSel = s.replace(/#([^\s,>~:#\[\]]+)/g, function(_, idPart) {
             return '[id="' + idPart.replace(/["\\]/g, '\\$&') + '"]';
           });
           try {

@@ -832,6 +832,7 @@ module View
 
         all_entities = @game.respond_to?(:minors) ? (@game.minors || []) : []
         all_entities += @game.all_corporations
+        all_entities = all_entities.uniq { |c| c.respond_to?(:id) ? c.id : c }
         all_entities.reject! { |c| c.respond_to?(:closed?) && c.closed? }
 
         unfloated_corporations = (all_entities - operating_array)
@@ -2224,7 +2225,7 @@ module View
             Lib::Storage["bid_price_#{corporation.id}"] = nil
             update
           }
-        elsif step.respond_to?(:can_buy?) && active_player && player_actions.include?('buy_shares') && corporation.respond_to?(:ipoed) && corporation.ipoed
+        elsif step.respond_to?(:can_buy?) && active_player && player_actions.include?('buy_shares') && corporation.respond_to?(:ipoed) && corporation.ipoed && corp_available
           step_buyable = step.respond_to?(:buyable_shares) ? (step.buyable_shares(active_player) || []) : nil
           ipo_shares = corporation.respond_to?(:ipo_shares) ? corporation.ipo_shares : []
           valid_ipo_shares = ipo_shares.select do |s|

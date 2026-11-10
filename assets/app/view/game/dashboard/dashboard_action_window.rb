@@ -1131,6 +1131,17 @@ module View
                         []
                       end
 
+            if buyable.any? && @game.respond_to?(:corporation_available?)
+              buyable = buyable.select do |raw_b|
+                b = raw_b.respond_to?(:to_bundle) && !raw_b.respond_to?(:corporation) ? raw_b.to_bundle : raw_b
+                c = b.respond_to?(:corporation) ? b.corporation : nil
+                next true unless c
+                next true if b.respond_to?(:owner) && b.owner != c
+
+                @game.corporation_available?(c)
+              end
+            end
+
             if buyable.any?
               buy_boxes = buyable.map do |raw_bundle|
                 bundle = raw_bundle.respond_to?(:to_bundle) && !raw_bundle.respond_to?(:num_shares) ? raw_bundle.to_bundle : raw_bundle
