@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../../step/issue_shares'
+require_relative 'skip_abbreviated_round'
 require_relative '../../../action/choose'
 
 module Engine
@@ -8,12 +9,16 @@ module Engine
     module G18OE
       module Step
         class IssueShares < Engine::Step::IssueShares
+          include SkipAbbreviatedRound
+
           def setup
             super
             @bought_abandoned_minor = false
           end
 
           def actions(entity)
+            return [] if skip?
+
             available_actions = super
             return available_actions unless can_buy_abandoned_minor?(entity)
 
@@ -49,8 +54,10 @@ module Engine
           end
 
           def pass_description
-            'Skip (Buy/Sell Shares)'
+            can_buy_abandoned_minor?(current_entity) ? 'Skip (Issue Shares/Buy Minor)' : 'Skip (Issue Shares)'
           end
+
+          def log_skip(_entity); end
 
           def process_choose(action)
             entity = action.entity

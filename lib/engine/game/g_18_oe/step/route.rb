@@ -8,11 +8,17 @@ module Engine
       module Step
         class Route < Engine::Step::Route
           def actions(entity)
+            return [] if @game.repeat_last_revenue?(entity)
+
             actions = super
             return actions if actions.empty? || @game.double_head_candidates(entity).size < 2
             return actions if !@game.loading && !@game.orient_express_reachable?(entity)
 
             actions + %w[double_head_trains]
+          end
+
+          def log_skip(entity)
+            super unless @game.repeat_last_revenue?(entity)
           end
 
           def help
@@ -27,6 +33,15 @@ module Engine
 
           def round_state
             super.merge(combined_trains: {}, orient_express_revenue: nil)
+          end
+
+          def double_head_trains_title
+            'Combine trains'
+          end
+
+          def double_head_trains_description
+            'Combine two or more non-permanent trains (levels 2, 3 and 4) into one train to make an Orient Express run. '\
+              'A combined train must run an Orient Express route. Use Undo to cancel a combination.'
           end
 
           def setup

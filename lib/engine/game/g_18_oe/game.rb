@@ -52,6 +52,7 @@ module Engine
         CURRENCY_FORMAT_STR = '£%s'
         CAPITALIZATION = :incremental
         SELL_BUY_ORDER = :sell_buy
+        EBUY_FROM_OTHERS = :never
         MUST_SELL_IN_BLOCKS = false
         HOME_TOKEN_TIMING = :float
         TILE_RESERVATION_BLOCKS_OTHERS = :always
@@ -439,7 +440,27 @@ module Engine
 
           setup_patronage_tiles!
           setup_wcf_placeholder!
+          setup_minor_k!
           @minor_g_ability = corporation_by_id('G')&.abilities&.first
+          @minor_b_ability = corporation_by_id('B')&.abilities&.first
+        end
+
+        def setup_minor_k!
+          mail = company_by_id('MAIL')
+          minor_k = corporation_by_id('K')
+          mail.owner = minor_k
+          minor_k.companies << mail
+        end
+
+        def initial_auction_companies
+          @companies.select(&:auction_row)
+        end
+
+        def companies_to_payout(ignore: [])
+          super.reject do |company|
+            owner = company.owner
+            owner.corporation? && (!owner.floated? || abandoned_minor?(owner))
+          end
         end
 
         def setup_wcf_placeholder!
@@ -487,6 +508,10 @@ module Engine
 
         def medium_start?
           @optional_rules.include?(:medium_start)
+        end
+
+        def long_endgame?
+          @optional_rules.include?(:long_endgame)
         end
 
         def concessions?
@@ -658,6 +683,14 @@ module Engine
           entity.abilities.include?(@minor_g_ability) ? budget + 2 : budget
         end
 
+        def tile_point_cost(entity, old_tile:)
+          upgrade = old_tile.color != :white
+          return 1 if upgrade && old_tile.cities.empty? && entity.abilities.include?(@minor_b_ability)
+
+          base_cost = upgrade ? 2 : 1
+          metropolis_hex?(old_tile.hex) ? base_cost * 2 : base_cost
+        end
+
         def can_buy_train_from_others?
           major_phase?
         end
@@ -782,6 +815,11 @@ module Engine
             minor.remove_ability(ability)
             major.add_ability(ability)
           end
+          minor.companies.dup.each do |company|
+            minor.companies.delete(company)
+            company.owner = major
+            major.companies << company
+          end
         end
 
         def pay_minor_a_bonus!(minor, major)
@@ -874,6 +912,26 @@ module Engine
 
         def final_operating_rounds
           @final_set_extended ? self.class::EXTENDED_FINAL_OPERATING_ROUNDS : super
+        end
+
+        def abbreviated_operating_round?(round_num = @round.round_num)
+          !long_endgame? && @turn == @final_turn && round_num == @operating_rounds
+        end
+
+        def repeat_last_revenue?(entity)
+          return false unless abbreviated_operating_round?
+          return false unless (info = last_revenue_info(entity))
+
+          ran = info.routes.keys.flat_map { |train| component_trains(train) }
+          ran.map(&:id).sort == entity.trains.map(&:id).sort
+        end
+
+        def last_revenue_info(entity)
+          entity.operating_history[[@turn, @round.round_num - 1]]
+        end
+
+        def component_trains(train)
+          train.sym.include?('_') ? train.sym.split('_').map { |id| train_by_id(id) } : [train]
         end
 
         def place_major_par_marker!(corporation)
