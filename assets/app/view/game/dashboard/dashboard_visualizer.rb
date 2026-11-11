@@ -2052,9 +2052,13 @@ badge_el,
           try {
             var g = String(#{title}).trim();
             var gid = String(#{game_id}).trim();
-            var key = '18xx_telemetry_game_' + gid;
 
-            if (!sessionStorage.getItem(key)) {
+            // In-memory guard: survives dashboard redraws, resets on page reload.
+            // Track by game ID so opening a different game in the same page logs it.
+            var logged = window.__dashboardTelemetryLogged ||
+              (window.__dashboardTelemetryLogged = Object.create(null));
+            if (!logged[gid]) {
+              logged[gid] = true;
               var url =
                 #{endpoint} +
                 '?game=' + encodeURIComponent(g) +
@@ -2064,8 +2068,6 @@ badge_el,
                 method: 'GET',
                 mode: 'no-cors',
                 keepalive: true
-              }).then(function() {
-                sessionStorage.setItem(key, '1');
               }).catch(function() {});
             }
           } catch (e) {}
