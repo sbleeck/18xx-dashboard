@@ -1384,6 +1384,7 @@ module Engine
           raise NotImplementedError
         end
         log_share_price(corporation, old_price) if sell_movement(corporation) != :none
+        share_price_changed(corporation, old_price)
       end
 
       def sold_out_increase?(_corporation)
@@ -1397,6 +1398,12 @@ module Engine
       def sold_out_stock_movement(corporation)
         @stock_market.move_up(corporation)
       end
+
+      # Called after a share sale, the end of a stock round and a dividend may
+      # have moved a corporation's share price; `from` is the price before the
+      # move (it can be the current price if nothing moved). Override it for
+      # rules that depend on where the price lands.
+      def share_price_changed(_entity, _from); end
 
       def log_share_price(entity, from, steps = nil, log_steps: false)
         from_price = from.price
@@ -1597,6 +1604,10 @@ module Engine
       # Intended for game specific rules that only depend on one route
       def check_other(_route); end
 
+      def route_node_revisitable?(_node)
+        false
+      end
+
       # Intended for game specific rules that depend on multiple routes
       def check_route_combination(_routes); end
 
@@ -1658,7 +1669,7 @@ module Engine
       end
 
       def visited_stops(route)
-        route.connection_data.flat_map { |c| [c[:left], c[:right]] }.uniq.compact
+        route.connection_data.flat_map { |c| [c[:left], c[:right]] }.uniq.compact.flat_map(&:stops)
       end
 
       def revenue_stops(route)
