@@ -414,31 +414,32 @@ module View
         rows << comp_cells
 
         if [true, 'true'].include?(Lib::Storage['show_player_timers'])
-          gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
+          server_times, last_ts = player_server_thinking_times
+          now_sec = `Math.floor(Date.now() / 1000)`.to_i
+          ongoing_sec = last_ts.positive? && !(@game.respond_to?(:finished?) && @game.finished?) ? [now_sec - last_ts, 0].max : 0
+
           time_cells = [h('th.left', 'Time')]
           display_players.each_with_index do |p, idx|
-            bg_color = p == active_player ? COLOR_ACTIVE : COLOR_INACTIVE
+            is_ap = (p == active_player)
+            bg_color = is_ap ? COLOR_ACTIVE : COLOR_INACTIVE
             is_last = idx == @game.players.size - 1
             pid = p.id.to_s
-            formatted = %x{
-              (function() {
-                try {
-                  var raw = JSON.parse(localStorage.getItem('dashboard_player_timers_' + #{gid}) || '{}');
-                  var s = Math.max(0, Math.floor(parseFloat(raw[#{pid}]) || 0));
-                  var hrs = Math.floor(s / 3600);
-                  var mins = Math.floor((s % 3600) / 60);
-                  var secs = s % 60;
-                  var pad = function(n) { return n < 10 ? '0' + n : String(n); };
-                  return hrs > 0 ? (hrs + ':' + pad(mins) + ':' + pad(secs)) : (pad(mins) + ':' + pad(secs));
-                } catch (e) {
-                  return '00:00';
-                }
-              })()
+
+            base_sec = server_times[pid] || 0
+            total_sec = base_sec + (is_ap ? ongoing_sec : 0)
+
+            cell_attrs = {
+              id: "player-timer-#{pid}",
+              'data-base-sec': base_sec.to_s,
+              'data-last-ts': last_ts.to_s,
+              'data-active-timer': is_ap ? 'true' : 'false',
             }
+            cell_attrs['data-active-timer'] = 'true' if is_ap
+
             time_cells << h("td.padded_number.money-value#{'.thick-right' if is_last}", {
-                              attrs: { id: "player-timer-#{pid}" },
+                              attrs: cell_attrs,
                               style: { backgroundColor: bg_color },
-                            }, formatted)
+                            }, format_elapsed_clock(total_sec))
           end
           rows << time_cells
         end
@@ -750,6 +751,92 @@ module View
         @game.players.find do |player|
           player.id.to_s == entity_id.to_s
         end
+      end
+
+      def action_controlling_player(action)
+        p = action_player(action)
+        return p if p
+
+        entity = action_value(action, :entity)
+        return entity.owner if entity.respond_to?(:owner) && entity.owner&.respond_to?(:player?) && entity.owner&.player?
+        return entity.player if entity.respond_to?(:player) && entity.player&.respond_to?(:player?) && entity.player&.player?
+
+        entity_id = (entity.respond_to?(:id) ? entity.id : entity).to_s
+        return nil if entity_id.empty?
+
+        corp = (@game.respond_to?(:corporation_by_id) && @game.corporation_by_id(entity_id)) ||
+               (@game.respond_to?(:minor_by_id) && @game.minor_by_id(entity_id))
+        if corp
+          return corp.owner if corp.respond_to?(:owner) && corp.owner
+          return corp.player if corp.respond_to?(:player) && corp.player
+        end
+
+        nil
+      end
+
+      def parse_action_timestamp(raw_ts)
+        return 0 if raw_ts.nil?
+        return raw_ts.to_i if raw_ts.is_a?(Numeric)
+
+        str = raw_ts.to_s.strip
+        return str.to_i if /^\d+$/.match?(str)
+        # // --- START FIX ---
+        # Reject date-only strings like "2026-11-12" that lack a time-of-day (HH:MM)
+        return 0 unless str.include?(':')
+
+        # // --- END FIX ---
+
+        parsed = %x{
+          (function(val) {
+            var ms = Date.parse(String(val));
+            return isNaN(ms) ? 0 : Math.floor(ms / 1000);
+          })(#{str})
+        }.to_i
+        parsed.positive? ? parsed : 0
+      end
+
+      def player_server_thinking_times
+        totals = Hash.new(0)
+        raw_actions = if @game_data
+                        Array(@game_data['actions'] || @game_data[:actions])
+                      elsif @game.respond_to?(:raw_actions)
+                        Array(@game.raw_actions)
+                      else
+                        []
+                      end
+
+        # // --- START FIX ---
+        # Anchor at the first real action rather than lobby creation (@game_data['created_at']),
+        # which can be date-only (midnight) or hours before players actually start.
+        prev_ts = 0
+        # // --- END FIX ---
+
+        raw_actions.each do |act|
+          type = action_value(act, :type).to_s
+          # Chat messages do not consume or reset turn thinking time
+          next if type == 'message'
+
+          ts = parse_action_timestamp(action_value(act, :created_at))
+          next unless ts.positive?
+
+          if prev_ts.positive? && ts >= prev_ts
+            actor = action_controlling_player(act)
+            totals[actor.id.to_s] += (ts - prev_ts) if actor
+          end
+          prev_ts = ts
+        end
+
+        [totals, prev_ts]
+      rescue StandardError
+        [Hash.new(0), 0]
+      end
+
+      def format_elapsed_clock(total_sec)
+        s = [total_sec.to_i, 0].max
+        hrs = s / 3600
+        mins = (s % 3600) / 60
+        secs = s % 60
+        format('%d:%02d:%02d', hrs, mins, secs)
       end
 
       def stock_action_summary(action)
