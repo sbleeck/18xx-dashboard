@@ -413,6 +413,36 @@ module View
         end
         rows << comp_cells
 
+        if [true, 'true'].include?(Lib::Storage['show_player_timers'])
+          gid = (@game.respond_to?(:id) ? @game.id : 'default').to_s
+          time_cells = [h('th.left', 'Time')]
+          display_players.each_with_index do |p, idx|
+            bg_color = p == active_player ? COLOR_ACTIVE : COLOR_INACTIVE
+            is_last = idx == @game.players.size - 1
+            pid = p.id.to_s
+            formatted = %x{
+              (function() {
+                try {
+                  var raw = JSON.parse(localStorage.getItem('dashboard_player_timers_' + #{gid}) || '{}');
+                  var s = Math.max(0, Math.floor(parseFloat(raw[#{pid}]) || 0));
+                  var hrs = Math.floor(s / 3600);
+                  var mins = Math.floor((s % 3600) / 60);
+                  var secs = s % 60;
+                  var pad = function(n) { return n < 10 ? '0' + n : String(n); };
+                  return hrs > 0 ? (hrs + ':' + pad(mins) + ':' + pad(secs)) : (pad(mins) + ':' + pad(secs));
+                } catch (e) {
+                  return '00:00';
+                }
+              })()
+            }
+            time_cells << h("td.padded_number.money-value#{'.thick-right' if is_last}", {
+                              attrs: { id: "player-timer-#{pid}" },
+                              style: { backgroundColor: bg_color },
+                            }, formatted)
+          end
+          rows << time_cells
+        end
+
         rows[0] << h(:td, {
                        attrs: { rowspan: rows.size, colspan: 30, class: 'no-border' },
                        style: { backgroundColor: '#ffffff', verticalAlign: 'top', paddingLeft: '1.5rem', textAlign: 'left' },

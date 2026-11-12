@@ -131,6 +131,21 @@ module View
         update
       end
 
+      def player_timers_enabled?
+        [true, 'true'].include?(Lib::Storage['show_player_timers'])
+      end
+
+      def toggle_player_timers
+        new_val = !player_timers_enabled?
+        Lib::Storage['show_player_timers'] = new_val
+        %x{
+          try {
+            localStorage.setItem('show_player_timers', #{new_val} ? 'true' : 'false');
+          } catch(e) {}
+        }
+        update
+      end
+
       def action_required_for_me?
         return false if @game.respond_to?(:finished?) && @game.finished?
 
@@ -806,6 +821,25 @@ module View
               on: { click: -> { `window.resetPanelZoom('#{pid}')` } },
             }, '⟲'),
         ]
+
+        if pid == 'panel-ledger'
+          is_timer_active = player_timers_enabled?
+          timer_btn_style = button_style.merge(
+            fontSize: '12px',
+            backgroundColor: is_timer_active ? '#10b981' : '#ffffff',
+            color: is_timer_active ? '#ffffff' : '#333333',
+            borderColor: is_timer_active ? '#059669' : '#999999'
+          )
+          buttons << h(:button, {
+                         attrs: {
+                           id: 'btn-toggle-player-timers',
+                           title: is_timer_active ? 'Player thinking timers: ON (click to hide)' : 'Player thinking timers: OFF (click to show)',
+                           type: 'button',
+                         },
+                         style: timer_btn_style,
+                         on: { click: -> { toggle_player_timers } },
+                       }, '⏱')
+        end
 
         if pid == 'map-panel-bot'
           is_meme_active = meme_revenue_enabled?
@@ -2399,6 +2433,58 @@ badge_el,
                           }).catch(function() {});
                       }
                     }, 60000);
+                    window.formatPlayerClock = function(totalSec) {
+                      var s = Math.max(0, Math.floor(totalSec || 0));
+                      var hrs = Math.floor(s / 3600);
+                      var mins = Math.floor((s % 3600) / 60);
+                      var secs = s % 60;
+                      var pad = function(n) { return n < 10 ? '0' + n : String(n); };
+                      return hrs > 0
+                        ? (hrs + ':' + pad(mins) + ':' + pad(secs))
+                        : (pad(mins) + ':' + pad(secs));
+                    };
+
+                    if (window._playerClockInterval) {
+                      clearInterval(window._playerClockInterval);
+                    }
+                    window._playerClockLastTick = Date.now();
+                    window._playerClockInterval = setInterval(function() {
+                      var now = Date.now();
+                      var dt = (now - (window._playerClockLastTick || now)) / 1000.0;
+                      window._playerClockLastTick = now;
+
+                      var liveComp = window._dashboardVisualizer || comp;
+                      if (!liveComp || !liveComp.game) return;
+                      if (liveComp.game['$finished?'] && liveComp.game['$finished?']()) return;
+
+                      var ap = liveComp.$active_player ? liveComp.$active_player() : null;
+                      if (!ap || ap === Opal.nil) return;
+
+                      var pid = ap.$id ? String(ap.$id()) : '';
+                      if (!pid) return;
+
+                      var gid = liveComp.game.$id ? String(liveComp.game.$id()) : 'default';
+                      var storageKey = 'dashboard_player_timers_' + gid;
+                      var timers = {};
+                      try {
+                        timers = JSON.parse(localStorage.getItem(storageKey) || '{}');
+                      } catch (e) {
+                        timers = {};
+                      }
+
+                      // Guard against sleep/hibernate jumps > 10s
+                      if (dt > 0 && dt < 10) {
+                        timers[pid] = (parseFloat(timers[pid]) || 0) + dt;
+                        try {
+                          localStorage.setItem(storageKey, JSON.stringify(timers));
+                        } catch (e) {}
+                      }
+
+                      var cell = document.getElementById('player-timer-' + pid);
+                      if (cell) {
+                        cell.textContent = window.formatPlayerClock(timers[pid] || 0);
+                      }
+                    }, 1000);
                   )
 
                         `document.body.style.margin = '0'`
@@ -3641,6 +3727,10 @@ window.recalcAllPanels = function() {
                      if (window._other_games_timer) {
                        clearInterval(window._other_games_timer);
                        window._other_games_timer = null;
+                     }
+                       if (window._playerClockInterval) {
+                       clearInterval(window._playerClockInterval);
+                       window._playerClockInterval = null;
                      }
                    )
                          %x(
