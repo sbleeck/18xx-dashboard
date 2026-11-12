@@ -100,14 +100,6 @@ module View
           },
         ].freeze
 
-        # // --- START FIX ---
-        TELEMETRY_CONSENT_KEY = 'dashboard_telemetry_consent_v1'
-
-        def telemetry_enabled?
-          stored = Lib::Storage[TELEMETRY_CONSENT_KEY]
-          stored == true || stored.to_s == 'true'
-        end
-
         def render
           close_handler = lambda do |e = nil|
             %x{
@@ -256,21 +248,6 @@ module View
               }
             }
           end
-
-          # // --- START FIX ---
-          toggle_telemetry = lambda do |event = nil|
-            checked = `#{event}.target.checked`
-            Lib::Storage[TELEMETRY_CONSENT_KEY] = checked
-            Lib::Storage['telemetry_enabled'] = checked
-            %x{
-              try {
-                localStorage.setItem(#{TELEMETRY_CONSENT_KEY}, #{checked} ? 'true' : 'false');
-                localStorage.setItem('telemetry_enabled', #{checked} ? 'true' : 'false');
-              } catch (e) {}
-            }
-            update
-          end
-          # // --- END FIX ---
 
           dialog_style = {
             position: 'fixed',
@@ -540,53 +517,6 @@ module View
                 ])
               end,
 
-              # Anonymous usage telemetry - deliberately placed at the very bottom
-              # of the scrollable guide so it is available but not prominent.
-              h(:div, {
-                  style: {
-                    backgroundColor: '#f8fafc',
-                    borderTop: '1px solid #e2e8f0',
-                    padding: '1rem 0.2rem 0.35rem 0.2rem',
-                    marginTop: '0.25rem',
-                    color: '#334155',
-                    fontSize: '0.85rem',
-                    lineHeight: '1.45',
-                  },
-                }, [
-                h(:div, { style: { marginBottom: '0.55rem' } },
-                  'To help inform which 18xx titles to prioritise test and improve, the Dashboard can send the game title, ID and when it is opened in the dasbboard. No other iformation is collected. no user ID, names or any game specific information. You can change this choice at any time; the setting is remembered on this browser. This will help me to further develop the dashboard'),
-                h(:label, {
-                    attrs: { id: 'dashboard-telemetry-toggle-label' },
-                    style: {
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      color: '#334155',
-                      fontSize: '0.85rem',
-                      lineHeight: '1.45',
-                    },
-                  }, [
-                  h(:input, {
-                      attrs: {
-                        type: 'checkbox',
-                        id: 'dashboard-telemetry-checkbox',
-                      },
-                      props: {
-                        checked: telemetry_enabled?,
-                      },
-                      style: {
-                        cursor: 'pointer',
-                        width: '14px',
-                        height: '14px',
-                        accentColor: '#64748b',
-                      },
-                      on: { change: toggle_telemetry },
-                    }),
-                  h(:span, 'Allow usage reporting'),
-                ]),
-              ]),
             ]),
 
             # Footer
