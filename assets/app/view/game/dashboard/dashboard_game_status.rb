@@ -696,6 +696,7 @@ module View
           *extra,
         ]
         corporation_headers << h(:th, { attrs: { class: 'header-corporate' } }, render_sort_link('Privates', :companies)) if @show_privates
+        corporation_headers << h(:th, { attrs: { class: 'header-corporate' } }, render_sort_link('Last Run', :prev_revenue))
 
         [h(:tr, [
           h('th.thick-right.header-symbol', ''),
@@ -2562,6 +2563,7 @@ module View
           *extra,
         ]
         corporation_row_content << render_companies(corporation, nil, 'column-zone-corporate') if @show_privates
+        corporation_row_content << h('td.padded_number.column-zone-corporate.money-value', {}, clean_rev)
 
         row_content = []
         row_content.concat(players_row_content)
