@@ -1984,7 +1984,7 @@ module View
               'data-tile-drop-legal': legal_drop_tile_names.any? ? 'true' : 'false',
               'data-tile-drop-names': legal_drop_tile_names.join(','),
             },
-            # hook: Lib::TileLayAnimation.hook,
+            hook: Lib::TileLayAnimation.hook,
           }
 
           h(:g, g_props, hex_children)
