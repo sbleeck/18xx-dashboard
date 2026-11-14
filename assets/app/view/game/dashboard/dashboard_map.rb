@@ -233,6 +233,31 @@ end
 module View
   module Game
     module Part
+      class Track < Snabberb::Component
+        unless method_defined?(:dashboard_original_width_for_index)
+          alias dashboard_original_width_for_index width_for_index
+          alias dashboard_original_value_for_index value_for_index
+
+          def dashboard_map_mounted?
+            `document.getElementById('viz-master-frame') !== null`
+          end
+
+          def width_for_index(path, index, path_indexes)
+            base_width = dashboard_original_width_for_index(path, index, path_indexes)
+            dashboard_map_mounted? && index ? (base_width * 2.5) : base_width
+          end
+
+          def value_for_index(index, prop, track)
+            if dashboard_map_mounted? && index && prop == :color
+              palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff', '#ffea00', '#ff4500']
+              palette[index.to_i % palette.size]
+            else
+              dashboard_original_value_for_index(index, prop, track)
+            end
+          end
+        end
+      end
+
       class FutureRevenue < Base
         def render
           h(:g)
