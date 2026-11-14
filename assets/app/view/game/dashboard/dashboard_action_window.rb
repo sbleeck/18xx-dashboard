@@ -5304,8 +5304,8 @@ module View
                   router_entity = @game.current_entity || entity
 
                   # Strict timeout: 4s path + 6s route = 10s maximum total cutoff
-                  p_timeout = 4_000
-                  r_timeout = 6_000
+                  p_timeout = 4
+                  r_timeout = 6
 
                   router.compute(
                     router_entity,
