@@ -1688,51 +1688,6 @@ module View
 
           %x(
           if (typeof window !== 'undefined') {
-            if (!window._safe_qsa_patched && typeof Element !== 'undefined') {
-              window._safe_qsa_patched = true;
-var sanitizeSelector = function(sel) {
-                if (typeof sel !== 'string' || sel.indexOf('#') === -1) return sel;
-                try {
-                  return sel.split(',').map(function(part) {
-                    var p = part.trim();
-                    if (p.charAt(0) === '#') {
-                      var spaceIdx = p.indexOf(' ');
-                      var rawId = spaceIdx === -1 ? p.substring(1) : p.substring(1, spaceIdx);
-                      var rest = spaceIdx === -1 ? '' : p.substring(spaceIdx);
-                      if (/[^a-zA-Z0-9_-]/.test(rawId) || /^[0-9]/.test(rawId)) {
-                        var safeId = rawId.replace(/["\\]/g, '\\$&');
-                        return '[id="' + safeId + '"]' + rest;
-                      }
-                    }
-                    return p.replace(/#([^\s,>~:#\[\]]+)/g, function(match, idPart) {
-                      if (/[^a-zA-Z0-9_-]/.test(idPart) || /^[0-9]/.test(idPart)) {
-                        return '[id="' + idPart.replace(/["\\]/g, '\\$&') + '"]';
-                      }
-                      return match;
-                    });
-                  }).join(', ');
-                } catch (e) {
-                  return sel;
-                }
-              };
-              var origElQSA = Element.prototype.querySelectorAll;
-              Element.prototype.querySelectorAll = function(sel) {
-                return origElQSA.call(this, sanitizeSelector(sel));
-              };
-              var origDocQSA = Document.prototype.querySelectorAll;
-              Document.prototype.querySelectorAll = function(sel) {
-                return origDocQSA.call(this, sanitizeSelector(sel));
-              };
-              var origElQS = Element.prototype.querySelector;
-              Element.prototype.querySelector = function(sel) {
-                return origElQS.call(this, sanitizeSelector(sel));
-              };
-              var origDocQS = Document.prototype.querySelector;
-              Document.prototype.querySelector = function(sel) {
-                return origDocQS.call(this, sanitizeSelector(sel));
-              };
-            }
-
             var ensureTokenPulseStyle = function() {
               if (!document.getElementById('corp-token-pulse-style')) {
                 var s = document.createElement('style');

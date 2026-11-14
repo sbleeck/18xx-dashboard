@@ -3184,7 +3184,7 @@ createPanHandler('panel-ledger');
                      '    filter: drop-shadow(0 0 4px #00ffff); ' +
                      '  } ' +
                      '} ' +
-                     '.map-hex-highlight .hex-highlight-poly { ' +
+                     '#map-scroll-canvas .map-hex-highlight .hex-highlight-poly { ' +
                      '  stroke: #00ffff !important; ' +
                      '  stroke-width: 8px !important; ' +
                      '  fill: #00ffff !important; ' +
