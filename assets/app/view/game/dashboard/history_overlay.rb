@@ -10,49 +10,6 @@ require 'lib/storage'
 # History navigation deliberately uses full-page navigation when changing actions.
 # This avoids reconciling VDOM trees belonging to different reconstructed game states.
 
-# 3. Continuously shield dynamically loaded games (like G1873) against unparred corporations
-%x{
-  (function() {
-    function patchGame(proto) {
-      if (!proto || proto.__sellable_bundles_shielded) return;
-      proto.__sellable_bundles_shielded = true;
-
-      var origSellable = proto.$sellable_bundles;
-      if (typeof origSellable === 'function') {
-        proto.$sellable_bundles = function(player, corporation) {
-          if (corporation && typeof corporation.$share_price === 'function') {
-            var sp = corporation.$share_price();
-            if (sp === Opal.nil || sp == null) {
-              return typeof Opal.Array !== 'undefined' ? Opal.Array.$new() : [];
-            }
-          }
-          try {
-            return origSellable.call(this, player, corporation);
-          } catch (e) {
-            return typeof Opal.Array !== 'undefined' ? Opal.Array.$new() : [];
-          }
-        };
-      }
-    }
-
-    function checkAndPatchAllGames() {
-      if (typeof Opal === 'undefined' || !Opal.Engine || !Opal.Engine.Game) return;
-      if (Opal.Engine.Game.Base) patchGame(Opal.Engine.Game.Base.$$proto);
-
-      for (var key in Opal.Engine.Game) {
-        if (Opal.Engine.Game[key] && Opal.Engine.Game[key].Game) {
-          patchGame(Opal.Engine.Game[key].Game.$$proto);
-        }
-      }
-    }
-
-    checkAndPatchAllGames();
-    if (!window.__history_game_patch_interval) {
-      window.__history_game_patch_interval = setInterval(checkAndPatchAllGames, 250);
-    }
-  })();
-}
-
 # Guard against unplaced or uninitialized entities during historical state replays
 class NilClass
   def coordinates
