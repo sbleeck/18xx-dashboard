@@ -1,73 +1,75 @@
 Privacy Policy for 18xx.games Desktop Dashboard
 
-Last updated: November 2026
+Last updated: 14 November 2026
 
-The 18xx.games Desktop Dashboard browser extension is committed to protecting user privacy. The extension collects only the minimal information described below and only after the user has explicitly agreed to usage reporting.
+The 18xx.games Desktop Dashboard browser extension respects user privacy. It is designed to enhance the playing experience on 18xx.games without collecting personal information or monitoring user activity.
 
-1. Optional Usage Reporting
+1. Data Collection
 
-The extension includes optional usage reporting to help determine which 18xx game titles are being used with the Dashboard and to prioritise compatibility testing, bug fixes, and future development.
+The extension does not collect, transmit, or store personal information or usage statistics.
 
-Usage reporting is disabled until the user explicitly chooses “Allow usage reporting.”
+In particular, the extension does not collect:
 
-When enabled, the extension sends:
+Player names or email addresses
+Account credentials or passwords
+Game IDs or information about which games are played
+Game moves or player activity
+Financial information
+Browsing history
+Device identifiers or tracking information
+Analytics or telemetry data
 
-the title of the 18xx game being viewed, for example 1846 or 1830;
-the game ID associated with that game.
+The extension does not use Google Analytics, Google Sheets, Google Apps Script, or any other external service for usage reporting.
 
-A timestamp is added when the report is received.
+2. No Usage Tracking
 
-The extension does not intentionally collect player names, email addresses, account credentials, passwords, game moves, financial information, personal communications, advertising identifiers, or general browsing history.
+The extension does not monitor how frequently it is used, which games are played, or how users interact with the Dashboard.
 
-2. User Choice
+No usage information is transmitted to the extension developer or third-party analytics services.
 
-When usage reporting is first offered, the user can choose either:
+The extension does not create user profiles or assign tracking identifiers.
 
-Allow usage reporting, or
-No thanks.
+3. Local Browser Storage
 
-No usage report is sent before the user has made this choice.
+The extension may store preferences and configuration settings locally in the user's browser to maintain Dashboard functionality.
 
-The choice is stored locally in the browser. Usage reporting can subsequently be enabled or disabled at any time from the Dashboard Help window.
+These settings are used solely to remember user preferences and are not transmitted to the extension developer.
 
-3. Purpose and Use of Usage Information
+4. Host Permissions
 
-Usage information is used solely to understand which 18xx games are being used with the Dashboard and to help prioritise:
+The extension requests access to https://18xx.games/* to provide its Dashboard functionality.
 
-game compatibility and testing;
-bug fixes;
-Dashboard maintenance; and
-future Dashboard development.
+This permission allows the extension to interact with game information displayed on 18xx.games.
 
-Usage information is not used for advertising, marketing, credit assessment, or user profiling.
+The extension is not designed to access or monitor unrelated websites or general browsing activity.
 
-4. Storage and Service Providers
+5. Third-Party Services
 
-Usage reports are transmitted over HTTPS to a Google Apps Script endpoint and stored in a private Google Sheet controlled by the extension developer.
+The extension does not transmit user information to external analytics, advertising, or monitoring services.
 
-Google therefore acts as a service provider involved in receiving and storing these reports.
+The extension operates alongside the 18xx.games website, which has its own privacy practices.
 
-Usage information is not sold to data brokers, advertisers, or other third parties.
+Use of the 18xx.games website remains subject to that website's separate privacy policy.
 
-5. Host Permissions
+6. Data Sharing
 
-The extension requests access to https://18xx.games/* so that it can provide the Dashboard functionality while using 18xx.games.
+The extension does not sell, share, or disclose user information to advertisers, data brokers, or other third parties.
 
-The extension is intended to operate on 18xx.games and is not designed to monitor users' general web browsing activity.
-
-6. Data Minimisation
-
-The extension does not create a persistent telemetry user identifier and does not attempt to identify individual users through usage reporting.
-
-Usage reporting is limited to the game title, game ID, and receiving timestamp described above.
+No usage reports are sent to the extension developer.
 
 7. Chrome Web Store User Data Policy
 
-The use of information by this extension complies with the Chrome Web Store User Data Policy, including its Limited Use requirements.
+The extension is designed to comply with the Chrome Web Store User Data Policy, including its Limited Use requirements.
 
-8. Contact
+8. Changes to This Policy
 
-Questions about this privacy policy or the extension's handling of usage information can be sent to:
+This privacy policy may be updated if the extension's functionality or data-handling practices change.
+
+Any changes will be reflected in the published policy.
+
+9. Contact
+
+Questions about this privacy policy or the extension can be directed to:
 
 Stefan Bleeck
  bleeck@gmail.com
