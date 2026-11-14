@@ -233,27 +233,6 @@ end
 module View
   module Game
     module Part
-      class Track < Snabberb::Component
-        unless method_defined?(:orig_width_for_index)
-          alias orig_width_for_index width_for_index
-          alias orig_value_for_index value_for_index
-
-          def width_for_index(path, index, path_indexes)
-            base_width = orig_width_for_index(path, index, path_indexes)
-            index ? (base_width * 2.5) : base_width
-          end
-
-          def value_for_index(index, prop, track)
-            if index && prop == :color
-              screaming_palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff']
-              screaming_palette[index.to_i] || '#ff1493'
-            else
-              orig_value_for_index(index, prop, track)
-            end
-          end
-        end
-      end
-
       class FutureRevenue < Base
         def render
           h(:g)
