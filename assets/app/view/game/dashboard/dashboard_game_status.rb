@@ -425,6 +425,18 @@ module View
         end
         rows << comp_cells
 
+        if [true, 'true'].include?(Lib::Storage['show_player_values'])
+          value_cells = [h('th.left', 'Value')]
+          display_players.each_with_index do |p, idx|
+            bg_color = p == active_player ? COLOR_ACTIVE : COLOR_INACTIVE
+            is_last = idx == @game.players.size - 1
+            value = @game.respond_to?(:player_value) ? @game.player_value(p) : p.value
+            value_cells << h("td.padded_number.money-value#{'.thick-right' if is_last}",
+                             { style: { backgroundColor: bg_color } }, @game.format_currency(value))
+          end
+          rows << value_cells
+        end
+
         if [true, 'true'].include?(Lib::Storage['show_player_timers'])
           server_times, last_ts = player_server_thinking_times
           now_sec = `Math.floor(Date.now() / 1000)`.to_i

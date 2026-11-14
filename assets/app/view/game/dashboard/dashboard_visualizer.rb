@@ -146,6 +146,36 @@ module View
         update
       end
 
+      def player_values_enabled?
+        [true, 'true'].include?(Lib::Storage['show_player_values'])
+      end
+
+      def toggle_player_values
+        new_val = !player_values_enabled?
+        Lib::Storage['show_player_values'] = new_val
+        %x{
+          try {
+            localStorage.setItem('show_player_values', #{new_val} ? 'true' : 'false');
+          } catch(e) {}
+        }
+        update
+      end
+
+      def unopened_corporations_visible?
+        ![true, 'true'].include?(Lib::Storage['spreadsheet_hide_not_floated'])
+      end
+
+      def toggle_unopened_corporations
+        hide_unopened = unopened_corporations_visible?
+        Lib::Storage['spreadsheet_hide_not_floated'] = hide_unopened
+        %x{
+          try {
+            localStorage.setItem('spreadsheet_hide_not_floated', #{hide_unopened} ? 'true' : 'false');
+          } catch(e) {}
+        }
+        update
+      end
+
       def action_required_for_me?
         return false if @game.respond_to?(:finished?) && @game.finished?
 
@@ -839,6 +869,42 @@ module View
                          style: timer_btn_style,
                          on: { click: -> { toggle_player_timers } },
                        }, '⏱')
+
+          is_value_active = player_values_enabled?
+          value_btn_style = button_style.merge(
+            fontSize: '11px',
+            backgroundColor: is_value_active ? '#10b981' : '#ffffff',
+            color: is_value_active ? '#ffffff' : '#333333',
+            borderColor: is_value_active ? '#059669' : '#999999'
+          )
+          buttons << h(:button, {
+                         attrs: {
+                           id: 'btn-toggle-player-values',
+                           title: is_value_active ? 'Player values: ON (click to hide)' : 'Player values: OFF (click to show)',
+                           type: 'button',
+                           'aria-pressed': is_value_active ? 'true' : 'false',
+                         },
+                         style: value_btn_style,
+                         on: { click: -> { toggle_player_values } },
+                       }, 'V')
+
+          are_unopened_visible = unopened_corporations_visible?
+          unopened_btn_style = button_style.merge(
+            fontSize: '11px',
+            backgroundColor: are_unopened_visible ? '#10b981' : '#ffffff',
+            color: are_unopened_visible ? '#ffffff' : '#333333',
+            borderColor: are_unopened_visible ? '#059669' : '#999999'
+          )
+          buttons << h(:button, {
+                         attrs: {
+                           id: 'btn-toggle-unopened-corporations',
+                           title: are_unopened_visible ? 'Unopened corporations: SHOWN (click to hide)' : 'Unopened corporations: HIDDEN (click to show)',
+                           type: 'button',
+                           'aria-pressed': are_unopened_visible ? 'true' : 'false',
+                         },
+                         style: unopened_btn_style,
+                         on: { click: -> { toggle_unopened_corporations } },
+                       }, 'C')
         end
 
         if pid == 'map-panel-bot'
