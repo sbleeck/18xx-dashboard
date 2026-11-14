@@ -241,7 +241,7 @@ module View
 
           def render
             rendered = orig_render
-            return rendered unless flash_token_slot?
+            return rendered unless @dashboard_mode && flash_token_slot?
 
             highlight = h(:circle, {
                             attrs: {
@@ -1748,7 +1748,7 @@ module View
           show_token_highlight = if hover_mode || hex_selected
                                    false
                                  else
-                                   clickable && token_action_active
+                                   token_action_active && step.available_hex(current_entity, hex) && hex.tile.cities.any? { |city| city.tokenable?(current_entity) }
                                  end
 
           can_build = show_building_highlight || show_token_highlight
