@@ -10,43 +10,6 @@ require 'lib/storage'
 # History navigation deliberately uses full-page navigation when changing actions.
 # This avoids reconciling VDOM trees belonging to different reconstructed game states.
 
-# 2. Robust SVG numeric-attribute safety shield.
-# Snabbdom may attempt to write an empty cx/cy/r while changing historical states.
-%x{
-  (function() {
-    if (window.__history_svg_numeric_shield_v2) return;
-    window.__history_svg_numeric_shield_v2 = true;
-
-    var elementSetAttribute = Element.prototype.setAttribute;
-    var elementSetAttributeNS = Element.prototype.setAttributeNS;
-
-    var safeSvgNumericValue = function(name, value) {
-      var attr = String(name || '').toLowerCase();
-      if (attr.indexOf(':') !== -1) attr = attr.split(':').pop();
-      if (attr !== 'cx' && attr !== 'cy' && attr !== 'r') return value;
-
-      if (value === null || value === undefined ||
-          (typeof Opal !== 'undefined' && value === Opal.nil)) {
-        return attr === 'r' ? '1' : '0';
-      }
-
-      var text = String(value).trim();
-      if (text === '' || text === 'NaN' || text === 'null' || text === 'undefined') {
-        return attr === 'r' ? '1' : '0';
-      }
-      return value;
-    };
-
-    Element.prototype.setAttribute = function(name, value) {
-      return elementSetAttribute.call(this, name, safeSvgNumericValue(name, value));
-    };
-
-    Element.prototype.setAttributeNS = function(namespace, name, value) {
-      return elementSetAttributeNS.call(this, namespace, name, safeSvgNumericValue(name, value));
-    };
-  })();
-}
-
 # 3. Continuously shield dynamically loaded games (like G1873) against unparred corporations
 %x{
   (function() {
