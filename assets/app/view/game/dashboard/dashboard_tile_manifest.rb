@@ -1,3 +1,4 @@
+require 'view/game/dashboard/dashboard_tile_selector'
 # frozen_string_literal: true
 
 # backtick_javascript: true
@@ -54,7 +55,7 @@ module View
             },
           }
 
-          selector = h(View::Game::TileSelector, layout: @game.layout, tiles: upgrade_tiles, unavailable_clickable: true,
+          selector = h(View::Game::DashboardTileSelector, layout: @game.layout, tiles: upgrade_tiles, unavailable_clickable: true,
                                                  role: :tile_page, left_col: left_col, right_col: right_col,
                                                  bottom_row: bottom_row, top_row: top_row)
 

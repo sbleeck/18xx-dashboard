@@ -5,7 +5,6 @@ require_relative '../action/buy_shares'
 require_relative '../action/par'
 require_relative '../action/sell_shares'
 require_relative '../step/buy_sell_par_shares'
-require_relative '../timer_rules'
 
 module Engine
   module Round
@@ -23,7 +22,6 @@ module Engine
       end
 
       def setup
-        Engine::TimerRules.apply_round_bonus!(@game, :stock)
         skip_steps
         next_entity! unless active_step
       end

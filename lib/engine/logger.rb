@@ -13,7 +13,7 @@ module Engine
         elsif production
           ::Logger::FATAL
         else
-          ::Logger::INFO
+          ::Logger::DEBUG
         end
     end
   end

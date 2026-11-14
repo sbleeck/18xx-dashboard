@@ -2,7 +2,7 @@
 
 # rubocop:disable Layout/LineLength
 require 'view/game/corporation'
-require 'lib/trains_data'
+require 'view/game/dashboard/trains_data'
 
 module View
   module Game

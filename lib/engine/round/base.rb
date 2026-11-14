@@ -102,8 +102,6 @@ module Engine
       end
 
       def process_action(action)
-        # warn '=== [UI ACTION DISPATCH] ==='
-        # warn "engine Action Class: #{action.class} | Payload: #{action.to_h}"
         type = action.type
         clear_cache!
 

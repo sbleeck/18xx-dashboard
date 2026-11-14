@@ -176,49 +176,12 @@ class Game < Base
     update(archive_data)
   end
 
-  def player_thinking_times
-    initial_time = settings['clock_initial'] || 300
-
-    times = ordered_players.each_with_object({}) do |p, hash|
-      hash[p.id] = initial_time.to_f
-    end
-
-    actions_array = actions.all
-    return times.transform_values(&:to_i) if actions_array.empty?
-
-    prev_time = created_at.to_f
-    # Check if this is an async game (adjust default based on your DB schema)
-    is_async = settings.fetch('is_async', true)
-
-    actions_array.each do |action|
-      current_time = action.created_at.to_f
-      delta = current_time - prev_time
-
-      # NEW: Suspend clock for dormant gaps in live/hotseat games
-      # If the gap is longer than 12 hours (43,200s), assume the game was paused/archived.
-      delta = 0 if !is_async && delta > 43_200
-
-      user_id = action.user_id
-      times[user_id] -= delta if times.key?(user_id)
-      prev_time = current_time
-    end
-
-    times.transform_values(&:to_i)
-  end
-
   def to_h(include_actions: false, logged_in_user_id: nil, admin: false)
     settings_h = settings.to_h
 
     # Move user settings and hide from other players
     user_settings_h = settings_h.dig('players', logged_in_user_id.to_s)
     settings_h.delete('players')
-
-    is_async = settings.fetch('is_async', true)
-    actual_last_action_ts = actions.last&.created_at_ts || created_at_ts
-    gap = Time.now.to_i - actual_last_action_ts
-
-    # NEW: Anchor UI clock to 'now' if resuming a dormant game
-    display_last_action_at = !is_async && gap > 43_200 ? Time.now.to_i : actual_last_action_ts
 
     {
       id: id,
@@ -235,14 +198,11 @@ class Game < Base
       round: round,
       acting: acting.to_a,
       result: result.to_h,
-      thinking_times: (include_actions ? player_thinking_times : {}),
-      last_action_at: display_last_action_at, # Output the anchored timestamp here
       actions: actions_h(include_actions: include_actions, logged_in_user_id: logged_in_user_id, admin: admin),
       loaded: include_actions,
       created_at: created_at_ts,
       updated_at: updated_at_ts,
       finished_at: finished_at_ts,
-
     }
   end
 

@@ -23,7 +23,6 @@ module Engine
       @history = []
       @unsold_companies = []
       @penalty = 0
-      @thinking_time_ms = 300_00
     end
 
     def value
@@ -32,10 +31,6 @@ module Engine
 
     def owner
       self
-    end
-
-    def thinking_time
-      (@thinking_time_ms / 1000.0).to_i
     end
 
     def player

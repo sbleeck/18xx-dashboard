@@ -1,3 +1,5 @@
+require 'view/game/dashboard/dashboard_tile_selector'
+require 'view/game/dashboard/dashboard_tile_confirmation'
 # frozen_string_literal: true
 
 require '../lib/storage'
@@ -2037,7 +2039,7 @@ module View
           nil
         elsif @tile_selector.hex.tile != @tile_selector.tile
           h(
-            TileConfirmation,
+            DashboardTileConfirmation,
             zoom: 1.0,
             large: true
           )
@@ -2115,7 +2117,7 @@ module View
           ].max
 
           h(
-            TileSelector,
+            DashboardTileSelector,
             layout: @layout,
             tiles: select_tiles,
             actions: actions,
