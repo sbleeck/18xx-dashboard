@@ -981,6 +981,15 @@ module View
           [operating_order, c]
         end
 
+        if @game.class.name.include?('G1824::Game')
+          # Display the engine's operating sequence, regardless of corporation type.
+          # Entities not in the operating order follow, retaining their existing order.
+          result.sort_by! do |order, _corporation|
+            [order[0] == FLOATED ? 0 : 1, order[1]]
+          end
+          return result
+        end
+
         result.sort_by! do |operating_order, corporation|
           is_minor = corporation.minor? ? 0 : 1
           minor_order = corporation.minor? ? operating_order[1] : 0

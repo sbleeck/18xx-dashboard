@@ -1184,7 +1184,11 @@ module View
           return nil if items.empty?
 
           buttons = items.map do |item|
-            desc = item.respond_to?(:description) ? item.description.to_s : item.to_s
+            desc = if step.respond_to?(:item_str)
+                     step.item_str(item).to_s
+                   else
+                     (item.respond_to?(:description) ? item.description.to_s : item.to_s)
+                   end
             cost = item.respond_to?(:cost) ? item.cost.to_i : 0
             label = cost.positive? ? "#{desc} (#{@game.format_currency(cost)})" : desc
             can_afford = cost <= 0 || (entity.respond_to?(:cash) ? entity.cash.to_i >= cost : true)
@@ -4184,6 +4188,11 @@ module View
                 stock_components << stock_buy_comp if stock_buy_comp
               end
 
+              if actions.include?('special_buy')
+                special_buy_row = render_special_buy_step(step, acting_entity, actions)
+                stock_components << special_buy_row if special_buy_row
+              end
+
               if actions.include?('merge') || actions.include?('convert')
                 stock_merge_row = render_merger_step(step, acting_entity, actions)
                 stock_components << stock_merge_row if stock_merge_row
@@ -4200,14 +4209,12 @@ module View
                 stock_components << loan_row if loan_row
               end
 
-              if stock_components.empty?
-                reminder = render_stock_possibility_reminder(actions)
-                stock_components << reminder if reminder
-              end
+              reminder = render_stock_possibility_reminder(actions)
+              stock_components.unshift(reminder) if reminder
 
               handled_stock_actions = %w[
                 buy_shares sell_shares par bid pass undo redo
-                buy_company buy_companies merge convert choose assign
+                buy_company buy_companies merge convert choose assign special_buy
                 short short_shares
                 issue issue_shares reissue reissue_shares corporate_sell_shares
                 redeem redeem_shares corporate_buy_shares
