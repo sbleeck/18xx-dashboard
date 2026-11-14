@@ -132,6 +132,18 @@ module View
       end
 
       def render
+        unless @dashboard_hover_state_initialized
+          Lib::Storage['hovered_last_corp'] = nil
+          @dashboard_hover_state_initialized = true
+          %x{
+            window._hoveredCorpLastHexes = null;
+            window._dashboardLastCorpHoverId = null;
+            if (window._dashboardLastCorpHoverWatchdog) {
+              clearInterval(window._dashboardLastCorpHoverWatchdog);
+              window._dashboardLastCorpHoverWatchdog = null;
+            }
+          }
+        end
         @spreadsheet_sort_by = Lib::Storage['spreadsheet_sort_by']
         @spreadsheet_sort_order = Lib::Storage['spreadsheet_sort_order']
         @hide_not_floated = Lib::Storage['spreadsheet_hide_not_floated']
@@ -1323,6 +1335,30 @@ module View
               Lib::Storage['hovered_last_corp'] = corporation.id
               %x{
                 window._hoveredCorpLastHexes = #{last_laid_hexes};
+                window._dashboardLastCorpHoverId = String(#{corporation.id});
+                if (window._dashboardLastCorpHoverWatchdog) {
+                  clearInterval(window._dashboardLastCorpHoverWatchdog);
+                }
+                window._dashboardLastCorpHoverWatchdog = setInterval(function() {
+                  var corpId = window._dashboardLastCorpHoverId;
+                  var rows = document.querySelectorAll('#viz-master-frame .status-corp-wrapper:hover');
+                  var stillHovered = false;
+                  for (var i = 0; i < rows.length; i++) {
+                    if (String(rows[i].getAttribute('data-corp')) === String(corpId)) {
+                      stillHovered = true;
+                      break;
+                    }
+                  }
+                  if (stillHovered) return;
+
+                  clearInterval(window._dashboardLastCorpHoverWatchdog);
+                  window._dashboardLastCorpHoverWatchdog = null;
+                  window._dashboardLastCorpHoverId = null;
+                  window._hoveredCorpLastHexes = null;
+                  try { localStorage.removeItem('hovered_last_corp'); } catch (e) {}
+                  if (window.clearMapHexHighlights) window.clearMapHexHighlights();
+                  if (window._dashboardRenderHexHighlights) window._dashboardRenderHexHighlights();
+                }, 250);
                 if (window.highlightMapHexes && #{last_laid_hexes}.length > 0) {
                   window.highlightMapHexes(#{last_laid_hexes}, null, true);
                 }
@@ -1333,8 +1369,16 @@ module View
               Lib::Storage['hovered_last_corp'] = nil if Lib::Storage['hovered_last_corp'] == corporation.id
               %x{
                 window._hoveredCorpLastHexes = null;
+                window._dashboardLastCorpHoverId = null;
+                if (window._dashboardLastCorpHoverWatchdog) {
+                  clearInterval(window._dashboardLastCorpHoverWatchdog);
+                  window._dashboardLastCorpHoverWatchdog = null;
+                }
                 if (window.clearMapHexHighlights) {
                   window.clearMapHexHighlights();
+                }
+                if (window._dashboardRenderHexHighlights) {
+                  window._dashboardRenderHexHighlights();
                 }
               }
               update

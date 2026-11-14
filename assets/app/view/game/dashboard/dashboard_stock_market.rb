@@ -959,51 +959,65 @@ function setPulsingForOthers(corpId, currentType) {
   var root = window.document.getElementById('viz-master-frame');
   if (!root || !root.isConnected) return;
 
-  // Pulse Stock Market token if not the trigger
+  var wantedCorp = String(corpId);
+  var safeCorp = (window.CSS && CSS.escape) ? CSS.escape(wantedCorp) :
+    wantedCorp.replace(/[^A-Za-z0-9_-]/g, '\\$&');
+
+  function matchingByCorp(selector) {
+    var nodes = root.querySelectorAll(selector);
+    var matches = [];
+    for (var i = 0; i < nodes.length; i++) {
+      var nodeCorp = nodes[i].getAttribute('data-corp');
+      if (String(nodeCorp) === wantedCorp) matches.push(nodes[i]);
+    }
+    return matches;
+  }
+
+  // Pulse Stock Market token if not the trigger. Select broadly, then compare
+  // data-corp literally so IDs such as B&O never enter a CSS selector.
   if (currentType !== 'stock') {
-              var stockTokens = root.querySelectorAll(
-                '.stock-market-token[data-corp="' + corpId + '"], #stock-token-' + corpId
-              );
-              for (var s = 0; s < stockTokens.length; s++) {
-                stockTokens[s].classList.add('marker-pulsing');
-              }
-            }
+    var stockTokens = matchingByCorp('.stock-market-token');
+    var stockById = root.querySelector('#stock-token-' + safeCorp);
+    if (stockById && stockTokens.indexOf(stockById) < 0) stockTokens.push(stockById);
+    for (var s = 0; s < stockTokens.length; s++) {
+      stockTokens[s].classList.add('marker-pulsing');
+    }
+  }
 
-            // Pulse Map token(s) if not the trigger
-            if (currentType !== 'map') {
-              var mapTokens = root.querySelectorAll(
-                '.map-token-' + CSS.escape(String(corpId)) + ', .map-token[data-corp="' + corpId + '"]'
-              );
-              for (var m = 0; m < mapTokens.length; m++) {
-                mapTokens[m].classList.add('marker-pulsing');
-              }
-            }
+  // Pulse Map token(s) if not the trigger.
+  if (currentType !== 'map') {
+    var mapTokens = matchingByCorp('.map-token');
+    var mapByClass = root.querySelectorAll('.map-token-' + safeCorp);
+    for (var mc = 0; mc < mapByClass.length; mc++) {
+      if (mapTokens.indexOf(mapByClass[mc]) < 0) mapTokens.push(mapByClass[mc]);
+    }
+    for (var m = 0; m < mapTokens.length; m++) {
+      mapTokens[m].classList.add('marker-pulsing');
+    }
+  }
 
-            // Pulse Status Table card if not the trigger
-            if (currentType !== 'status') {
-              var statusEls = root.querySelectorAll(
-                '#status_major_' + corpId + ', th.major-corporation-cell[data-corp="' + corpId + '"]'
-              );
-              if (statusEls.length === 0) {
-                var trTh = root.querySelector('tr[data-corp="' + corpId + '"] th.major-corporation-cell');
-                if (trTh) statusEls = [trTh];
-              }
-              for (var t = 0; t < statusEls.length; t++) {
-                statusEls[t].classList.add('marker-pulsing');
-              }
-            }
+  // Pulse Status Table card if not the trigger.
+  if (currentType !== 'status') {
+    var statusEls = matchingByCorp('th.major-corporation-cell, tr[data-corp]');
+    var statusById = root.querySelector('#status_major_' + safeCorp);
+    if (statusById && statusEls.indexOf(statusById) < 0) statusEls.push(statusById);
+    for (var st = 0; st < statusEls.length; st++) {
+      if (String(statusEls[st].tagName).toLowerCase() === 'tr') {
+        var heading = statusEls[st].querySelector('th.major-corporation-cell');
+        if (heading) heading.classList.add('marker-pulsing');
+      } else {
+        statusEls[st].classList.add('marker-pulsing');
+      }
+    }
+  }
 
-            if (currentType !== 'order') {
-              var orderTokens = root.querySelectorAll(
-                '.entity-order-token[data-corp="' + corpId + '"]'
-              );
-
-              for (var o = 0; o < orderTokens.length; o++) {
-                orderTokens[o].classList.add('marker-pulsing');
-              }
-            }
-          }
-
+  if (currentType !== 'order') {
+    var orderTokens = matchingByCorp('.entity-order-token');
+    for (var o = 0; o < orderTokens.length; o++) {
+      orderTokens[o].classList.add('marker-pulsing');
+    }
+  }
+}
           var activeCorp = null;
           var activeType = null;
 
