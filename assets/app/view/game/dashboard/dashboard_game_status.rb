@@ -33,6 +33,7 @@ require 'view/game/dashboard/dashboard_marker_animation'
 require 'view/game/dashboard/railcard_helper'
 require 'view/game/dashboard/par_prompt_overlay'
 require 'view/game/dashboard/history_overlay'
+require 'view/game/dashboard/dashboard_chess_clock_replay_adapter'
 
 FLOATED = 2
 UNFLOATED = 1
@@ -360,7 +361,7 @@ module View
         Lib::MarkerAnimation.check_and_animate(@game)
 
         h(:div, [
-          h('div#spreadsheet', { style: { overflow: 'auto', marginTop: '1rem' } }, [
+          h('div#spreadsheet', { style: { overflow: 'auto', marginTop: '1rem' }, hook: dashboard_chess_clock_hook }, [
             h(:style, css),
             render_corporation_table,
           ]),
@@ -438,32 +439,30 @@ module View
         end
 
         if [true, 'true'].include?(Lib::Storage['show_player_timers'])
-          server_times, last_ts = player_server_thinking_times
-          now_sec = `Math.floor(Date.now() / 1000)`.to_i
-          ongoing_sec = last_ts.positive? && !(@game.respond_to?(:finished?) && @game.finished?) ? [now_sec - last_ts, 0].max : 0
-
-          time_cells = [h('th.left', 'Time')]
+          clock = dashboard_chess_clock_result
+          time_cells = [h('th.left', 'Clock')]
           display_players.each_with_index do |p, idx|
-            is_ap = (p == active_player)
-            bg_color = is_ap ? COLOR_ACTIVE : COLOR_INACTIVE
-            is_last = idx == @game.players.size - 1
             pid = p.id.to_s
-
-            base_sec = server_times[pid] || 0
-            total_sec = base_sec + (is_ap ? ongoing_sec : 0)
-
-            cell_attrs = {
+            remaining = clock && clock.balance_for(pid)
+            is_active = clock && !clock.finished && clock.active_player_id == pid
+            bg_color = if remaining && remaining <= 0
+                         '#fecaca'
+                       elsif remaining && remaining <= 60
+                         '#fef3c7'
+                       else
+                         is_active ? COLOR_ACTIVE : COLOR_INACTIVE
+                       end
+            attrs = {
               id: "player-timer-#{pid}",
-              'data-base-sec': base_sec.to_s,
-              'data-last-ts': last_ts.to_s,
-              'data-active-timer': is_ap ? 'true' : 'false',
+              'data-clock-base': remaining.to_i.to_s,
+              'data-clock-active': is_active ? 'true' : 'false',
+              'data-clock-key': clock ? "#{clock.last_action_id}:#{clock.checksum}" : 'unavailable',
             }
-            cell_attrs['data-active-timer'] = 'true' if is_ap
-
-            time_cells << h("td.padded_number.money-value#{'.thick-right' if is_last}", {
-                              attrs: cell_attrs,
-                              style: { backgroundColor: bg_color },
-                            }, format_elapsed_clock(total_sec))
+            text = remaining.nil? ? 'N/A' : format_chess_clock(remaining)
+            time_cells << h("td.padded_number.money-value#{'.thick-right' if idx == display_players.size - 1}", {
+                              attrs: attrs,
+                              style: { backgroundColor: bg_color, fontVariantNumeric: 'tabular-nums' },
+                            }, text)
           end
           rows << time_cells
         end
@@ -854,6 +853,98 @@ module View
         [totals, prev_ts]
       rescue StandardError
         [Hash.new(0), 0]
+      end
+
+      # Reconstruct only when the server action history changes. Never mutate
+      # the live engine or make the action window own clock state.
+      def dashboard_chess_clock_result
+        data = @game_data
+        return nil unless data
+        actions = Array(data['actions'] || data[:actions])
+        return nil if actions.empty?
+        last = actions.last
+        last_id = action_value(last, :id)
+        last_ts = action_value(last, :created_at)
+        key = [data['id'] || data[:id], actions.size, last_id, last_ts]
+        return @dashboard_clock_result if @dashboard_clock_key == key
+
+        result = View::Game::Dashboard::ChessClock::ReplayAdapter.new(game_data: data).ledger
+        @dashboard_clock_key = key
+        @dashboard_clock_result = result
+        result
+      rescue StandardError => e
+        # A clock error must never prevent the status table or game controls
+        # from rendering. It must also never invent an authoritative balance.
+        @dashboard_clock_key = nil
+        @dashboard_clock_result = nil
+        `console.error('Dashboard chess clock reconstruction failed:', #{e.message.to_s})`
+        nil
+      end
+
+      def format_chess_clock(seconds)
+        value = seconds.to_i
+        sign = value.negative? ? '-' : ''
+        abs = value.abs
+        minutes = abs / 60
+        secs = abs % 60
+        "#{sign}#{minutes}:#{format('%02d', secs)}"
+      end
+
+      # Browser-only interpolation. Reanchor at each server-backed render.
+      # This is a provisional display, not an authoritative server clock.
+      def dashboard_chess_clock_hook
+        {
+          insert: ->(_vnode) { refresh_dashboard_chess_clock_ticker },
+          postpatch: ->(_old, _vnode) { refresh_dashboard_chess_clock_ticker },
+          destroy: lambda do |_vnode|
+            %x{
+              if (window._dashboardChessClockTicker) {
+                clearInterval(window._dashboardChessClockTicker);
+                window._dashboardChessClockTicker = null;
+              }
+            }
+          end,
+        }
+      end
+
+      def refresh_dashboard_chess_clock_ticker
+        %x{
+          if (window._dashboardChessClockTicker) {
+            clearInterval(window._dashboardChessClockTicker);
+            window._dashboardChessClockTicker = null;
+          }
+          var root = document.getElementById('spreadsheet');
+          if (!root) return;
+          var cells = root.querySelectorAll('[data-clock-base]');
+          var active = null;
+          for (var i = 0; i < cells.length; i++) {
+            if (cells[i].getAttribute('data-clock-active') === 'true') {
+              active = cells[i];
+              break;
+            }
+          }
+          if (!active) return;
+          var base = Number(active.getAttribute('data-clock-base'));
+          if (!isFinite(base)) return;
+          var anchor = performance.now();
+          var formatClock = function(value) {
+            var seconds = Math.abs(value);
+            var minutes = Math.floor(seconds / 60);
+            var rem = seconds % 60;
+            return (value < 0 ? '-' : '') + minutes + ':' + String(rem).padStart(2, '0');
+          };
+          window._dashboardChessClockTicker = setInterval(function() {
+            if (!document.body.contains(active)) {
+              clearInterval(window._dashboardChessClockTicker);
+              window._dashboardChessClockTicker = null;
+              return;
+            }
+            var elapsed = Math.floor((performance.now() - anchor) / 1000);
+            var value = base - elapsed;
+            active.textContent = formatClock(value);
+            active.style.backgroundColor = value <= 0 ? '#fecaca' : (value <= 60 ? '#fef3c7' : '#ffffff');
+          }, 250);
+        }
       end
 
       def format_elapsed_clock(total_sec)
