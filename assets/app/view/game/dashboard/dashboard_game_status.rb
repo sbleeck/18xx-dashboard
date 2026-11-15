@@ -872,7 +872,7 @@ module View
       rescue StandardError => e
         # A clock error must never prevent the status table or game controls
         # from rendering. It must also never invent an authoritative balance.
-        @dashboard_clock_key = nil
+        @dashboard_clock_key = key
         @dashboard_clock_result = nil
         `console.error('Dashboard chess clock reconstruction failed:', #{e.message})`
         nil

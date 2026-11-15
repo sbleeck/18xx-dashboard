@@ -19,6 +19,43 @@ require 'view/game/dashboard/chat_overlay'
 require 'view/game/dashboard/dashboard_ai_player'
 require 'view/game/dashboard/dashboard_ai_engine_search'
 require 'view/game/dashboard/dashboard_help_overlay'
+module View
+  module Game
+    class DashboardVisualizer < Snabberb::Component
+      def self.ensure_game_page_load_guard!
+        return unless defined?(::View::GamePage) &&
+                      ::View::GamePage.method_defined?(:load_game) &&
+                      !::View::GamePage.method_defined?(:_dashboard_orig_load_game)
+
+        ::View::GamePage.class_eval do
+          alias_method :_dashboard_orig_load_game, :load_game
+
+          def load_game
+            actions = @game_data && (@game_data['actions'] || @game_data[:actions])
+            last_act = actions.is_a?(Array) ? actions.last : nil
+            sig = [
+              @game_data && (@game_data['id'] || @game_data[:id]),
+              actions.is_a?(Array) ? actions.size : 0,
+              last_act.is_a?(Hash) ? (last_act['id'] || last_act[:id]) : nil,
+              last_act.is_a?(Hash) ? (last_act['type'] || last_act[:type]) : nil,
+            ]
+
+            if @game && @game.respond_to?(:exception) && @game.exception
+              if @_dashboard_broken_load_sig.nil? || @_dashboard_broken_load_sig == sig
+                @_dashboard_broken_load_sig = sig
+                return
+              end
+            end
+
+            _dashboard_orig_load_game
+
+            @_dashboard_broken_load_sig = @game && @game.respond_to?(:exception) && @game.exception ? sig : nil
+          end
+        end
+      end
+    end
+  end
+end
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
 module Engine
@@ -2054,6 +2091,8 @@ badge_el,
       end
 
       def render
+        self.class.ensure_game_page_load_guard!
+
         # Allow finished games to mount the complete dashboard, attach window._dashboardVisualizer,
         # and render the navigation cluster for history scrubbing and post-game review.
         #
@@ -2185,32 +2224,11 @@ badge_el,
                           }).catch(function() {});
                       }
                     }, 60000);
-                   window.formatPlayerClock = function(totalSec) {
-                      var s = Math.max(0, Math.floor(totalSec || 0));
-                      var hrs = Math.floor(s / 3600);
-                      var mins = Math.floor((s % 3600) / 60);
-                      var secs = s % 60;
-                      var pad = function(n) { return n < 10 ? '0' + n : String(n); };
-                     return hrs + ':' + pad(mins) + ':' + pad(secs);
-
-                    };
-
-                    if (window._playerClockInterval) {
+                 if (window._playerClockInterval) {
                       clearInterval(window._playerClockInterval);
+                      window._playerClockInterval = null;
                     }
-                   window._playerClockFallbackTs = window._playerClockFallbackTs || Math.floor(Date.now() / 1000);
-                    window._playerClockInterval = setInterval(function() {
-                      var cell = document.querySelector('#spreadsheet td[data-active-timer="true"]');
-                      if (!cell) return;
 
-                      var baseSec = parseInt(cell.getAttribute('data-base-sec') || '0', 10) || 0;
-                      var lastTs = parseInt(cell.getAttribute('data-last-ts') || '0', 10) || 0;
-                      var anchorTs = lastTs > 0 ? lastTs : window._playerClockFallbackTs;
-
-                      var nowSec = Math.floor(Date.now() / 1000);
-                      var ongoing = Math.max(0, nowSec - anchorTs);
-                      cell.textContent = window.formatPlayerClock(baseSec + ongoing);
-                    }, 1000);
                   )
 
                         `document.body.style.margin = '0'`

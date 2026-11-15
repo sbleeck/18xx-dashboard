@@ -70,6 +70,9 @@ module View
         needs :show_manual_routes, store: true, default: false
         needs :show_move_history, store: true, default: false
         needs :show_history_overlay, store: true, default: false
+        needs :selected_company, store: true, default: nil
+        needs :selected_company, store: true, default: nil
+        needs :selected_corporation, store: true, default: nil
 
         # ==========================================
         # HUD WINDOW LOGIC
@@ -890,8 +893,8 @@ module View
 
           ability_boxes = active_ability_companies.map do |c|
             card_text = (c.sym || c.name).to_s
-
             click_handler = lambda {
+              (store(:selected_company, nil); `window.clearMapHexHighlights && window.clearMapHexHighlights()`; next) if @selected_company == c
               c_actions = begin
                 @game.round.actions_for(c)
               rescue StandardError
@@ -978,7 +981,7 @@ module View
                       nil
                     },
                     mouseleave: lambda {
-                      `window.clearMapHexHighlights && window.clearMapHexHighlights()`
+                      `window.clearMapHexHighlights && window.clearMapHexHighlights()` unless @selected_company == c
                       nil
                     },
                   },
@@ -3758,7 +3761,7 @@ module View
             items << h(:span, { style: { fontStyle: 'italic', color: '#64748b', fontSize: '0.85rem' } }, 'No privates available to assign')
           end
 
-          if actions.include?('pass')
+          if actions.include?('pass') && !emergency_train_sale_context?(step, entity)
             ok_text = remaining_cost&.positive? ? "OK (Pay #{@game.format_currency(remaining_cost)} Cash)" : 'OK (Done)'
             items << h(:button, {
                          style: {
@@ -4696,6 +4699,7 @@ module View
             @routes = []
             store(:routes, @routes, skip: true)
             store(:show_manual_routes, false, skip: true)
+            store(:selected_company, nil, skip: true)
           end
 
           last_action =
@@ -5017,7 +5021,7 @@ module View
           advance_disabled = true
           advance_action = -> {}
 
-          if actions.include?('pass')
+          if actions.include?('pass') && !emergency_train_sale_context?(step, entity)
             advance_disabled = false
 
             advance_action = -> { process_action(Engine::Action::Pass.new(entity)) }

@@ -1513,7 +1513,7 @@ module View
         @start_pos = [@cols.first, @rows.first]
         @scale = 1.0
 
-        step = @game.round.active_step(@selected_company)
+        if @selected_company; st=begin; @game.round.active_step(@selected_company); rescue StandardError; nil; end; ac=begin; st ? Array(st.actions(@selected_company)) : []; rescue StandardError; []; end; if ac.empty?; store(:selected_company, nil, skip: true); @selected_company=nil; end; end; step = @game.round.active_step(@selected_company)
 
         current_entity = dashboard_current_entity(step)
         combo_entities = (@selected_combos || []).map { |id| @game.company_by_id(id) }.compact
@@ -1683,7 +1683,7 @@ module View
           show_token_highlight = if hover_mode || hex_selected
                                    false
                                  else
-                                   token_action_active && step.available_hex(current_entity, hex) && hex.tile.cities.any? { |city| city.tokenable?(current_entity) }
+                                   token_action_active && step.available_hex(current_entity, hex) && begin; tc=(@game.respond_to?(:token_owner) ? @game.token_owner(current_entity) : nil) || current_entity; ab=@game.respond_to?(:abilities) ? @game.abilities(current_entity, :token) : nil; fr=ab.respond_to?(:price) ? ab.price.to_i.zero? : false; hex.tile.cities.any? { |c| c.tokenable?(tc, free: fr, cheater: ab&.cheater, extra_slot: ab&.extra_slot) }; rescue StandardError; false; end
                                  end
 
           can_build = show_building_highlight || show_token_highlight

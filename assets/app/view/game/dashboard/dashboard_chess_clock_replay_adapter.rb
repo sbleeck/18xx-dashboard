@@ -20,23 +20,198 @@ module View
           MESSAGE_ACTION = 'message'
           PHASE_COLOURS = %w[yellow green brown grey].freeze
 
-          attr_reader :game_data, :loader, :warnings
+          # --- START FIX ---
+          MAX_CACHED_GAMES = 3
+
+          SessionState = Struct.new(:actions, :game, :transitions, :last_timestamp, :warnings, keyword_init: true)
+          LedgerCacheEntry = Struct.new(:fingerprint, :actions, :result, :warnings, :error, keyword_init: true)
+
+          @session_cache = {}
+          @ledger_cache = {}
+          @silent_logger = false
+
+          class << self
+            attr_reader :session_cache, :ledger_cache
+            attr_accessor :silent_logger
+
+            def clear_cache!
+              @session_cache.clear
+              @ledger_cache.clear
+            end
+
+            def remember_cache(cache, key, entry)
+              cache.delete(key)
+              cache[key] = entry
+              cache.shift while cache.size > MAX_CACHED_GAMES
+              entry
+            end
+
+            def ensure_silent_logger_hook!
+              return unless defined?(Logger) && Logger.method_defined?(:debug)
+              return if Logger.method_defined?(:_chess_clock_orig_debug)
+
+              Logger.class_eval do
+                alias_method :_chess_clock_orig_debug, :debug
+
+                def debug(...)
+                  return nil if ::View::Game::Dashboard::ChessClock::ReplayAdapter.silent_logger
+
+                  _chess_clock_orig_debug(...)
+                end
+              end
+            end
+          end
+          # --- END FIX ---
+
+          attr_reader :loader, :warnings
 
           def initialize(game_data:, loader: nil)
-            @game_data = deep_stringify_keys(game_data || {})
+            # --- START FIX ---
+            @raw_game_data = game_data || {}
+            @game_data = nil
+            # --- END FIX ---
             @loader = loader
             @warnings = []
             validate_game_data!
           end
 
+          # --- START FIX ---
+          def game_data
+            @game_data ||= deep_stringify_keys(@raw_game_data)
+          end
+          # --- END FIX ---
+
           def transitions
             @warnings = []
             actions = raw_actions
-            game = load_isolated_game(prefix_data(actions, 0))
-            output = []
-            last_timestamp = nil
+            # --- START FIX ---
+            key = cache_key
+            session = self.class.session_cache[key]
 
-            actions.each_with_index do |raw_action, index|
+            if session && actions.size >= session.actions.size && actions.first(session.actions.size) == session.actions
+              if actions.size == session.actions.size
+                @warnings = session.warnings.dup
+                return session.transitions.dup
+              end
+
+              return advance_transitions(
+                game: session.game,
+                actions: actions,
+                start_index: session.actions.size,
+                output: session.transitions.dup,
+                last_timestamp: session.last_timestamp,
+                prior_warnings: session.warnings,
+                key: key
+              )
+            end
+
+            game = load_isolated_game(prefix_data(actions, 0))
+            advance_transitions(
+              game: game,
+              actions: actions,
+              start_index: 0,
+              output: [],
+              last_timestamp: nil,
+              prior_warnings: [],
+              key: key
+            )
+            # --- END FIX ---
+          end
+
+          def ledger(config: Config.default)
+            # --- START FIX ---
+            lkey = cache_key(config)
+            cached = self.class.ledger_cache[lkey]
+            fp = fast_actions_fingerprint
+
+            if cached
+              if cached.fingerprint == fp
+                raise cached.error if cached.error
+
+                @warnings = cached.warnings.dup
+                return cached.result
+              end
+
+              actions = raw_actions
+              if cached.actions == actions
+                raise cached.error if cached.error
+
+                @warnings = cached.warnings.dup
+                return cached.result
+              end
+            end
+
+            player_ids = raw_players.map { |player| value(player, 'id') }.compact
+            result = Ledger.new(player_ids: player_ids, config: config).reconstruct(transitions)
+            self.class.remember_cache(
+              self.class.ledger_cache,
+              lkey,
+              LedgerCacheEntry.new(
+                fingerprint: fp,
+                actions: deep_dup(raw_actions),
+                result: result,
+                warnings: @warnings.dup,
+                error: nil
+              )
+            )
+            result
+          rescue Error => e
+            self.class.remember_cache(
+              self.class.ledger_cache,
+              lkey,
+              LedgerCacheEntry.new(
+                fingerprint: fp,
+                actions: deep_dup(raw_actions),
+                result: nil,
+                warnings: @warnings.dup,
+                error: e
+              )
+            )
+            raise
+            # --- END FIX ---
+          end
+
+          private
+
+          # --- START FIX ---
+          def raw_source_actions
+            Array(value(@raw_game_data, 'actions'))
+          end
+
+          def raw_source_players
+            Array(value(@raw_game_data, 'players'))
+          end
+
+          def fast_actions_fingerprint
+            src = raw_source_actions
+            last = src.last
+            [
+              src.size,
+              last ? value(last, 'id') : nil,
+              last ? value(last, 'created_at') : nil,
+              last ? value(last, 'type') : nil,
+            ]
+          end
+
+          def cache_key(config = nil)
+            gid = value(@raw_game_data, 'id')
+            if gid.nil? || gid.to_s.empty?
+              first_act = raw_source_actions.first
+              gid = [
+                value(@raw_game_data, 'title'),
+                raw_source_players.map { |p| value(p, 'id') },
+                first_act ? value(first_act, 'created_at') : nil,
+              ].hash
+            end
+            loader_key = @loader ? @loader.object_id : :default
+            config ? [gid, loader_key, config] : [gid, loader_key]
+          end
+
+          def advance_transitions(game:, actions:, start_index:, output:, last_timestamp:, prior_warnings:, key:)
+            @warnings = prior_warnings.dup
+
+            (start_index...actions.size).each do |index|
+              raw_action = actions[index]
               action = deep_stringify_keys(raw_action)
               action_id = action['id']
               action_type = action['type'].to_s
@@ -53,7 +228,7 @@ module View
               if %w[undo redo].include?(action_type)
                 game = load_isolated_game(prefix_data(actions, index + 1))
               else
-                game = game.process_action(action)
+                game = with_silent_logger { game.process_action(action) }
                 check_engine_exception!(game, action_id)
               end
 
@@ -61,20 +236,27 @@ module View
               next if action_type == MESSAGE_ACTION
 
               output << transition_for(game, action, index + 1, timestamp)
-            rescue Error
-              raise
             rescue StandardError => e
+              self.class.session_cache.delete(key)
+              raise if e.is_a?(Error)
+
               raise ReplayError, "Could not replay action #{action_id || (index + 1)}: #{e.class}: #{e.message}"
             end
+
+            self.class.remember_cache(
+              self.class.session_cache,
+              key,
+              SessionState.new(
+                actions: deep_dup(actions),
+                game: game,
+                transitions: output.dup,
+                last_timestamp: last_timestamp,
+                warnings: @warnings.dup
+              )
+            )
             output
           end
-
-          def ledger(config: Config.default)
-            player_ids = raw_players.map { |player| value(player, 'id') }.compact
-            Ledger.new(player_ids: player_ids, config: config).reconstruct(transitions)
-          end
-
-          private
+          # --- END FIX ---
 
           def transition_for(game, action, sequence, timestamp)
             round = game.respond_to?(:round) ? game.round : nil
@@ -199,24 +381,56 @@ module View
           end
 
           def load_isolated_game(data)
-            game = if @loader
-                     @loader.call(data)
-                   else
-                     unless defined?(Engine::Game) && Engine::Game.respond_to?(:load)
-                       raise UnsupportedLoader, 'Engine::Game.load is unavailable'
-                     end
+            # --- START FIX ---
+            game = with_silent_logger do
+              if @loader
+                @loader.call(data)
+              else
+                unless defined?(Engine::Game) && Engine::Game.respond_to?(:load)
+                  raise UnsupportedLoader, 'Engine::Game.load is unavailable'
+                end
 
-                     Engine::Game.load(data)
-                   end
+                Engine::Game.load(data)
+              end
+            end
             raise ReplayError, 'Replay loader returned no game' unless game
 
+            silence_game_logger!(game)
+            # --- END FIX ---
             check_engine_exception!(game, 'load')
             game
           end
 
+          # --- START FIX ---
+          def silence_game_logger!(game)
+            return unless defined?(Logger)
+
+            %i[log logger].each do |getter|
+              next unless game.respond_to?(getter)
+
+              log_obj = game.public_send(getter)
+              log_obj.level = Logger::WARN if log_obj && log_obj.respond_to?(:level=)
+            end
+          rescue StandardError
+            nil
+          end
+
+          def with_silent_logger
+            self.class.ensure_silent_logger_hook!
+            prev = ::View::Game::Dashboard::ChessClock::ReplayAdapter.silent_logger
+            ::View::Game::Dashboard::ChessClock::ReplayAdapter.silent_logger = true
+            yield
+          ensure
+            ::View::Game::Dashboard::ChessClock::ReplayAdapter.silent_logger = prev
+          end
+          # --- END FIX ---
+
           def check_engine_exception!(game, action_id)
             exception = safe_call(game, :exception)
-            raise ReplayError, "Engine rejected action #{action_id}: #{exception.class}: #{exception.message}" if exception
+            if exception
+              raise ReplayError,
+                    "Engine rejected action #{action_id}: #{exception.class}: #{exception.message}"
+            end
 
             broken = safe_call(game, :broken_action)
             raise ReplayError, "Engine reported broken action #{action_id}" if broken
@@ -237,9 +451,14 @@ module View
           end
 
           def validate_game_data!
-            raise ArgumentError, 'game_data must contain players' if raw_players.empty?
-            raise ArgumentError, 'game_data must contain actions' if raw_actions.empty?
-            raise ArgumentError, 'Every player must have a stable id' if raw_players.any? { |player| value(player, 'id').nil? }
+            # --- START FIX ---
+            players = raw_source_players
+            raise ArgumentError, 'game_data must contain players' if players.empty?
+            raise ArgumentError, 'game_data must contain actions' if raw_source_actions.empty?
+            raise ArgumentError, 'Every player must have a stable id' if players.any? do |player|
+                                                                           value(player, 'id').nil?
+                                                                         end
+            # --- END FIX ---
           end
 
           def parse_timestamp(raw)
