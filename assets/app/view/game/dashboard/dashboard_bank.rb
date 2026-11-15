@@ -179,8 +179,7 @@ module View
 
         if variant_is_buyable
           can_afford =
-            entity.cash >= price ||
-            entity.trains.empty?
+            entity.cash >= price
 
           if can_afford
             card_classes << 'action-buy'
@@ -642,8 +641,9 @@ module View
             card_classes = %w[game-card card-train]
             click_handler = nil
 
-            if train_buyable_step && active_entity&.corporation?
-              can_afford = active_entity.cash >= price || active_entity.trains.empty?
+            if train_buyable_step && active_entity&.corporation? &&
+               train_variant_buyable?(step, active_entity, train, variant_name)
+              can_afford = active_entity.cash >= price
 
               if can_afford
                 card_classes << 'action-buy'
