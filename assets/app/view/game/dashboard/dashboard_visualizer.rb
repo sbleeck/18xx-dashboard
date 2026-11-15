@@ -365,108 +365,7 @@ module View
       end
 
       def actions_window_open?
-        storage_key = actions_window_storage_key
-        stored_open = [true, 'true'].include?(Lib::Storage[storage_key])
-
-        if action_required_for_me?
-          @show_actions_window = true
-          Lib::Storage[storage_key] = true
-          return true
-        end
-
-        @show_actions_window == true || stored_open
-      end
-
-      def render_action_hub_button
-        is_open = actions_window_open?
-        is_required = action_required_for_me?
-
-        bg_color =
-          if is_required
-            '#dcfce7'
-          elsif is_open
-            '#eff6ff'
-          else
-            '#ffffff'
-          end
-
-        border_style =
-          if is_required
-            '2px solid #16a34a'
-          elsif is_open
-            '2px solid #2563eb'
-          else
-            '1px solid #cbd5e1'
-          end
-
-        text_color =
-          if is_required
-            '#15803d'
-          elsif is_open
-            '#1d4ed8'
-          else
-            '#334155'
-          end
-
-        click_action = lambda do
-          storage_key = actions_window_storage_key
-          currently_open = actions_window_open?
-          new_value = !currently_open
-
-          @show_actions_window = new_value
-          Lib::Storage[storage_key] = new_value
-
-          store(:show_actions_window, new_value)
-          update
-        end
-
-        title =
-          if is_required
-            'Actions Hub: action required'
-          elsif is_open
-            'Close Actions Hub'
-          else
-            'Open Actions Hub'
-          end
-
-        h(:button, {
-            attrs: {
-              id: 'btn-action-hub',
-              type: 'button',
-              title: title,
-              'aria-pressed': is_open ? 'true' : 'false',
-            },
-            style: {
-              position: 'relative',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '48px',
-              height: '48px',
-              minWidth: '48px',
-              padding: '0',
-              flexShrink: '0',
-              borderRadius: '8px',
-              backgroundColor: bg_color,
-              color: text_color,
-              border: border_style,
-              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
-              cursor: is_required ? 'default' : 'pointer',
-              lineHeight: '1',
-              zIndex: 10,
-              transition: 'all 0.2s ease',
-            },
-            on: {
-              click: click_action,
-            },
-          }, [
-            h(:span, {
-                style: {
-                  fontSize: '1.8rem',
-                  lineHeight: '1',
-                },
-              }, '⚡'),
-          ])
+        true
       end
 
       def render_history_button
@@ -578,24 +477,11 @@ module View
       end
 
       def render_action_window
-        return nil unless actions_window_open?
-
-        close_handler = lambda do
-          storage_key = actions_window_storage_key
-
-          @show_actions_window = false
-          Lib::Storage[storage_key] = false
-
-          store(:show_actions_window, false)
-          update
-        end
-
         h(
           ::View::Game::Dashboard::DashboardActionWindow,
           game: @game,
           game_data: @game_data,
-          user: @user,
-          on_close: close_handler
+          user: @user
         )
       end
 
@@ -1572,7 +1458,6 @@ module View
               zIndex: 99_999,
             },
           }, [
-            render_action_hub_button,
             render_history_button,
             render_move_history_button,
             render_other_games_button,
@@ -1832,15 +1717,6 @@ badge_el,
           Lib::Storage['cmd_manual_routes'] = false
           store(:show_manual_routes, false)
           store(:selected_route, nil)
-          any_closed = true
-        end
-
-        # 10. Voluntary Action Hub Drawer
-        storage_key = actions_window_storage_key
-        if (@show_actions_window == true || [true, 'true'].include?(Lib::Storage[storage_key])) && !action_required_for_me?
-          @show_actions_window = false
-          Lib::Storage[storage_key] = false
-          store(:show_actions_window, false)
           any_closed = true
         end
 
