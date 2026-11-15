@@ -445,13 +445,8 @@ module View
             pid = p.id.to_s
             remaining = clock && clock.balance_for(pid)
             is_active = clock && !clock.finished && clock.active_player_id == pid
-            bg_color = if remaining && remaining <= 0
-                         '#fecaca'
-                       elsif remaining && remaining <= 60
-                         '#fef3c7'
-                       else
-                         is_active ? COLOR_ACTIVE : COLOR_INACTIVE
-                       end
+            bg_color = is_active ? COLOR_ACTIVE : COLOR_INACTIVE
+            clock_color = remaining && remaining.negative? ? '#dc2626' : 'inherit'
             attrs = {
               id: "player-timer-#{pid}",
               'data-clock-base': remaining.to_i.to_s,
@@ -461,7 +456,7 @@ module View
             text = remaining.nil? ? 'N/A' : format_chess_clock(remaining)
             time_cells << h("td.padded_number.money-value#{'.thick-right' if idx == display_players.size - 1}", {
                               attrs: attrs,
-                              style: { backgroundColor: bg_color, fontVariantNumeric: 'tabular-nums' },
+                              style: { backgroundColor: bg_color, color: clock_color, fontVariantNumeric: 'tabular-nums' },
                             }, text)
           end
           rows << time_cells
@@ -860,8 +855,10 @@ module View
       def dashboard_chess_clock_result
         data = @game_data
         return nil unless data
+
         actions = Array(data['actions'] || data[:actions])
         return nil if actions.empty?
+
         last = actions.last
         last_id = action_value(last, :id)
         last_ts = action_value(last, :created_at)
@@ -877,7 +874,7 @@ module View
         # from rendering. It must also never invent an authoritative balance.
         @dashboard_clock_key = nil
         @dashboard_clock_result = nil
-        `console.error('Dashboard chess clock reconstruction failed:', #{e.message.to_s})`
+        `console.error('Dashboard chess clock reconstruction failed:', #{e.message})`
         nil
       end
 
@@ -885,7 +882,7 @@ module View
         value = seconds.to_i
         sign = value.negative? ? '-' : ''
         abs = value.abs
-        minutes = abs / 60
+        minutes = (abs / 60).floor
         secs = abs % 60
         "#{sign}#{minutes}:#{format('%02d', secs)}"
       end
@@ -942,7 +939,7 @@ module View
             var elapsed = Math.floor((performance.now() - anchor) / 1000);
             var value = base - elapsed;
             active.textContent = formatClock(value);
-            active.style.backgroundColor = value <= 0 ? '#fecaca' : (value <= 60 ? '#fef3c7' : '#ffffff');
+            active.style.color = value < 0 ? '#dc2626' : 'inherit';
           }, 250);
         }
       end
