@@ -227,7 +227,7 @@ module View
 
         available_count = train_available_count(train, variant_name, from_pool: (type == 'pool'))
         rem_text = train.respond_to?(:unlimited) && train.unlimited ? '(∞)' : "(#{available_count})"
-        dom_id = "bank_train_#{type}_#{train.id}_#{variant_name.to_s.tr('/', '_')}"
+        dom_id = "bank_train_#{type}_#{train.id}_#{variant_name}".gsub(/[^a-zA-Z0-9_-]/, '_')
         display_train = train_entity_for_variant(train, variant_name, price)
         card_el = render_railcard(variant_name.to_s, card_classes, click_handler, entity: display_train)
 
@@ -665,7 +665,7 @@ module View
             end
 
             available_count = train_available_count(train, variant_name)
-            dom_id = "bank_train_#{train.id}_#{variant_name.to_s.tr('/', '_')}"
+            dom_id = "bank_train_#{train.id}_#{variant_name}".gsub(/[^a-zA-Z0-9_-]/, '_')
             display_train = train_entity_for_variant(train, variant_name, price)
             card_el = render_railcard(variant_name.to_s, card_classes, click_handler, entity: display_train)
 
