@@ -157,19 +157,18 @@ module View
         variant_name = item[:variant_name]
         price = item[:price]
 
-        step = @game.round.active_step
         entity = active_entity
+        step = train_purchase_step(entity)
 
         train_buyable_step =
-          step.respond_to?(:current_actions) &&
-          step.current_actions.include?('buy_train')
+          actions_for(entity).include?('buy_train')
 
         card_classes = %w[game-card card-train]
         click_handler = nil
 
         variant_is_buyable =
           train_buyable_step &&
-          entity&.corporation? &&
+          entity && entity.respond_to?(:cash) &&
           train_variant_buyable?(
             step,
             entity,
@@ -228,11 +227,32 @@ module View
         available_count = train_available_count(train, variant_name, from_pool: (type == 'pool'))
         rem_text = train.respond_to?(:unlimited) && train.unlimited ? '(∞)' : "(#{available_count})"
         dom_id = "bank_train_#{type}_#{train.id}_#{variant_name}".gsub(/[^a-zA-Z0-9_-]/, '_')
+        # Diagnostic attributes expose the precise eligibility gate in the browser DOM.
+        debug_entity = entity
+        debug_step = step
+        debug_actions = actions_for(debug_entity)
+        debug_buyable = begin
+          debug_step && debug_step.respond_to?(:buyable_trains) ? Array(debug_step.buyable_trains(debug_entity)) : []
+        rescue StandardError
+          []
+        end
+        debug_attrs = {
+          'data-bank-entity' => debug_entity&.name.to_s,
+          'data-bank-entity-class' => debug_entity.class.to_s,
+          'data-bank-cash' => debug_entity.respond_to?(:cash) ? debug_entity.cash.to_s : '',
+          'data-bank-step' => debug_step.class.to_s,
+          'data-bank-actions' => debug_actions.join(','),
+          'data-bank-train-id' => train.id.to_s,
+          'data-bank-engine-trains' => debug_buyable.map { |t| "#{t.id}:#{t.name}" }.join(','),
+          'data-bank-matched' => debug_buyable.include?(train).to_s,
+          'data-bank-variant-ok' => train_variant_buyable?(debug_step, debug_entity, train, variant_name).to_s,
+          'data-bank-affordable' => (debug_entity.respond_to?(:cash) && debug_entity.cash >= price).to_s,
+        }
         display_train = train_entity_for_variant(train, variant_name, price)
         card_el = render_railcard(variant_name.to_s, card_classes, click_handler, entity: display_train)
 
         card_td = h('td.left', { key: "#{dom_id}_card", style: { padding: '2px 4px', verticalAlign: 'middle' } }, [
-          h(:div, { attrs: { id: dom_id }, style: { display: 'inline-flex', alignItems: 'center' } }, [card_el]),
+          h(:div, { attrs: { id: dom_id }.merge(debug_attrs), style: { display: 'inline-flex', alignItems: 'center' } }, [card_el]),
         ])
 
         info_td = h('td.right', { key: "#{dom_id}_info", style: { padding: '2px 4px', verticalAlign: 'middle', whiteSpace: 'nowrap' } }, [
@@ -256,54 +276,50 @@ module View
       end
 
       def displayed_train_variants(train)
-        if train.respond_to?(:names_to_prices) &&
-           train.names_to_prices &&
-           !train.names_to_prices.empty?
+        variants = train.respond_to?(:variants) ? (train.variants || {}) : {}
+        if !variants.empty?
+          variants.each_with_object({}) do |(name, data), result|
+            actual_name = data.respond_to?(:[]) ? (data[:name] || data['name'] || name) : name
+            price = data.respond_to?(:[]) ? (data[:price] || data['price'] || train.price) : train.price
+            result[actual_name] = price
+          end
+        elsif train.respond_to?(:names_to_prices) && train.names_to_prices && !train.names_to_prices.empty?
           train.names_to_prices
-        elsif train.respond_to?(:variants) &&
-              train.variants &&
-              !train.variants.empty?
-          train.variants.transform_values { |variant| variant[:price] || train.price }
         else
           { train.name => train.price }
         end
       end
 
+      # Match the Action Hub's engine-based train candidate selection.
+      # The bank additionally requires corporation cash, not emergency buying power.
       def train_variant_buyable?(step, entity, train, variant_name)
-        return false unless step && entity
-        return false unless step.respond_to?(:buyable_trains)
+        return false unless step && entity && step.respond_to?(:buyable_trains)
+        return false unless Array(step.buyable_trains(entity)).include?(train)
 
-        buyable_trains =
-          begin
-            step.buyable_trains(entity) || []
-          rescue StandardError
-            []
-          end
+        return false if step.respond_to?(:can_buy_train?) && !step.can_buy_train?(entity, train)
 
-        return false unless buyable_trains.include?(train)
-
-        unless step.respond_to?(:buyable_train_variants) &&
-               train.respond_to?(:variants)
-          return true
-        end
-
-        begin
+        if step.respond_to?(:buyable_train_variants) && train.respond_to?(:variants)
+          allowed = Array(step.buyable_train_variants(train, entity))
           variants = train.variants || {}
+          return variants.any? do |name, data|
+            next false unless allowed.include?(data)
 
-          variant =
-            variants[variant_name] ||
-            variants[variant_name.to_s] ||
-            variants[variant_name.to_sym]
-
-          return false unless variant
-
-          allowed_variants =
-            step.buyable_train_variants(train, entity) || []
-
-          allowed_variants.include?(variant)
-        rescue StandardError
-          false
+            actual_name = data.respond_to?(:[]) ? (data[:name] || data['name'] || name) : name
+            actual_name.to_s == variant_name.to_s
+          end
         end
+
+        true
+      rescue StandardError
+        false
+      end
+
+      def train_purchase_step(entity)
+        @game.round.active_step(entity)
+      rescue ArgumentError
+        @game.round.active_step
+      rescue StandardError
+        nil
       end
 
       def render_trains_table
@@ -626,8 +642,8 @@ module View
         active_trains = available_depot_trains
         return [] if active_trains.empty?
 
-        step = @game.round.active_step
-        train_buyable_step = step&.current_actions&.include?('buy_train')
+        step = train_purchase_step(active_entity)
+        train_buyable_step = actions_for(active_entity).include?('buy_train')
         rows = []
 
         active_trains.each do |train|
@@ -641,7 +657,7 @@ module View
             card_classes = %w[game-card card-train]
             click_handler = nil
 
-            if train_buyable_step && active_entity&.corporation? &&
+            if train_buyable_step && active_entity && active_entity.respond_to?(:cash) &&
                train_variant_buyable?(step, active_entity, train, variant_name)
               can_afford = active_entity.cash >= price
 
