@@ -70,28 +70,10 @@ module View
         needs :show_manual_routes, store: true, default: false
         needs :show_move_history, store: true, default: false
         needs :show_history_overlay, store: true, default: false
-        needs :on_close, default: nil
-        needs :minimized, default: false
 
         # ==========================================
         # HUD WINDOW LOGIC
         # ==========================================
-
-        def close_window
-          @on_close&.call
-        end
-
-        def minimized?
-          val = Lib::Storage['action_window_minimized']
-          val == true || val == 'true' || @minimized == true
-        end
-
-        def toggle_minimize
-          new_val = !minimized?
-          Lib::Storage['action_window_minimized'] = new_val ? 'true' : 'false'
-          @minimized = new_val
-          update
-        end
 
         def start_drag(e)
           %x{
@@ -3197,7 +3179,7 @@ module View
                 height: geom['height'],
                 maxWidth: 'none',
                 maxHeight: 'none',
-                zIndex: '10000005',
+                zIndex: '2147483000',
                 backgroundColor: '#ffffff',
                 border: '2px solid #2563eb',
                 borderRadius: '8px',
@@ -3223,7 +3205,7 @@ module View
                     mousedown: ->(e) { start_drag(e) },
                   },
                 }, [
-                  h(:span, '⚡ Action Hub'),
+                  h(:span, 'Action Hub'),
                   h(:button, {
                       attrs: {
                         id: 'btn-action-hub-assist',
