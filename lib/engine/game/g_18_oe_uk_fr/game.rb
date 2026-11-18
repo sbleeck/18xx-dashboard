@@ -19,11 +19,13 @@ module Engine
 
         TRAIN_COUNTS = { '2+2' => 10, '3' => 7, '4' => 3, '5' => 3, '6' => 2, '7+7' => 4, '8+8' => 3 }.freeze
         TRAINS = G18OE::Game::TRAINS.map do |train|
-          scenario = train.merge(num: TRAIN_COUNTS[train[:name]])
+          scenario = train.merge(num: TRAIN_COUNTS.fetch(train[:name], train[:num]))
           train[:name] == '7+7' ? scenario.merge(events: [{ 'type' => 'level_8_available', 'when' => 1 }]) : scenario
         end.freeze
 
         MAX_FLOATED_REGIONALS = 6
+        PORT_AUTHORITIES = { north_sea: 4, mediterranean: 6 }.freeze
+        PORT_AUTHORITY_LIMIT = 2
 
         PATRONAGE_DRAWS = [{ group: :yellow, zone: 'F', count: 2 }, { group: :pink, zone: 'U', count: 2 }].freeze
 

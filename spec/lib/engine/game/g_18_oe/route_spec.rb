@@ -3,56 +3,7 @@
 require 'spec_helper'
 require 'json'
 require 'timeout'
-require_relative 'helpers'
-
-shared_context 'with 18OE route helpers' do
-  include G18OESpecHelpers
-
-  let(:game) { new_game }
-  let(:corp) { game.corporation_by_id('A') }
-  let(:c1) { game.hex_by_id('J79').tile.cities.first }
-  let(:c3) { game.hex_by_id('J83').tile.cities.first }
-  let(:c2) { game.hex_by_id('K80').tile.cities.first }
-
-  def buy_train!(name)
-    train = game.trains.find { |t| t.name == name && !t.owner.is_a?(Engine::Corporation) }
-    game.buy_train(corp, train, :free)
-    train
-  end
-
-  def route_through(train, *nodes)
-    route = Engine::Route.new(game, game.phase, train, routes: [])
-    route.routes = [route]
-    nodes.each { |node| route.touch_node(node) }
-    route
-  end
-
-  def explicit_route(train, *nodes)
-    route = Engine::Route.new(game, game.phase, train, routes: [])
-    route.routes = [route]
-    nodes.each_cons(2) do |left, right|
-      chain = route.select(left, right).first
-      raise "No unused connection between #{left.signature} and #{right.signature}" unless chain
-
-      route.connection_data << route.segment(chain, left: left)
-    end
-    route
-  end
-
-  def lay_code!(hex_id, code)
-    game.hex_by_id(hex_id).lay(Engine::Tile.from_code("X#{hex_id}", :green, code))
-  end
-
-  def rebuild(route)
-    rebuilt = Engine::Route.new(game, game.phase, route.train, routes: [], connection_hexes: route.connection_hexes)
-    rebuilt.routes = [rebuilt]
-    rebuilt
-  end
-
-  def node_sequence(route)
-    route.connection_data.map { |c| [c[:left], c[:right]] }
-  end
-end
+require_relative 'route_helpers'
 
 describe 'G18OE routes through a town twice (§11.3.1)' do
   include_context 'with 18OE route helpers'
@@ -168,7 +119,7 @@ describe 'G18OE routes through a town twice (§11.3.1)' do
       nodes = town_first ? [town, c2] : [c2, town]
       route = explicit_route(five, *nodes)
       original = route.connection_data.first
-      allow(game).to receive(:route_node_revisitable?).and_return(false)
+      allow(town).to receive(:revisitable?).and_return(false)
       route.touch_node(town)
 
       expect(route.connection_data.size).to be < 2
@@ -184,10 +135,9 @@ describe 'G18OE routes through a town twice (§11.3.1)' do
     end
   end
 
-  it 'asks the game about revisiting an endpoint of another node type' do
+  it 'revisits an endpoint of another node type that reports itself revisitable' do
     route = explicit_route(five, c2, town)
-    allow(game).to receive(:route_node_revisitable?).and_return(false)
-    allow(game).to receive(:route_node_revisitable?).with(c2).and_return(true)
+    allow(c2).to receive(:revisitable?).and_return(true)
     route.touch_node(c2)
 
     expect(route.connection_data.size).to eq(2)
@@ -212,7 +162,7 @@ describe 'G18OE routes through a town twice (§11.3.1)' do
   end
 
   it 'does not close a loop on the starting town when the game does not allow revisiting it' do
-    allow(game).to receive(:route_node_revisitable?).and_return(false)
+    allow(town).to receive(:revisitable?).and_return(false)
     route = route_through(five, town, c2, town)
 
     expect(route.connection_data).to be_empty
@@ -220,7 +170,7 @@ describe 'G18OE routes through a town twice (§11.3.1)' do
 
   it 'rejects a town revisit when the game does not allow it' do
     segments = route_through(five, c1, town, c2, town, c3).connection_data
-    allow(game).to receive(:route_node_revisitable?).and_return(false)
+    allow(town).to receive(:revisitable?).and_return(false)
     route = Engine::Route.new(game, game.phase, five, routes: [], connection_data: segments)
     route.routes = [route]
 
@@ -343,6 +293,19 @@ describe 'G18OE routes through a town twice (§11.3.1)' do
 
     expect(rebuilt.visited_stops).to contain_exactly(c1, town, c3)
     expect(rebuilt.revenue).to eq(route.revenue)
+  end
+
+  it 'auto-router offers the route through the town twice' do
+    best = auto_best(five)
+
+    expect(best.revenue).to eq(100)
+    expect(best.visited_stops).to contain_exactly(c1, town, c2, c3)
+  end
+
+  it 'auto-router does not revisit a town when the game disallows it' do
+    allow(town).to receive(:revisitable?).and_return(false)
+
+    expect(auto_best(five).revenue).to eq(70)
   end
 
   context 'when inferring the first segment of a legacy save from hand-built chains' do
@@ -502,7 +465,7 @@ describe 'G18OE routes through a double town twice (§11.3.1)' do
 
   it 'rejects a double-town revisit when the game does not allow it' do
     segments = explicit_route(buy_train!('5'), c1, double_town, c2, double_town, c3).connection_data
-    allow(game).to receive(:route_node_revisitable?).and_return(false)
+    allow(double_town).to receive(:revisitable?).and_return(false)
     route = Engine::Route.new(game, game.phase, buy_train!('3'), routes: [], connection_data: segments)
     route.routes = [route]
 
@@ -526,6 +489,12 @@ describe 'G18OE routes through a double town twice (§11.3.1)' do
 
     expect(rebuilt.visited_stops).to contain_exactly(*double_town.stops, c2)
     expect(rebuilt.revenue).to eq(50)
+  end
+
+  it 'auto-router offers the double-town revisit' do
+    train = buy_train!('5')
+
+    expect(auto_best(train).revenue).to eq(110)
   end
 
   context 'with a second track from the first city into the double town' do
@@ -684,7 +653,8 @@ describe 'G18OE double-town clicks match single-town clicks' do
       'J83' => 'city=revenue:40;path=a:1,b:_0',
       'J77' => 'city=revenue:10;path=a:4,b:_0',
     }.merge(extras).each do |id, tile_code|
-      fresh.hex_by_id(id).lay(Engine::Tile.from_code("X#{id}", :green, tile_code))
+      fresh.hex_by_id(id).lay(Engine::Tile.from_code("X#{id}", :green, tile_code,
+                                                     revisitable_nodes: fresh.class::REVISITABLE_NODES))
     end
     owner = fresh.corporation_by_id('A')
     fresh.hex_by_id('J79').tile.cities.first.place_token(owner, owner.next_token, check_tokenable: false)
@@ -750,5 +720,28 @@ describe 'G18OE double-town clicks match single-town clicks' do
 
     expect(double).to eq(single)
     expect(single.first).to eq(%w[J77 J79])
+  end
+end
+
+describe 'G18OE auto-router with the token between the two passes (§11.3.1)' do
+  include_context 'with 18OE route helpers'
+
+  let(:five) { buy_train!('5') }
+
+  before do
+    lay_code!('J81', 'town=revenue:10;path=a:0,b:_0;path=a:1,b:_0;path=a:4,b:_0;path=a:5,b:_0')
+    lay_code!('J79', 'city=revenue:20;path=a:4,b:_0')
+    lay_code!('J83', 'city=revenue:40;path=a:1,b:_0')
+    lay_code!('K80', 'city=revenue:30;path=a:3,b:_0;path=a:4,b:_0')
+    lay_code!('K82', 'path=a:1,b:2')
+    c2.place_token(corp, corp.next_token, check_tokenable: false)
+    game.graph.clear
+  end
+
+  it 'offers a revisit route that rebuilds at the same revenue' do
+    best = auto_best(five)
+
+    expect(best.revenue).to eq(100)
+    expect(rebuild(best).revenue).to eq(100)
   end
 end

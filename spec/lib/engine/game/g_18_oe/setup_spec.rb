@@ -10,6 +10,15 @@ describe 'G18OE setup' do
   let(:cards) { game.depot.upcoming.uniq(&:name).to_h { |t| [t.name, t] } }
   let(:market_cells) { game.stock_market.market.flatten.compact }
 
+  it 'makes Fast Start exclusive with Medium Start for 3–7 players (PB 5.1)' do
+    meta = Engine::Game::G18OE::Meta
+    rule = meta::OPTIONAL_RULES.find { |r| r[:sym] == :fast_start }
+
+    expect(meta::MUTEX_RULES).to include(%i[fast_start medium_start])
+    expect(rule[:players]).to eq([3, 4, 5, 6, 7])
+    expect(Engine::Game::G18OEUKFR::Meta::OPTIONAL_RULES.map { |r| r[:sym] }).not_to include(:fast_start)
+  end
+
   it 'splits £5,400 starting capital per player, rounded up to £5 (§3.3, PB 5.4)' do
     cash = (2..7).to_h { |n| [n, new_game(Array.new(n) { |i| "p#{i}" }).players.first.cash] }
 
@@ -51,8 +60,8 @@ describe 'G18OE setup' do
     expect(rule[:players]).to eq([3, 4, 5, 6, 7])
   end
 
-  it 'offers Medium Start in the base game but not UK-France, and Long Endgame in both' do
-    expect(Engine::Game::G18OE::Meta::OPTIONAL_RULES.map { |r| r[:sym] }).to eq(%i[medium_start long_endgame])
+  it 'offers Fast and Medium Start in the base game but not UK-France, and Long Endgame in both' do
+    expect(Engine::Game::G18OE::Meta::OPTIONAL_RULES.map { |r| r[:sym] }).to eq(%i[fast_start medium_start long_endgame])
     expect(Engine::Game::G18OEUKFR::Meta::OPTIONAL_RULES.map { |r| r[:sym] }).to eq([:long_endgame])
   end
 
@@ -86,14 +95,14 @@ describe 'G18OE setup' do
 
   it 'stocks the Locomotive Works (§3.1)' do
     expect(game.depot.upcoming.map(&:name).tally)
-      .to eq('2+2' => 30, '3' => 20, '4' => 10, '5' => 8, '6' => 6, '7+7' => 14, '8+8' => 8)
+      .to eq('2+2' => 30, '3' => 20, '4' => 10, '5' => 8, '6' => 6, '7+7' => 14, '8+8' => 8, 'Pullman' => 10)
   end
 
   it 'pairs local and express sides on each card (§11.3.2)' do
     sides = cards.transform_values { |t| t.variants.keys }
 
     expect(sides).to eq('2+2' => ['2+2'], '3' => %w[3 3+3], '4' => %w[4 4+4], '5' => %w[5 5+5],
-                        '6' => %w[6 6+6], '7+7' => %w[7+7 4D], '8+8' => %w[8+8 5D])
+                        '6' => %w[6 6+6], '7+7' => %w[7+7 4D], '8+8' => %w[8+8 5D], 'Pullman' => ['Pullman'])
   end
 
   it 'prices the 3 at £200 and the 3+3 at £225 (§11.6.4)' do
@@ -197,6 +206,6 @@ describe 'G18OE setup' do
     rusts = cards.transform_values { |t| t.variants.values.map { |v| v[:rusts_on] }.uniq }
 
     expect(rusts).to eq('2+2' => ['4'], '3' => ['6'], '4' => ['8+8'], '5' => [nil], '6' => [nil],
-                        '7+7' => [nil], '8+8' => [nil])
+                        '7+7' => [nil], '8+8' => [nil], 'Pullman' => [nil])
   end
 end

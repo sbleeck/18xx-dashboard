@@ -3,7 +3,7 @@
 module Engine
   module Game
     module G18OE
-      class SeaNetwork
+      class SeaConnectivity
         SEA_ZONE_WATER_DISTANCE = 2
 
         attr_reader :anchors
@@ -13,13 +13,14 @@ module Engine
           @corporation = corporation
           @token_cities = game.hexes.flat_map { |hex| hex.tile.cities }
             .select { |city| game.city_tokened_by?(city, corporation) }
+            .reject { |city| game.pass_through_city?(city, corporation) }
           @token_hex_ids = @token_cities.map { |city| city.hex.id }.uniq
           @parent = {}
           @island_ids = {}
           build_islands!
           build_anchors!
           build_edges!
-          @costs = shortest_costs(start_nodes)
+          @costs = reduced_seas.empty? ? shortest_costs(start_nodes) : reduced_costs(start_nodes)
         end
 
         def usable?(hex_id, exit)
@@ -27,15 +28,11 @@ module Engine
           return false unless data
           return true unless data[:port]
 
-          data[:port] == :public || @token_hex_ids.include?(hex_id)
+          @game.port_usable?(hex_id, exit, @corporation)
         end
 
         def ferry_links(hex_id, exit)
-          data = @anchors[[hex_id, exit]]
-          return [] unless data
-
-          (data[:ferries] || []).select { |ferry| @game.hex_by_id(ferry[:hex]) }
-            .map { |ferry| [[ferry[:hex], ferry[:exit]], ferry[:distance]] }
+          @game.ferry_links(hex_id, exit)
         end
 
         def island_of(path)
@@ -90,11 +87,16 @@ module Engine
         end
 
         def landing_nodes
-          landing_anchors.flat_map do |hex_id, exit|
-            tile = @game.hex_by_id(hex_id).tile
-            nodes = exit == :offshore ? tile.cities : tile.paths.select { |path| path.exits.include?(exit) }.flat_map(&:nodes)
-            nodes.reject { |node| node.blocks?(@corporation) }
-          end.uniq
+          landing_anchors.flat_map { |hex_id, exit| anchor_nodes(hex_id, exit) }.reject { |node| node.blocks?(@corporation) }.uniq
+        end
+
+        def landing_offboards
+          landing_anchors.flat_map { |hex_id, exit| anchor_nodes(hex_id, exit) }.select(&:offboard?).uniq
+        end
+
+        def anchor_nodes(hex_id, exit)
+          hex = @game.hex_by_id(hex_id)
+          exit == :offshore ? hex.tile.cities : (hex.paths[exit] || []).flat_map(&:nodes)
         end
 
         private
@@ -125,21 +127,81 @@ module Engine
           @anchors.each do |(hex_id, exit), data|
             key = [hex_id, exit]
             anchor_island_ids(hex_id, exit).each { |id| link!(key, id, 0) }
-            ferry_links(hex_id, exit).each { |other, distance| link!(key, other, distance) if @anchors.key?(other) }
+            ferry_links(hex_id, exit).each do |other, distance|
+              link!(key, other, distance, ferry_sea(key, other)) if @anchors.key?(other)
+            end
             zone = data[:port] && usable?(hex_id, exit) && @game.port_sea_zone(hex_id, exit)
             next unless zone
 
-            @edges[key] << [zone, SEA_ZONE_WATER_DISTANCE]
+            @edges[key] << [zone, SEA_ZONE_WATER_DISTANCE, @game.sea(zone)]
             @edges[zone] << [key, 0]
           end
           @game.sea_zone_neighbors.each do |zone, others|
-            others.each { |other| @edges[zone] << [other, SEA_ZONE_WATER_DISTANCE] }
+            others.each { |other| @edges[zone] << [other, SEA_ZONE_WATER_DISTANCE, @game.sea(other)] }
           end
         end
 
-        def link!(first, second, weight)
-          @edges[first] << [second, weight]
-          @edges[second] << [first, weight]
+        def link!(first, second, weight, ferry_sea = nil)
+          @edges[first] << [second, weight, ferry_sea, true]
+          @edges[second] << [first, weight, ferry_sea, true]
+        end
+
+        def ferry_sea(first, second)
+          zone = [first, second].map { |hex_id, exit| @game.port_sea_zone(hex_id, exit) }.compact.first
+          zone && @game.sea(zone)
+        end
+
+        def reduced_seas
+          @reduced_seas ||= @game.port_authorities(@corporation)
+        end
+
+        def reduced_costs(starts)
+          reduction = @game.port_authority_reduction
+          initial_allowances = Array.new(reduced_seas.size, reduction)
+          best = { initial_allowances => starts.to_h { |node| [node, 0] } }
+          settled = Hash.new { |hash, allowances| hash[allowances] = {} }
+          loop do
+            allowances = nil
+            node = nil
+            lowest = nil
+            best.each do |available, costs|
+              costs.each do |key, cost|
+                next if settled[available][key] || (lowest && cost >= lowest)
+
+                allowances = available
+                node = key
+                lowest = cost
+              end
+            end
+            break unless node
+
+            settled[allowances][node] = true
+            @edges[node].each do |other, weight, sea, ferry|
+              sea_index = reduced_seas.index(sea)
+              available = sea_index ? allowances[sea_index] : 0
+              steps = if available.zero?
+                        [[weight, 0]]
+                      elsif ferry
+                        (0..[available, weight].min).map { |spent| [weight - spent, spent] }
+                      else
+                        [[weight, 0], [0, 1]]
+                      end
+              steps.each do |step_weight, spent|
+                remaining = allowances
+                if spent.positive?
+                  remaining = allowances.dup
+                  remaining[sea_index] -= spent
+                end
+                candidate = lowest + step_weight
+                costs = (best[remaining] ||= {})
+                known = costs[other]
+                costs[other] = candidate if !settled[remaining][other] && (known.nil? || candidate < known)
+              end
+            end
+          end
+          best.values.each_with_object({}) do |costs, result|
+            costs.each { |key, cost| result[key] = cost if !result.key?(key) || cost < result[key] }
+          end
         end
 
         def start_nodes

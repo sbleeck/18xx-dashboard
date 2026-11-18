@@ -5,19 +5,25 @@ require_relative 'entities'
 require_relative 'map'
 require_relative 'stock_market'
 require_relative 'graph'
+require_relative 'sea_routes'
+require_relative 'train'
 require_relative '../base'
 require_relative 'round/consolidation'
 require_relative 'round/concession'
+require_relative 'round/fast_start'
 require_relative 'step/consolidate'
+require_relative 'step/fast_start_capital'
 require_relative 'step/merge_discard_train'
 require_relative 'step/merge_minor'
 require_relative 'step/merge_offer'
 require_relative 'step/merge_token'
 require_relative 'step/concession'
+require_relative 'step/choose_operating_position'
 require_relative 'step/reserve_share'
 require_relative 'step/orient_express_bonus'
 require_relative 'step/route'
 require_relative 'step/special_token'
+require_relative 'step/buy_port_authority'
 
 module Engine
   module Game
@@ -26,9 +32,10 @@ module Engine
         include_meta(G18OE::Meta)
         include G18OE::Entities
         include G18OE::Map
+        include G18OE::SeaRoutes
         attr_accessor :minor_regional_order, :minor_available_regions, :minor_floated_regions,
                       :consolidation_triggered, :consolidation_complete
-        attr_reader :concessions, :merged_minors, :wcf_placeholder
+        attr_reader :fast_start_minors, :concessions, :merged_minors, :wcf_placeholder, :minor_c_ability
 
         PATRONAGE_DRAWS = [{ group: :pink, count: 3 }, { group: :yellow, count: 3 },
                            { group: :white, count: 3 }, { group: :green, count: 8 }].freeze
@@ -43,6 +50,12 @@ module Engine
           %w[60p 65 70 75 80],
           %w[50 60 65 70],
         ].freeze
+
+        PASS_THROUGH_TOKENS = {
+          'SHTC' => { logo: '/logos/18_oe/shtc.svg', port: true },
+          'CCTC' => { logo: '/logos/18_oe/cctc.svg', port: false },
+        }.freeze
+
         CERT_LIMIT = { 2 => 99, 3 => 48, 4 => 36, 5 => 29, 6 => 24, 7 => 20 }.freeze
         # Standard game: £5,400 total / num_players, rounded up to nearest £5.
         # 2-player variant uses without-concessions formula (£5,200 / 2 = £2,600).
@@ -56,12 +69,18 @@ module Engine
         MUST_SELL_IN_BLOCKS = false
         HOME_TOKEN_TIMING = :float
         TILE_RESERVATION_BLOCKS_OTHERS = :always
-        TILE_UPGRADES_MUST_USE_MAX_EXITS = [:cities].freeze
+        REVISITABLE_NODES = %w[town double_town].freeze
         # bank-break ends current OR; first level-8 purchase ends after one more full OR set
         GAME_END_CHECK = { bank: :current_or, final_phase: :one_more_full_or_set }.freeze
         # Physical game includes 20×£5,000 notes set aside at setup; injected when first level-8 bought
         REMAINDER_CASH = 100_000
         ABANDONED_MINOR_PRICE = 60
+        TRAIN_CLASS = G18OE::Train
+        PULLMAN = 'Pullman'
+        PULLMAN_BONUS_PER_LEVEL = 10
+        TRAIN_ADD_ONS = { pullman: 'Pullman', one_plus_one_marker: '+1+1 marker' }.freeze
+        PULLMAN_ROYALTY = 15
+        PULLMAN_TRANSFER_PRICE = 75
 
         STOCKMARKET_COLORS = {
           par: :blue,
@@ -69,6 +88,7 @@ module Engine
         }.freeze
 
         EVENTS_TEXT = Base::EVENTS_TEXT.merge(
+          'pullmans_available' => ['Pullmans Available', 'Pullman cars may be bought; Minor M receives one free'],
           'level_8_available' => ['Level 8 Trains Available', 'Level 8 trains may be bought'],
           'consolidation_triggered' => [
             'Consolidation Round',
@@ -147,6 +167,7 @@ module Engine
           # Level 2 — yellow; rusts when first Level 4 train is bought
           {
             name: '2+2',
+            level: 2,
             distance: [{ 'nodes' => ['town'], 'pay' => 2, 'visit' => 99 },
                        { 'nodes' => %w[city offboard town], 'pay' => 2, 'visit' => 2 }],
             price: 100,
@@ -156,6 +177,7 @@ module Engine
           # Level 3 — green double-sided (3 / 3+3); rust at Level 6
           {
             name: '3',
+            level: 3,
             distance: [{ 'nodes' => ['town'], 'pay' => 0, 'visit' => 99 },
                        { 'nodes' => %w[city offboard town], 'pay' => 3, 'visit' => 3 }],
             price: 200,
@@ -172,10 +194,12 @@ module Engine
           # Level 4 — green double-sided (4 / 4+4); rust at Level 8
           {
             name: '4',
+            level: 4,
             distance: [{ 'nodes' => ['town'], 'pay' => 0, 'visit' => 99 },
                        { 'nodes' => %w[city offboard town], 'pay' => 4, 'visit' => 4 }],
             price: 300,
             rusts_on: '8+8',
+            events: [{ 'type' => 'pullmans_available' }],
             variants: [{
               name: '4+4',
               distance: [{ 'nodes' => ['town'], 'pay' => 4, 'visit' => 99 },
@@ -188,6 +212,7 @@ module Engine
           # Level 5 — brown double-sided (5 / 5+5); permanent
           {
             name: '5',
+            level: 5,
             distance: [{ 'nodes' => ['town'], 'pay' => 0, 'visit' => 99 },
                        { 'nodes' => %w[city offboard town], 'pay' => 5, 'visit' => 5 }],
             price: 400,
@@ -203,6 +228,7 @@ module Engine
           # Level 6 — brown double-sided (6 / 6+6); permanent
           {
             name: '6',
+            level: 6,
             distance: [{ 'nodes' => ['town'], 'pay' => 0, 'visit' => 99 },
                        { 'nodes' => %w[city offboard town], 'pay' => 6, 'visit' => 6 }],
             price: 525,
@@ -218,6 +244,7 @@ module Engine
           # NOTE: Level 8 trains become available only after the 4th Level 7 purchase
           {
             name: '7+7',
+            level: 7,
             distance: [{ 'nodes' => ['town'], 'pay' => 7, 'visit' => 99 },
                        { 'nodes' => %w[city offboard town], 'pay' => 7, 'visit' => 7 }],
             price: 750,
@@ -235,6 +262,7 @@ module Engine
           # NOTE: purchase of the FIRST level-8 triggers game end
           {
             name: '8+8',
+            level: 8,
             distance: [{ 'nodes' => ['town'], 'pay' => 8, 'visit' => 99 },
                        { 'nodes' => %w[city offboard town], 'pay' => 8, 'visit' => 8 }],
             price: 900,
@@ -249,6 +277,7 @@ module Engine
             available_on: '7',
             events: [{ 'type' => 'remainder_cash_added' }],
           },
+          { name: PULLMAN, distance: 0, price: 150, num: 10, available_on: '4', extra: true },
         ].freeze
 
         # 2 chits per zone; 16 total for 12 minors.
@@ -275,7 +304,16 @@ module Engine
         MINOR_MAX_TREASURY = 180
         TILE_FEE_PER_WATER_DISTANCE = 5
         TOKEN_FEE_PER_WATER_DISTANCE = 20
-        EF_TERRAIN_AUGMENT          = { 'E' => %i[water river lake], 'F' => %i[mountain hill] }.freeze
+        MINOR_E_TERRAIN = %i[water river lake].freeze
+        MINOR_F_TERRAIN = %i[mountain hill].freeze
+        SEA_CHANNEL_PASSAGE_COST = 20
+        SEA_REDUCTION_BY_PHASE = { '2' => 1, '3' => 1, '4' => 1, '5' => 1, '6' => 1, '7' => 2, '8' => 2 }.freeze
+
+        PORT_AUTHORITY_COST = 125
+        PORT_AUTHORITY_REDUCTION = 2
+        PORT_AUTHORITIES = { north_sea: 8, mediterranean: 8 }.freeze
+        PORT_AUTHORITY_NAMES = { north_sea: 'North Sea', mediterranean: 'Mediterranean' }.freeze
+        PORT_AUTHORITY_LIMIT = 1
 
         CORPORATIONS_TRACK_RIGHTS = {
           # United Kingdom
@@ -420,7 +458,46 @@ module Engine
         ORIENT_EXPRESS_BONUS = { '2' => 30, '3' => 30, '4' => 30, '5' => 60, '6' => 60, '7' => 100, '8' => 100 }.freeze
         CONVERSION_NEW_SHARES = 6
         MAJOR_MAX_OWNERSHIP_PERCENT = 60
+        TWO_PLAYER_MAX_OWNERSHIP_PERCENT = 70
         EXTENDED_FINAL_OPERATING_ROUNDS = 3
+
+        FAST_START_PACKETS = {
+          3 => [
+            { companies: %w[RSC WS SHTC HMLC A D H J], cash: 920 },
+            { companies: %w[BBBT CCTC BBE B E G K], cash: 920 },
+            { companies: %w[PeC WCF SML C F L M], cash: 920 },
+          ],
+          4 => [
+            { companies: %w[BBBT CCTC WCF A H J], cash: 680 },
+            { companies: %w[WS BBE C G K], cash: 700 },
+            { companies: %w[SHTC HMLC B F L], cash: 700 },
+            { companies: %w[RSC PeC SML D E M], cash: 680 },
+          ],
+          5 => [
+            { companies: %w[SHTC C J K], cash: 540 },
+            { companies: %w[PeC WS BBE G M], cash: 560 },
+            { companies: %w[RSC BBBT HMLC A H], cash: 580 },
+            { companies: %w[WCF B F L], cash: 540 },
+            { companies: %w[CCTC SML D E], cash: 540 },
+          ],
+          6 => [
+            { companies: %w[BBE C K], cash: 460 },
+            { companies: %w[HMLC G M], cash: 480 },
+            { companies: %w[BBBT WCF A H], cash: 460 },
+            { companies: %w[WS CCTC B L], cash: 460 },
+            { companies: %w[RSC PeC SHTC F J], cash: 460 },
+            { companies: %w[SML D E], cash: 440 },
+          ],
+          7 => [
+            { companies: %w[WS BBE K], cash: 425 },
+            { companies: %w[HMLC SML G], cash: 365 },
+            { companies: %w[RSC PeC A H], cash: 405 },
+            { companies: %w[BBBT L M], cash: 405 },
+            { companies: %w[SHTC F J], cash: 385 },
+            { companies: %w[CCTC D E], cash: 385 },
+            { companies: %w[WCF B C], cash: 385 },
+          ],
+        }.freeze
 
         def setup
           super
@@ -431,6 +508,7 @@ module Engine
           @merged_minors = Hash.new { |hash, corporation| hash[corporation] = [] }
           @removed_regional_zones = []
           @orient_express_markers = []
+          @port_authorities = Hash.new { |hash, corporation| hash[corporation] = [] }
           @concessions = companies.select { |company| concession?(company) }
           @fulfilled_train_obligation = Set.new
           @first_or_complete = false
@@ -441,13 +519,18 @@ module Engine
             corp.par_via_exchange = companies.find { |c| c.sym == corp.id } if corp.type == :minor
           end
 
+          setup_fast_start! if fast_start?
           setup_patronage_tiles!
           setup_wcf_placeholder!
+          @pass_through_tokens = {}
           setup_minor_k!
+          @minor_c_ability = corporation_by_id('C')&.abilities&.first
           @minor_g_ability = corporation_by_id('G')&.abilities&.first
           @minor_b_ability = corporation_by_id('B')&.abilities&.first
           @minor_e_ability = corporation_by_id('E')&.abilities&.first
           @minor_f_ability = corporation_by_id('F')&.abilities&.first
+          @minor_h_ability = corporation_by_id('H')&.abilities&.first
+          @minor_l_ability = corporation_by_id('L')&.abilities&.first
         end
 
         def setup_minor_k!
@@ -471,6 +554,128 @@ module Engine
         def setup_wcf_placeholder!
           @wcf_placeholder = Engine::Token.new(nil, price: 0, logo: '/logos/18_oe/wcf_reserved.svg', type: :neutral)
           lille_city.exchange_token(@wcf_placeholder, extra_slot: true)
+        end
+
+        def pass_through_token_definitions
+          self.class::PASS_THROUGH_TOKENS
+        end
+
+        def port_hex?(hex)
+          (self.class::PORTS[hex.id] || {}).values.any? { |entry| entry[:port] }
+        end
+
+        def pass_through_token_company?(company)
+          !!company&.company? && pass_through_token_definitions.key?(company.sym)
+        end
+
+        def pass_through_token_logo(company)
+          pass_through_token_definitions[company.sym][:logo]
+        end
+
+        def pass_through_hex?(company, hex)
+          !hex.tile.cities.empty? && port_hex?(hex) == pass_through_token_definitions[company.sym][:port]
+        end
+
+        def pass_through_cities(corporation)
+          @pass_through_tokens.values.filter_map { |token| token.city if token.corporation == corporation }
+        end
+
+        def pass_through_city?(city, corporation)
+          pass_through_cities(corporation).include?(city)
+        end
+
+        def port_token_city?(city, corporation)
+          return false unless city_tokened_by?(city, corporation)
+
+          @pass_through_tokens.none? do |company, token|
+            token.city == city && token.corporation == corporation && !pass_through_token_definitions[company.sym][:port]
+          end
+        end
+
+        def skip_token?(_graph, corporation, city)
+          pass_through_city?(city, corporation)
+        end
+
+        def counted_stops(route)
+          without_pass_through_cities(visited_stops(route), route.corporation)
+        end
+
+        def without_pass_through_cities(stops, corporation)
+          cities = pass_through_cities(corporation)
+          cities.empty? ? stops : stops.reject { |stop| cities.include?(stop) }
+        end
+
+        def revenue_stops(route)
+          counted_stops(route)
+        end
+
+        def check_distance(route, visits, train = nil)
+          super(route, without_pass_through_cities(visits, route.corporation), train)
+        end
+
+        def check_route_token(route, _token)
+          super(route, counted_stops(route).find { |stop| city_tokened_by?(stop, route.corporation) })
+        end
+
+        def place_pass_through_token!(company, corporation, city)
+          token = Engine::Token.new(
+            corporation,
+            price: 0,
+            logo: pass_through_token_logo(company),
+            type: :pass_through,
+          )
+          city.exchange_token(token, extra_slot: true)
+          @pass_through_tokens[company] = token
+          hex = city.hex
+          @log << "#{corporation.name} (#{company.sym}) places the #{company.name} token on "\
+                  "#{hex.name} (#{hex.location_name})"
+          clear_graph_for_entity(corporation)
+        end
+
+        def pass_through_token_lines(corporation)
+          @pass_through_tokens.filter_map do |company, token|
+            next unless token.corporation == corporation
+
+            hex = token.city.hex
+            ["#{company.name} token: #{hex.name} (#{hex.location_name})"]
+          end
+        end
+
+        def setup_fast_start!
+          @fast_start_minors = []
+          fast_start_packets.sort_by { rand }.zip(@players).each do |packet, player|
+            @bank.spend(packet[:cash], player)
+            packet[:companies].each do |sym|
+              company = company_by_id(sym)
+              company.owner = player
+              player.companies << company
+              next unless company_becomes_minor?(company)
+
+              minor = corporation_by_id(company.sym)
+              @bank.spend(company.value, minor)
+              @fast_start_minors << minor
+            end
+            names = packet[:companies].map { |sym| company_by_id(sym).name }.join('; ')
+            @log << "#{player.name} receives #{names} and #{format_currency(packet[:cash])}"
+          end
+        end
+
+        def fast_start_extra_cash_limit(minor)
+          self.class::MINOR_MAX_TREASURY - company_by_id(minor.id).value
+        end
+
+        def add_fast_start_cash!(minor, amount)
+          player = company_by_id(minor.id).owner
+          if amount.positive?
+            player.spend(amount, minor)
+            @log << "#{player.name} adds #{format_currency(amount)} to #{minor.name}'s treasury"
+          else
+            @log << "#{player.name} adds nothing to #{minor.name}'s treasury"
+          end
+        end
+
+        def fast_start_packets
+          self.class::FAST_START_PACKETS[players.size]
         end
 
         def setup_patronage_tiles!
@@ -515,12 +720,16 @@ module Engine
           @optional_rules.include?(:medium_start)
         end
 
+        def fast_start?
+          @optional_rules.include?(:fast_start)
+        end
+
         def long_endgame?
           @optional_rules.include?(:long_endgame)
         end
 
         def concessions?
-          !medium_start? && players.size > 2
+          !medium_start? && !fast_start? && players.size > 2
         end
 
         def concession?(company)
@@ -528,8 +737,20 @@ module Engine
         end
 
         def init_starting_cash(players, bank)
+          return if fast_start?
+
           cash = medium_start? ? self.class::STARTING_CASH_NO_CONCESSIONS : self.class::STARTING_CASH
           players.each { |player| bank.spend(cash[players.size], player) }
+        end
+
+        def init_round
+          fast_start? ? new_fast_start_round : super
+        end
+
+        def round_description(name, round_number = nil)
+          return @round.name if name == 'FastStart'
+
+          super
         end
 
         def init_companies(players)
@@ -693,7 +914,39 @@ module Engine
           return 1 if upgrade && old_tile.cities.empty? && entity.abilities.include?(@minor_b_ability)
 
           base_cost = upgrade ? 2 : 1
-          metropolis_hex?(old_tile.hex) ? base_cost * 2 : base_cost
+          base_cost *= 2 if metropolis_hex?(old_tile.hex)
+          return base_cost unless terrain_point_ability(entity, old_tile)
+
+          base_cost - 1
+        end
+
+        def zero_point_tile_lays_available?(entity)
+          !terrain_point_abilities(entity).empty?
+        end
+
+        def terrain_point_abilities(entity)
+          { blue: @minor_e_ability, green: @minor_f_ability }.select do |_, ability|
+            ability && entity.abilities.include?(ability) && ability_usable_this_or?(ability)
+          end
+        end
+
+        def minor_h_reduction?(corporation)
+          !@minor_h_ability.nil? && corporation.abilities.include?(@minor_h_ability)
+        end
+
+        def terrain_point_ability(entity, tile)
+          return unless tile.color == :white
+
+          terrain_point_abilities(entity).find do |color, _|
+            terrain = color == :blue ? self.class::MINOR_E_TERRAIN : self.class::MINOR_F_TERRAIN
+            tile.terrain.intersect?(terrain)
+          end&.last
+        end
+
+        def after_lay_tile(entity, old_tile, tile)
+          return unless tile.color == :yellow
+
+          terrain_point_ability(entity, old_tile)&.use!
         end
 
         def can_buy_train_from_others?
@@ -759,7 +1012,7 @@ module Engine
         end
 
         def merge_graph
-          @merge_graph ||= Engine::Graph.new(self, no_blocking: true)
+          @merge_graph ||= Engine::Graph.new(self, no_blocking: true, check_tokens: true)
         end
 
         def merge_connected?(minor, major)
@@ -792,7 +1045,7 @@ module Engine
 
         def abandon_minor!(minor)
           @log << "#{minor.name} is abandoned"
-          minor.trains.dup.each { |train| @depot.reclaim_train(train) }
+          minor.trains.reject { |train| pullman?(train) }.each { |train| @depot.reclaim_train(train) }
           minor.placed_tokens.each(&:remove!)
           minor.spend(minor.cash, @bank) if minor.cash.positive?
           @share_pool.transfer_shares(minor.presidents_share.to_bundle, minor.ipo_owner, allow_president_change: false)
@@ -817,6 +1070,11 @@ module Engine
 
         def add_minor_charter!(minor, major)
           @merged_minors[major] << minor
+          unless minor.trains.empty?
+            trains = transfer(:trains, minor, major)
+            @log << "#{major.name} takes #{trains.map(&:name).join(', ')} from #{minor.name}"
+          end
+          discard_pullman!(major) if major.trains.count { |train| pullman?(train) } > 1
           return unless major.type == :major
 
           pay_minor_a_bonus!(minor, major) if minor.id == 'A'
@@ -839,6 +1097,66 @@ module Engine
           @bank.spend(amount, major)
           ability.use!
           @log << "#{major.name} receives #{format_currency(amount)} from the bank for #{minor.name}"
+        end
+
+        def pullman?(train)
+          train.name == self.class::PULLMAN
+        end
+
+        def pullman(corporation)
+          corporation.trains.find { |train| pullman?(train) }
+        end
+
+        def discard_pullman!(corporation)
+          @depot.reclaim_train(pullman(corporation))
+          @log << "#{corporation.name} discards its #{self.class::PULLMAN} to the Open Market"
+        end
+
+        def trainless?(corporation)
+          corporation.trains.all? { |train| extra_train?(train) }
+        end
+
+        def route_trains(entity)
+          super.reject { |train| pullman?(train) }
+        end
+
+        def pullman_royalty
+          self.class::PULLMAN_ROYALTY
+        end
+
+        def pullman_transfer_price
+          self.class::PULLMAN_TRANSFER_PRICE
+        end
+
+        def pay_pullman_royalty!
+          holder = minor_m_holder
+          return unless holder
+
+          @bank.spend(pullman_royalty, holder)
+          @log << "#{holder.name} receives #{format_currency(pullman_royalty)} #{self.class::PULLMAN} royalty"
+        end
+
+        def minor_m
+          corporation_by_id('M')
+        end
+
+        def minor_m_holder
+          m = minor_m
+          merged_into = @merged_minors.find { |_major, minors| minors.include?(m) }&.first
+          return merged_into if merged_into
+
+          m if m.floated? && m.owner
+        end
+
+        def event_pullmans_available!
+          holder = minor_m_holder
+          return unless holder
+
+          pullman_card = @depot.upcoming.find { |train| pullman?(train) }
+          return unless pullman_card
+
+          buy_train(holder, pullman_card, :free)
+          @log << "#{holder.name} receives a free #{self.class::PULLMAN}"
         end
 
         def level8_train_available?
@@ -870,6 +1188,10 @@ module Engine
           @log << '-- Event: Consolidation phase triggered --'
         end
 
+        def consolidation_round_finished!
+          @consolidation_complete = true
+        end
+
         def next_round!
           @round =
             case @round
@@ -897,10 +1219,8 @@ module Engine
             when Round::G18OE::Concession
               reorder_players_after_concessions!
               new_stock_round
-            when Round::G18OE::Consolidation
-              @consolidation_complete = true
-              remove_major_par_markers!
-              super
+            when Round::G18OE::FastStart
+              new_stock_round
             when Engine::Round::Stock
               @reserved_shares = []
               remove_major_par_markers!
@@ -932,7 +1252,7 @@ module Engine
           return false unless (info = last_revenue_info(entity))
 
           ran = info.routes.keys.flat_map { |train| component_trains(train) }
-          ran.map(&:id).sort == entity.trains.map(&:id).sort
+          ran.map(&:id).sort == entity.trains.reject { |train| extra_train?(train) }.map(&:id).sort
         end
 
         def last_revenue_info(entity)
@@ -943,8 +1263,12 @@ module Engine
           train.sym.include?('_') ? train.sym.split('_').map { |id| train_by_id(id) } : [train]
         end
 
+        def major_max_ownership_percent
+          @players.size == 2 ? self.class::TWO_PLAYER_MAX_OWNERSHIP_PERCENT : self.class::MAJOR_MAX_OWNERSHIP_PERCENT
+        end
+
         def place_major_par_marker!(corporation)
-          corporation.max_ownership_percent = self.class::MAJOR_MAX_OWNERSHIP_PERCENT
+          corporation.max_ownership_percent = major_max_ownership_percent
           corporation.always_market_price = false
         end
 
@@ -1000,7 +1324,67 @@ module Engine
         end
 
         def status_array(corporation)
-          [['Orient Express marker']] if orient_express_marker?(corporation)
+          lines = []
+          lines << ['Orient Express marker'] if orient_express_marker?(corporation)
+          port_authorities(corporation).each { |sea| lines << [port_authority_name(sea)] }
+          lines.concat(pass_through_token_lines(corporation))
+          lines unless lines.empty?
+        end
+
+        def port_authority_cost
+          self.class::PORT_AUTHORITY_COST
+        end
+
+        def port_authority_count(sea)
+          self.class::PORT_AUTHORITIES[sea]
+        end
+
+        def port_authority_reduction
+          self.class::PORT_AUTHORITY_REDUCTION
+        end
+
+        def port_authority_limit
+          self.class::PORT_AUTHORITY_LIMIT
+        end
+
+        def port_authority_seas
+          self.class::PORT_AUTHORITIES.keys
+        end
+
+        def port_authority_sea_name(sea)
+          self.class::PORT_AUTHORITY_NAMES[sea]
+        end
+
+        def port_authority_name(sea)
+          "#{port_authority_sea_name(sea)} port authority"
+        end
+
+        def port_authorities(corporation)
+          @port_authorities.fetch(corporation, [])
+        end
+
+        def port_authorities_left(sea)
+          port_authority_count(sea) - @port_authorities.values.count { |seas| seas.include?(sea) }
+        end
+
+        def timeline
+          left = port_authority_seas.map { |sea| "#{port_authority_sea_name(sea)} #{port_authorities_left(sea)}" }
+          ["Port authorities left: #{left.join(', ')}"]
+        end
+
+        def can_buy_port_authority?(corporation, sea)
+          corporation.type == :major &&
+            port_authorities(corporation).size < port_authority_limit &&
+            !port_authorities(corporation).include?(sea) &&
+            port_authorities_left(sea).positive? &&
+            corporation.cash >= port_authority_cost
+        end
+
+        def buy_port_authority!(corporation, sea)
+          @log << "#{corporation.name} buys a #{port_authority_name(sea)} for #{format_currency(port_authority_cost)}"
+          corporation.spend(port_authority_cost, @bank)
+          @port_authorities[corporation] << sea
+          clear_graph_for_entity(corporation)
         end
 
         def orient_express_marker?(corporation)
@@ -1016,6 +1400,10 @@ module Engine
           return unless corporation.type == :regional
 
           pay_home_token_cost!(corporation)
+        end
+
+        def new_fast_start_round
+          Round::G18OE::FastStart.new(self, [G18OE::Step::FastStartCapital])
         end
 
         def new_concession_round
@@ -1061,6 +1449,16 @@ module Engine
           when 'C74'
             to.label.to_s.include?('S')
           end
+        end
+
+        def legal_tile_rotation?(_entity, hex, tile)
+          return false unless super
+          return true unless %i[brown gray].include?(tile.color)
+
+          old_tile = hex.tile
+          requires_all_exits = !old_tile.double_towns.empty? || old_tile.label.to_s == 'Y' ||
+                               (tile.color == :gray && !old_tile.cities.empty? && !old_tile.label)
+          !requires_all_exits || (hex.neighbors.keys - tile.exits).empty?
         end
 
         def company_becomes_minor?(company)
@@ -1128,6 +1526,8 @@ module Engine
 
         def operating_round(round_num)
           Round::G18OE::Operating.new(self, [
+            G18OE::Step::ChooseOperatingPosition,
+            G18OE::Step::BuyPortAuthority,
             Engine::Step::Bankrupt,
             Engine::Step::Exchange,
             Engine::Step::DiscardTrain,
@@ -1151,22 +1551,31 @@ module Engine
         end
 
         def cross_water_tile_fee(corporation, hex, tile)
-          (@graph.sea_network(corporation).tile_cost(hex, tile) || 0) * self.class::TILE_FEE_PER_WATER_DISTANCE
+          (@graph.sea_connectivity(corporation).tile_cost(hex, tile) || 0) * self.class::TILE_FEE_PER_WATER_DISTANCE
         end
 
         def cross_water_token_fee(corporation, city)
-          (@graph.sea_network(corporation).city_cost(city) || 0) * self.class::TOKEN_FEE_PER_WATER_DISTANCE
+          (@graph.sea_connectivity(corporation).city_cost(city) || 0) * self.class::TOKEN_FEE_PER_WATER_DISTANCE
         end
 
         def init_graph
-          G18OE::Graph.new(self)
+          G18OE::Graph.new(self, check_tokens: true)
         end
 
         def check_other(route)
           super
 
+          if counted_stops(route).size < 2 && !route.connection_data.empty? && !route.train.local?
+            raise RouteTooShort, 'Route must have at least 2 stops'
+          end
+
           hexes = route.visited_stops.reject(&:town?).map(&:hex)
           raise GameError, 'Route visits same city hex twice' if hexes.size != hexes.uniq.size
+
+          check_sea_crossing_separation(route)
+          if orient_express_run?(route) && !route.chains.empty? && route.chains.all? { |chain| chain[:paths].empty? }
+            raise GameError, 'An Orient Express run may not consist entirely of sea crossings'
+          end
           return unless combined_train?(route.train)
 
           raise GameError, 'Combined trains may only run an Orient Express route' unless orient_express_run?(route)
@@ -1224,25 +1633,111 @@ module Engine
         end
 
         def revenue_for(route, stops)
-          revenue = super
+          revenue = super - one_plus_one_marker_undoubled_revenue(route, stops)
           revenue += self.class::ORIENT_EXPRESS_BONUS[route.phase.name] if orient_express_bonus_route?(route)
-          revenue
+          revenue + pullman_bonus(route)
+        end
+
+        def compute_stops(route, train = nil)
+          train ||= route.train
+          previous = @one_plus_one_city_limit
+          marked = add_on_train?(:one_plus_one_marker, train) && (train.multiplier || 1) > 1
+          @one_plus_one_city_limit = marked ? one_plus_one_city_limit(route, train) : nil
+          super
+        ensure
+          @one_plus_one_city_limit = previous
+        end
+
+        def one_plus_one_marker?(corporation)
+          !@minor_l_ability.nil? && corporation.abilities.include?(@minor_l_ability)
+        end
+
+        def train_add_ons(entity)
+          add_ons = []
+          add_ons << :pullman if pullman(entity)
+          add_ons << :one_plus_one_marker if one_plus_one_marker?(entity)
+          add_ons
+        end
+
+        def train_add_on_name(type)
+          self.class::TRAIN_ADD_ONS[type]
+        end
+
+        def train_add_on_names(train)
+          self.class::TRAIN_ADD_ONS.keys.select { |type| add_on_train?(type, train) }.map { |type| train_add_on_name(type) }
+        end
+
+        def add_on_train(type)
+          @round.add_on_trains[type] if @round.respond_to?(:add_on_trains)
+        end
+
+        def add_on_train?(type, train)
+          !train.nil? && add_on_train(type) == train
+        end
+
+        def train_distance(train)
+          distance = train.distance
+          return distance if distance.is_a?(Numeric) || !add_on_train?(:one_plus_one_marker, train)
+
+          distance.map do |row|
+            extended = row.dup
+            if row['nodes'].include?('city')
+              extended['visit'] = (row['visit'] || row['pay']) + 1
+              extended['pay'] = row['pay'] + 1
+            elsif row['nodes'] == ['town']
+              extended['pay'] = row['pay'] + 1
+            end
+            extended
+          end
+        end
+
+        def one_plus_one_marker_undoubled_revenue(route, stops)
+          train = route.train
+          multiplier = train.multiplier || 1
+          return 0 if multiplier <= 1 || !add_on_train?(:one_plus_one_marker, train)
+
+          towns, cities = stops.partition(&:town?)
+          limit = @one_plus_one_city_limit || one_plus_one_city_limit(route, train)
+          single = towns.map { |stop| stop.route_base_revenue(route.phase, train) }
+          single << cities.map { |stop| stop.route_base_revenue(route.phase, train) }.min if !cities.empty? && cities.size > limit
+          (multiplier - 1) * single.sum
+        end
+
+        def one_plus_one_city_limit(route, train)
+          city_row = route_train_distance(route, train).find { |row| row['nodes'].include?('city') }
+          city_row['pay'] - 1
+        end
+
+        def pullman_bonus(route)
+          return 0 unless add_on_train?(:pullman, route.train)
+
+          route.train.level * self.class::PULLMAN_BONUS_PER_LEVEL
+        end
+
+        def routes_revenue(routes)
+          check_sea_pool_coverage!(routes)
+          super
         end
 
         def revenue_str(route)
           str = super
-          orient_express_bonus_route?(route) ? "#{str} + Orient Express" : str
-        end
-
-        def route_node_revisitable?(node)
-          node.town?
+          str = "#{str} + Orient Express" if orient_express_bonus_route?(route)
+          add_on_train?(:pullman, route.train) ? "#{str} + Pullman" : str
         end
 
         def check_connected(route, corporation)
-          return super unless wcf_restricted?(corporation)
-          return if route.ordered_paths.each_cons(2).all? { |a, b| wcf_pass?(a, b) || a.connects_to?(b, corporation) }
+          route.connection_data.each_cons(2) do |a, b|
+            next if !a[:chain][:paths].empty? && !b[:chain][:paths].empty?
 
-          raise GameError, 'Route is not connected'
+            raise GameError, 'Route is not connected' if a[:right].blocks?(corporation)
+          end
+
+          connected = land_stretches(route).all? do |paths|
+            paths.each_cons(2).all? do |a, b|
+              (wcf_restricted?(corporation) && wcf_pass?(a, b)) || a.connects_to?(b, corporation)
+            end
+          end
+          raise GameError, 'Route is not connected' unless connected
         end
 
         def wcf_pass?(entering, leaving)
@@ -1351,10 +1846,10 @@ module Engine
           return if !corp || corp.type == :national
 
           return corporation_by_id('E') if corp.abilities.include?(@minor_e_ability) &&
-                                          tile.terrain.intersect?(self.class::EF_TERRAIN_AUGMENT['E'])
+                                          tile.terrain.intersect?(self.class::MINOR_E_TERRAIN)
 
           return unless corp.abilities.include?(@minor_f_ability)
-          return unless tile.terrain.intersect?(self.class::EF_TERRAIN_AUGMENT['F'])
+          return unless tile.terrain.intersect?(self.class::MINOR_F_TERRAIN)
 
           corporation_by_id('F')
         end

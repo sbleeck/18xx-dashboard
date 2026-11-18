@@ -35,6 +35,10 @@ module Engine
           TOKENS - @bases_lost
         end
 
+        def ipo_shares
+          super.partition { |share| !share.president }.flatten
+        end
+
         def find_token_by_type(type = nil)
           super || next_base
         end

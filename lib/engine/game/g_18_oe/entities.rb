@@ -35,6 +35,20 @@ module Engine
             desc: 'During any RR\'s Place Token step, the owner may place one station token from any '\
                   'controlled RR on the map for free (sea-zone crossing costs still apply). '\
                   'If also owning the White Cliffs Ferry, this private may pay for that token\'s placement cost.',
+            abilities: [
+              {
+                type: 'token',
+                owner_type: 'player',
+                when: 'owning_player_token',
+                hexes: [],
+                from_owner: true,
+                connected: true,
+                discount: 1,
+                count: 1,
+                closed_when_used_up: true,
+                special_only: true,
+              },
+            ],
             auction_row: 2,
           },
           {
@@ -67,6 +81,19 @@ module Engine
                   'and other RRs\' tokens in the city do not block them. '\
                   'The token city need not be reachable but may not serve as the sole token on a route, '\
                   'nor be used to place further tokens.',
+            abilities: [
+              {
+                type: 'token',
+                owner_type: 'player',
+                when: 'owning_player_token',
+                hexes: [],
+                extra_slot: true,
+                connected: false,
+                count: 1,
+                special_only: true,
+                price: 0,
+              },
+            ],
             auction_row: 3,
           },
           {
@@ -80,6 +107,19 @@ module Engine
                   'and other RRs\' tokens in the city do not block them. '\
                   'The token city need not be reachable but may not serve as the sole token on a route, '\
                   'nor be used to place further tokens.',
+            abilities: [
+              {
+                type: 'token',
+                owner_type: 'player',
+                when: 'owning_player_token',
+                hexes: [],
+                extra_slot: true,
+                connected: false,
+                count: 1,
+                special_only: true,
+                price: 0,
+              },
+            ],
             auction_row: 3,
           },
           {
@@ -535,9 +575,9 @@ module Engine
             abilities: [
               {
                 type: 'description',
-                description: 'At the start of each OR, the president may choose this minor\'s operating '\
-                             'position: first, last, or normal order. The choice is announced before '\
-                             'any other RR operates that OR.',
+                description: 'At the start of each OR, the president may choose this minor\'s or its acquiring major\'s '\
+                             'operating position: first, last, or normal within its operating group. '\
+                             'The choice is announced before any RR operates that OR.',
               },
             ],
           },
@@ -577,12 +617,14 @@ module Engine
             abilities: [
               {
                 type: 'description',
+                count_per_or: 1,
                 description: 'Terrain discount: 33% off blue (water/coast, river and lake) construction costs. '\
                              'Track-rights zone discount: 20% off construction within Spain/Portugal, Italy, '\
                              'Sweden/Norway/Denmark or Russia when the RR has track rights there. '\
                              'When both apply, they combine to give a 50% discount. '\
                              'Round the final construction cost down to whole pounds. '\
-                             'Extra tile point for matching terrain: not yet implemented (BUG-034).',
+                             'Each OR, 1 extra tile point for a yellow lay on blue terrain, '\
+                             'including 1 point toward a metropolis.',
               },
             ],
           },
@@ -600,12 +642,14 @@ module Engine
             abilities: [
               {
                 type: 'description',
+                count_per_or: 1,
                 description: 'Terrain discount: 33% off green (mountain, hill and rough) construction costs. '\
                              'Track-rights zone discount: 20% off construction within Spain/Portugal, Italy, '\
                              'Sweden/Norway/Denmark or Russia when the RR has track rights there. '\
                              'When both apply, they combine to give a 50% discount. '\
                              'Round the final construction cost down to whole pounds. '\
-                             'Extra tile point for matching terrain: not yet implemented (BUG-034).',
+                             'Each OR, 1 extra tile point for a yellow lay on green terrain, '\
+                             'including 1 point toward a metropolis.',
               },
             ],
           },
