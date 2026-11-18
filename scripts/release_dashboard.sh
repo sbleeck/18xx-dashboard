@@ -1,138 +1,197 @@
 #!/bin/bash
 set -Eeuo pipefail
 
-# Unified macOS Bash 3.2-compatible Dashboard release helper.
-# Run: ./scripts/release_dashboard.sh --no-push
-# Then test the unpacked extension against 18xx.games before publishing.
-# Publishing: ./scripts/release_dashboard.sh --publish
-# Upstream synchronization is deliberately a separate operation.
+# One-command 18xx Dashboard release for macOS Bash 3.2.
+# Does everything by default:
+#   sync origin/main + official upstream/master
+#   increment patch version (for example 1.6.3 -> 1.6.4)
+#   rebuild Docker and compile assets
+#   update the unpacked extension
+#   create and verify the Chrome Web Store ZIP
+#   commit and push main
+#   deploy and push gh-pages
+#
+# Run from anywhere inside the repository:
+#   ./scripts/release_dashboard.sh
 
-STEP='initial checks'
-DONE='Nothing changed yet.'
-NEXT='Inspect the error above; do not publish.'
-VERSION='unknown'
-PUBLISH=0
-for arg in "$@"; do
-  case "$arg" in
-    --no-push) PUBLISH=0 ;;
-    --publish) PUBLISH=1 ;;
-    --help|-h) echo 'Usage: release_dashboard.sh [--no-push|--publish]'; exit 0 ;;
-    *) echo "ERROR: Unknown argument: $arg" >&2; exit 2 ;;
-  esac
-done
-report() {
-  code=$?
+STEP="starting"
+VERSION="unknown"
+ZIP="unknown"
+BACKUP="unknown"
+
+finish_report() {
+  status=$?
   trap - EXIT
   echo
-  echo '============================================================'
-  if [ "$code" -eq 0 ]; then echo "SUCCESS: Dashboard v$VERSION"; else echo "FAILED (exit $code): Dashboard v$VERSION"; fi
-  echo "Last step: $STEP"
-  echo "Completed: $DONE"
-  echo "Next: $NEXT"
-  echo '============================================================'
+  echo "============================================================"
+  if [ "$status" -eq 0 ]; then
+    echo "SUCCESS: Dashboard v${VERSION} released"
+    echo "Completed:"
+    echo "  - origin/main synchronized"
+    echo "  - upstream/master merged"
+    echo "  - Docker rebuilt and running"
+    echo "  - public/assets/main.js freshly compiled"
+    echo "  - 18xx-extension/main.js updated and verified"
+    echo "  - ${ZIP} created and verified"
+    echo "  - main committed and pushed"
+    echo "  - gh-pages deployed and pushed"
+    echo
+    echo "Next: upload ${ZIP} to the Chrome Web Store."
+    echo "Before publishing in the store, reload the unpacked extension"
+    echo "and confirm the known 1837 route action is accepted."
+  else
+    echo "FAILED during: ${STEP}"
+    echo "No later release steps were run. Read the error immediately above."
+    echo "Backup directory: ${BACKUP}"
+  fi
+  echo "============================================================"
+  exit "$status"
 }
-trap report EXIT
-trap 'echo "ERROR on line $LINENO during: $STEP" >&2' ERR
+trap finish_report EXIT
+trap 'echo "ERROR on line ${LINENO} during: ${STEP}" >&2' ERR
 
-ROOT="$(git rev-parse --show-toplevel)"
+STEP="locating repository"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 cd "$ROOT"
-MANIFEST=18xx-extension/manifest.json
-OVERLAY=assets/app/view/game/dashboard/dashboard_help_overlay.rb
-SOURCE=public/assets/main.js
-TARGET=18xx-extension/main.js
-for tool in git ruby docker zip unzip shasum; do
-  command -v "$tool" >/dev/null || { echo "ERROR: Missing $tool" >&2; exit 1; }
+
+MANIFEST="18xx-extension/manifest.json"
+OVERLAY="assets/app/view/game/dashboard/dashboard_help_overlay.rb"
+PUBLIC_MAIN="public/assets/main.js"
+EXT_MAIN="18xx-extension/main.js"
+SCRIPT="scripts/release_dashboard.sh"
+
+for command_name in git ruby docker zip unzip shasum rsync; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "ERROR: required command is missing: $command_name" >&2
+    exit 1
+  }
 done
-[ -f "$MANIFEST" ] && [ -f "$OVERLAY" ] || { echo 'ERROR: Manifest or help overlay missing' >&2; exit 1; }
-VERSION="$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0])).fetch("version")' "$MANIFEST")"
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'ERROR: Invalid manifest version' >&2; exit 1; }
-ZIP="18xx-dashboard-v${VERSION}.zip"
-echo "Release version: $VERSION"
-echo "Mode: $([ "$PUBLISH" -eq 1 ] && echo publish || echo build-and-test)"
+[ -f "$MANIFEST" ] || { echo "ERROR: missing $MANIFEST" >&2; exit 1; }
+[ -f "$OVERLAY" ] || { echo "ERROR: missing $OVERLAY" >&2; exit 1; }
+[ -f "$SCRIPT" ] || { echo "ERROR: missing $SCRIPT" >&2; exit 1; }
 
-STEP='checking Git safety'
-# Bash 3.2 compatible. Never silently merge upstream into uncommitted release work.
-if ! git diff --cached --quiet; then
-  echo 'ERROR: Staged changes exist. Commit or unstage them first.' >&2; exit 1
+STEP="checking clean working tree"
+if [ -n "$(git status --porcelain)" ]; then
+  echo "ERROR: the working tree is not clean." >&2
+  echo "Commit, stash, or discard the listed changes before releasing:" >&2
+  git status --short >&2
+  exit 1
 fi
-while IFS= read -r line; do
-  [ -z "$line" ] && continue
-  path="${line#???}"
-  case "$path" in
-    "$MANIFEST"|"$OVERLAY"|"$TARGET"|"$ZIP"|scripts/release_dashboard.sh) ;;
-    *) echo "ERROR: Unrelated Git change: $path" >&2; exit 1 ;;
-  esac
-done < <(git status --porcelain)
-DONE='Git status checked; no merge or push performed.'
-NEXT='Build and verify the bundle.'
+if [ "$(git branch --show-current)" != "main" ]; then
+  echo "ERROR: release must start on branch main." >&2
+  exit 1
+fi
 
-STEP='synchronizing displayed version'
-ruby -e '
-  path, version = ARGV
-  s = File.read(path)
-  n = s.sub(/VERSION = '\''[^'\'']+'\''/, "VERSION = '\''#{version}'\''")
-  abort "ERROR: Cannot locate VERSION constant" if n == s && !s.include?("VERSION = '\''#{version}'\''")
-  File.write(path, n) if n != s
-' "$OVERLAY" "$VERSION"
+STEP="synchronizing origin/main"
+echo "==> Fetching and fast-forwarding origin/main..."
+git fetch origin main
+git merge --ff-only origin/main
 
-STEP='backing up existing extension bundle'
+STEP="synchronizing official upstream/master"
+echo "==> Fetching and merging official upstream/master..."
+git fetch upstream master
+git merge --no-edit upstream/master
+
+STEP="incrementing patch version"
+OLD_VERSION="$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0])).fetch("version")' "$MANIFEST")"
+VERSION="$(ruby -e 'v=ARGV[0].split(".").map(&:to_i); abort "bad version" unless v.length==3; v[2]+=1; print v.join(".")' "$OLD_VERSION")"
+ZIP="18xx-dashboard-v${VERSION}.zip"
 BACKUP="/tmp/18xx-dashboard-release-${VERSION}-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$BACKUP"
-[ ! -f "$TARGET" ] || cp "$TARGET" "$BACKUP/main.js"
-DONE="Version synchronized; previous bundle backed up to $BACKUP"
-NEXT='Compile the application bundle.'
+[ ! -f "$EXT_MAIN" ] || cp "$EXT_MAIN" "$BACKUP/main-before-release.js"
+cp "$MANIFEST" "$BACKUP/manifest-before-release.json"
 
-STEP='building with Docker'
-# Do not remove Docker volumes or reset the database as part of a release.
-docker compose build rack
-docker compose up -d
-# Compile with the project's existing rake task; fail rather than shipping an old asset.
-rm -f "$SOURCE"
-docker compose run --rm rack bundle exec rake compile
-[ -s "$SOURCE" ] || { echo "ERROR: Build did not produce $SOURCE" >&2; exit 1; }
-DONE='Docker built; fresh application bundle compiled.'
-NEXT='Copy and verify the extension package.'
+echo "==> Version ${OLD_VERSION} -> ${VERSION}"
+ruby -rjson -e '
+  path, version = ARGV
+  data = JSON.parse(File.read(path))
+  data["version"] = version
+  File.write(path, JSON.pretty_generate(data) + "\n")
+' "$MANIFEST" "$VERSION"
+ruby -e '
+  path, version = ARGV
+  text = File.read(path)
+  updated = text.sub(/VERSION = '\''[^'\'']+'\''/, "VERSION = '\''#{version}'\''")
+  abort "VERSION constant not found in #{path}" if updated == text
+  File.write(path, updated)
+' "$OVERLAY" "$VERSION"
 
-STEP='packaging and verifying extension'
-cp "$SOURCE" "$TARGET"
-HASH="$(shasum -a 256 "$SOURCE" | awk '{print $1}')"
-[ "$HASH" = "$(shasum -a 256 "$TARGET" | awk '{print $1}')" ] || { echo 'ERROR: Bundle hash mismatch' >&2; exit 1; }
-rm -f "$ZIP"
-(cd 18xx-extension && zip -q -r "../$ZIP" . -x '*.zip' '*.pem' '*.key' '*.map' '.DS_Store')
-TMP="$(mktemp -d)"
-unzip -q "$ZIP" -d "$TMP"
-ZIPVER="$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0])).fetch("version")' "$TMP/manifest.json")"
-[ "$ZIPVER" = "$VERSION" ] && [ "$HASH" = "$(shasum -a 256 "$TMP/main.js" | awk '{print $1}')" ] || {
-  rm -rf "$TMP"; echo 'ERROR: ZIP verification failed' >&2; exit 1;
+STEP="rebuilding Docker"
+echo "==> Rebuilding and starting Docker..."
+docker compose -f docker-compose.yml -f docker-compose.dev.yml build rack
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+STEP="compiling fresh application assets"
+echo "==> Compiling a fresh main.js..."
+rm -f "$PUBLIC_MAIN"
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm rack bundle exec rake compile
+[ -s "$PUBLIC_MAIN" ] || {
+  echo "ERROR: compile did not create $PUBLIC_MAIN" >&2
+  exit 1
 }
-rm -rf "$TMP"
-DONE="Docker running; extension bundle and $ZIP verified (SHA-256 $HASH)."
-NEXT="Load unpacked 18xx-extension in Chrome, reproduce the 1837 test, then publish only if accepted."
 
-if [ "$PUBLISH" -eq 0 ]; then
-  STEP='build-and-test complete; nothing published'
-  echo 'No Git push, gh-pages deployment, Chrome Web Store upload, or script deletion performed.'
-  exit 0
-fi
+STEP="updating developer extension"
+echo "==> Updating 18xx-extension/main.js..."
+cp "$PUBLIC_MAIN" "$EXT_MAIN"
+PUBLIC_HASH="$(shasum -a 256 "$PUBLIC_MAIN" | awk '{print $1}')"
+EXT_HASH="$(shasum -a 256 "$EXT_MAIN" | awk '{print $1}')"
+[ "$PUBLIC_HASH" = "$EXT_HASH" ] || {
+  echo "ERROR: extension main.js does not match compiled main.js" >&2
+  exit 1
+}
 
-# Publishing is gated by an explicit user confirmation, not just a version bump.
-STEP='release confirmation'
-echo 'Confirm: Did the unpacked extension pass the live 1837 route regression test?'
-printf 'Type TESTED to publish main and gh-pages: '
-read -r ANSWER
-[ "$ANSWER" = TESTED ] || { echo 'Publication canceled.' >&2; exit 1; }
+STEP="creating Chrome Web Store ZIP"
+echo "==> Creating and verifying ${ZIP}..."
+rm -f 18xx-dashboard-v*.zip
+(
+  cd 18xx-extension
+  zip -q -r "../${ZIP}" . \
+    -x '.DS_Store' '*/.DS_Store' '*.map' '*.zip' '*.pem' '*.key'
+)
+VERIFY_DIR="$(mktemp -d /tmp/18xx-dashboard-verify.XXXXXX)"
+unzip -q "$ZIP" -d "$VERIFY_DIR"
+ZIP_VERSION="$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0])).fetch("version")' "$VERIFY_DIR/manifest.json")"
+ZIP_HASH="$(shasum -a 256 "$VERIFY_DIR/main.js" | awk '{print $1}')"
+rm -rf "$VERIFY_DIR"
+[ "$ZIP_VERSION" = "$VERSION" ] || { echo "ERROR: ZIP has version $ZIP_VERSION" >&2; exit 1; }
+[ "$ZIP_HASH" = "$PUBLIC_HASH" ] || { echo "ERROR: ZIP contains the wrong main.js" >&2; exit 1; }
 
-STEP='committing and pushing main'
-git add "$MANIFEST" "$OVERLAY" scripts/release_dashboard.sh
-if ! git diff --cached --quiet; then git commit -m "Release Dashboard v${VERSION}"; fi
+STEP="committing release to main"
+echo "==> Committing all release changes..."
+git add -A
+git commit -m "Release Dashboard v${VERSION}"
+
+STEP="pushing main"
+echo "==> Pushing main to origin..."
 git push origin main
-DONE='Release source pushed to origin/main; Chrome ZIP built locally.'
-NEXT='Deploy gh-pages and upload ZIP manually to Chrome Web Store.'
 
-STEP='deploying gh-pages'
-# Preserve the existing deployment procedure for manual review rather than
-# guessing the published site's layout or deleting unrelated hosted files.
-echo 'NOTICE: gh-pages was NOT changed automatically.'
-echo 'Use your reviewed site deployment procedure after testing the hosted site.'
-DONE='main pushed; local extension and ZIP prepared; gh-pages unchanged.'
-NEXT="Review and deploy gh-pages; then upload $ZIP in the Chrome Web Store developer console."
+STEP="deploying gh-pages"
+echo "==> Deploying public/ to gh-pages..."
+DEPLOY_DIR="$(mktemp -d /tmp/18xx-dashboard-gh-pages.XXXXXX)"
+cleanup_worktree() {
+  git worktree remove --force "$DEPLOY_DIR" >/dev/null 2>&1 || true
+  rm -rf "$DEPLOY_DIR" >/dev/null 2>&1 || true
+}
+trap 'cleanup_worktree; finish_report' EXIT
+git fetch origin gh-pages
+git worktree add --detach "$DEPLOY_DIR" origin/gh-pages
+rsync -a --delete --exclude='.git' public/ "$DEPLOY_DIR/"
+(
+  cd "$DEPLOY_DIR"
+  git add -A
+  if ! git diff --cached --quiet; then
+    git commit -m "Deploy Dashboard v${VERSION} from main ($(git -C "$ROOT" rev-parse --short HEAD))"
+  fi
+  git push origin HEAD:gh-pages
+)
+cleanup_worktree
+trap finish_report EXIT
+
+STEP="final verification"
+echo "==> Final Git and Docker checks..."
+git status --short
+docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
+[ -z "$(git status --porcelain)" ] || {
+  echo "ERROR: release finished with uncommitted files" >&2
+  exit 1
+}
