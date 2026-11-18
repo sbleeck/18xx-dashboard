@@ -1057,7 +1057,13 @@ module View
       end
 
       def sorted_corporations
-        operating_array = @game.round.operating? ? @game.round.entities : @game.operating_order
+        operating_array =
+          if @game.round.respond_to?(:entities) && @game.round.operating?
+            @game.round.entities
+          else
+            @game.operating_order
+          end
+
         operating_corporations = operating_array.each_with_index.to_h
 
         all_entities = @game.respond_to?(:minors) ? (@game.minors || []) : []
@@ -1068,35 +1074,30 @@ module View
         unfloated_corporations = (all_entities - operating_array)
           .select { |c| c.respond_to?(:sort_order_key) && c.sort_order_key }
           .sort
-          .each_with_index.to_h
+          .each_with_index
+          .to_h
 
-        result = all_entities.map do |c|
-          operating_order = if (index = operating_corporations[c])
-                              [FLOATED, index + 1]
-                            elsif (index = unfloated_corporations[c])
-                              [UNFLOATED, index + 1]
-                            else
-                              [UNSTARTED, 0]
-                            end
-          [operating_order, c]
-        end
+        result = all_entities.map do |corporation|
+          operating_order =
+            if (index = operating_corporations[corporation])
+              [FLOATED, index + 1]
+            elsif (index = unfloated_corporations[corporation])
+              [UNFLOATED, index + 1]
+            else
+              [UNSTARTED, 0]
+            end
 
-        if @game.class.name.include?('G1824::Game')
-          # Display the engine's operating sequence, regardless of corporation type.
-          # Entities not in the operating order follow, retaining their existing order.
-          result.sort_by! do |order, _corporation|
-            [order[0] == FLOATED ? 0 : 1, order[1]]
-          end
-          return result
+          [operating_order, corporation]
         end
 
         result.sort_by! do |operating_order, corporation|
           is_minor = corporation.minor? ? 0 : 1
-          minor_order = corporation.minor? ? operating_order[1] : 0
-          major_status = corporation.minor? ? 0 : -operating_order[0]
-          major_price = corporation.minor? ? 0 : -(corporation.share_price&.price || 0)
-          major_secondary_order = corporation.minor? ? 0 : operating_order[1]
-          [is_minor, minor_order, major_status, major_price, major_secondary_order]
+
+          [
+            is_minor,
+            operating_order[0] == FLOATED ? 0 : 1,
+            operating_order[1],
+          ]
         end
 
         result
@@ -3464,7 +3465,10 @@ module View
     if (typeof window !== 'undefined') {
       window._railcard_pending_source = #{source_selector};
       window._railcard_pending_target = '#player_shares_#{player.id}';
-      var el = document.querySelector(#{source_selector});
+var sel = String(#{source_selector});
+var spaceIdx = sel.indexOf(' ');
+var rawId = spaceIdx === -1 ? sel.substring(1) : sel.substring(1, spaceIdx);
+var el = document.getElementById(rawId);
       if (el) {
         var card = el.classList && el.classList.contains('game-card') ? el : (el.querySelector('.game-card') || el);
         var r = card.getBoundingClientRect();
@@ -3496,7 +3500,10 @@ module View
     if (typeof window !== 'undefined') {
       window._railcard_pending_source = #{source_selector};
       window._railcard_pending_target = '#player_shares_#{player.id}';
-      var el = document.querySelector(#{source_selector});
+var sel = String(#{source_selector});
+var spaceIdx = sel.indexOf(' ');
+var rawId = spaceIdx === -1 ? sel.substring(1) : sel.substring(1, spaceIdx);
+var el = document.getElementById(rawId);
       if (el) {
         var card = el.classList && el.classList.contains('game-card') ? el : (el.querySelector('.game-card') || el);
         var r = card.getBoundingClientRect();
