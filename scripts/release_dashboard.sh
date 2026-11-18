@@ -66,40 +66,6 @@ done < <(git status --porcelain)
 DONE='Git status checked; no merge or push performed.'
 NEXT='Build and verify the bundle.'
 
-STEP='synchronizing Git before build'
-echo '==> Fetching official upstream/master and origin/main...'
-git fetch upstream master
-git fetch origin main
-# The release manifest and script may be uncommitted. Preserve them using a
-# temporary stash, then restore them after both merges. No force-pushes.
-STASH_MARK="dashboard-release-${VERSION}-$(date +%s)"
-STASHED=0
-if [ -n "$(git status --porcelain)" ]; then
-  git stash push -u -m "$STASH_MARK" >/dev/null
-  STASHED=1
-fi
-restore_stash() {
-  if [ "$STASHED" -eq 1 ]; then
-    git stash pop --index || {
-      echo 'ERROR: Git could not restore release edits automatically. Resolve the stash conflict before continuing.' >&2
-      exit 1
-    }
-    STASHED=0
-  fi
-}
-# Fail on conflicts instead of silently preferring either side.
-if ! git merge --no-edit origin/main; then
-  echo 'ERROR: origin/main merge conflict; resolve manually.' >&2
-  exit 1
-fi
-if ! git merge --no-edit upstream/master; then
-  echo 'ERROR: upstream/master merge conflict; resolve manually.' >&2
-  exit 1
-fi
-restore_stash
-DONE='Fetched and merged origin/main and upstream/master; restored local release edits.'
-NEXT='Compile from the synchronized checkout.'
-
 STEP='synchronizing displayed version'
 ruby -e '
   path, version = ARGV
@@ -142,16 +108,6 @@ ZIPVER="$(ruby -rjson -e 'print JSON.parse(File.read(ARGV[0])).fetch("version")'
 rm -rf "$TMP"
 DONE="Docker running; extension bundle and $ZIP verified (SHA-256 $HASH)."
 NEXT="Load unpacked 18xx-extension in Chrome, reproduce the 1837 test, then publish only if accepted."
-
-STEP='committing all release changes locally'
-# Include all tracked changes and new files, but never add ignored generated
-# artifacts. This records the synchronized upstream history and release edits.
-git add -A
-if ! git diff --cached --quiet; then
-  git commit -m "Build Dashboard v${VERSION} after upstream sync"
-fi
-DONE="Upstream synchronized, Docker built, ZIP verified, and all Git changes committed locally."
-NEXT="Run git status; test 1837, then use --publish to push to GitHub."
 
 if [ "$PUBLISH" -eq 0 ]; then
   STEP='build-and-test complete; nothing published'
