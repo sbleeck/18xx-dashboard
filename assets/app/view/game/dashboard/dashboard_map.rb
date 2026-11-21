@@ -6,6 +6,7 @@ require 'view/game/axis'
 require 'view/game/hex'
 require 'view/game/tile_confirmation'
 require 'view/game/tile_selector'
+require 'view/game/dashboard/dashboard_tile_selector'
 require 'view/game/token_selector'
 require 'view/game/part/track'
 require 'view/game/part/revenue'
@@ -1524,7 +1525,6 @@ module View
           h(
             TileConfirmation,
             zoom: 1.0,
-            large: true
           )
         else
           tiles = step.upgradeable_tiles(
@@ -1595,12 +1595,12 @@ module View
           edge_distance = selector_distance + (Hex::SIZE * 1.20)
 
           ts_ds = [
-            TileSelector::DROP_SHADOW_SIZE - 5,
+            DashboardTileSelector::DROP_SHADOW_SIZE - 5,
             0,
           ].max
 
           h(
-            TileSelector,
+            DashboardTileSelector,
             layout: @layout,
             tiles: select_tiles,
             actions: actions,

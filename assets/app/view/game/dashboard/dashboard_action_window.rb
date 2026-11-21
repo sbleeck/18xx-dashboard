@@ -58,6 +58,7 @@ module View
         COLOR_MONEY = '#4c1d95'
 
         needs :game, store: true
+        needs :on_close, default: nil
         needs :game_data, store: true, default: nil
         needs :user, default: nil, store: true
         needs :routes, store: true, default: []
