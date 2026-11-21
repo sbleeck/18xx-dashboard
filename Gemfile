@@ -32,3 +32,5 @@ gem 'mini_racer', platforms: :ruby, force_ruby_platform: true
 gem 'unicorn'
 gem 'unicorn-worker-killer'
 gem "pg", "~> 1.6"
+
+gem "bigdecimal", "~> 4.1"
