@@ -2288,17 +2288,19 @@ module View
               begin
                 step.buying_power(entity)
               rescue StandardError
-                entity.respond_to?(:cash) ? entity.cash : 0
+                entity.cash
               end
             elsif @game.respond_to?(:buying_power)
               begin
                 @game.buying_power(entity)
               rescue StandardError
-                entity.respond_to?(:cash) ? entity.cash : 0
+                entity.cash
               end
             else
-              entity.respond_to?(:cash) ? entity.cash : 0
+              entity.cash
             end
+
+          buying_power = buying_power.to_i
 
           must_buy =
             begin
@@ -2500,18 +2502,18 @@ module View
               end
 
               price = price.to_i
+              can_afford = price <= buying_power
 
-              can_afford =
-                price <= buying_power ||
-                ebuy_active
-
-              if !can_afford && step.respond_to?(:can_ebuy?)
-                can_afford =
-                  begin
-                    step.can_ebuy?(entity, train)
-                  rescue StandardError
-                    false
-                  end
+              if !can_afford && ebuy_active && step.respond_to?(:can_ebuy?)
+                can_afford = begin
+                  step.can_ebuy?(entity, train) &&
+                    (
+                      !step.respond_to?(:min_depot_price) ||
+                      price == step.min_depot_price
+                    )
+                rescue StandardError
+                  false
+                end
               end
 
               next unless can_afford
@@ -5236,7 +5238,7 @@ module View
                 '),
                 h(HistoryAndUndo, last_action_id: last_action_id),
               ]),
-                h(:button, { attrs: { id: "btn-action-hub-history", type: "button", title: "Game History" }, style: { height: "2.2rem", padding: "0 10px", fontWeight: "bold", cursor: "pointer" }, on: { click: lambda { store(:show_history_overlay, @show_history_overlay != true) } } }, "History"),
+              h(:button, { attrs: { id: 'btn-action-hub-history', type: 'button', title: 'Game History' }, style: { height: '2.2rem', padding: '0 10px', fontWeight: 'bold', cursor: 'pointer' }, on: { click: -> { store(:show_history_overlay, @show_history_overlay != true) } } }, 'History'),
               h(:div, { style: { marginLeft: 'auto' } }),
               h(:button, {
                   style: {
