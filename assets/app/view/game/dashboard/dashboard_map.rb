@@ -943,7 +943,7 @@ module View
 
         base_cost = 0
 
-        target_tile = tile || hex.tile
+        target_tile = hex.tile
         if @game.respond_to?(:upgrade_cost)
           begin
             base_cost += @game.upgrade_cost(target_tile, hex, current_entity, current_entity) || 0
@@ -1033,6 +1033,58 @@ module View
         else
           "#{format_val.call(min_cost)}-#{format_val.call(max_cost)}"
         end
+      end
+
+      # Return only tiles the current corporation can afford.
+      # Check every legal rotation because border costs may differ.
+      def dashboard_affordable_tiles(step, entity_or_entities, hex)
+        entity = Array(entity_or_entities).compact.first
+        return [] unless step && entity
+
+        cash = entity.cash.to_i
+
+        tiles = Array(
+          step.upgradeable_tiles(entity_or_entities, hex)
+        )
+
+        tiles.select do |tile|
+          original_rotation = tile.rotation
+
+          begin
+            rotations =
+              if step.respond_to?(:legal_tile_rotations)
+                Array(
+                  step.legal_tile_rotations(
+                    entity_or_entities, hex, tile
+                  )
+                )
+              else
+                [original_rotation]
+              end
+
+            rotations.any? do |rotation|
+              tile.rotate!(rotation)
+
+              cost_text = hex_cost_display(
+                step,
+                entity_or_entities,
+                hex,
+                tile: tile
+              )
+
+              # nil means the calculated construction cost is zero.
+              cost = cost_text.nil? ? 0 : Integer(cost_text)
+
+              cost <= cash
+            end
+          rescue StandardError
+            false
+          ensure
+            tile.rotate!(original_rotation)
+          end
+        end
+      rescue StandardError
+        []
       end
 
       def dashboard_current_entity(step)
@@ -1513,7 +1565,24 @@ module View
         @start_pos = [@cols.first, @rows.first]
         @scale = 1.0
 
-        if @selected_company; st=begin; @game.round.active_step(@selected_company); rescue StandardError; nil; end; ac=begin; st ? Array(st.actions(@selected_company)) : []; rescue StandardError; []; end; if ac.empty?; store(:selected_company, nil, skip: true); @selected_company=nil; end; end; step = @game.round.active_step(@selected_company)
+        if @selected_company
+
+          st = begin
+            @game.round.active_step(@selected_company)
+          rescue StandardError
+            nil
+          end
+          ac = begin
+            st ? Array(st.actions(@selected_company)) : []
+          rescue StandardError
+            []
+          end
+          if ac.empty?
+            store(:selected_company, nil, skip: true)
+            @selected_company = nil
+          end
+        end
+        step = @game.round.active_step(@selected_company)
 
         current_entity = dashboard_current_entity(step)
         combo_entities = (@selected_combos || []).map { |id| @game.company_by_id(id) }.compact
@@ -1671,19 +1740,38 @@ module View
           end.include?(hex.id.to_s.upcase)
           is_hovered ||= is_last_built_hover
 
-          show_building_highlight = if hover_mode
-                                      false
-                                    elsif hex_selected
-                                      hex == selected_hex
-                                    else
-                                      clickable && track_action_active && (!step.respond_to?(:potential_tiles) ||
-                                        step.potential_tiles(entity_or_entities, hex).any?)
-                                    end
+          affordable_tiles =
+            if clickable && track_action_active
+              dashboard_affordable_tiles(
+                step, entity_or_entities, hex
+              )
+            else
+              []
+            end
 
+          show_building_highlight =
+            if hover_mode
+              false
+            elsif hex_selected
+              hex == selected_hex
+            else
+              clickable &&
+                track_action_active &&
+                affordable_tiles.any?
+            end
           show_token_highlight = if hover_mode || hex_selected
                                    false
                                  else
-                                   token_action_active && step.available_hex(current_entity, hex) && begin; tc=(@game.respond_to?(:token_owner) ? @game.token_owner(current_entity) : nil) || current_entity; ab=@game.respond_to?(:abilities) ? @game.abilities(current_entity, :token) : nil; fr=ab.respond_to?(:price) ? ab.price.to_i.zero? : false; hex.tile.cities.any? { |c| c.tokenable?(tc, free: fr, cheater: ab&.cheater, extra_slot: ab&.extra_slot) }; rescue StandardError; false; end
+                                   token_action_active && step.available_hex(current_entity, hex) && begin
+                                     tc = (@game.respond_to?(:token_owner) ? @game.token_owner(current_entity) : nil) || current_entity
+                                     ab = @game.respond_to?(:abilities) ? @game.abilities(current_entity, :token) : nil
+                                     fr = ab.respond_to?(:price) ? ab.price.to_i.zero? : false
+                                     hex.tile.cities.any? do |c|
+                                       c.tokenable?(tc, free: fr, cheater: ab&.cheater, extra_slot: ab&.extra_slot)
+                                     end
+                                   rescue StandardError
+                                     false
+                                   end
                                  end
 
           can_build = show_building_highlight || show_token_highlight
@@ -1696,14 +1784,9 @@ module View
           # reset the preview tile on every dashboard render.
           legal_drop_tile_names =
             if show_building_highlight && !hex_selected
-              begin
-                step
-                  .upgradeable_tiles(entity_or_entities, hex)
-                  .map { |tile| tile.name.to_s }
-                  .uniq
-              rescue StandardError
-                []
-              end
+              affordable_tiles
+                .map { |tile| tile.name.to_s }
+                .uniq
             else
               []
             end
@@ -1979,10 +2062,11 @@ module View
             large: true
           )
         else
-          tiles = step.upgradeable_tiles(
-            entity_or_entities,
-            @tile_selector.hex
-          )
+          tiles = dashboard_affordable_tiles(
+   step,
+   entity_or_entities,
+   @tile_selector.hex
+ )
 
           all_upgrades = @game.all_potential_upgrades(
             @tile_selector.hex.tile,
