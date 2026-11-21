@@ -55836,11 +55836,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
             } catch ($err) {
               if (Opal.rescue($err, [$$('StandardError')])) {
                 try {
-                  if ($truthy(entity['$respond_to?']("cash"))) {
-                    return entity.$cash()
-                  } else {
-                    return 0
-                  }
+                  return entity.$cash()
                 } finally { Opal.pop_exception($err); }
               } else { throw $err; }
             }})()) : ($truthy(self.game['$respond_to?']("buying_power")) ? ((function() { try {
@@ -55848,14 +55844,11 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
             } catch ($err) {
               if (Opal.rescue($err, [$$('StandardError')])) {
                 try {
-                  if ($truthy(entity['$respond_to?']("cash"))) {
-                    return entity.$cash()
-                  } else {
-                    return 0
-                  }
+                  return entity.$cash()
                 } finally { Opal.pop_exception($err); }
               } else { throw $err; }
-            }})()) : ($truthy(entity['$respond_to?']("cash")) ? (entity.$cash()) : (0))));
+            }})()) : (entity.$cash())));
+            buying_power = buying_power.$to_i();
             must_buy = (function() { try {
               if ($truthy(($ret_or_1 = step['$respond_to?']("must_buy_train?")))) {
                 return step['$must_buy_train?'](entity)
@@ -56044,10 +56037,19 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
                   price = train.$price();
                 };
                 price = price.$to_i();
-                can_afford = ($truthy(($ret_or_1 = $rb_le(price, buying_power))) ? ($ret_or_1) : (ebuy_active));
-                if (($not(can_afford) && ($truthy(step['$respond_to?']("can_ebuy?"))))) {
+                can_afford = $rb_le(price, buying_power);
+                if ((($not(can_afford) && ($truthy(ebuy_active))) && ($truthy(step['$respond_to?']("can_ebuy?"))))) {
                   can_afford = (function() { try {
-                    return step['$can_ebuy?'](entity, train)
+                    if ($truthy(($ret_or_1 = step['$can_ebuy?'](entity, train)))) {
+                      
+                      if ($truthy(($ret_or_2 = step['$respond_to?']("min_depot_price")['$!']()))) {
+                        return $ret_or_2
+                      } else {
+                        return price['$=='](step.$min_depot_price())
+                      };
+                    } else {
+                      return $ret_or_1
+                    }
                   } catch ($err) {
                     if (Opal.rescue($err, [$$('StandardError')])) {
                       try {
@@ -58489,7 +58491,7 @@ Opal.modules["view/game/dashboard/dashboard_action_window"] = function(Opal) {/*
             } else {
               return $ret_or_1
             }})();
-            zone_3 = self.$h("div", (new Map([["style", (new Map([["flex", "0 0 auto"], ["display", "flex"], ["flexDirection", "column"], ["padding", "0.65rem 1rem"], ["boxSizing", "border-box"], ["gap", "0.65rem"], ["width", "100%"], ["backgroundColor", "#f8fafc"], ["borderTop", "1px solid #e2e8f0"]]))]])), [($truthy(has_abilities) ? (self.$render_zone3_abilities(entity)) : nil), self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["alignItems", "center"], ["justifyContent", "flex-start"], ["gap", "0.6rem"], ["width", "100%"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "cmd-undo-redo-wrapper"]]))], ["style", (new Map([["flex", "0 0 auto"]]))]])), [self.$h("style", (new Map()), "\n" + "                  .cmd-undo-redo-wrapper #history,\n" + "                  .cmd-undo-redo-wrapper .history,\n" + "                  .cmd-undo-redo-wrapper input,\n" + "                  .cmd-undo-redo-wrapper button:not(#undo):not(#redo) {\n" + "                    display: none !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper,\n" + "                  .cmd-undo-redo-wrapper * {\n" + "                    box-sizing: border-box !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper,\n" + "                  .cmd-undo-redo-wrapper div,\n" + "                  .cmd-undo-redo-wrapper #history_and_undo,\n" + "                  .cmd-undo-redo-wrapper .history_and_undo {\n" + "                    display: flex !important;\n" + "                    flex-direction: row !important;\n" + "                    flex-wrap: nowrap !important;\n" + "                    align-items: center !important;\n" + "                    justify-content: flex-start !important;\n" + "                    gap: 0.35rem !important;\n" + "                    width: auto !important;\n" + "                    min-width: auto !important;\n" + "                    max-width: max-content !important;\n" + "                    margin: 0 !important;\n" + "                    padding: 0 !important;\n" + "                    border: none !important;\n" + "                    background: transparent !important;\n" + "                    box-shadow: none !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper button#undo,\n" + "                  .cmd-undo-redo-wrapper button#redo {\n" + "                    display: inline-flex !important;\n" + "                    flex: 0 0 3.2rem !important;\n" + "                    width: 3.2rem !important;\n" + "                    min-width: 3.2rem !important;\n" + "                    max-width: 3.2rem !important;\n" + "                    height: 2.2rem !important;\n" + "                    min-height: 2.2rem !important;\n" + "                    max-height: 2.2rem !important;\n" + "                    justify-content: center !important;\n" + "                    align-items: center !important;\n" + "                    padding: 0 4px !important;\n" + "                    font-size: 0.85rem !important;\n" + "                    font-weight: bold !important;\n" + "                    background-color: #ffffff !important;\n" + "                    color: #212529 !important;\n" + "                    border: 1px solid #ced4da !important;\n" + "                    border-radius: 4px !important;\n" + "                    cursor: pointer !important;\n" + "                    margin: 0 !important;\n" + "                    line-height: 1 !important;\n" + "                    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper button#undo:hover:not(:disabled),\n" + "                  .cmd-undo-redo-wrapper button#redo:hover:not(:disabled) {\n" + "                    background-color: #e9ecef !important;\n" + "                    border-color: #adb5bd !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper button#undo:disabled,\n" + "                  .cmd-undo-redo-wrapper button#redo:disabled {\n" + "                    background-color: #f1f3f5 !important;\n" + "                    color: #adb5bd !important;\n" + "                    cursor: not-allowed !important;\n" + "                    opacity: 0.6 !important;\n" + "                    box-shadow: none !important;\n" + "                  }\n" + "                "), self.$h($$('HistoryAndUndo'), (new Map([["last_action_id", last_action_id]])))]), self.$h("button", (new Map([["attrs", (new Map([["id", "btn-action-hub-history"], ["type", "button"], ["title", "Game History"]]))], ["style", (new Map([["height", "2.2rem"], ["padding", "0 10px"], ["fontWeight", "bold"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$194(){var self = $$194.$$s == null ? this : $$194.$$s;
+            zone_3 = self.$h("div", (new Map([["style", (new Map([["flex", "0 0 auto"], ["display", "flex"], ["flexDirection", "column"], ["padding", "0.65rem 1rem"], ["boxSizing", "border-box"], ["gap", "0.65rem"], ["width", "100%"], ["backgroundColor", "#f8fafc"], ["borderTop", "1px solid #e2e8f0"]]))]])), [($truthy(has_abilities) ? (self.$render_zone3_abilities(entity)) : nil), self.$h("div", (new Map([["style", (new Map([["display", "flex"], ["flexDirection", "row"], ["alignItems", "center"], ["justifyContent", "flex-start"], ["gap", "0.6rem"], ["width", "100%"]]))]])), [self.$h("div", (new Map([["attrs", (new Map([["class", "cmd-undo-redo-wrapper"]]))], ["style", (new Map([["flex", "0 0 auto"]]))]])), [self.$h("style", (new Map()), "\n" + "                  .cmd-undo-redo-wrapper #history,\n" + "                  .cmd-undo-redo-wrapper .history,\n" + "                  .cmd-undo-redo-wrapper input,\n" + "                  .cmd-undo-redo-wrapper button:not(#undo):not(#redo) {\n" + "                    display: none !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper,\n" + "                  .cmd-undo-redo-wrapper * {\n" + "                    box-sizing: border-box !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper,\n" + "                  .cmd-undo-redo-wrapper div,\n" + "                  .cmd-undo-redo-wrapper #history_and_undo,\n" + "                  .cmd-undo-redo-wrapper .history_and_undo {\n" + "                    display: flex !important;\n" + "                    flex-direction: row !important;\n" + "                    flex-wrap: nowrap !important;\n" + "                    align-items: center !important;\n" + "                    justify-content: flex-start !important;\n" + "                    gap: 0.35rem !important;\n" + "                    width: auto !important;\n" + "                    min-width: auto !important;\n" + "                    max-width: max-content !important;\n" + "                    margin: 0 !important;\n" + "                    padding: 0 !important;\n" + "                    border: none !important;\n" + "                    background: transparent !important;\n" + "                    box-shadow: none !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper button#undo,\n" + "                  .cmd-undo-redo-wrapper button#redo {\n" + "                    display: inline-flex !important;\n" + "                    flex: 0 0 3.2rem !important;\n" + "                    width: 3.2rem !important;\n" + "                    min-width: 3.2rem !important;\n" + "                    max-width: 3.2rem !important;\n" + "                    height: 2.2rem !important;\n" + "                    min-height: 2.2rem !important;\n" + "                    max-height: 2.2rem !important;\n" + "                    justify-content: center !important;\n" + "                    align-items: center !important;\n" + "                    padding: 0 4px !important;\n" + "                    font-size: 0.85rem !important;\n" + "                    font-weight: bold !important;\n" + "                    background-color: #ffffff !important;\n" + "                    color: #212529 !important;\n" + "                    border: 1px solid #ced4da !important;\n" + "                    border-radius: 4px !important;\n" + "                    cursor: pointer !important;\n" + "                    margin: 0 !important;\n" + "                    line-height: 1 !important;\n" + "                    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper button#undo:hover:not(:disabled),\n" + "                  .cmd-undo-redo-wrapper button#redo:hover:not(:disabled) {\n" + "                    background-color: #e9ecef !important;\n" + "                    border-color: #adb5bd !important;\n" + "                  }\n" + "                  .cmd-undo-redo-wrapper button#undo:disabled,\n" + "                  .cmd-undo-redo-wrapper button#redo:disabled {\n" + "                    background-color: #f1f3f5 !important;\n" + "                    color: #adb5bd !important;\n" + "                    cursor: not-allowed !important;\n" + "                    opacity: 0.6 !important;\n" + "                    box-shadow: none !important;\n" + "                  }\n" + "                "), self.$h($$('HistoryAndUndo'), (new Map([["last_action_id", last_action_id]])))]), self.$h("button", (new Map([["attrs", (new Map([["id", "btn-action-hub-history"], ["type", "button"], ["title", "Game History"]]))], ["style", (new Map([["height", "2.2rem"], ["padding", "0 10px"], ["fontWeight", "bold"], ["cursor", "pointer"]]))], ["on", (new Map([["click", $lambda(function $$194(){var self = $$194.$$s == null ? this : $$194.$$s;
               if (self.show_history_overlay == null) self.show_history_overlay = nil;
 
               return self.$store("show_history_overlay", self.show_history_overlay['$!='](true))}, {$$s: self})]]))]])), "History"), self.$h("div", (new Map([["style", (new Map([["marginLeft", "auto"]]))]]))), self.$h("button", (new Map([["style", (new Map([["flex", "0 0 auto"], ["minWidth", "7.5rem"], ["height", "2.35rem"], ["padding", "0 1.1rem"], ["fontSize", "0.9rem"], ["fontWeight", "bold"], ["backgroundColor", advance_color], ["color", advance_text_color], ["border", ($truthy(advance_disabled) ? ("1px solid #cbd5e1") : ("1px solid #1d4ed8"))], ["borderRadius", "6px"], ["cursor", ($truthy(advance_disabled) ? ("not-allowed") : ("pointer"))], ["boxShadow", ($truthy(advance_disabled) ? ("none") : ("0 2px 5px rgba(15,23,42,0.18)"))], ["whiteSpace", "nowrap"]]))], ["attrs", (new Map([["id", "btn-action-hub-default"], ["disabled", advance_disabled], ["title", advance_tooltip]])).$compact()], ["on", (new Map([["click", advance_action]]))]])), button_label)])].$compact());
@@ -73132,7 +73134,7 @@ Opal.modules["view/game/dashboard/dashboard_loan_animation"] = function(Opal) {/
 Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated by Opal 1.8.3 */
   var $module = Opal.module, $klass = Opal.klass, $truthy = Opal.truthy, $alias = Opal.alias, $def = Opal.def, $send = Opal.send, $defs = Opal.defs, $rb_times = Opal.rb_times, $eqeq = Opal.eqeq, $const_set = Opal.const_set, $ensure_kwargs = Opal.ensure_kwargs, $hash_get = Opal.hash_get, $eqeqeq = Opal.eqeqeq, $range = Opal.range, $not = Opal.not, $rb_divide = Opal.rb_divide, $rb_plus = Opal.rb_plus, $rb_minus = Opal.rb_minus, $to_ary = Opal.to_ary, $lambda = Opal.lambda, $rb_le = Opal.rb_le, $thrower = Opal.thrower, $to_a = Opal.to_a, $neqeq = Opal.neqeq, $rb_lt = Opal.rb_lt, self = Opal.top, $nesting = [], $$ = Opal.$r($nesting), nil = Opal.nil, $$$ = Opal.$$$;
 
-  Opal.add_stubs('require,method_defined?,render,orig_pulse_render,respond_to?,corporation,to_s,id,gsub,lambda,width_for_index,value_for_index,dashboard_original_width_for_index,dashboard_map_mounted?,*,==,[],%,to_i,size,dashboard_original_value_for_index,h,===,length,include,!,zero?,revenue_badge,map,start_with?,color_for,max,ceil,/,to_f,+,with_index,each_slice,-,-@,each_with_index,<<,needs,minmax,to_a,compact,Array,train,any?,visited_stops,stops,hex,tile,empty?,join,raw_actions,actions,find,reverse,is_a?,type,to_sym,public_send,call,each,downcase,include?,round,latest_dashboard_dividend,first,upgrade_cost,get_tile_lay,color,select,borders,positive?,cost,exits,paths,uniq,flat_map,edges,to_proc,a,b,edge?,border_cost,sum,edge,hex_neighbors,all?,current_entity,active_entities,operating?,entities,nil?,=~,phase,name,match?,tiles,reverse_each,keys,<=,max_by,values,instance_variable_get,base_revenue,revenue,resolve_revenue_val,parts,class,show_meme_revenue?,revenue_for,route_revenue,stop_base_revenue,cities,concat,towns,offboards,tile_base_revenue,none?,stop_revenue_value,role,upgradeable_tiles,legal_tile_rotations,legal_rotations=,rotate!,new,layout,instance_variable_set,delete,install_revenue_button_bridge,hexes,clone,dup,reject,compute_axes,active_step,store,dashboard_current_entity,company_by_id,consume_pending_manifest_tile,historical?,all_corporations,corporations,minors,game_data,entity,routes,trains,train_by_id,install_route_celebration_bridge,install_dividend_celebration_bridge,extract_hovered_hexes,upcase,!=,available_hex,last_laid_hexes_for,potential_tiles,token_owner,abilities,price,tokenable?,cheater,extra_slot,coordinates,hex_cost_display,hex_meme_revenue_overlay,puts,rotation,inspect,legal_rotations,hook,map_size,render_map,x,map_x,y,map_y,render_selector,all_potential_upgrades,potential_tile_colors,tile_valid_for_phase?,append,<,companies,sym,tokens,placed?,city,all_abilities,const_defined?,corporation_by_id,minor,minor_by_id,desc,scan,hex_by_id,laid_hexes,operating_history,owner,map_highlight_refresh_hook,axes');
+  Opal.add_stubs('require,method_defined?,render,orig_pulse_render,respond_to?,corporation,to_s,id,gsub,lambda,width_for_index,value_for_index,dashboard_original_width_for_index,dashboard_map_mounted?,*,==,[],%,to_i,size,dashboard_original_value_for_index,h,===,length,include,!,zero?,revenue_badge,map,start_with?,color_for,max,ceil,/,to_f,+,with_index,each_slice,-,-@,each_with_index,<<,needs,minmax,to_a,compact,Array,train,any?,visited_stops,stops,hex,tile,empty?,join,raw_actions,actions,find,reverse,is_a?,type,to_sym,public_send,call,each,downcase,include?,round,latest_dashboard_dividend,first,upgrade_cost,get_tile_lay,color,select,borders,positive?,cost,exits,paths,uniq,flat_map,edges,to_proc,a,b,edge?,border_cost,sum,edge,hex_neighbors,all?,cash,upgradeable_tiles,rotation,legal_tile_rotations,rotate!,hex_cost_display,nil?,Integer,<=,current_entity,active_entities,operating?,entities,=~,phase,name,match?,tiles,reverse_each,keys,max_by,values,instance_variable_get,base_revenue,revenue,resolve_revenue_val,parts,class,show_meme_revenue?,revenue_for,route_revenue,stop_base_revenue,cities,concat,towns,offboards,tile_base_revenue,none?,stop_revenue_value,role,legal_rotations=,new,layout,instance_variable_set,delete,install_revenue_button_bridge,hexes,clone,dup,reject,compute_axes,active_step,store,dashboard_current_entity,company_by_id,consume_pending_manifest_tile,historical?,all_corporations,corporations,minors,game_data,entity,routes,trains,train_by_id,install_route_celebration_bridge,install_dividend_celebration_bridge,extract_hovered_hexes,upcase,!=,available_hex,last_laid_hexes_for,dashboard_affordable_tiles,token_owner,abilities,price,tokenable?,cheater,extra_slot,coordinates,hex_meme_revenue_overlay,puts,inspect,legal_rotations,hook,map_size,render_map,x,map_x,y,map_y,render_selector,all_potential_upgrades,potential_tile_colors,tile_valid_for_phase?,append,<,companies,sym,tokens,placed?,city,all_abilities,const_defined?,corporation_by_id,minor,minor_by_id,desc,scan,hex_by_id,laid_hexes,operating_history,owner,map_highlight_refresh_hook,axes');
   
   self.$require("view/game/dashboard/dashboard_tile_selector");
   self.$require("view/game/dashboard/dashboard_tile_confirmation");
@@ -74110,7 +74112,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             return nil
           };
           base_cost = 0;
-          target_tile = ($truthy(($ret_or_1 = tile)) ? ($ret_or_1) : (hex.$tile()));
+          target_tile = hex.$tile();
           if ($truthy(self.game['$respond_to?']("upgrade_cost"))) {
             
             try {
@@ -74257,6 +74259,54 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           };
         }, -4);
         
+        $def(self, '$dashboard_affordable_tiles', function $$dashboard_affordable_tiles(step, entity_or_entities, hex) {
+          var self = this, entity = nil, cash = nil, tiles = nil;
+
+          try {
+            
+            entity = self.$Array(entity_or_entities).$compact().$first();
+            if (!($truthy(step) && ($truthy(entity)))) {
+              return []
+            };
+            cash = entity.$cash().$to_i();
+            tiles = self.$Array(step.$upgradeable_tiles(entity_or_entities, hex));
+            return $send(tiles, 'select', [], function $$22(tile){var self = $$22.$$s == null ? this : $$22.$$s, original_rotation = nil, rotations = nil;
+
+              
+              if (tile == null) tile = nil;
+              original_rotation = tile.$rotation();
+              
+              return (function() { try {
+              try {
+                
+                rotations = ($truthy(step['$respond_to?']("legal_tile_rotations")) ? (self.$Array(step.$legal_tile_rotations(entity_or_entities, hex, tile))) : ([original_rotation]));
+                return $send(rotations, 'any?', [], function $$23(rotation){var self = $$23.$$s == null ? this : $$23.$$s, cost_text = nil, cost = nil;
+
+                  
+                  if (rotation == null) rotation = nil;
+                  tile['$rotate!'](rotation);
+                  cost_text = self.$hex_cost_display(step, entity_or_entities, hex, (new Map([["tile", tile]])));
+                  cost = ($truthy(cost_text['$nil?']()) ? (0) : (self.$Integer(cost_text)));
+                  return $rb_le(cost, cash);}, {$$s: self});
+              } catch ($err) {
+                if (Opal.rescue($err, [$$('StandardError')])) {
+                  try {
+                    return false
+                  } finally { Opal.pop_exception($err); }
+                } else { throw $err; }
+              }
+              } finally {
+                tile['$rotate!'](original_rotation)
+              }; })();;}, {$$s: self});
+          } catch ($err) {
+            if (Opal.rescue($err, [$$('StandardError')])) {
+              try {
+                return []
+              } finally { Opal.pop_exception($err); }
+            } else { throw $err; }
+          }
+        });
+        
         $def(self, '$dashboard_current_entity', function $$dashboard_current_entity(step) {
           var self = this, entity = nil, $ret_or_1 = nil;
 
@@ -74288,7 +74338,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           }
         });
         
-        $def(self, '$show_meme_revenue?', function $DashboardMap_show_meme_revenue$ques$22() {
+        $def(self, '$show_meme_revenue?', function $DashboardMap_show_meme_revenue$ques$24() {
           var self = this, stored = nil;
 
           
@@ -74320,40 +74370,40 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             p_name = ($a = phase, ($a === nil || $a == null) ? nil : $a.$name()).$to_s()
           };
           candidates = [p_name, ($b = p_name, ($b === nil || $b == null) ? nil : $b.$to_sym()), ($truthy(/^\d+$/['$match?'](p_name)) ? (p_name.$to_i()) : nil)].$compact();
-          $send(candidates, 'each', [], function $$23(k){var val = nil;
+          $send(candidates, 'each', [], function $$25(k){var val = nil;
 
             
             if (k == null) k = nil;
             val = raw['$[]'](k);
             if ($truthy(val['$is_a?']($$('Numeric')))) {
-              $t_return.$throw(val.$to_i(), $$23.$$is_lambda)
+              $t_return.$throw(val.$to_i(), $$25.$$is_lambda)
             };
             if (($truthy(val['$is_a?']($$('String'))) && ($truthy(val['$=~'](/^\d+$/))))) {
-              $t_return.$throw(val.$to_i(), $$23.$$is_lambda)
+              $t_return.$throw(val.$to_i(), $$25.$$is_lambda)
             } else {
               return nil
             };}, {$$ret: $t_return});
           phase_tiles = (($truthy(phase['$respond_to?']("tiles")) && ($truthy(($c = phase.$tiles(), ($c === nil || $c == null) ? nil : $c['$any?']())))) ? ($send(phase.$tiles(), 'map', [], "to_s".$to_proc())) : ([]));
-          $send(phase_tiles, 'reverse_each', [], function $$24(color_str){
+          $send(phase_tiles, 'reverse_each', [], function $$26(color_str){
             
             if (color_str == null) color_str = nil;
-            return $send([color_str.$to_sym(), color_str], 'each', [], function $$25(k){var val = nil;
+            return $send([color_str.$to_sym(), color_str], 'each', [], function $$27(k){var val = nil;
 
               
               if (k == null) k = nil;
               val = raw['$[]'](k);
               if ($truthy(val['$is_a?']($$('Numeric')))) {
-                $t_return.$throw(val.$to_i(), $$25.$$is_lambda)
+                $t_return.$throw(val.$to_i(), $$27.$$is_lambda)
               };
               if (($truthy(val['$is_a?']($$('String'))) && ($truthy(val['$=~'](/^\d+$/))))) {
-                $t_return.$throw(val.$to_i(), $$25.$$is_lambda)
+                $t_return.$throw(val.$to_i(), $$27.$$is_lambda)
               } else {
                 return nil
               };}, {$$ret: $t_return});});
           curr_phase_num = ($d = p_name['$[]'](/\d+/), ($d === nil || $d == null) ? nil : $d.$to_i());
           if ($truthy(($e = curr_phase_num, ($e === nil || $e == null) ? nil : $e['$positive?']()))) {
             
-            matching_keys = $send(raw.$keys(), 'select', [], function $$26(k){var $f, k_num = nil, $ret_or_1 = nil;
+            matching_keys = $send(raw.$keys(), 'select', [], function $$28(k){var $f, k_num = nil, $ret_or_1 = nil;
 
               
               if (k == null) k = nil;
@@ -74365,7 +74415,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               };});
             if ($truthy(matching_keys['$any?']())) {
               
-              best_key = $send(matching_keys, 'max_by', [], function $$27(k){
+              best_key = $send(matching_keys, 'max_by', [], function $$29(k){
                 
                 if (k == null) k = nil;
                 if ($truthy(k['$is_a?']($$('Numeric')))) {
@@ -74383,15 +74433,15 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             };
           };
           if (($truthy(tile_color) && (($truthy(phase_tiles['$empty?']()) || ($truthy(phase_tiles['$include?'](tile_color.$to_s()))))))) {
-            $send([tile_color.$to_s(), tile_color.$to_sym()], 'each', [], function $$28(k){
+            $send([tile_color.$to_s(), tile_color.$to_sym()], 'each', [], function $$30(k){
               
               if (k == null) k = nil;
               val = raw['$[]'](k);
               if ($truthy(val['$is_a?']($$('Numeric')))) {
-                $t_return.$throw(val.$to_i(), $$28.$$is_lambda)
+                $t_return.$throw(val.$to_i(), $$30.$$is_lambda)
               };
               if (($truthy(val['$is_a?']($$('String'))) && ($truthy(val['$=~'](/^\d+$/))))) {
-                $t_return.$throw(val.$to_i(), $$28.$$is_lambda)
+                $t_return.$throw(val.$to_i(), $$30.$$is_lambda)
               } else {
                 return nil
               };}, {$$ret: $t_return})
@@ -74524,7 +74574,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           if ($truthy(tile)) {
             
             parts = ($truthy(tile['$respond_to?']("parts")) ? (($truthy(($ret_or_1 = tile.$parts())) ? ($ret_or_1) : ([]))) : ([]));
-            $send(parts, 'each', [], function $$29(p){var self = $$29.$$s == null ? this : $$29.$$s, p_raw = nil, p_val = nil;
+            $send(parts, 'each', [], function $$31(p){var self = $$31.$$s == null ? this : $$31.$$s, p_raw = nil, p_val = nil;
 
               
               if (p == null) p = nil;
@@ -74534,7 +74584,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               p_raw = ($truthy(p['$respond_to?']("revenue")) ? (p.$revenue()) : (nil));
               p_val = self.$resolve_revenue_val(p_raw, tile.$color());
               if ($truthy(p_val['$positive?']())) {
-                $t_return.$throw(p_val, $$29.$$is_lambda)
+                $t_return.$throw(p_val, $$31.$$is_lambda)
               } else {
                 return nil
               };}, {$$s: self, $$ret: $t_return});
@@ -74553,7 +74603,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             return 0
           };
           parts = ($truthy(tile['$respond_to?']("parts")) ? (($truthy(($ret_or_1 = tile.$parts())) ? ($ret_or_1) : ([]))) : ([]));
-          rev_parts = $send(parts, 'select', [], function $$30(p){var $ret_or_2 = nil, $ret_or_3 = nil;
+          rev_parts = $send(parts, 'select', [], function $$32(p){var $ret_or_2 = nil, $ret_or_3 = nil;
 
             
             if (p == null) p = nil;
@@ -74570,7 +74620,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           if ($truthy(rev_parts['$empty?']())) {
             return 0
           };
-          return $send(rev_parts, 'sum', [], function $$31(p){var self = $$31.$$s == null ? this : $$31.$$s, raw = nil;
+          return $send(rev_parts, 'sum', [], function $$33(p){var self = $$33.$$s == null ? this : $$33.$$s, raw = nil;
 
             
             if (p == null) p = nil;
@@ -74671,22 +74721,22 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           };
           screaming_palette = ["#ff1493", "#00ffff", "#7fff00", "#ff00ff", "#ffea00", "#ff4500"];
           visited_stops_with_route = [];
-          active_routes = $send(self.$Array(routes), 'select', [], function $$32(r){
+          active_routes = $send(self.$Array(routes), 'select', [], function $$34(r){
             
             if (r == null) r = nil;
             return r['$respond_to?']("paths_for");});
           if (($truthy(active_routes['$any?']()) && ($truthy(tile_stops['$any?']())))) {
-            $send(active_routes, 'each_with_index', [], function $$33(route, r_idx){var $c, r_stops = nil;
+            $send(active_routes, 'each_with_index', [], function $$35(route, r_idx){var $c, r_stops = nil;
 
               
               if (route == null) route = nil;
               if (r_idx == null) r_idx = nil;
               r_stops = (($truthy(route['$respond_to?']("visited_stops")) && ($truthy(($c = route.$visited_stops(), ($c === nil || $c == null) ? nil : $c['$any?']())))) ? (route.$visited_stops()) : (($truthy(route['$respond_to?']("stops")) && ($truthy(route.$stops()))) ? (route.$stops()) : ([])));
-              return $send(tile_stops, 'each', [], function $$34(ts){var matches = nil, $ret_or_1 = nil;
+              return $send(tile_stops, 'each', [], function $$36(ts){var matches = nil, $ret_or_1 = nil;
 
                 
                 if (ts == null) ts = nil;
-                matches = ($truthy(($ret_or_1 = r_stops['$include?'](ts))) ? ($ret_or_1) : ($send(r_stops, 'any?', [], function $$35(rs){var $d, $ret_or_2 = nil, $ret_or_3 = nil, $ret_or_4 = nil;
+                matches = ($truthy(($ret_or_1 = r_stops['$include?'](ts))) ? ($ret_or_1) : ($send(r_stops, 'any?', [], function $$37(rs){var $d, $ret_or_2 = nil, $ret_or_3 = nil, $ret_or_4 = nil;
 
                   
                   if (rs == null) rs = nil;
@@ -74700,7 +74750,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                       return $ret_or_3
                     };
                   };})));
-                if (($truthy(matches) && ($truthy($send(visited_stops_with_route, 'none?', [], function $$36(v_ts, _, __$2){
+                if (($truthy(matches) && ($truthy($send(visited_stops_with_route, 'none?', [], function $$38(v_ts, _, __$2){
                   
                   if (v_ts == null) v_ts = nil;
                   if (_ == null) _ = nil;
@@ -74715,17 +74765,17 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           cities = ($truthy(tile['$respond_to?']("cities")) ? (($truthy(($ret_or_1 = tile.$cities())) ? ($ret_or_1) : ([]))) : ([]));
           offboards = ($truthy(tile['$respond_to?']("offboards")) ? (($truthy(($ret_or_1 = tile.$offboards())) ? ($ret_or_1) : ([]))) : ([]));
           towns = ($truthy(tile['$respond_to?']("towns")) ? (($truthy(($ret_or_1 = tile.$towns())) ? ($ret_or_1) : ([]))) : ([]));
-          total_rev = ($truthy(cities['$any?']()) ? (((city = cities.$first()), ($truthy(is_visited) ? (((v_city = $send(visited_stops_with_route, 'find', [], function $$37(ts, _, __$2){
+          total_rev = ($truthy(cities['$any?']()) ? (((city = cities.$first()), ($truthy(is_visited) ? (((v_city = $send(visited_stops_with_route, 'find', [], function $$39(ts, _, __$2){
             
             if (ts == null) ts = nil;
             if (_ == null) _ = nil;
             if (__$2 == null) __$2 = nil;
-            return cities['$include?'](ts);})), ($truthy(v_city) ? (self.$stop_revenue_value(v_city['$[]'](0), v_city['$[]'](1))) : (self.$stop_base_revenue(city))))) : (self.$stop_base_revenue(city))))) : ($truthy(offboards['$any?']()) ? (((ob = offboards.$first()), ($truthy(is_visited) ? (((v_ob = $send(visited_stops_with_route, 'find', [], function $$38(ts, _, __$2){
+            return cities['$include?'](ts);})), ($truthy(v_city) ? (self.$stop_revenue_value(v_city['$[]'](0), v_city['$[]'](1))) : (self.$stop_base_revenue(city))))) : (self.$stop_base_revenue(city))))) : ($truthy(offboards['$any?']()) ? (((ob = offboards.$first()), ($truthy(is_visited) ? (((v_ob = $send(visited_stops_with_route, 'find', [], function $$40(ts, _, __$2){
             
             if (ts == null) ts = nil;
             if (_ == null) _ = nil;
             if (__$2 == null) __$2 = nil;
-            return offboards['$include?'](ts);})), ($truthy(v_ob) ? (self.$stop_revenue_value(v_ob['$[]'](0), v_ob['$[]'](1))) : (self.$stop_base_revenue(ob))))) : (self.$stop_base_revenue(ob))))) : ($truthy(towns['$any?']()) ? (((tw = towns.$first()), ($truthy(is_visited) ? (((v_tw = $send(visited_stops_with_route, 'find', [], function $$39(ts, _, __$2){
+            return offboards['$include?'](ts);})), ($truthy(v_ob) ? (self.$stop_revenue_value(v_ob['$[]'](0), v_ob['$[]'](1))) : (self.$stop_base_revenue(ob))))) : (self.$stop_base_revenue(ob))))) : ($truthy(towns['$any?']()) ? (((tw = towns.$first()), ($truthy(is_visited) ? (((v_tw = $send(visited_stops_with_route, 'find', [], function $$41(ts, _, __$2){
             
             if (ts == null) ts = nil;
             if (_ == null) _ = nil;
@@ -74771,7 +74821,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           
           return (function() { try {
           
-          dragged_tile = $send(self.$Array(step.$upgradeable_tiles(entity_or_entities, self.tile_selector.$hex())), 'find', [], function $$40(candidate){
+          dragged_tile = $send(self.$Array(step.$upgradeable_tiles(entity_or_entities, self.tile_selector.$hex())), 'find', [], function $$42(candidate){
             
             if (candidate == null) candidate = nil;
             return candidate.$name().$to_s()['$=='](dragged_tile_name.$to_s());});
@@ -74843,7 +74893,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           };
           step = self.game.$round().$active_step(self.selected_company);
           current_entity = self.$dashboard_current_entity(step);
-          combo_entities = $send(($truthy(($ret_or_1 = self.selected_combos)) ? ($ret_or_1) : ([])), 'map', [], function $$41(id){var self = $$41.$$s == null ? this : $$41.$$s;
+          combo_entities = $send(($truthy(($ret_or_1 = self.selected_combos)) ? ($ret_or_1) : ([])), 'map', [], function $$43(id){var self = $$43.$$s == null ? this : $$43.$$s;
             if (self.game == null) self.game = nil;
 
             
@@ -74853,16 +74903,16 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           actions = (($truthy(step) && ($truthy(current_entity))) ? (($truthy(($ret_or_1 = step.$actions(current_entity))) ? ($ret_or_1) : ([]))) : ([]));
           self.$consume_pending_manifest_tile(step, entity_or_entities);
           route_actions = ["run_routes", "dividend"];
-          route_phase_active = $send(actions, 'any?', [], function $$42(a){
+          route_phase_active = $send(actions, 'any?', [], function $$44(a){
             
             if (a == null) a = nil;
             return route_actions['$include?'](a);});
           is_history_mode = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = self.game['$respond_to?']("historical?"))) ? (self.game['$historical?']()) : ($ret_or_2)))) ? ($ret_or_1) : (self.historical_laid_hexes));
           hovered_last_id = $$$($$('Lib'), 'Storage')['$[]']("hovered_last_corp");
-          hovered_corp = ($truthy(hovered_last_id) ? (((all_corps = ($truthy(($ret_or_1 = ($truthy(self.game['$respond_to?']("all_corporations")) ? (self.game.$all_corporations()) : (self.game.$corporations())))) ? ($ret_or_1) : ([]))), ($truthy(($ret_or_1 = $send(all_corps, 'find', [], function $$43(c){
+          hovered_corp = ($truthy(hovered_last_id) ? (((all_corps = ($truthy(($ret_or_1 = ($truthy(self.game['$respond_to?']("all_corporations")) ? (self.game.$all_corporations()) : (self.game.$corporations())))) ? ($ret_or_1) : ([]))), ($truthy(($ret_or_1 = $send(all_corps, 'find', [], function $$45(c){
             
             if (c == null) c = nil;
-            return c.$id().$to_s()['$=='](hovered_last_id.$to_s());}))) ? ($ret_or_1) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(($truthy(($ret_or_2 = self.game.$minors())) ? ($ret_or_2) : ([])), 'find', [], function $$44(m){
+            return c.$id().$to_s()['$=='](hovered_last_id.$to_s());}))) ? ($ret_or_1) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(($truthy(($ret_or_2 = self.game.$minors())) ? ($ret_or_2) : ([])), 'find', [], function $$46(m){
             
             if (m == null) m = nil;
             return m.$id().$to_s()['$=='](hovered_last_id.$to_s());})) : nil))))) : nil);
@@ -74884,7 +74934,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               if (($truthy(actions_list['$empty?']()) && ($truthy(self.game['$respond_to?']("actions"))))) {
                 actions_list = ($truthy(($ret_or_1 = self.game.$actions())) ? ($ret_or_1) : ([]))
               };
-              run_action = $send(actions_list.$reverse(), 'find', [], function $$45(act){var a_type = nil, a_ent = nil;
+              run_action = $send(actions_list.$reverse(), 'find', [], function $$47(act){var a_type = nil, a_ent = nil;
 
                 
                 if (act == null) act = nil;
@@ -74896,7 +74946,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   return $ret_or_1
                 };});
               raw_routes = ($truthy(run_action) ? (($truthy(run_action['$is_a?']($$('Hash'))) ? (($truthy(($ret_or_1 = run_action['$[]']("routes"))) ? ($ret_or_1) : (run_action['$[]']("routes")))) : (($truthy(run_action['$respond_to?']("routes")) ? (run_action.$routes()) : ([]))))) : ([]));
-              hovered_routes = $send($send(self.$Array(raw_routes), 'map', [], function $$46(r){var $b, $c, $d, $e, self = $$46.$$s == null ? this : $$46.$$s, train_id = nil, train = nil, $ret_or_3 = nil, $ret_or_4 = nil, conn = nil, hexes = nil, routes_param = nil, phase = nil;
+              hovered_routes = $send($send(self.$Array(raw_routes), 'map', [], function $$48(r){var $b, $c, $d, $e, self = $$48.$$s == null ? this : $$48.$$s, train_id = nil, train = nil, $ret_or_3 = nil, $ret_or_4 = nil, conn = nil, hexes = nil, routes_param = nil, phase = nil;
                 if (self.game == null) self.game = nil;
 
                 
@@ -74906,10 +74956,10 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                 } else if (($truthy(r['$is_a?']($$('Hash'))) && ($truthy((($c = $$('Engine', 'skip_raise')) && ($b = $$$($c, 'Route', 'skip_raise')) ? 'constant' : nil))))) {
                   
                   train_id = ($truthy(($ret_or_1 = r['$[]']("train"))) ? ($ret_or_1) : (r['$[]']("train")));
-                  train = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = ($truthy(($ret_or_4 = ($truthy(hovered_corp['$respond_to?']("trains")) ? ($send(hovered_corp.$trains(), 'find', [], function $$47(t){
+                  train = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = ($truthy(($ret_or_3 = ($truthy(($ret_or_4 = ($truthy(hovered_corp['$respond_to?']("trains")) ? ($send(hovered_corp.$trains(), 'find', [], function $$49(t){
                     
                     if (t == null) t = nil;
-                    return t.$id()['$=='](train_id);})) : nil))) ? ($ret_or_4) : (($truthy(self.game['$respond_to?']("train_by_id")) ? (self.game.$train_by_id(train_id)) : nil))))) ? ($ret_or_3) : (($truthy(self.game['$respond_to?']("trains")) ? ($send(self.game.$trains(), 'find', [], function $$48(t){
+                    return t.$id()['$=='](train_id);})) : nil))) ? ($ret_or_4) : (($truthy(self.game['$respond_to?']("train_by_id")) ? (self.game.$train_by_id(train_id)) : nil))))) ? ($ret_or_3) : (($truthy(self.game['$respond_to?']("trains")) ? ($send(self.game.$trains(), 'find', [], function $$50(t){
                     
                     if (t == null) t = nil;
                     return t.$id()['$=='](train_id);})) : nil))))) ? ($ret_or_2) : ((($truthy(hovered_corp['$respond_to?']("trains")) && ($truthy(($d = hovered_corp.$trains(), ($d === nil || $d == null) ? nil : $d['$any?']())))) ? (hovered_corp.$trains().$first()) : nil))))) ? ($ret_or_1) : ((($truthy(self.game['$respond_to?']("trains")) && ($truthy(($e = self.game.$trains(), ($e === nil || $e == null) ? nil : $e['$any?']())))) ? (self.game.$trains().$first()) : nil)));
@@ -74961,7 +75011,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   };
                 } else {
                   return nil
-                };}, {$$s: self}).$compact(), 'select', [], function $$49(r){
+                };}, {$$s: self}).$compact(), 'select', [], function $$51(r){
                 
                 if (r == null) r = nil;
                 return r['$respond_to?']("paths_for");});
@@ -74974,7 +75024,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             };
           };
           candidate_routes = ($truthy(hovered_routes['$any?']()) ? (hovered_routes) : ($truthy(route_phase_active) ? (self.routes) : ($truthy(is_history_mode) ? (($truthy(self.routes['$any?']()) ? (self.routes) : (self.historical_routes))) : ([]))));
-          routes = $send(self.$Array(candidate_routes), 'select', [], function $$50(r){
+          routes = $send(self.$Array(candidate_routes), 'select', [], function $$52(r){
             
             if (r == null) r = nil;
             return r['$respond_to?']("paths_for");});
@@ -74984,7 +75034,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           token_action_active = ($truthy(($ret_or_1 = actions['$include?']("place_token"))) ? ($ret_or_1) : (actions['$include?']("hex_token")));
           actionable_turn = ($truthy(($ret_or_1 = track_action_active)) ? ($ret_or_1) : (token_action_active));
           hovered_c_id = $$$($$('Lib'), 'Storage')['$[]']("hovered_company_id");
-          hovered_hex_set = $send(self.$extract_hovered_hexes(hovered_c_id), 'map', [], function $$51(h){
+          hovered_hex_set = $send(self.$extract_hovered_hexes(hovered_c_id), 'map', [], function $$53(h){
             
             if (h == null) h = nil;
             return h.$to_s().$upcase();});
@@ -74992,11 +75042,11 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           selected_hex = ($truthy(hex_selected) ? (self.tile_selector.$hex()) : (nil));
           tile_chosen = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = hex_selected)) ? (self.tile_selector.$tile()) : ($ret_or_2)))) ? (self.tile_selector.$hex().$tile()['$!='](self.tile_selector.$tile())) : ($ret_or_1));
           active_tile = ($truthy(tile_chosen) ? (self.tile_selector.$tile()) : (nil));
-          ordered_hexes = (($truthy(selected_hex) && ($truthy(self.hexes['$include?'](selected_hex)))) ? ($rb_plus($send(self.hexes, 'reject', [], function $$52(hex){
+          ordered_hexes = (($truthy(selected_hex) && ($truthy(self.hexes['$include?'](selected_hex)))) ? ($rb_plus($send(self.hexes, 'reject', [], function $$54(hex){
             
             if (hex == null) hex = nil;
             return hex['$=='](selected_hex);}), [selected_hex])) : (self.hexes.$dup()));
-          rendered_hexes = $send(ordered_hexes, 'map', [], function $$53(hex){var $b, $c, self = $$53.$$s == null ? this : $$53.$$s, clickable = nil, hover_mode = nil, is_hovered = nil, is_last_built_hover = nil, show_building_highlight = nil, show_token_highlight = nil, tc = nil, ab = nil, fr = nil, can_build = nil, legal_drop_tile_names = nil, hex_opacity = nil, base_hex = nil, border_color = nil, initial_stroke = nil, initial_width = nil, initial_fill = nil, initial_fill_opacity = nil, x = nil, y = nil, transform_str = nil, overlays = nil, cost_str = nil, scale_factor = nil, rot_angle = nil, badge_fill = nil, badge_stroke = nil, badge_text_color = nil, hex_children = nil, meme_overlay = nil, g_props = nil;
+          rendered_hexes = $send(ordered_hexes, 'map', [], function $$55(hex){var $b, $c, self = $$55.$$s == null ? this : $$55.$$s, clickable = nil, hover_mode = nil, is_hovered = nil, is_last_built_hover = nil, affordable_tiles = nil, show_building_highlight = nil, show_token_highlight = nil, tc = nil, ab = nil, fr = nil, can_build = nil, legal_drop_tile_names = nil, hex_opacity = nil, base_hex = nil, border_color = nil, initial_stroke = nil, initial_width = nil, initial_fill = nil, initial_fill_opacity = nil, x = nil, y = nil, transform_str = nil, overlays = nil, cost_str = nil, scale_factor = nil, rot_angle = nil, badge_fill = nil, badge_stroke = nil, badge_text_color = nil, hex_children = nil, meme_overlay = nil, g_props = nil;
             if (self.show_starting_map == null) self.show_starting_map = nil;
             if (self.game == null) self.game = nil;
             if (self.opacity == null) self.opacity = nil;
@@ -75015,18 +75065,19 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             }})()));
             hover_mode = ($truthy(($ret_or_1 = hovered_c_id['$nil?']()['$!']())) ? ($ret_or_1) : (hovered_last_id['$nil?']()['$!']()));
             is_hovered = hovered_hex_set['$include?'](hex.$id().$to_s().$upcase());
-            is_last_built_hover = ($truthy(($ret_or_1 = hovered_corp)) ? ($send(self.$last_laid_hexes_for(hovered_corp), 'map', [], function $$54(h){
+            is_last_built_hover = ($truthy(($ret_or_1 = hovered_corp)) ? ($send(self.$last_laid_hexes_for(hovered_corp), 'map', [], function $$56(h){
               
               if (h == null) h = nil;
               return h.$to_s().$upcase();})['$include?'](hex.$id().$to_s().$upcase())) : ($ret_or_1));
             is_hovered = ($truthy(($ret_or_1 = is_hovered)) ? ($ret_or_1) : (is_last_built_hover));
-            show_building_highlight = ($truthy(hover_mode) ? (false) : ($truthy(hex_selected) ? (hex['$=='](selected_hex)) : ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = clickable)) ? (track_action_active) : ($ret_or_2)))) ? (($truthy(($ret_or_2 = step['$respond_to?']("potential_tiles")['$!']())) ? ($ret_or_2) : (step.$potential_tiles(entity_or_entities, hex)['$any?']()))) : ($ret_or_1))));
+            affordable_tiles = (($truthy(clickable) && ($truthy(track_action_active))) ? (self.$dashboard_affordable_tiles(step, entity_or_entities, hex)) : ([]));
+            show_building_highlight = ($truthy(hover_mode) ? (false) : ($truthy(hex_selected) ? (hex['$=='](selected_hex)) : ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = clickable)) ? (track_action_active) : ($ret_or_2)))) ? (affordable_tiles['$any?']()) : ($ret_or_1))));
             show_token_highlight = (($truthy(hover_mode) || ($truthy(hex_selected))) ? (false) : ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = token_action_active)) ? (step.$available_hex(current_entity, hex)) : ($ret_or_2)))) ? ((function() { try {
               
               tc = ($truthy(($ret_or_2 = ($truthy(self.game['$respond_to?']("token_owner")) ? (self.game.$token_owner(current_entity)) : (nil)))) ? ($ret_or_2) : (current_entity));
               ab = ($truthy(self.game['$respond_to?']("abilities")) ? (self.game.$abilities(current_entity, "token")) : (nil));
               fr = ($truthy(ab['$respond_to?']("price")) && (ab.$price().$to_i()['$zero?']()));
-              return $send(hex.$tile().$cities(), 'any?', [], function $$55(c){var $b, $c;
+              return $send(hex.$tile().$cities(), 'any?', [], function $$57(c){var $b, $c;
 
                 
                 if (c == null) c = nil;
@@ -75039,18 +75090,10 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               } else { throw $err; }
             }})()) : ($ret_or_1)));
             can_build = ($truthy(($ret_or_1 = show_building_highlight)) ? ($ret_or_1) : (show_token_highlight));
-            legal_drop_tile_names = (($truthy(show_building_highlight) && ($not(hex_selected))) ? ((function() { try {
-              return $send(step.$upgradeable_tiles(entity_or_entities, hex), 'map', [], function $$56(tile){
-                
-                if (tile == null) tile = nil;
-                return tile.$name().$to_s();}).$uniq()
-            } catch ($err) {
-              if (Opal.rescue($err, [$$('StandardError')])) {
-                try {
-                  return []
-                } finally { Opal.pop_exception($err); }
-              } else { throw $err; }
-            }})()) : ([]));
+            legal_drop_tile_names = (($truthy(show_building_highlight) && ($not(hex_selected))) ? ($send(affordable_tiles, 'map', [], function $$58(tile){
+              
+              if (tile == null) tile = nil;
+              return tile.$name().$to_s();}).$uniq()) : ([]));
             hex_opacity = ($truthy(($ret_or_1 = self.opacity)) ? ($ret_or_1) : (1.0));
             base_hex = self.$h($$('Hex'), (new Map([["hex", hex], ["opacity", hex_opacity], ["entity", current_entity], ["clickable", ($truthy(hex_selected) ? (hex['$=='](selected_hex)) : (clickable))], ["actions", ($truthy(current_entity) ? (actions) : ([]))], ["routes", routes], ["start_pos", self.start_pos], ["highlight", false]])));
             border_color = ($truthy(is_hovered) ? ("#00ffff") : (nil));
@@ -75080,7 +75123,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               hex_children['$<<'](meme_overlay)
             };
             if (($truthy(tile_chosen) && ($eqeq(hex, selected_hex)))) {
-              hex_children['$<<'](self.$h("polygon", (new Map([["attrs", (new Map([["transform", transform_str], ["points", $$$($$('Hex'), 'HIGHLIGHT_POINTS')], ["fill", "#ffffff"], ["fill-opacity", "0"], ["stroke", "none"], ["pointer-events", "all"], ["class", "dashboard-tile-rotation-surface"]]))], ["style", (new Map([["cursor", "pointer"], ["pointerEvents", "all"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$57(event){var self = $$57.$$s == null ? this : $$57.$$s;
+              hex_children['$<<'](self.$h("polygon", (new Map([["attrs", (new Map([["transform", transform_str], ["points", $$$($$('Hex'), 'HIGHLIGHT_POINTS')], ["fill", "#ffffff"], ["fill-opacity", "0"], ["stroke", "none"], ["pointer-events", "all"], ["class", "dashboard-tile-rotation-surface"]]))], ["style", (new Map([["cursor", "pointer"], ["pointerEvents", "all"]]))], ["on", (new Map([["click", $send(self, 'lambda', [], function $$59(event){var self = $$59.$$s == null ? this : $$59.$$s;
                 if (self.tile_selector == null) self.tile_selector = nil;
 
                 
@@ -75131,16 +75174,16 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             return self.$h($$('DashboardTileConfirmation'), (new Map([["zoom", 1.0], ["large", true]])))
           } else {
             
-            tiles = step.$upgradeable_tiles(entity_or_entities, self.tile_selector.$hex());
+            tiles = self.$dashboard_affordable_tiles(step, entity_or_entities, self.tile_selector.$hex());
             all_upgrades = self.game.$all_potential_upgrades(self.tile_selector.$hex().$tile(), (new Map([["selected_company", self.selected_company]])));
             phase_colors = step.$potential_tile_colors(current_entity, self.tile_selector.$hex());
-            select_tiles = $send(all_upgrades, 'map', [], function $$58(tile){var self = $$58.$$s == null ? this : $$58.$$s, real_tile = nil;
+            select_tiles = $send(all_upgrades, 'map', [], function $$60(tile){var self = $$60.$$s == null ? this : $$60.$$s, real_tile = nil;
               if (self.game == null) self.game = nil;
               if (self.tile_selector == null) self.tile_selector = nil;
 
               
               if (tile == null) tile = nil;
-              real_tile = $send(tiles, 'find', [], function $$59(candidate){
+              real_tile = $send(tiles, 'find', [], function $$61(candidate){
                 
                 if (candidate == null) candidate = nil;
                 return candidate.$name()['$=='](tile.$name());});
@@ -75150,7 +75193,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                 return [real_tile, nil];
               } else if ($not(self.game['$tile_valid_for_phase?'](tile, (new Map([["hex", self.tile_selector.$hex()], ["phase_color_cache", phase_colors]]))))) {
                 return [tile, "Later Phase"]
-              } else if ($truthy($send(self.game.$tiles(), 'none?', [], function $$60(candidate){
+              } else if ($truthy($send(self.game.$tiles(), 'none?', [], function $$62(candidate){
                 
                 if (candidate == null) candidate = nil;
                 return candidate.$name()['$=='](tile.$name());}))) {
@@ -75158,7 +75201,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               } else {
                 return nil
               };}, {$$s: self}).$compact();
-            $send(select_tiles, 'append', $to_a($send(tiles, 'map', [], function $$61(tile){
+            $send(select_tiles, 'append', $to_a($send(tiles, 'map', [], function $$63(tile){
               
               if (tile == null) tile = nil;
               return [tile, nil];})));
@@ -75181,7 +75224,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           };
           target_hexes = [];
           all_companies = ($truthy(self.game['$respond_to?']("companies")) ? (($truthy(($ret_or_1 = self.game.$companies())) ? ($ret_or_1) : ([]))) : ([]));
-          hovered_company = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = $send(all_companies, 'find', [], function $$62(c){var $ret_or_3 = nil, $ret_or_4 = nil;
+          hovered_company = ($truthy(($ret_or_1 = ($truthy(($ret_or_2 = $send(all_companies, 'find', [], function $$64(c){var $ret_or_3 = nil, $ret_or_4 = nil;
 
             
             if (c == null) c = nil;
@@ -75194,7 +75237,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               } else {
                 return $ret_or_4
               };
-            };}))) ? ($ret_or_2) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(self.game.$minors(), 'find', [], function $$63(m){var $ret_or_3 = nil, $ret_or_4 = nil;
+            };}))) ? ($ret_or_2) : (($truthy(self.game['$respond_to?']("minors")) ? ($send(self.game.$minors(), 'find', [], function $$65(m){var $ret_or_3 = nil, $ret_or_4 = nil;
 
             
             if (m == null) m = nil;
@@ -75207,7 +75250,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               } else {
                 return $ret_or_4
               };
-            };})) : nil))))) ? ($ret_or_1) : ($send(self.game.$corporations(), 'find', [], function $$64(corp){var $ret_or_3 = nil;
+            };})) : nil))))) ? ($ret_or_1) : ($send(self.game.$corporations(), 'find', [], function $$66(corp){var $ret_or_3 = nil;
 
             
             if (corp == null) corp = nil;
@@ -75226,7 +75269,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             last_laid = self.$last_laid_hexes_for(hovered_company);
             has_placed = false;
             if (($truthy(hovered_company['$respond_to?']("tokens")) && ($truthy(hovered_company.$tokens())))) {
-              has_placed = $send(hovered_company.$tokens(), 'any?', [], function $$65(t){var $a, $ret_or_3 = nil;
+              has_placed = $send(hovered_company.$tokens(), 'any?', [], function $$67(t){var $a, $ret_or_3 = nil;
 
                 
                 if (t == null) t = nil;
@@ -75246,7 +75289,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             };
             target_hexes.$concat(last_laid);
             if (($truthy(hovered_company['$respond_to?']("coordinates")) && ($truthy(hovered_company.$coordinates())))) {
-              $send(self.$Array(hovered_company.$coordinates()), 'each', [], function $$66(coord){
+              $send(self.$Array(hovered_company.$coordinates()), 'each', [], function $$68(coord){
                 
                 if (coord == null) coord = nil;
                 return target_hexes['$<<'](coord.$to_s());})
@@ -75263,7 +75306,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             };
             if ($truthy(self.game.$class()['$const_defined?']("COMPANIES"))) {
               
-              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$67(c_def){
+              raw_def = $send($$$(self.game.$class(), 'COMPANIES'), 'find', [], function $$69(c_def){
                 
                 if (c_def == null) c_def = nil;
                 if ($truthy(($ret_or_1 = c_def['$[]']("sym").$to_s()['$=='](hovered_c_id)))) {
@@ -75272,12 +75315,12 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   return c_def['$[]']("name").$to_s()['$=='](hovered_c_id)
                 };});
               if (($truthy(raw_def) && ($truthy(raw_def['$[]']("abilities"))))) {
-                $send(raw_def['$[]']("abilities"), 'each', [], function $$68(raw_ab){var self = $$68.$$s == null ? this : $$68.$$s;
+                $send(raw_def['$[]']("abilities"), 'each', [], function $$70(raw_ab){var self = $$70.$$s == null ? this : $$70.$$s;
 
                   
                   if (raw_ab == null) raw_ab = nil;
                   if ($truthy(raw_ab['$[]']("hexes"))) {
-                    $send(self.$Array(raw_ab['$[]']("hexes")), 'each', [], function $$69(coord){
+                    $send(self.$Array(raw_ab['$[]']("hexes")), 'each', [], function $$71(coord){
                       
                       if (coord == null) coord = nil;
                       return target_hexes['$<<'](coord.$to_s());})
@@ -75289,13 +75332,13 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   };}, {$$s: self})
               };
             };
-            $send(abilities, 'each', [], function $$70(ab){var $a, self = $$70.$$s == null ? this : $$70.$$s, target_corp = nil;
+            $send(abilities, 'each', [], function $$72(ab){var $a, self = $$72.$$s == null ? this : $$72.$$s, target_corp = nil;
               if (self.game == null) self.game = nil;
 
               
               if (ab == null) ab = nil;
               if (($truthy(ab['$respond_to?']("hexes")) && ($truthy(ab.$hexes())))) {
-                $send(self.$Array(ab.$hexes()), 'each', [], function $$71(coord){
+                $send(self.$Array(ab.$hexes()), 'each', [], function $$73(coord){
                   
                   if (coord == null) coord = nil;
                   return target_hexes['$<<'](coord.$to_s());})
@@ -75304,7 +75347,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                 target_hexes['$<<'](($truthy(ab.$hex()['$respond_to?']("id")) ? (ab.$hex().$id()) : (ab.$hex())).$to_s())
               };
               if (($truthy(ab['$respond_to?']("coordinates")) && ($truthy(ab.$coordinates())))) {
-                $send(self.$Array(ab.$coordinates()), 'each', [], function $$72(coord){
+                $send(self.$Array(ab.$coordinates()), 'each', [], function $$74(coord){
                   
                   if (coord == null) coord = nil;
                   return target_hexes['$<<'](coord.$to_s());})
@@ -75318,12 +75361,12 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
               if (!($truthy(target_corp['$respond_to?']("coordinates")) && ($truthy(($a = target_corp, ($a === nil || $a == null) ? nil : $a.$coordinates()))))) {
                 return nil
               };
-              return $send(self.$Array(target_corp.$coordinates()), 'each', [], function $$73(coord){
+              return $send(self.$Array(target_corp.$coordinates()), 'each', [], function $$75(coord){
                 
                 if (coord == null) coord = nil;
                 return target_hexes['$<<'](coord.$to_s());});}, {$$s: self});
             if (($truthy(hovered_company['$respond_to?']("desc")) && ($truthy(hovered_company.$desc())))) {
-              $send(hovered_company.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$74(h_id){var self = $$74.$$s == null ? this : $$74.$$s;
+              $send(hovered_company.$desc().$scan(/\b[A-Za-z]\d{1,2}\b/), 'each', [], function $$76(h_id){var self = $$76.$$s == null ? this : $$76.$$s;
                 if (self.game == null) self.game = nil;
 
                 
@@ -75349,7 +75392,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             step = self.game.$round().$active_step(self.selected_company);
             curr = self.$dashboard_current_entity(step);
             if ((($truthy(self.game.$round()['$respond_to?']("laid_hexes")) && ($eqeq(curr, corporation))) && ($truthy(($a = self.game.$round().$laid_hexes(), ($a === nil || $a == null) ? nil : $a['$any?']()))))) {
-              return $send(self.game.$round().$laid_hexes(), 'map', [], function $$75(h){
+              return $send(self.game.$round().$laid_hexes(), 'map', [], function $$77(h){
                 
                 if (h == null) h = nil;
                 if ($truthy(h['$respond_to?']("id"))) {
@@ -75360,7 +75403,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             };
             if (($truthy(corporation['$respond_to?']("operating_history")) && ($truthy(($b = corporation.$operating_history(), ($b === nil || $b == null) ? nil : $b['$any?']()))))) {
               
-              last_info = $send(corporation.$operating_history().$values().$reverse(), 'find', [], function $$76(info){var $c, $ret_or_1 = nil;
+              last_info = $send(corporation.$operating_history().$values().$reverse(), 'find', [], function $$78(info){var $c, $ret_or_1 = nil;
 
                 
                 if (info == null) info = nil;
@@ -75370,7 +75413,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   return $ret_or_1
                 };});
               if ($truthy(last_info)) {
-                return $send(last_info.$laid_hexes(), 'map', [], function $$77(h){
+                return $send(last_info.$laid_hexes(), 'map', [], function $$79(h){
                   
                   if (h == null) h = nil;
                   if ($truthy(h['$respond_to?']("id"))) {
@@ -75382,7 +75425,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
             };
             actions_list = ($truthy(self.game['$respond_to?']("actions")) ? (($truthy(($ret_or_1 = self.game.$actions())) ? ($ret_or_1) : ([]))) : ([]));
             laid = [];
-            (function(){try { var $t_break = $thrower('break'); return $send(actions_list, 'reverse_each', [], function $$78(act){var a_type = nil, a_ent = nil, ent_id = nil, owner_id = nil, is_corp = nil, hex = nil, hex_id = nil;
+            (function(){try { var $t_break = $thrower('break'); return $send(actions_list, 'reverse_each', [], function $$80(act){var a_type = nil, a_ent = nil, ent_id = nil, owner_id = nil, is_corp = nil, hex = nil, hex_id = nil;
 
               
               if (act == null) act = nil;
@@ -75401,7 +75444,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                   return laid['$<<'](hex_id)
                 };
               } else if (($truthy(laid['$any?']()) && (($not(is_corp) || ($truthy(["run_routes", "dividend", "pass"]['$include?'](a_type.$to_s()))))))) {
-                $t_break.$throw(nil, $$78.$$is_lambda)
+                $t_break.$throw(nil, $$80.$$is_lambda)
               } else {
                 return nil
               };})} catch($e) {
@@ -75443,7 +75486,7 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           var self = this, refresh = nil;
 
           
-          refresh = $send(self, 'lambda', [], function $$79(){
+          refresh = $send(self, 'lambda', [], function $$81(){
             
             if (window._dashboardHighlightRefreshTimer) {
               clearTimeout(window._dashboardHighlightRefreshTimer);
@@ -75458,10 +75501,10 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
                 }
               }, 0);
           });
-          return (new Map([["insert", $send(self, 'lambda', [], function $$80(_vnode){
+          return (new Map([["insert", $send(self, 'lambda', [], function $$82(_vnode){
             
             if (_vnode == null) _vnode = nil;
-            return refresh.$call();})], ["postpatch", $send(self, 'lambda', [], function $$81(_old_vnode, _vnode){
+            return refresh.$call();})], ["postpatch", $send(self, 'lambda', [], function $$83(_old_vnode, _vnode){
             
             if (_old_vnode == null) _old_vnode = nil;
             if (_vnode == null) _vnode = nil;
@@ -75474,10 +75517,10 @@ Opal.modules["view/game/dashboard/dashboard_map"] = function(Opal) {/* Generated
           
           svg_attrs = (new Map([["id", "map"], ["width", width.$to_s()], ["height", height.$to_s()]]));
           svg_props = (new Map([["key", "dashboard-map-svg"], ["attrs", svg_attrs], ["hook", self.$map_highlight_refresh_hook()]]));
-          return self.$h("svg", svg_props, [self.$h("defs", [self.$h("style", (new Map()), $rb_plus($rb_plus("\n" + "\n" + "\n" + "  #map {\n" + "    --font-money: 'Courier New', monospace;\n" + "    --color-money-text: #4c1d95;\n" + "    --map-money-size: 150%;\n" + "  }\n" + "\n" + "#map .dashboard-money,\n" + "#map .dashboard-money text {\n" + "  font-family: var(--font-money) !important;\n" + "  font-weight: 700 !important;\n" + "}\n" + "\n", "\n" + "  #map-axis text,\n" + "  #map > g > g:not(#map-hexes) text {\n" + "    fill: #000000 !important;\n" + "  }\n" + "  #map-hexes g.tile__text text {\n" + "    font-size: 14.85px !important;\n" + "    font-weight: bold !important;\n" + "  }\n"), "\n" + "\n" + "\n" + "  #map .dashboard-tile-cost {\n" + "    font-size: 12px !important;\n" + "    letter-spacing: 0 !important;\n" + "  }\n" + "  @keyframes dashboard-last-built-tile-breathe {\n" + "    0%, 100% { stroke-width: 7px; stroke-opacity: 0.55; fill-opacity: 0.16; filter: drop-shadow(0 0 2px #00ffff); }\n" + "    50% { stroke-width: 14px; stroke-opacity: 1; fill-opacity: 0.46; filter: drop-shadow(0 0 10px #00ffff); }\n" + "  }\n" + "  #map .last-built-tile-breathing {\n" + "    animation: dashboard-last-built-tile-breathe 0.95s ease-in-out infinite !important;\n" + "    transform-box: fill-box;\n" + "    transform-origin: center;\n" + "  }\n" + "\n" + "\n" + "\n" + "/* ============================================================\n" + " * MAP HIGHLIGHTING\n" + " *\n" + " * Primary/actionable:\n" + " *   Original tile remains completely unchanged.\n" + " *\n" + " * Secondary/related:\n" + " *   Original tile remains bright, with a static black-backed\n" + " *   amber outline.\n" + " *\n" + " * Everything else:\n" + " *   Darkened using an SVG black overlay.\n" + " *\n" + " * Adjust --dashboard-map-dim-amount:\n" + " *   0.16 = subtle\n" + " *   0.22 = moderate\n" + " *   0.28 = clear\n" + " *   0.34 = strong\n" + " * ============================================================ */\n" + "\n" + "#map {\n" + "  --dashboard-map-dim-amount: 0.22;\n" + "}\n" + "\n" + "#map .map-hex-container {\n" + "  opacity: 1 !important;\n" + "  filter: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Hidden by default.\n" + " */\n" + "#map .dashboard-dim-overlay,\n" + "#map .dashboard-related-edge-outer,\n" + "#map .dashboard-related-edge-inner {\n" + "  display: none;\n" + "  pointer-events: none;\n" + "}\n" + "\n" + "/*\n" + " * Darken only unrelated hexes.\n" + " *\n" + " * Primary and secondary hexes are both excluded.\n" + " */\n" + "#map.has-dashboard-highlight\n" + "  .map-hex-container:not(.map-highlight-opportunity):not(.map-highlight-related)\n" + "  .dashboard-dim-overlay {\n" + "  display: inline !important;\n" + "\n" + "  fill: #000000 !important;\n" + "  fill-opacity: var(--dashboard-map-dim-amount) !important;\n" + "\n" + "  stroke: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Primary/actionable tiles remain completely natural.\n" + " */\n" + "#map .map-highlight-opportunity {\n" + "  opacity: 1 !important;\n" + "  filter: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Secondary/related tiles also remain completely natural.\n" + " */\n" + "#map .map-highlight-related {\n" + "  opacity: 1 !important;\n" + "  filter: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Disable the older underlying highlight polygons.\n" + " */\n" + "#map .highlight-related-outer,\n" + "#map .highlight-related-inner {\n" + "  display: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Secondary black backing edge.\n" + " */\n" + "#map .map-highlight-related .dashboard-related-edge-outer {\n" + "  display: inline !important;\n" + "\n" + "  fill: none !important;\n" + "\n" + "  stroke: #111827 !important;\n" + "  stroke-width: 13px !important;\n" + "  stroke-opacity: 1 !important;\n" + "\n" + "  stroke-linejoin: round !important;\n" + "  stroke-dasharray: none !important;\n" + "\n" + "  filter: none !important;\n" + "  animation: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Secondary amber inner edge.\n" + " */\n" + "#map .map-highlight-related .dashboard-related-edge-inner {\n" + "  display: inline !important;\n" + "\n" + "  fill: none !important;\n" + "\n" + "  stroke: #f59e0b !important;\n" + "  stroke-width: 7px !important;\n" + "  stroke-opacity: 1 !important;\n" + "\n" + "  stroke-linejoin: round !important;\n" + "  stroke-linecap: round !important;\n" + "  stroke-dasharray: none !important;\n" + "\n" + "  filter: none !important;\n" + "  animation: none !important;\n" + "}\n" + "\n" + "/* DESKTOP TILE DRAG AND DROP */\n" + "#map.dashboard-tile-drag-active .map-hex-container.dashboard-tile-drop-exact-legal .dashboard-related-edge-outer,\n" + "#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-outer {\n" + "  display: inline !important; fill: rgba(34,197,94,0.14) !important;\n" + "  stroke: #111827 !important; stroke-width: 16px !important; stroke-opacity: 1 !important;\n" + "}\n" + "#map.dashboard-tile-drag-active .map-hex-container.dashboard-tile-drop-exact-legal .dashboard-related-edge-inner,\n" + "#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-inner {\n" + "  display: inline !important; fill: none !important;\n" + "  stroke: #22c55e !important; stroke-width: 9px !important; stroke-opacity: 1 !important;\n" + "}\n" + "#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-inner { stroke-width: 12px !important; }\n" + "#map .map-hex-container.dashboard-tile-drop-rejected .dashboard-related-edge-outer {\n" + "  display: inline !important; fill: rgba(220,38,38,0.16) !important;\n" + "  stroke: #7f1d1d !important; stroke-width: 16px !important; stroke-opacity: 1 !important;\n" + "}\n" + "#map .map-hex-container.dashboard-tile-drop-rejected .dashboard-related-edge-inner {\n" + "  display: inline !important; fill: none !important;\n" + "  stroke: #ef4444 !important; stroke-width: 10px !important; stroke-opacity: 1 !important;\n" + "}\n" + "#map.dashboard-tile-drag-active .map-hex-container:not(.dashboard-tile-drop-exact-legal) .dashboard-dim-overlay {\n" + "  display: inline !important; fill: #000 !important; fill-opacity: 0.42 !important;\n" + "}\n" + "\n" + "/* ============================================================\n" + " * TILE UPGRADE SELECTOR\n" + " * ============================================================ */\n" + "\n" + "/* ============================================================\n" + " * TILE UPGRADE SELECTOR\n" + " *\n" + " * The selector is a foreground control, not part of the map.\n" + " * The opaque neutral backing solves green-on-green and other\n" + " * same-colour combinations.\n" + " * ============================================================ */\n" + "\n" + ".dashboard-tile-selector-focus {\n" + "  isolation: isolate;\n" + "  z-index: 100 !important;\n" + "\n" + "  /*\n" + "   * Neutral opaque panel prevents map colours, routes, tokens,\n" + "   * and labels from competing with replacement tiles.\n" + "   */\n" + "  background: #fffdf5;\n" + "\n" + "  border* 4px solid #111827;\n" + "  border-radiu*: 18px;\n" + "\n" + "  padding: 14px;\n" + "\n" + "  box-s*adow:\n" + "    0 0 0 4px rgba(255, 255,*255, 0.95),\n" + "    0 8px 18px rgba(0,*0, 0, 0.55);\n" + "\n" + "  box-sizing: border-box;\n" + "}\n" + "\n" + "/*\n" + " * Do not apply glow to the tile artwork. The opaque panel and\n" + " * black perimeter provide cleaner separation.\n" + " */\n" + ".dashboard-tile-selector-focus svg {\n" + "  overflow: visible;\n" + "  filter: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Make buttons and other clickable selector controls easier to hit.\n" + " */\n" + ".dashboard*tile-selector-focus button {\n" + "  min*width: 34px !important;\n" + "  min-heig*t: 34px !important;\n" + "\n" + "  padding: 5p* !important;\n" + "\n" + "  border: 3px solid *111827 !important;\n" + "  border-radius* 7px !important;\n" + "\n" + "  font-size: 20p* !important;\n" + "  line-height: 1 !imp*rtant;\n" + "  font-weight: 900 !importa*t;\n" + "\n" + "  box-shadow:\n" + "    0 2px 4px rg*a(0, 0, 0, 0.55) !important;\n" + "}\n" + "\n" + "/*\n" + " * Ensure SVG tick/cross controls remain visible when the original\n" + " * implementation uses SVG elements rather than HTML buttons.\n" + " */\n" + ".dashboard-tile-selector-focus svg text {\n" + "  paint-order: stroke fill;\n" + "  stroke: #ffffff;\n" + "  stroke-width: 2px;\n" + "  stroke-linejoin: round;\n" + "}\n" + "\n" + "\n" + "\n"))]), self.$h("g", (new Map([["attrs", (new Map([["transform", "scale(" + (self.scale) + ")"]]))]])), [self.$h("g", (new Map([["attrs", (new Map([["id", "map-hexes"], ["transform", "translate(" + (self.$map_x()) + " " + (self.$map_y()) + ")"]]))]])), rendered_hexes), self.$h("g", (new Map([["attrs", (new Map([["id", "map-axis"]]))]])), [self.$h($$('Axis'), (new Map([["cols", $send(self.cols, 'map', [], function $$82(c){
+          return self.$h("svg", svg_props, [self.$h("defs", [self.$h("style", (new Map()), $rb_plus($rb_plus("\n" + "\n" + "\n" + "  #map {\n" + "    --font-money: 'Courier New', monospace;\n" + "    --color-money-text: #4c1d95;\n" + "    --map-money-size: 150%;\n" + "  }\n" + "\n" + "#map .dashboard-money,\n" + "#map .dashboard-money text {\n" + "  font-family: var(--font-money) !important;\n" + "  font-weight: 700 !important;\n" + "}\n" + "\n", "\n" + "  #map-axis text,\n" + "  #map > g > g:not(#map-hexes) text {\n" + "    fill: #000000 !important;\n" + "  }\n" + "  #map-hexes g.tile__text text {\n" + "    font-size: 14.85px !important;\n" + "    font-weight: bold !important;\n" + "  }\n"), "\n" + "\n" + "\n" + "  #map .dashboard-tile-cost {\n" + "    font-size: 12px !important;\n" + "    letter-spacing: 0 !important;\n" + "  }\n" + "  @keyframes dashboard-last-built-tile-breathe {\n" + "    0%, 100% { stroke-width: 7px; stroke-opacity: 0.55; fill-opacity: 0.16; filter: drop-shadow(0 0 2px #00ffff); }\n" + "    50% { stroke-width: 14px; stroke-opacity: 1; fill-opacity: 0.46; filter: drop-shadow(0 0 10px #00ffff); }\n" + "  }\n" + "  #map .last-built-tile-breathing {\n" + "    animation: dashboard-last-built-tile-breathe 0.95s ease-in-out infinite !important;\n" + "    transform-box: fill-box;\n" + "    transform-origin: center;\n" + "  }\n" + "\n" + "\n" + "\n" + "/* ============================================================\n" + " * MAP HIGHLIGHTING\n" + " *\n" + " * Primary/actionable:\n" + " *   Original tile remains completely unchanged.\n" + " *\n" + " * Secondary/related:\n" + " *   Original tile remains bright, with a static black-backed\n" + " *   amber outline.\n" + " *\n" + " * Everything else:\n" + " *   Darkened using an SVG black overlay.\n" + " *\n" + " * Adjust --dashboard-map-dim-amount:\n" + " *   0.16 = subtle\n" + " *   0.22 = moderate\n" + " *   0.28 = clear\n" + " *   0.34 = strong\n" + " * ============================================================ */\n" + "\n" + "#map {\n" + "  --dashboard-map-dim-amount: 0.22;\n" + "}\n" + "\n" + "#map .map-hex-container {\n" + "  opacity: 1 !important;\n" + "  filter: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Hidden by default.\n" + " */\n" + "#map .dashboard-dim-overlay,\n" + "#map .dashboard-related-edge-outer,\n" + "#map .dashboard-related-edge-inner {\n" + "  display: none;\n" + "  pointer-events: none;\n" + "}\n" + "\n" + "/*\n" + " * Darken only unrelated hexes.\n" + " *\n" + " * Primary and secondary hexes are both excluded.\n" + " */\n" + "#map.has-dashboard-highlight\n" + "  .map-hex-container:not(.map-highlight-opportunity):not(.map-highlight-related)\n" + "  .dashboard-dim-overlay {\n" + "  display: inline !important;\n" + "\n" + "  fill: #000000 !important;\n" + "  fill-opacity: var(--dashboard-map-dim-amount) !important;\n" + "\n" + "  stroke: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Primary/actionable tiles remain completely natural.\n" + " */\n" + "#map .map-highlight-opportunity {\n" + "  opacity: 1 !important;\n" + "  filter: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Secondary/related tiles also remain completely natural.\n" + " */\n" + "#map .map-highlight-related {\n" + "  opacity: 1 !important;\n" + "  filter: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Disable the older underlying highlight polygons.\n" + " */\n" + "#map .highlight-related-outer,\n" + "#map .highlight-related-inner {\n" + "  display: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Secondary black backing edge.\n" + " */\n" + "#map .map-highlight-related .dashboard-related-edge-outer {\n" + "  display: inline !important;\n" + "\n" + "  fill: none !important;\n" + "\n" + "  stroke: #111827 !important;\n" + "  stroke-width: 13px !important;\n" + "  stroke-opacity: 1 !important;\n" + "\n" + "  stroke-linejoin: round !important;\n" + "  stroke-dasharray: none !important;\n" + "\n" + "  filter: none !important;\n" + "  animation: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Secondary amber inner edge.\n" + " */\n" + "#map .map-highlight-related .dashboard-related-edge-inner {\n" + "  display: inline !important;\n" + "\n" + "  fill: none !important;\n" + "\n" + "  stroke: #f59e0b !important;\n" + "  stroke-width: 7px !important;\n" + "  stroke-opacity: 1 !important;\n" + "\n" + "  stroke-linejoin: round !important;\n" + "  stroke-linecap: round !important;\n" + "  stroke-dasharray: none !important;\n" + "\n" + "  filter: none !important;\n" + "  animation: none !important;\n" + "}\n" + "\n" + "/* DESKTOP TILE DRAG AND DROP */\n" + "#map.dashboard-tile-drag-active .map-hex-container.dashboard-tile-drop-exact-legal .dashboard-related-edge-outer,\n" + "#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-outer {\n" + "  display: inline !important; fill: rgba(34,197,94,0.14) !important;\n" + "  stroke: #111827 !important; stroke-width: 16px !important; stroke-opacity: 1 !important;\n" + "}\n" + "#map.dashboard-tile-drag-active .map-hex-container.dashboard-tile-drop-exact-legal .dashboard-related-edge-inner,\n" + "#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-inner {\n" + "  display: inline !important; fill: none !important;\n" + "  stroke: #22c55e !important; stroke-width: 9px !important; stroke-opacity: 1 !important;\n" + "}\n" + "#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-inner { stroke-width: 12px !important; }\n" + "#map .map-hex-container.dashboard-tile-drop-rejected .dashboard-related-edge-outer {\n" + "  display: inline !important; fill: rgba(220,38,38,0.16) !important;\n" + "  stroke: #7f1d1d !important; stroke-width: 16px !important; stroke-opacity: 1 !important;\n" + "}\n" + "#map .map-hex-container.dashboard-tile-drop-rejected .dashboard-related-edge-inner {\n" + "  display: inline !important; fill: none !important;\n" + "  stroke: #ef4444 !important; stroke-width: 10px !important; stroke-opacity: 1 !important;\n" + "}\n" + "#map.dashboard-tile-drag-active .map-hex-container:not(.dashboard-tile-drop-exact-legal) .dashboard-dim-overlay {\n" + "  display: inline !important; fill: #000 !important; fill-opacity: 0.42 !important;\n" + "}\n" + "\n" + "/* ============================================================\n" + " * TILE UPGRADE SELECTOR\n" + " * ============================================================ */\n" + "\n" + "/* ============================================================\n" + " * TILE UPGRADE SELECTOR\n" + " *\n" + " * The selector is a foreground control, not part of the map.\n" + " * The opaque neutral backing solves green-on-green and other\n" + " * same-colour combinations.\n" + " * ============================================================ */\n" + "\n" + ".dashboard-tile-selector-focus {\n" + "  isolation: isolate;\n" + "  z-index: 100 !important;\n" + "\n" + "  /*\n" + "   * Neutral opaque panel prevents map colours, routes, tokens,\n" + "   * and labels from competing with replacement tiles.\n" + "   */\n" + "  background: #fffdf5;\n" + "\n" + "  border* 4px solid #111827;\n" + "  border-radiu*: 18px;\n" + "\n" + "  padding: 14px;\n" + "\n" + "  box-s*adow:\n" + "    0 0 0 4px rgba(255, 255,*255, 0.95),\n" + "    0 8px 18px rgba(0,*0, 0, 0.55);\n" + "\n" + "  box-sizing: border-box;\n" + "}\n" + "\n" + "/*\n" + " * Do not apply glow to the tile artwork. The opaque panel and\n" + " * black perimeter provide cleaner separation.\n" + " */\n" + ".dashboard-tile-selector-focus svg {\n" + "  overflow: visible;\n" + "  filter: none !important;\n" + "}\n" + "\n" + "/*\n" + " * Make buttons and other clickable selector controls easier to hit.\n" + " */\n" + ".dashboard*tile-selector-focus button {\n" + "  min*width: 34px !important;\n" + "  min-heig*t: 34px !important;\n" + "\n" + "  padding: 5p* !important;\n" + "\n" + "  border: 3px solid *111827 !important;\n" + "  border-radius* 7px !important;\n" + "\n" + "  font-size: 20p* !important;\n" + "  line-height: 1 !imp*rtant;\n" + "  font-weight: 900 !importa*t;\n" + "\n" + "  box-shadow:\n" + "    0 2px 4px rg*a(0, 0, 0, 0.55) !important;\n" + "}\n" + "\n" + "/*\n" + " * Ensure SVG tick/cross controls remain visible when the original\n" + " * implementation uses SVG elements rather than HTML buttons.\n" + " */\n" + ".dashboard-tile-selector-focus svg text {\n" + "  paint-order: stroke fill;\n" + "  stroke: #ffffff;\n" + "  stroke-width: 2px;\n" + "  stroke-linejoin: round;\n" + "}\n" + "\n" + "\n" + "\n"))]), self.$h("g", (new Map([["attrs", (new Map([["transform", "scale(" + (self.scale) + ")"]]))]])), [self.$h("g", (new Map([["attrs", (new Map([["id", "map-hexes"], ["transform", "translate(" + (self.$map_x()) + " " + (self.$map_y()) + ")"]]))]])), rendered_hexes), self.$h("g", (new Map([["attrs", (new Map([["id", "map-axis"]]))]])), [self.$h($$('Axis'), (new Map([["cols", $send(self.cols, 'map', [], function $$84(c){
             
             if (c == null) c = nil;
-            return $rb_plus(c, 1);})], ["rows", $send(self.rows, 'map', [], function $$83(r){
+            return $rb_plus(c, 1);})], ["rows", $send(self.rows, 'map', [], function $$85(r){
             
             if (r == null) r = nil;
             return $rb_plus(r, 1);})], ["axes", self.game.$axes()], ["layout", self.layout], ["font_size", $$('FONT_SIZE')], ["gap", $$('GAP')], ["map_x", self.$map_x()], ["map_y", self.$map_y()], ["start_pos", [$rb_plus(($truthy(($ret_or_1 = self.start_pos['$[]'](0))) ? ($ret_or_1) : (0)), 1), $rb_plus(($truthy(($ret_or_1 = self.start_pos['$[]'](1))) ? ($ret_or_1) : (0)), 1)]]])))])])].$compact());
@@ -105414,3 +105457,4 @@ Opal.modules["view/welcome"] = function(Opal) {/* Generated by Opal 1.8.3 */
 };
 
 Opal.load('app')
+//# sourceMappingURL=/assets/main.js.map
