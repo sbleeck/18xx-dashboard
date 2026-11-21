@@ -10,7 +10,45 @@ module Engine
         class BuyTrain < Engine::Step::BuyTrain
           include SkipAbbreviatedRound
 
+          def actions(entity)
+            actions = super - ['sell_shares']
+            actions += ['choose'] if entity == current_entity && @game.forced_national_conversion?(entity)
+            actions
+          end
+
+          def can_sell?(_entity, _bundle)
+            false
+          end
+
+          def show_president_contributions?(entity, shell = nil)
+            super && !@game.forced_national_conversion?(entity)
+          end
+
+          def choice_name
+            shortfall = @game.format_currency(@game.forced_train_price(current_entity) - current_entity.cash)
+            "#{current_entity.owner.name} cannot cover #{current_entity.name}'s #{shortfall} shortfall for the cheapest train"
+          end
+
+          def choices
+            { @game.forced_national_choice => "Convert #{current_entity.name} to a national" }
+          end
+
+          def process_choose(action)
+            entity = action.entity
+            raise GameError, "#{entity.name} cannot be converted to a national" unless @game.forced_national_conversion?(entity)
+            raise GameError, "Invalid choice: #{action.choice}" unless action.choice == @game.forced_national_choice
+
+            @game.force_national!(entity)
+            pass!
+          end
+
+          def can_entity_buy_train?(entity)
+            super && !@game.national?(entity)
+          end
+
           def must_buy_train?(entity)
+            return false if @game.national?(entity)
+
             entity.floated? && @game.trainless?(entity) && (!@game.fulfilled_train_obligation?(entity) || entity.type == :major)
           end
 
@@ -19,10 +57,13 @@ module Engine
           end
 
           def buyable_trains(entity)
-            trains = super
+            return [] if @game.national?(entity)
+
+            trains = super.reject(&:rusted)
             trains = trains.reject { |t| @game.pullman?(t) && t.owned_by_corporation? } if cannot_afford_transfer?(entity)
             trains = trains.reject { |t| @game.pullman?(t) } if @game.pullman(entity)
             trains = trains.reject { |t| abandoned_minor_train?(t) }
+            trains = trains.reject { |t| t.owned_by_corporation? && @game.national?(t.owner) }
             trains = trains.select { |t| @game.pullman?(t) } if at_train_limit?(entity)
 
             # Level 8 trains visible via available_on:'7+7' but gated until 4th L7 purchase (§11.6)
@@ -37,6 +78,10 @@ module Engine
             else
               trains.select { |t| t.name == '2+2' && t.from_depot? }
             end
+          end
+
+          def log_skip(entity)
+            super unless @game.national?(entity)
           end
 
           def cannot_afford_transfer?(entity)
@@ -96,8 +141,6 @@ module Engine
             @game.pay_pullman_royalty! if royalty
             @game.fulfill_train_obligation!(action.entity) if reserved
           end
-
-          # TODO: Nationals claiming rusted trains for free (openpoints §1.9, §3.7) — deferred
         end
       end
     end

@@ -6,14 +6,19 @@ require_relative 'map'
 require_relative 'stock_market'
 require_relative 'graph'
 require_relative 'sea_routes'
+require_relative 'nationals'
 require_relative 'train'
 require_relative '../base'
+require_relative 'depot'
 require_relative 'round/consolidation'
 require_relative 'round/concession'
 require_relative 'round/fast_start'
+require_relative 'step/assign'
 require_relative 'step/consolidate'
 require_relative 'step/fast_start_capital'
+require_relative 'step/form_national'
 require_relative 'step/merge_discard_train'
+require_relative 'step/national_buy_trains'
 require_relative 'step/merge_minor'
 require_relative 'step/merge_offer'
 require_relative 'step/merge_token'
@@ -21,6 +26,7 @@ require_relative 'step/concession'
 require_relative 'step/choose_operating_position'
 require_relative 'step/reserve_share'
 require_relative 'step/orient_express_bonus'
+require_relative 'step/transfer_tokens'
 require_relative 'step/route'
 require_relative 'step/special_token'
 require_relative 'step/buy_port_authority'
@@ -33,9 +39,11 @@ module Engine
         include G18OE::Entities
         include G18OE::Map
         include G18OE::SeaRoutes
+        include G18OE::Nationals
         attr_accessor :minor_regional_order, :minor_available_regions, :minor_floated_regions,
                       :consolidation_triggered, :consolidation_complete
-        attr_reader :fast_start_minors, :concessions, :merged_minors, :wcf_placeholder, :minor_c_ability
+        attr_reader :fast_start_minors, :concessions, :merged_minors, :wcf_placeholder, :minor_c_ability,
+                    :hochberg_token_hex
 
         PATRONAGE_DRAWS = [{ group: :pink, count: 3 }, { group: :yellow, count: 3 },
                            { group: :white, count: 3 }, { group: :green, count: 8 }].freeze
@@ -66,6 +74,9 @@ module Engine
         CAPITALIZATION = :incremental
         SELL_BUY_ORDER = :sell_buy
         EBUY_FROM_OTHERS = :never
+        EBUY_CAN_SELL_SHARES = false
+        BANKRUPTCY_ALLOWED = false
+        FORCED_NATIONAL_CHOICE = 'national'
         MUST_SELL_IN_BLOCKS = false
         HOME_TOKEN_TIMING = :float
         TILE_RESERVATION_BLOCKS_OTHERS = :always
@@ -76,8 +87,11 @@ module Engine
         REMAINDER_CASH = 100_000
         ABANDONED_MINOR_PRICE = 60
         TRAIN_CLASS = G18OE::Train
+        DEPOT_CLASS = G18OE::Depot
         PULLMAN = 'Pullman'
         PULLMAN_BONUS_PER_LEVEL = 10
+        NATIONAL_FILLER_CITY_REVENUE = 60
+        NATIONAL_FILLER_TOWN_REVENUE = 10
         TRAIN_ADD_ONS = { pullman: 'Pullman', one_plus_one_marker: '+1+1 marker' }.freeze
         PULLMAN_ROYALTY = 15
         PULLMAN_TRANSFER_PRICE = 75
@@ -89,6 +103,7 @@ module Engine
 
         EVENTS_TEXT = Base::EVENTS_TEXT.merge(
           'pullmans_available' => ['Pullmans Available', 'Pullman cars may be bought; Minor M receives one free'],
+          'minor_d_token' => ['Minor D +£40 Token', 'Minor D\'s +£20 token is removed; its +£40 token may be placed'],
           'level_8_available' => ['Level 8 Trains Available', 'Level 8 trains may be bought'],
           'consolidation_triggered' => [
             'Consolidation Round',
@@ -223,7 +238,7 @@ module Engine
               price: 475,
             }],
             num: 8,
-            events: [{ 'type' => 'consolidation_triggered' }],
+            events: [{ 'type' => 'consolidation_triggered' }, { 'type' => 'minor_d_token' }],
           },
           # Level 6 — brown double-sided (6 / 6+6); permanent
           {
@@ -300,12 +315,13 @@ module Engine
         ZONE_DISCOUNT_RATE          = 0.2 # 20% §11.1.5
         ZONE_TERRAIN_DISCOUNT_RATE  = 0.5 # 50% §11.1.5; E/F augment zone discount to this rate
         TERRAIN_COST_MULTIPLIER = 0.67
+        NATIONAL_FORMATION_PHASES = %w[4 6 8].freeze
         TILE_POINT_BUDGET = { minor: 3, regional: 3, major: 6, national: 9 }.freeze
         MINOR_MAX_TREASURY = 180
         TILE_FEE_PER_WATER_DISTANCE = 5
         TOKEN_FEE_PER_WATER_DISTANCE = 20
-        MINOR_E_TERRAIN = %i[water river lake].freeze
-        MINOR_F_TERRAIN = %i[mountain hill].freeze
+        BLUE_TERRAIN = %i[water river lake].freeze
+        GREEN_TERRAIN = %i[mountain hill].freeze
         SEA_CHANNEL_PASSAGE_COST = 20
         SEA_REDUCTION_BY_PHASE = { '2' => 1, '3' => 1, '4' => 1, '5' => 1, '6' => 1, '7' => 2, '8' => 2 }.freeze
 
@@ -314,6 +330,8 @@ module Engine
         PORT_AUTHORITIES = { north_sea: 8, mediterranean: 8 }.freeze
         PORT_AUTHORITY_NAMES = { north_sea: 'North Sea', mediterranean: 'Mediterranean' }.freeze
         PORT_AUTHORITY_LIMIT = 1
+
+        TOKEN_TRANSFER_FEES = { normal: 20, grand: 40, metropolis: 60 }.freeze
 
         CORPORATIONS_TRACK_RIGHTS = {
           # United Kingdom
@@ -423,14 +441,6 @@ module Engine
                      R75 R77 R79 R81 R83 R85 R87 S76 S78 S80 S82 S84 S86 S88 T79 T81 T87 U80],
         }.freeze
 
-        # Cities that sit on a national-zone border hex (hex listed in two zones).
-        # All other cities belong unambiguously to one zone; only these need an explicit override.
-        CITY_NATIONAL_ZONE = {
-          'Q38' => 'FR',  # Nancy   — FR/PHS border hex
-          'O52' => 'PHS', # Dresden — PHS/AH border hex
-          'S76' => 'BRS',
-        }.freeze
-
         # Cities excluded from minor home-token placement regardless of zone membership.
         # These are Balkan / Ottoman / south-east European cities outside the concession
         # railroad system. Most are already outside all zone hex lists; S76 (Jassy) is the
@@ -455,6 +465,17 @@ module Engine
         MAX_FLOATED_REGIONALS = 18
         ORIENT_EXPRESS_ORIGINS = %w[Paris London Berlin Madrid Sankt-Peterburg].freeze
         ORIENT_EXPRESS_DESTINATIONS = %w[Constantinople].freeze
+        MINOR_D_20_TOKEN = 'D+20'
+        MINOR_D_40_TOKEN = 'D+40'
+        MINOR_D_BONUS = { MINOR_D_20_TOKEN => 20, MINOR_D_40_TOKEN => 40 }.freeze
+        HOCHBERG_TOKEN = 'HMLC'
+        HOCHBERG_MIN_TERRAIN_COST = 45
+        HOCHBERG_REVENUE = { '2' => 10, '3' => 20, '4' => 20, '5' => 40, '6' => 40, '7' => 60, '8' => 60 }.freeze
+        ASSIGNMENT_TOKENS = {
+          HOCHBERG_TOKEN => '/logos/18_oe/hmlc.svg',
+          MINOR_D_20_TOKEN => '/icons/18_oe/plus_twenty.svg',
+          MINOR_D_40_TOKEN => '/icons/18_oe/plus_forty.svg',
+        }.freeze
         ORIENT_EXPRESS_BONUS = { '2' => 30, '3' => 30, '4' => 30, '5' => 60, '6' => 60, '7' => 100, '8' => 100 }.freeze
         CONVERSION_NEW_SHARES = 6
         MAJOR_MAX_OWNERSHIP_PERCENT = 60
@@ -506,14 +527,19 @@ module Engine
           @minor_asterisked_selected = 0
           @minor_floated_regions = {}
           @merged_minors = Hash.new { |hash, corporation| hash[corporation] = [] }
+          @minor_charter_assets = {}
           @removed_regional_zones = []
           @orient_express_markers = []
           @port_authorities = Hash.new { |hash, corporation| hash[corporation] = [] }
+          @removed_port_authorities = Hash.new(0)
           @concessions = companies.select { |company| concession?(company) }
           @fulfilled_train_obligation = Set.new
           @first_or_complete = false
           @reserved_shares = []
           @face_down_privates = []
+          @hochberg_token_hex = nil
+          @hochberg_printed_revenue = {}
+          setup_nationals
 
           corporations.each do |corp|
             corp.par_via_exchange = companies.find { |c| c.sym == corp.id } if corp.type == :minor
@@ -521,7 +547,7 @@ module Engine
 
           setup_fast_start! if fast_start?
           setup_patronage_tiles!
-          setup_wcf_placeholder!
+          place_wcf_placeholder!
           @pass_through_tokens = {}
           setup_minor_k!
           @minor_c_ability = corporation_by_id('C')&.abilities&.first
@@ -531,6 +557,8 @@ module Engine
           @minor_f_ability = corporation_by_id('F')&.abilities&.first
           @minor_h_ability = corporation_by_id('H')&.abilities&.first
           @minor_l_ability = corporation_by_id('L')&.abilities&.first
+          @minor_d_ability = minor_d_private&.abilities&.first
+          @minor_d_token = self.class::MINOR_D_20_TOKEN
         end
 
         def setup_minor_k!
@@ -551,9 +579,13 @@ module Engine
           end
         end
 
-        def setup_wcf_placeholder!
+        def place_wcf_placeholder!
           @wcf_placeholder = Engine::Token.new(nil, price: 0, logo: '/logos/18_oe/wcf_reserved.svg', type: :neutral)
           lille_city.exchange_token(@wcf_placeholder, extra_slot: true)
+        end
+
+        def wcf_position_token?(corporation)
+          lille_city.extra_tokens.any? { |token| token.corporation == corporation && token.type != :pass_through }
         end
 
         def pass_through_token_definitions
@@ -597,7 +629,21 @@ module Engine
         end
 
         def counted_stops(route)
-          without_pass_through_cities(visited_stops(route), route.corporation)
+          stops = without_pass_through_cities(visited_stops(route), route.corporation)
+          return stops if !hochberg_token_hex || hochberg_owner_route?(route)
+
+          stops.reject { |stop| stop == hochberg_town }
+        end
+
+        def hochberg_owner_route?(route)
+          company = hochberg_private
+          !hochberg_token_hex.nil? && !company.owner.nil? && route.corporation&.owner == company.owner
+        end
+
+        def hochberg_bonus(route, stops)
+          return 0 if !hochberg_owner_route?(route) || !stops.include?(hochberg_town)
+
+          self.class::HOCHBERG_REVENUE[route.phase.name]
         end
 
         def without_pass_through_cities(stops, corporation)
@@ -846,8 +892,7 @@ module Engine
         end
 
         def region_for_hex(hex)
-          self.class::CITY_NATIONAL_ZONE[hex.coordinates] ||
-            self.class::NATIONAL_REGION_HEXES.find { |_, hexes| hexes.include?(hex.coordinates) }&.first
+          national_region_by_coordinates[hex.coordinates]
         end
 
         def region_available?(region)
@@ -877,7 +922,7 @@ module Engine
 
           @hexes
             .select { |hex| region_hexes.include?(hex.coordinates) }
-            .reject { |hex| (z = self.class::CITY_NATIONAL_ZONE[hex.coordinates]) && !@minor_available_regions.key?(z) }
+            .reject { |hex| (z = self.class::CITY_TOWN_NATIONAL_ZONE[hex.coordinates]) && !@minor_available_regions.key?(z) }
             .select { |hex| hex.tile.cities.any? { |city| city.tokenable?(corporation, free: true) } }
             .reject { |hex| metropolis_hex?(hex) }
             .reject { |hex| self.class::MINOR_EXCLUDED_HOME_CITIES.include?(hex.coordinates) }
@@ -904,7 +949,7 @@ module Engine
 
         def tile_point_budget(entity)
           budget = self.class::TILE_POINT_BUDGET[entity.type] || 0
-          return budget if entity.type == :national
+          return budget if national?(entity)
 
           entity.abilities.include?(@minor_g_ability) ? budget + 2 : budget
         end
@@ -938,7 +983,7 @@ module Engine
           return unless tile.color == :white
 
           terrain_point_abilities(entity).find do |color, _|
-            terrain = color == :blue ? self.class::MINOR_E_TERRAIN : self.class::MINOR_F_TERRAIN
+            terrain = color == :blue ? self.class::BLUE_TERRAIN : self.class::GREEN_TERRAIN
             tile.terrain.intersect?(terrain)
           end&.last
         end
@@ -958,6 +1003,8 @@ module Engine
         end
 
         def upgrade_cost(tile, hex, entity, spender)
+          return 0 if national?(entity)
+
           base_cost = tile.upgrades.sum(&:cost)
           return super if base_cost.zero?
 
@@ -985,6 +1032,13 @@ module Engine
           cost
         end
 
+        def entity_track_rights_zone(entity)
+          corp = owning_corporation(entity)
+          return nil unless corp
+
+          self.class::CORPORATIONS_TRACK_RIGHTS[corp.id] || @minor_floated_regions[corp.id]
+        end
+
         def track_rights_zones(entity)
           corp = owning_corporation(entity)
           return [] unless corp
@@ -998,7 +1052,7 @@ module Engine
           return [] if minor.type != :minor || !minor.floated? || minor.owner != player
 
           @corporations.select do |corporation|
-            corporation.type == :major &&
+            %i[major national].include?(corporation.type) &&
               corporation.floated? &&
               corporation.president?(player) &&
               !@round.merged_majors.include?(corporation)
@@ -1047,6 +1101,7 @@ module Engine
           @log << "#{minor.name} is abandoned"
           minor.trains.reject { |train| pullman?(train) }.each { |train| @depot.reclaim_train(train) }
           minor.placed_tokens.each(&:remove!)
+          return_minor_d_token!(minor)
           minor.spend(minor.cash, @bank) if minor.cash.positive?
           @share_pool.transfer_shares(minor.presidents_share.to_bundle, minor.ipo_owner, allow_president_change: false)
           minor.presidents_share.buyable = false
@@ -1078,6 +1133,7 @@ module Engine
           return unless major.type == :major
 
           pay_minor_a_bonus!(minor, major) if minor.id == 'A'
+          @minor_charter_assets[minor] = { abilities: minor.abilities.dup, companies: minor.companies.dup }
           minor.abilities.dup.each do |ability|
             minor.remove_ability(ability)
             major.add_ability(ability)
@@ -1099,6 +1155,28 @@ module Engine
           @log << "#{major.name} receives #{format_currency(amount)} from the bank for #{minor.name}"
         end
 
+        def rust(train)
+          owner = train.owner
+          if owner&.corporation? && national?(owner)
+            train.rusted = true
+            return
+          end
+
+          @rusted_at_phase_change[owner] << train if owner&.corporation?
+          train.rusted = true
+          @depot.reclaim_train(train)
+        end
+
+        def discountable_trains_for(corporation)
+          national?(corporation) ? national_train_exchanges(corporation) : super
+        end
+
+        def discard_discount(train, price)
+          return 0 if train.rusted
+
+          super
+        end
+
         def pullman?(train)
           train.name == self.class::PULLMAN
         end
@@ -1116,8 +1194,19 @@ module Engine
           corporation.trains.all? { |train| extra_train?(train) }
         end
 
+        def forced_train_price(corporation)
+          train = @depot.min_depot_train
+          return unless train
+
+          train.min_price(ability: abilities(corporation, :train_discount))
+        end
+
         def route_trains(entity)
           super.reject { |train| pullman?(train) }
+        end
+
+        def pullman_bonus_per_level
+          self.class::PULLMAN_BONUS_PER_LEVEL
         end
 
         def pullman_royalty
@@ -1234,6 +1323,7 @@ module Engine
 
         def after_phase_change(name)
           super
+          start_national_formation!(@round.current_operator&.owner) if national_formation_phase?(name) && @round.operating?
           return unless name == self.class::PHASES.last[:name]
 
           @final_set_extended = @round.is_a?(Engine::Round::Operating) && final_or_in_set?(@round)
@@ -1250,6 +1340,7 @@ module Engine
         def repeat_last_revenue?(entity)
           return false unless abbreviated_operating_round?
           return false unless (info = last_revenue_info(entity))
+          return true if national?(entity)
 
           ran = info.routes.keys.flat_map { |train| component_trains(train) }
           ran.map(&:id).sort == entity.trains.reject { |train| extra_train?(train) }.map(&:id).sort
@@ -1325,6 +1416,7 @@ module Engine
 
         def status_array(corporation)
           lines = []
+          lines << ["National (#{entity_track_rights_zone(corporation)})"] if national?(corporation)
           lines << ['Orient Express marker'] if orient_express_marker?(corporation)
           port_authorities(corporation).each { |sea| lines << [port_authority_name(sea)] }
           lines.concat(pass_through_token_lines(corporation))
@@ -1364,7 +1456,8 @@ module Engine
         end
 
         def port_authorities_left(sea)
-          port_authority_count(sea) - @port_authorities.values.count { |seas| seas.include?(sea) }
+          port_authority_count(sea) - @port_authorities.values.count { |seas| seas.include?(sea) } -
+            @removed_port_authorities[sea]
         end
 
         def timeline
@@ -1385,6 +1478,47 @@ module Engine
           corporation.spend(port_authority_cost, @bank)
           @port_authorities[corporation] << sea
           clear_graph_for_entity(corporation)
+        end
+
+        def port_authority_sales(buyer)
+          return [] if !buyer.corporation? || buyer.type != :major
+          return [] if port_authorities(buyer).size >= port_authority_limit
+          return [] if buyer.cash < port_authority_cost
+
+          sales = []
+          corporations.each do |seller|
+            next if seller == buyer || seller.type != :major
+
+            port_authorities(seller).each do |sea|
+              sales << [seller, sea] unless port_authorities(buyer).include?(sea)
+            end
+          end
+          sales
+        end
+
+        def port_authority_sale_key(seller, sea)
+          "#{seller.id}:#{sea}"
+        end
+
+        def transfer_port_authority!(buyer, seller, sea)
+          price = format_currency(port_authority_cost)
+          @log << "#{buyer.name} buys a #{port_authority_name(sea)} from #{seller.name} for #{price}"
+          buyer.spend(port_authority_cost, seller)
+          @port_authorities[seller].delete(sea)
+          @port_authorities[buyer] << sea
+          clear_graph_for_entity(buyer)
+        end
+
+        def port_authority_sale(buyer, choice)
+          port_authority_sales(buyer).find { |seller, sea| port_authority_sale_key(seller, sea) == choice }
+        end
+
+        def consenter_for_choice(entity, choice, _label)
+          sale = port_authority_sale(entity, choice)
+          return super unless sale
+
+          seller_owner = sale.first.owner
+          seller_owner if seller_owner != entity.owner
         end
 
         def orient_express_marker?(corporation)
@@ -1472,6 +1606,53 @@ module Engine
           'Float'
         end
 
+        def token_transfer_fees
+          self.class::TOKEN_TRANSFER_FEES
+        end
+
+        def token_transfer_fee(city)
+          hex = city.hex
+          return token_transfer_fees[:metropolis] if metropolis_hex?(hex)
+
+          token_transfer_fees[hex.tile.label.to_s == 'Y' ? :grand : :normal]
+        end
+
+        def transferable_token?(buyer, token)
+          return false if !token.used || !token.city || token.type != :normal
+
+          seller = token.corporation
+          return false if buyer.type != :major || seller.type != :major
+          return false if seller == buyer || seller.owner != buyer.owner || token == seller.tokens.first
+
+          hex = token.city.hex
+          hex.tile.cities.none? { |city| city.tokened_by?(buyer) } && city_in_track_rights?(buyer, hex)
+        end
+
+        def transfer_token!(buyer, new_token, old_token, fee)
+          seller = old_token.corporation
+          city = old_token.city
+          extra_slot = city.extra_tokens.include?(old_token)
+          slot = city.tokens.index(old_token)
+          old_token.remove!
+          new_token.place(city, extra: extra_slot)
+          extra_slot ? city.extra_tokens << new_token : city.tokens[slot] = new_token
+          buyer.spend(new_token.price, @bank)
+          buyer.spend(fee, seller)
+          return_token_to_charter!(seller, old_token)
+          clear_graph_for_entity(buyer)
+          hex = city.hex
+          @log << "#{buyer.name} buys #{seller.name}'s token in #{hex.location_name} (#{hex.name}) for "\
+                  "#{format_currency(new_token.price)} (bank) + #{format_currency(fee)} (#{seller.name})"
+        end
+
+        def return_token_to_charter!(seller, returned)
+          placed = seller.tokens.select { |token| token.used && token != seller.tokens.first }
+          highest = placed.max_by(&:price)
+          return if highest.nil? || highest.price <= returned.price
+
+          highest.price, returned.price = returned.price, highest.price
+        end
+
         def pay_home_token_cost!(corporation)
           cost = TRACK_RIGHTS_COST[CORPORATIONS_TRACK_RIGHTS[corporation.id]]
           corporation.spend(cost, @bank) if cost&.positive?
@@ -1528,18 +1709,20 @@ module Engine
           Round::G18OE::Operating.new(self, [
             G18OE::Step::ChooseOperatingPosition,
             G18OE::Step::BuyPortAuthority,
-            Engine::Step::Bankrupt,
             Engine::Step::Exchange,
+            G18OE::Step::FormNational,
             Engine::Step::DiscardTrain,
             Engine::Step::HomeToken,
+            G18OE::Step::Assign,
             G18OE::Step::Track,
             G18OE::Step::SpecialToken,
             G18OE::Step::Token,
             G18OE::Step::Route,
             G18OE::Step::Dividend,
             G18OE::Step::OrientExpressBonus,
+            G18OE::Step::TransferTokens,
             G18OE::Step::BuyTrain,
-            # Convert step to do national conversions at 4/6/8?
+            G18OE::Step::NationalBuyTrains,
             G18OE::Step::IssueShares,
           ], round_num: round_num)
         end
@@ -1551,6 +1734,8 @@ module Engine
         end
 
         def cross_water_tile_fee(corporation, hex, tile)
+          return 0 if national?(corporation)
+
           (@graph.sea_connectivity(corporation).tile_cost(hex, tile) || 0) * self.class::TILE_FEE_PER_WATER_DISTANCE
         end
 
@@ -1635,7 +1820,159 @@ module Engine
         def revenue_for(route, stops)
           revenue = super - one_plus_one_marker_undoubled_revenue(route, stops)
           revenue += self.class::ORIENT_EXPRESS_BONUS[route.phase.name] if orient_express_bonus_route?(route)
-          revenue + pullman_bonus(route)
+          revenue + pullman_bonus(route) + minor_d_bonus(route) + hochberg_bonus(route, stops)
+        end
+
+        def minor_d_private
+          company_by_id('D')
+        end
+
+        def minor_d_city?(hex)
+          !hex.tile.cities.empty? && !metropolis_hex?(hex)
+        end
+
+        def minor_d_token_placeable?(entity)
+          minor_d_private&.owner == entity && !abilities(minor_d_private, :assign_hexes, time: 'any').nil?
+        end
+
+        def track_token_placeable?(entity)
+          minor_d_token_placeable?(entity) || hochberg_token_placeable?(entity)
+        end
+
+        def hochberg_private
+          company_by_id(self.class::HOCHBERG_TOKEN)
+        end
+
+        def hochberg_token_placeable?(corporation)
+          company = hochberg_private
+          return false if !corporation || !company || !company.owner&.player? || national?(corporation)
+          return false unless corporation.owner == company.owner
+
+          !abilities(company, :assign_hexes, time: 'any').nil?
+        end
+
+        def hochberg_town
+          hochberg_token_hex&.tile&.towns&.first
+        end
+
+        def hochberg_hex?(hex)
+          return false if hochberg_token_hex
+          return false unless hex.original_tile.upgrades.any? do |upgrade|
+            upgrade.cost >= self.class::HOCHBERG_MIN_TERRAIN_COST && upgrade.terrains.intersect?(self.class::GREEN_TERRAIN)
+          end
+
+          tile = hex.tile
+          return false if !tile.cities.empty? || !tile.offboards.empty? || !tile.double_towns.empty?
+          return false if tile.towns.size > 1
+          return true if !tile.towns.empty? || tile.exits.empty?
+
+          !hochberg_town_tile(tile).nil?
+        end
+
+        def place_hochberg_token!(hex)
+          @hochberg_token_hex = hex
+          tile = hex.tile
+          if tile.towns.one?
+            zero_hochberg_town!(tile)
+          elsif tile.exits.empty?
+            town = Engine::Part::Town.new('0')
+            town.tile = tile
+            tile.towns << town
+            tile.city_towns << town
+          else
+            replacement, turn = hochberg_town_tile(tile)
+            replacement.rotate!(turn)
+            update_tile_lists(replacement, tile)
+            hex.lay(replacement)
+          end
+          hex.assign!(self.class::HOCHBERG_TOKEN)
+          abilities(hochberg_private, :assign_hexes, time: 'any').use!
+          flip_private!(hochberg_private) unless face_down_private?(hochberg_private)
+          clear_graph
+          @log << "#{hochberg_private.owner.name} places the Hochberg Mining and Lumber Company token in #{hex.name}"
+        end
+
+        def update_tile_lists(tile, old_tile)
+          super
+          return if !hochberg_token_hex || old_tile.hex != hochberg_token_hex
+
+          printed = @hochberg_printed_revenue.delete(old_tile.id)
+          old_tile.towns.first.revenue = old_tile.towns.first.parse_revenue(printed) if printed
+          zero_hochberg_town!(tile)
+        end
+
+        def minor_d_token_hex
+          hexes.find { |hex| hex.assigned?(@minor_d_token) }
+        end
+
+        def minor_d_token_name
+          "+#{format_currency(self.class::MINOR_D_BONUS[@minor_d_token])}"
+        end
+
+        def place_minor_d_token!(hex)
+          hex.assign!(@minor_d_token)
+          @minor_d_ability.use!
+          @log << "#{minor_d_private.owner.name} places Minor D's #{minor_d_token_name} token in #{hex.name}"
+        end
+
+        def minor_d_bonus(route)
+          return 0 if minor_d_private&.owner != route.train.owner
+          return 0 unless route.visited_stops.any? { |stop| stop.hex.assigned?(@minor_d_token) }
+
+          self.class::MINOR_D_BONUS[@minor_d_token] * (route.train.multiplier || 1)
+        end
+
+        def hochberg_town_tile(tile)
+          exits = tile.exits.sort
+          @tiles.each do |candidate|
+            next if candidate.color != tile.color || !candidate.towns.one? || !candidate.cities.empty?
+            next if !candidate.double_towns.empty? || !candidate.offboards.empty?
+
+            edges = candidate.edges.map(&:num)
+            turn = (0..5).find { |t| edges.map { |e| (e + t) % 6 }.uniq.sort == exits }
+            return [candidate, turn] if turn
+          end
+          nil
+        end
+
+        def zero_hochberg_town!(tile)
+          town = tile.towns.first
+          return unless town
+
+          printed = town.revenue_to_render
+          @hochberg_printed_revenue[tile.id] =
+            printed.is_a?(Hash) ? printed.map { |phase, value| "#{phase}_#{value}" }.join('|') : printed.to_s
+          town.revenue = town.parse_revenue('0')
+        end
+
+        def add_minor_d_ability!
+          @minor_d_ability = Engine::Ability::AssignHexes.new(type: 'assign_hexes', hexes: [], count: 1, when: 'track',
+                                                              owner_type: 'corporation')
+          minor_d_private.add_ability(@minor_d_ability)
+        end
+
+        def remove_minor_d_token!
+          hex = minor_d_token_hex
+          return unless hex
+
+          hex.remove_assignment!(@minor_d_token)
+          @log << "Minor D's #{minor_d_token_name} token is removed from #{hex.name}"
+        end
+
+        def event_minor_d_token!
+          return if !minor_d_private || minor_d_private.closed?
+
+          remove_minor_d_token!
+          minor_d_private.remove_ability(@minor_d_ability)
+          @minor_d_token = self.class::MINOR_D_40_TOKEN
+          add_minor_d_ability!
+        end
+
+        def return_minor_d_token!(minor)
+          return if minor_d_private&.owner != minor || !minor_d_token_hex
+
+          remove_minor_d_token!
+          add_minor_d_ability!
         end
 
         def compute_stops(route, train = nil)
@@ -1711,7 +2048,7 @@ module Engine
         def pullman_bonus(route)
           return 0 unless add_on_train?(:pullman, route.train)
 
-          route.train.level * self.class::PULLMAN_BONUS_PER_LEVEL
+          route.train.level * pullman_bonus_per_level
         end
 
         def routes_revenue(routes)
@@ -1834,22 +2171,15 @@ module Engine
           orient_express_run?(route) && route.equal?(orient_express_route(route.routes.empty? ? [route] : route.routes))
         end
 
-        def entity_track_rights_zone(entity)
-          corp = owning_corporation(entity)
-          return nil unless corp
-
-          self.class::CORPORATIONS_TRACK_RIGHTS[corp.id] || @minor_floated_regions[corp.id]
-        end
-
         def terrain_discount_minor(entity, tile)
           corp = owning_corporation(entity)
-          return if !corp || corp.type == :national
+          return unless corp
 
           return corporation_by_id('E') if corp.abilities.include?(@minor_e_ability) &&
-                                          tile.terrain.intersect?(self.class::MINOR_E_TERRAIN)
+                                          tile.terrain.intersect?(self.class::BLUE_TERRAIN)
 
           return unless corp.abilities.include?(@minor_f_ability)
-          return unless tile.terrain.intersect?(self.class::MINOR_F_TERRAIN)
+          return unless tile.terrain.intersect?(self.class::GREEN_TERRAIN)
 
           corporation_by_id('F')
         end
