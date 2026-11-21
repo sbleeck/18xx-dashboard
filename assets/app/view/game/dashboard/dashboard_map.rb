@@ -1,5 +1,3 @@
-require 'view/game/dashboard/dashboard_tile_selector'
-require 'view/game/dashboard/dashboard_tile_confirmation'
 # frozen_string_literal: true
 
 require '../lib/storage'
@@ -233,26 +231,91 @@ end
 module View
   module Game
     module Part
-      class Track < Snabberb::Component
-        unless method_defined?(:dashboard_original_width_for_index)
-          alias dashboard_original_width_for_index width_for_index
-          alias dashboard_original_value_for_index value_for_index
+      class CitySlot < Base
+        needs :game, default: nil, store: true
+        needs :selected_company, default: nil, store: true
+        unless method_defined?(:orig_render)
+          alias orig_render render
 
-          def dashboard_map_mounted?
-            `document.getElementById('viz-master-frame') !== null`
+          def render
+            rendered = orig_render
+            return rendered unless flash_token_slot?
+
+            highlight = h(:circle, {
+                            attrs: {
+                              cx: 0,
+                              cy: 0,
+                              r: @radius,
+                              fill: '#00ffff',
+                              stroke: '#00ffff',
+                              'stroke-width': 3,
+                              'pointer-events': 'none',
+                            },
+                          }, [
+              h(:animate,
+                attrs: { attributeName: 'fill-opacity', values: '0.15;0.70;0.15', dur: '1.4s', repeatCount: 'indefinite' }),
+              h(:animate,
+                attrs: { attributeName: 'stroke-opacity', values: '0.35;1.0;0.35', dur: '1.4s', repeatCount: 'indefinite' }),
+            ])
+
+            rendered_children = `Array.isArray(#{rendered}) ? #{rendered} : [#{rendered}]`
+            h(:g, {}, [*rendered_children, highlight].compact)
           end
 
+          def flash_token_slot?
+            return false if @token || !@game || !@tile&.hex
+
+            step = @game.round.active_step(@selected_company)
+            current_entity = @selected_company || step&.current_entity
+            return false unless step && current_entity
+
+            actions = step.actions(current_entity) || []
+            return false unless actions.include?('place_token') || actions.include?('hex_token')
+            return false unless step.available_hex(current_entity, @tile.hex)
+
+            return false if step.respond_to?(:available_tokens) && step.available_tokens(current_entity).empty?
+
+            already_tokened = (@city.respond_to?(:tokened_by?) && @city.tokened_by?(current_entity)) ||
+                              (@city.respond_to?(:tokens) && @city.tokens.compact.any? { |t| t.corporation == current_entity })
+            return false if already_tokened
+
+            open_slot = @city.respond_to?(:open_slot?) ? @city.open_slot?(current_entity) : @city.tokens.any?(&:nil?)
+            return false unless open_slot
+
+            if @reservation
+              res_corp = @reservation.respond_to?(:corporation) ? @reservation.corporation : @reservation
+              if res_corp && res_corp != current_entity && (res_corp.respond_to?(:id) ? res_corp.id != current_entity.id : true)
+                return false
+              end
+            end
+
+            true
+          end
+        end
+      end
+    end
+  end
+end
+
+module View
+  module Game
+    module Part
+      class Track < Snabberb::Component
+        unless method_defined?(:orig_width_for_index)
+          alias orig_width_for_index width_for_index
+          alias orig_value_for_index value_for_index
+
           def width_for_index(path, index, path_indexes)
-            base_width = dashboard_original_width_for_index(path, index, path_indexes)
-            dashboard_map_mounted? && index ? (base_width * 2.5) : base_width
+            base_width = orig_width_for_index(path, index, path_indexes)
+            index ? (base_width * 2.5) : base_width
           end
 
           def value_for_index(index, prop, track)
-            if dashboard_map_mounted? && index && prop == :color
-              palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff', '#ffea00', '#ff4500']
-              palette[index.to_i % palette.size]
+            if index && prop == :color
+              screaming_palette = ['#ff1493', '#00ffff', '#7fff00', '#ff00ff']
+              screaming_palette[index.to_i] || '#ff1493'
             else
-              dashboard_original_value_for_index(index, prop, track)
+              orig_value_for_index(index, prop, track)
             end
           end
         end
@@ -579,371 +642,13 @@ module View
         }
       }
 
-      # Dashboard celebration bridge: animate each calculated train over its
-      # displayed route, and show the latest dividend decision. Everything is
-      # dashboard-owned; no engine files are modified.
-      # Dashboard celebrations. Route trains follow the ordered centres of the
-      # route's actual visited hexes, while dividend decisions get a large banner.
-      # Animate locomotives on the exact SVG paths already drawn for each route.
-      # Track#render paints route paths in the screaming palette, so the dashboard
-      # locates those paths, orders connected pieces, and follows their real curves.
-      def install_route_celebration_bridge(routes)
-        route_data = Array(routes).each_with_index.map do |route, index|
-          train = route.respond_to?(:train) ? route.train : nil
-          train_id = train.respond_to?(:id) ? train.id : train.to_s
-          stops = if route.respond_to?(:visited_stops) && route.visited_stops&.any?
-                    route.visited_stops
-                  elsif route.respond_to?(:stops) && route.stops
-                    route.stops
-                  else
-                    []
-                  end
-          hex_ids = stops.map do |stop|
-            hex = stop.respond_to?(:hex) ? stop.hex : nil
-            hex ||= stop.tile.hex if stop.respond_to?(:tile) && stop.tile&.hex
-            hex.respond_to?(:id) ? hex.id.to_s : nil
-          end.compact
-          next if hex_ids.empty?
-
-          {
-            train: train_id,
-            hexes: hex_ids,
-            colour: ['#ff1493', '#00ffff', '#7fff00', '#ff00ff', '#ffea00', '#ff4500'][index % 6],
-          }
-        end.compact
-        return if route_data.empty?
-
-        signature = route_data.map { |r| "#{r[:train]}:#{r[:hexes].join('-')}" }.join('|')
-        train_ids = route_data.map { |r| r[:train].to_s }
-        route_hexes = route_data.map { |r| r[:hexes] }
-        colours = route_data.map { |r| r[:colour] }
-
-        %x{
-          (function(signature, trainIds, routeHexes, colours) {
-            if (typeof window === 'undefined') return;
-            var state = window.__dashboardRouteCelebration || (window.__dashboardRouteCelebration = {});
-            if (state.signature === signature) return;
-            state.signature = signature;
-            if (state.timer) clearTimeout(state.timer);
-            state.timer = setTimeout(function() {
-              state.timer = null;
-              var svg = document.getElementById('map');
-              if (!svg || !svg.isConnected) return;
-              var old = svg.querySelector('#dashboard-train-animation-layer');
-              if (old && old.parentNode) old.parentNode.removeChild(old);
-
-              function rootPoint(element, distance) {
-                var local = element.getPointAtLength(Math.max(0, Math.min(element.getTotalLength(), distance)));
-                var em = element.getScreenCTM(), rm = svg.getScreenCTM();
-                if (!em || !rm) return null;
-                var sx = em.a*local.x + em.c*local.y + em.e;
-                var sy = em.b*local.x + em.d*local.y + em.f;
-                var det = rm.a*rm.d-rm.b*rm.c;
-                if (!det) return null;
-                return { x:(rm.d*(sx-rm.e)-rm.c*(sy-rm.f))/det,
-                         y:(-rm.b*(sx-rm.e)+rm.a*(sy-rm.f))/det };
-              }
-              function distance(a,b) { return (!a||!b) ? Infinity : Math.hypot(a.x-b.x,a.y-b.y); }
-              function orientedPiece(piece, desiredStart) {
-                if (!desiredStart) return piece;
-                var a=rootPoint(piece.el,0), b=rootPoint(piece.el,piece.length);
-                piece.reverse=distance(desiredStart,b)<distance(desiredStart,a);
-                return piece;
-              }
-
-
-              function nearestStopPoint(hexId, target) {
-                var hex=svg.querySelector('.map-hex-container[data-hex="'+String(hexId)+'"]');
-                if(!hex||!target)return target;
-                var markers=hex.querySelectorAll('circle,ellipse');
-                var best=null,bestDistance=Infinity;
-                for(var i=0;i<markers.length;i++){
-                  var marker=markers[i],box;
-                  try{box=marker.getBBox();}catch(e){continue;}
-                  if(box.width<8||box.height<8)continue;
-                  var em=marker.getScreenCTM(),rm=svg.getScreenCTM();
-                  if(!em||!rm)continue;
-                  var lx=box.x+box.width/2,ly=box.y+box.height/2;
-                  var sx=em.a*lx+em.c*ly+em.e,sy=em.b*lx+em.d*ly+em.f;
-                  var det=rm.a*rm.d-rm.b*rm.c;if(!det)continue;
-                  var point={x:(rm.d*(sx-rm.e)-rm.c*(sy-rm.f))/det,
-                             y:(-rm.b*(sx-rm.e)+rm.a*(sy-rm.f))/det};
-                  var d=distance(point,target);if(d<bestDistance){bestDistance=d;best=point;}
-                }
-                return best||target;
-              }
-
-              // Keep trains in the map SVG. Track geometry and locomotives must use
-              // the same SVG user coordinate system; a fixed HTML/body overlay drifts when
-              // the dashboard, browser, or map applies scaling or transforms.
-              var stale=document.getElementById('dashboard-train-animation-layer');
-              if(stale&&stale.parentNode)stale.parentNode.removeChild(stale);
-              var ns='http://www.w3.org/2000/svg';
-              var layer=document.createElementNS(ns,'g');
-              layer.setAttribute('id','dashboard-train-animation-layer');
-              layer.setAttribute('pointer-events','none');
-              svg.appendChild(layer);
-              var animations=[];
-
-              for(var r=0;r<routeHexes.length;r++) {
-                var pieces=[], previousEnd=null, geometrySeen={};
-                var wanted=String(colours[r]).toLowerCase();
-                var allPaths=svg.querySelectorAll('path'), candidates=[];
-
-                // visited_stops contains only revenue stops, NOT every transit hex.
-                // Therefore collect this route from the actual coloured SVG railway
-                // across the whole map, then order the physical segments by connectivity.
-                for(var pi=0;pi<allPaths.length;pi++) {
-                  var path=allPaths[pi];
-                  if(!path.getTotalLength || !path.getPointAtLength) continue;
-                  var stroke=String(path.getAttribute('stroke')||path.style.stroke||'').replace(/\s/g,'').toLowerCase();
-                  var css=''; try { css=String(getComputedStyle(path).stroke||'').replace(/\s/g,'').toLowerCase(); } catch(e) {}
-                  var colourMatch=(stroke===wanted)||
-                    (wanted==='#ff1493'&&css==='rgb(255,20,147)')||
-                    (wanted==='#00ffff'&&css==='rgb(0,255,255)')||
-                    (wanted==='#7fff00'&&css==='rgb(127,255,0)')||
-                    (wanted==='#ff00ff'&&css==='rgb(255,0,255)')||
-                    (wanted==='#ffea00'&&css==='rgb(255,234,0)')||
-                    (wanted==='#ff4500'&&css==='rgb(255,69,0)');
-                  if(!colourMatch) continue;
-                  var length=0; try{length=path.getTotalLength();}catch(e){continue;}
-                  if(length<=3) continue;
-                  var pa=rootPoint(path,0), pb=rootPoint(path,length); if(!pa||!pb) continue;
-                  var ax=Math.round(pa.x*10), ay=Math.round(pa.y*10), bx=Math.round(pb.x*10), by=Math.round(pb.y*10);
-                  var f=ax+','+ay+'>'+bx+','+by+':'+Math.round(length*10);
-                  var q=bx+','+by+'>'+ax+','+ay+':'+Math.round(length*10);
-                  var key=f<q?f:q;
-                  if(geometrySeen[key]) continue;
-                  geometrySeen[key]=true;
-                  candidates.push({el:path,length:length,reverse:false});
-                }
-
-                if(!candidates.length) continue;
-                var firstHex=svg.querySelector('.map-hex-container[data-hex="'+String(routeHexes[r][0])+'"]');
-                var startTarget=null;
-                if(firstHex){try{var bb=firstHex.getBBox(),ctm=firstHex.getScreenCTM(),rm=svg.getScreenCTM(); if(ctm&&rm){var sx=ctm.a*(bb.x+bb.width/2)+ctm.c*(bb.y+bb.height/2)+ctm.e, sy=ctm.b*(bb.x+bb.width/2)+ctm.d*(bb.y+bb.height/2)+ctm.f,det=rm.a*rm.d-rm.b*rm.c; if(det)startTarget={x:(rm.d*(sx-rm.e)-rm.c*(sy-rm.f))/det,y:(-rm.b*(sx-rm.e)+rm.a*(sy-rm.f))/det};}}catch(e){}}
-
-                // Seed at the coloured segment nearest the first revenue stop.
-                var seed=0,seedScore=Infinity,seedReverse=false;
-                for(var ci=0;ci<candidates.length;ci++){
-                  var ca=rootPoint(candidates[ci].el,0),cb=rootPoint(candidates[ci].el,candidates[ci].length);
-                  var da=distance(startTarget,ca),db=distance(startTarget,cb);
-                  if(da<seedScore){seed=ci;seedScore=da;seedReverse=false;}
-                  if(db<seedScore){seed=ci;seedScore=db;seedReverse=true;}
-                }
-                var first=candidates.splice(seed,1)[0]; first.reverse=seedReverse; pieces.push(first);
-                previousEnd=rootPoint(first.el,first.reverse?0:first.length);
-
-                // Follow every connected coloured segment to the far end of the route,
-                // including non-stop transit hexes.
-                while(candidates.length){
-                  var best=-1,bestScore=Infinity,bestReverse=false;
-                  for(var ci=0;ci<candidates.length;ci++){
-                    var ca=rootPoint(candidates[ci].el,0),cb=rootPoint(candidates[ci].el,candidates[ci].length);
-                    var da=distance(previousEnd,ca),db=distance(previousEnd,cb);
-                    if(da<bestScore){best=ci;bestScore=da;bestReverse=false;}
-                    if(db<bestScore){best=ci;bestScore=db;bestReverse=true;}
-                  }
-                  if(best<0 || bestScore>22) break;
-                  var next=candidates.splice(best,1)[0]; next.reverse=bestReverse; pieces.push(next);
-                  previousEnd=rootPoint(next.el,next.reverse?0:next.length);
-                }
-                if(!pieces.length) continue;
-                var firstA=rootPoint(pieces[0].el,pieces[0].reverse?pieces[0].length:0);
-                var lastB=rootPoint(pieces[pieces.length-1].el,pieces[pieces.length-1].reverse?0:pieces[pieces.length-1].length);
-                var firstHexCentre=nearestStopPoint(routeHexes[r][0],firstA);
-                // If the chain is pointing away from the first visited station, reverse it.
-                if(distance(lastB,firstHexCentre)<distance(firstA,firstHexCentre)){
-                  pieces.reverse();
-                  for(var rv=0;rv<pieces.length;rv++)pieces[rv].reverse=!pieces[rv].reverse;
-                  firstA=rootPoint(pieces[0].el,pieces[0].reverse?pieces[0].length:0);
-                  lastB=rootPoint(pieces[pieces.length-1].el,pieces[pieces.length-1].reverse?0:pieces[pieces.length-1].length);
-                }
-                // Do not draw artificial straight leads from a guessed circle to the
-                // railway. TrackNodePath already begins/ends at its city, town, or
-                // offboard node. The animation must therefore use only real SVG rail.
-                var railTotal=pieces.reduce(function(sum,p){return sum+p.length;},0);
-                var total=railTotal;
-                var group=document.createElementNS(ns,'g');
-                group.setAttribute('pointer-events','none');
-                group.style.filter='drop-shadow(0 0 6px '+colours[r]+')';
-                var trainBack=document.createElementNS(ns,'circle');
-                trainBack.setAttribute('cx','0'); trainBack.setAttribute('cy','0');
-                trainBack.setAttribute('r','18'); trainBack.setAttribute('fill','rgba(255,255,255,.96)');
-                trainBack.setAttribute('stroke',colours[r]); trainBack.setAttribute('stroke-width','4');
-                var trainText=document.createElementNS(ns,'text');
-                trainText.textContent='🚂';
-                trainText.setAttribute('x','0'); trainText.setAttribute('y','1');
-                trainText.setAttribute('text-anchor','middle');
-                trainText.setAttribute('dominant-baseline','central');
-                trainText.setAttribute('font-size','25');
-                trainText.setAttribute('font-family','Apple Color Emoji,Segoe UI Emoji,sans-serif');
-                group.appendChild(trainBack); group.appendChild(trainText); layer.appendChild(group);
-                // Snapshot every rail point directly in the root map SVG coordinate
-                // system. The train therefore follows the exact coloured path without
-                // any viewport/body offset.
-                var samples=[],screenTotal=0;
-                for(var sp=0;sp<pieces.length;sp++){
-                  var piece=pieces[sp],steps=Math.max(8,Math.ceil(piece.length/6));
-                  for(var sj=0;sj<=steps;sj++){
-                    var offset=piece.length*(sj/steps);if(piece.reverse)offset=piece.length-offset;
-                    var root=rootPoint(piece.el,offset);
-                    if(!root)continue;
-                    var sample={x:root.x,y:root.y,d:screenTotal};
-                    if(samples.length){var previous=samples[samples.length-1];screenTotal+=Math.hypot(sample.x-previous.x,sample.y-previous.y);sample.d=screenTotal;}
-                    samples.push(sample);
-                  }
-                }
-                if(samples.length>1)animations.push({samples:samples,total:screenTotal,group:group});
-              }
-              if(!animations.length){if(layer.parentNode)layer.parentNode.removeChild(layer);return;}
-              function position(animation,progress) {
-                var target=animation.total*progress,samples=animation.samples;
-                var lo=0,hi=samples.length-1;
-                while(lo<hi){var mid=Math.floor((lo+hi)/2);if(samples[mid].d<target)lo=mid+1;else hi=mid;}
-                var index=Math.max(1,lo),a=samples[index-1],b=samples[index];
-                var span=Math.max(.001,b.d-a.d),t=Math.max(0,Math.min(1,(target-a.d)/span));
-                return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,angle:Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI};
-              }
-              var started=performance.now(),duration=2000;
-              function frame(now){
-                var p=Math.max(0,Math.min(1,(now-started)/duration));
-                for(var a=0;a<animations.length;a++){
-                  var point=position(animations[a],p);
-                  animations[a].group.setAttribute('transform','translate('+point.x.toFixed(2)+' '+point.y.toFixed(2)+')');
-                }
-                if(p<1)window.requestAnimationFrame(frame);else setTimeout(function(){if(layer.parentNode)layer.parentNode.removeChild(layer);},120);
-              }
-              window.requestAnimationFrame(frame);
-            },220);
-          })(#{signature}, #{train_ids}, #{route_hexes}, #{colours});
-        }
-      end
-
-      def latest_dashboard_dividend
-        actions_list = if @game.respond_to?(:raw_actions) && @game.raw_actions&.any?
-                         @game.raw_actions
-                       elsif @game.respond_to?(:actions)
-                         @game.actions || []
-                       else
-                         []
-                       end
-        action = actions_list.reverse.find do |candidate|
-          type = if candidate.is_a?(Hash)
-                   (candidate['type'] || candidate[:type])
-                 else
-                   (candidate.respond_to?(:type) ? candidate.type : nil)
-                 end
-          type.to_s == 'dividend'
-        end
-        return nil unless action
-
-        read = lambda do |object, key|
-          if object.is_a?(Hash)
-            object[key.to_s] || object[key.to_sym]
-          elsif object.respond_to?(key)
-            object.public_send(key)
-          end
-        end
-        entity = read.call(action, :entity)
-        entity_id = entity.respond_to?(:id) ? entity.id.to_s : entity.to_s
-        kind = read.call(action, :kind) || read.call(action, :dividend_kind) || read.call(action, :choice)
-        return nil if kind.to_s.empty?
-
-        # Dividend actions contain no revenue. The authoritative values are in
-        # the immediately preceding run_routes action: one revenue value per train.
-        run_action = actions_list.reverse.find do |candidate|
-          type = read.call(candidate, :type)
-          candidate_entity = read.call(candidate, :entity)
-          candidate_id = candidate_entity.respond_to?(:id) ? candidate_entity.id.to_s : candidate_entity.to_s
-          type.to_s == 'run_routes' && candidate_id == entity_id
-        end
-        revenue = 0
-        Array(read.call(run_action, :routes)).each do |route_data|
-          route_revenue = read.call(route_data, :revenue)
-          revenue += route_revenue.to_i if route_revenue
-        end
-
-        normalized = kind.to_s.downcase
-        payout_amount = if normalized.include?('withhold') || normalized.include?('retain')
-                          0
-                        elsif normalized.include?('half')
-                          (revenue / 2.0).round
-                        else
-                          revenue
-                        end
-        retained_amount = [revenue - payout_amount, 0].max
-        action_id = read.call(action, :id)
-        {
-          signature: [action_id, entity_id, kind, revenue].join(':'),
-          kind: kind.to_s,
-          revenue: revenue,
-          payout: payout_amount,
-          retained: retained_amount,
-        }
-      rescue StandardError
-        nil
-      end
-
-      def install_dividend_celebration_bridge(_routes = [])
-        dividend = latest_dashboard_dividend
-        return unless dividend
-
-        # Use the revenue already calculated on each displayed Engine::Route.
-        # Do not call @game.revenue_for here: that API is game-specific and, in
-        # Opal, can dispatch through an undefined receiver or require a different
-        # argument list. A manual loop is also safer than Enumerable#sum in Opal.
-        signature = dividend[:signature]
-        kind = dividend[:kind]
-        revenue = dividend[:revenue]
-        payout = dividend[:payout]
-        retained = dividend[:retained]
-        %x{
-          (function(signature, rawKind, revenue, payout, retained) {
-            if (typeof window === 'undefined') return;
-            if (window.__dashboardDividendSignature === signature) return;
-            window.__dashboardDividendSignature = signature;
-            setTimeout(function() {
-              var svg = document.getElementById('map');
-              if (!svg || !svg.isConnected) return;
-              var old = svg.querySelector('#dashboard-dividend-celebration-layer');
-              if (old && old.parentNode) old.parentNode.removeChild(old);
-
-              var kind = String(rawKind || '').toLowerCase();
-              var mode = kind.indexOf('half') >= 0 ? 'half' : ((kind.indexOf('withhold') >= 0 || kind.indexOf('retain') >= 0) ? 'withhold' : 'payout');
-              var colours = mode === 'payout' ? ['#d1fae5','#065f46','#10b981'] : (mode === 'half' ? ['#fef3c7','#78350f','#f59e0b'] : ['#ede9fe','#4c1d95','#8b5cf6']);
-              var title = mode === 'payout' ? '💰 PAY OUT' : (mode === 'half' ? '½ PAY' : '🏦 WITHHOLD');
-              var money = function(n){ return '£' + Number(n || 0).toLocaleString(); };
-              var detail = mode === 'payout' ? money(revenue) + ' paid out' :
-                (mode === 'half' ? money(revenue) + ' revenue • ' + money(payout) + ' paid • ' + money(retained) + ' withheld' : money(revenue) + ' withheld');
-              var ns='http://www.w3.org/2000/svg';
-              var layer=document.createElementNS(ns,'g'); layer.setAttribute('id','dashboard-dividend-celebration-layer'); layer.setAttribute('pointer-events','none');
-              svg.appendChild(layer);
-              var box=svg.getBoundingClientRect(), x=(box.width || 900)/2, y=105;
-              var card=document.createElementNS(ns,'g'); card.setAttribute('transform','translate('+x+' '+y+') scale(0.55)'); card.style.opacity='0';
-              var rect=document.createElementNS(ns,'rect'); rect.setAttribute('x','-300'); rect.setAttribute('y','-68'); rect.setAttribute('width','600'); rect.setAttribute('height','136'); rect.setAttribute('rx','26'); rect.setAttribute('fill',colours[0]); rect.setAttribute('stroke',colours[2]); rect.setAttribute('stroke-width','8'); rect.style.filter='drop-shadow(0 9px 12px rgba(0,0,0,.65))';
-              var headline=document.createElementNS(ns,'text'); headline.textContent=title; headline.setAttribute('x','0'); headline.setAttribute('y','-16'); headline.setAttribute('text-anchor','middle'); headline.setAttribute('fill',colours[1]); headline.setAttribute('stroke','#ffffff'); headline.setAttribute('stroke-width','3'); headline.setAttribute('paint-order','stroke fill'); headline.setAttribute('font-family','Arial,sans-serif'); headline.setAttribute('font-size','44'); headline.setAttribute('font-weight','900');
-              var details=document.createElementNS(ns,'text'); details.textContent=detail; details.setAttribute('x','0'); details.setAttribute('y','35'); details.setAttribute('text-anchor','middle'); details.setAttribute('fill',colours[1]); details.setAttribute('stroke','#ffffff'); details.setAttribute('stroke-width','2'); details.setAttribute('paint-order','stroke fill'); details.setAttribute('font-family','Arial,sans-serif'); details.setAttribute('font-size','30'); details.setAttribute('font-weight','900');
-              card.appendChild(rect); card.appendChild(headline); card.appendChild(details); layer.appendChild(card);
-              var started=performance.now(), duration=2200;
-              function frame(now){ var p=Math.max(0,Math.min(1,(now-started)/duration)); var intro=Math.min(1,p/.15); var scale=.55+.45*(1-Math.pow(1-intro,3)); var fade=p<.78?1:Math.max(0,(1-p)/.22); card.setAttribute('transform','translate('+x+' '+y+') scale('+scale.toFixed(3)+')'); card.style.opacity=String(fade); if(p<1)window.requestAnimationFrame(frame); else if(layer.parentNode)layer.parentNode.removeChild(layer); }
-              window.requestAnimationFrame(frame);
-            },80);
-          })(#{signature}, #{kind}, #{revenue}, #{payout}, #{retained});
-        }
-      rescue StandardError => e
-        # Celebration UI must be non-blocking. Ignore any unsupported revenue
-        # shape instead of interrupting the operating round.
-        nil
-      end
-
       def hex_cost_display(step, entity_or_entities, hex, tile: nil)
         current_entity = Array(entity_or_entities).compact.first
         return nil unless step && current_entity
 
         base_cost = 0
 
-        target_tile = hex.tile
+        target_tile = tile || hex.tile
         if @game.respond_to?(:upgrade_cost)
           begin
             base_cost += @game.upgrade_cost(target_tile, hex, current_entity, current_entity) || 0
@@ -1033,58 +738,6 @@ module View
         else
           "#{format_val.call(min_cost)}-#{format_val.call(max_cost)}"
         end
-      end
-
-      # Return only tiles the current corporation can afford.
-      # Check every legal rotation because border costs may differ.
-      def dashboard_affordable_tiles(step, entity_or_entities, hex)
-        entity = Array(entity_or_entities).compact.first
-        return [] unless step && entity
-
-        cash = entity.cash.to_i
-
-        tiles = Array(
-          step.upgradeable_tiles(entity_or_entities, hex)
-        )
-
-        tiles.select do |tile|
-          original_rotation = tile.rotation
-
-          begin
-            rotations =
-              if step.respond_to?(:legal_tile_rotations)
-                Array(
-                  step.legal_tile_rotations(
-                    entity_or_entities, hex, tile
-                  )
-                )
-              else
-                [original_rotation]
-              end
-
-            rotations.any? do |rotation|
-              tile.rotate!(rotation)
-
-              cost_text = hex_cost_display(
-                step,
-                entity_or_entities,
-                hex,
-                tile: tile
-              )
-
-              # nil means the calculated construction cost is zero.
-              cost = cost_text.nil? ? 0 : Integer(cost_text)
-
-              cost <= cash
-            end
-          rescue StandardError
-            false
-          ensure
-            tile.rotate!(original_rotation)
-          end
-        end
-      rescue StandardError
-        []
       end
 
       def dashboard_current_entity(step)
@@ -1472,82 +1125,6 @@ module View
         ])
       end
 
-      # Consume a tile selected by the embedded tile manifest.
-      #
-      # The ordinary Hex click has already created @tile_selector and
-      # triggered this render. We therefore change the selector's tile
-      # during this render without calling TileSelector#tile=, because
-      # tile= would trigger a nested root update while Snabberb is patching.
-      def consume_pending_manifest_tile(step, entity_or_entities)
-        dragged_tile_name =
-          Lib::Storage['dashboard_drag_tile_name']
-
-        return unless dragged_tile_name
-        return if dragged_tile_name.to_s.empty?
-        return unless step
-        return unless @tile_selector
-        return if @tile_selector.is_a?(Lib::TokenSelector)
-        return unless @tile_selector.role == :map
-        return unless @tile_selector.hex
-
-        begin
-          dragged_tile = Array(
-            step.upgradeable_tiles(
-              entity_or_entities,
-              @tile_selector.hex
-            )
-          ).find do |candidate|
-            candidate.name.to_s == dragged_tile_name.to_s
-          end
-
-          return unless dragged_tile
-
-          # The engine's normal Tracker workflow assigns the rotations
-          # that are legal for this tile on this particular hex.
-          # Manifest drag/drop bypasses the normal TileSelector candidate
-          # click, so prepare the tile here before selecting it.
-          if step.respond_to?(:legal_tile_rotations)
-            legal_rotations =
-              step.legal_tile_rotations(
-                entity_or_entities,
-                @tile_selector.hex,
-                dragged_tile
-              )
-
-            return if legal_rotations.empty?
-
-            dragged_tile.legal_rotations = legal_rotations
-
-            # legal_tile_rotations tests every orientation by mutating the tile,
-            # leaving it at the final tested rotation. Reset it to the first
-            # verified legal orientation before showing the confirmation UI.
-            dragged_tile.rotate!(legal_rotations.first)
-          end
-
-          # Normal TileSelector candidates are rendered inside a temporary
-          # Engine::Hex. Besides rendering the candidate, that gives the tile
-          # a hex and therefore a valid layout. Manifest drag/drop bypasses
-          # that candidate-render path, so reproduce that preparation here.
-          Engine::Hex.new(
-            'A1',
-            layout: @tile_selector.hex.layout,
-            tile: dragged_tile
-          )
-
-          # DashboardMap is already rendering because the ordinary map
-          # click created this selector. Set the selector state directly
-          # so this same clean render produces TileConfirmation.
-          @tile_selector.instance_variable_set(
-            :@tile,
-            dragged_tile
-          )
-        ensure
-          Lib::Storage.delete(
-            'dashboard_drag_tile_name'
-          )
-        end
-      end
-
       # File: dashboard_map.rb
       # Method: render
 
@@ -1565,23 +1142,6 @@ module View
         @start_pos = [@cols.first, @rows.first]
         @scale = 1.0
 
-        if @selected_company
-
-          st = begin
-            @game.round.active_step(@selected_company)
-          rescue StandardError
-            nil
-          end
-          ac = begin
-            st ? Array(st.actions(@selected_company)) : []
-          rescue StandardError
-            []
-          end
-          if ac.empty?
-            store(:selected_company, nil, skip: true)
-            @selected_company = nil
-          end
-        end
         step = @game.round.active_step(@selected_company)
 
         current_entity = dashboard_current_entity(step)
@@ -1589,10 +1149,8 @@ module View
         entity_or_entities = combo_entities.empty? ? current_entity : [current_entity, *combo_entities].compact
         actions = step && current_entity ? (step.actions(current_entity) || []) : []
 
-        consume_pending_manifest_tile(
-          step,
-          entity_or_entities
-        )
+        selected_hex = @tile_selector&.hex
+        @hexes << @hexes.delete(selected_hex) if @hexes.include?(selected_hex)
 
         route_actions = %w[run_routes dividend]
         route_phase_active = actions.any? { |a| route_actions.include?(a) }
@@ -1699,8 +1257,6 @@ module View
                            end
 
         routes = Array(candidate_routes).select { |r| r.respond_to?(:paths_for) }
-        install_route_celebration_bridge(routes)
-        install_dividend_celebration_bridge(routes)
 
         track_action_active = actions.include?('lay_tile')
         token_action_active = actions.include?('place_token') || actions.include?('hex_token')
@@ -1716,14 +1272,7 @@ module View
                       @tile_selector.hex.tile != @tile_selector.tile
         active_tile = tile_chosen ? @tile_selector.tile : nil
 
-        ordered_hexes =
-          if selected_hex && @hexes.include?(selected_hex)
-            @hexes.reject { |hex| hex == selected_hex } + [selected_hex]
-          else
-            @hexes.dup
-          end
-
-        rendered_hexes = ordered_hexes.map do |hex|
+        @hexes.map! do |hex|
           clickable = if @show_starting_map || !step || !current_entity
                         false
                       else
@@ -1740,56 +1289,22 @@ module View
           end.include?(hex.id.to_s.upcase)
           is_hovered ||= is_last_built_hover
 
-          affordable_tiles =
-            if clickable && track_action_active
-              dashboard_affordable_tiles(
-                step, entity_or_entities, hex
-              )
-            else
-              []
-            end
+          show_building_highlight = if hover_mode
+                                      false
+                                    elsif hex_selected
+                                      hex == selected_hex
+                                    else
+                                      clickable && track_action_active && (!step.respond_to?(:potential_tiles) ||
+                                        step.potential_tiles(entity_or_entities, hex).any?)
+                                    end
 
-          show_building_highlight =
-            if hover_mode
-              false
-            elsif hex_selected
-              hex == selected_hex
-            else
-              clickable &&
-                track_action_active &&
-                affordable_tiles.any?
-            end
           show_token_highlight = if hover_mode || hex_selected
                                    false
                                  else
-                                   token_action_active && step.available_hex(current_entity, hex) && begin
-                                     tc = (@game.respond_to?(:token_owner) ? @game.token_owner(current_entity) : nil) || current_entity
-                                     ab = @game.respond_to?(:abilities) ? @game.abilities(current_entity, :token) : nil
-                                     fr = ab.respond_to?(:price) ? ab.price.to_i.zero? : false
-                                     hex.tile.cities.any? do |c|
-                                       c.tokenable?(tc, free: fr, cheater: ab&.cheater, extra_slot: ab&.extra_slot)
-                                     end
-                                   rescue StandardError
-                                     false
-                                   end
+                                   clickable && token_action_active
                                  end
 
           can_build = show_building_highlight || show_token_highlight
-
-          # Exact tile names legal on this hex for the current entity/action.
-          # The drag UI reads this list, while the engine remains authoritative.
-          # Calculate exact drag/drop destinations only while no map tile is
-          # selected. Tracker#upgradeable_tiles resets candidate rotations
-          # before calculating legality, so calling it after selection would
-          # reset the preview tile on every dashboard render.
-          legal_drop_tile_names =
-            if show_building_highlight && !hex_selected
-              affordable_tiles
-                .map { |tile| tile.name.to_s }
-                .uniq
-            else
-              []
-            end
 
           hex_opacity = @opacity || 1.0
           base_hex = h(
@@ -1797,7 +1312,7 @@ module View
               hex: hex,
               opacity: hex_opacity,
               entity: current_entity,
-              clickable: hex_selected ? (hex == selected_hex) : clickable,
+              clickable: hex_selected ? (hex == selected_hex && clickable) : clickable,
               actions: current_entity ? actions : [],
               routes: routes,
               start_pos: @start_pos,
@@ -1943,54 +1458,6 @@ module View
           meme_overlay = hex_meme_revenue_overlay(hex, x, y, routes)
           hex_children << meme_overlay if meme_overlay
 
-          # ============================================================
-          # DASHBOARD TILE ROTATION SURFACE
-          #
-          # Once a replacement tile has been selected, put a transparent
-          # dashboard-owned click surface over that hex. This deliberately
-          # bypasses Hex#on_hex_click and rotates the existing TileSelector
-          # directly. It works for both ordinary tile selection and
-          # manifest drag/drop without modifying files outside dashboard/.
-          # ============================================================
-          if tile_chosen && hex == selected_hex
-            hex_children << h(
-              :polygon,
-              {
-                attrs: {
-                  transform: transform_str,
-                  points: Hex::HIGHLIGHT_POINTS,
-                  fill: '#ffffff',
-                  'fill-opacity': '0',
-                  stroke: 'none',
-                  'pointer-events': 'all',
-                  class: 'dashboard-tile-rotation-surface',
-                },
-                style: {
-                  cursor: 'pointer',
-                  pointerEvents: 'all',
-                },
-                on: {
-                  click: lambda do |event|
-                    %x{
-    console.log('[DASH ROTATE] click received');
-
-    if (#{event} && #{event}.stopPropagation) {
-      #{event}.stopPropagation();
-    }
-  }
-
-                    puts '[DASH ROTATE] click'
-                    puts @tile_selector.tile.name
-                    puts @tile_selector.tile.rotation
-                    puts @tile_selector.tile.legal_rotations.inspect
-
-                    @tile_selector.rotate! if @tile_selector
-                  end,
-                },
-              }
-            )
-          end
-
           g_props = {
             key: "dash-g-#{hex.id}",
             attrs: {
@@ -2001,17 +1468,16 @@ module View
               'data-tile-state': "#{hex.tile.name}-#{hex.tile.color}-#{hex.tile.rotation}",
               'data-transform': transform_str,
               'data-base-opportunity': can_build ? 'true' : 'false',
-              'data-tile-drop-legal': legal_drop_tile_names.any? ? 'true' : 'false',
-              'data-tile-drop-names': legal_drop_tile_names.join(','),
             },
             hook: Lib::TileLayAnimation.hook,
           }
 
           h(:g, g_props, hex_children)
-        end.compact
+        end
+        @hexes.compact!
 
         map_w, map_h = map_size
-        children = [render_map(map_w, map_h, rendered_hexes)]
+        children = [render_map(map_w, map_h)]
 
         if current_entity && @tile_selector
           left = (@tile_selector.x + map_x) * @scale
@@ -2019,7 +1485,6 @@ module View
           selector = render_selector(step, current_entity, entity_or_entities, actions, map_w, map_h, left, top)
 
           props = {
-            key: "dashboard-selector-#{@tile_selector.hex.id}",
             attrs: {
               class: 'dashboard-tile-selector-focus',
             },
@@ -2028,10 +1493,9 @@ module View
               left: "#{left + 18}px",
               top: "#{top - 18}px",
               zIndex: '100',
-
             },
           }
-          children << h(:div, props, [selector])
+          children.unshift(h(:div, props, [selector]))
         end
 
         props = {
@@ -2051,22 +1515,22 @@ module View
         top
       )
         selector_zoom = 2
+
         if @tile_selector.is_a?(Lib::TokenSelector)
           h(TokenSelector, zoom: selector_zoom)
         elsif @tile_selector.role != :map
           nil
         elsif @tile_selector.hex.tile != @tile_selector.tile
           h(
-            DashboardTileConfirmation,
+            TileConfirmation,
             zoom: 1.0,
             large: true
           )
         else
-          tiles = dashboard_affordable_tiles(
-   step,
-   entity_or_entities,
-   @tile_selector.hex
- )
+          tiles = step.upgradeable_tiles(
+            entity_or_entities,
+            @tile_selector.hex
+          )
 
           all_upgrades = @game.all_potential_upgrades(
             @tile_selector.hex.tile,
@@ -2136,7 +1600,7 @@ module View
           ].max
 
           h(
-            DashboardTileSelector,
+            TileSelector,
             layout: @layout,
             tiles: select_tiles,
             actions: actions,
@@ -2339,7 +1803,7 @@ module View
         }
       end
 
-      def render_map(width, height, rendered_hexes)
+      def render_map(width, height)
         svg_attrs = {
           id: 'map',
           width: width.to_s,
@@ -2347,7 +1811,6 @@ module View
         }
 
         svg_props = {
-          key: 'dashboard-map-svg',
           attrs: svg_attrs,
           hook: map_highlight_refresh_hook,
         }
@@ -2517,30 +1980,6 @@ h(:style, {}, %(
   animation: none !important;
 }
 
-/* DESKTOP TILE DRAG AND DROP */
-#map.dashboard-tile-drag-active .map-hex-container.dashboard-tile-drop-exact-legal .dashboard-related-edge-outer,
-#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-outer {
-  display: inline !important; fill: rgba(34,197,94,0.14) !important;
-  stroke: #111827 !important; stroke-width: 16px !important; stroke-opacity: 1 !important;
-}
-#map.dashboard-tile-drag-active .map-hex-container.dashboard-tile-drop-exact-legal .dashboard-related-edge-inner,
-#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-inner {
-  display: inline !important; fill: none !important;
-  stroke: #22c55e !important; stroke-width: 9px !important; stroke-opacity: 1 !important;
-}
-#map .map-hex-container.dashboard-tile-drop-over .dashboard-related-edge-inner { stroke-width: 12px !important; }
-#map .map-hex-container.dashboard-tile-drop-rejected .dashboard-related-edge-outer {
-  display: inline !important; fill: rgba(220,38,38,0.16) !important;
-  stroke: #7f1d1d !important; stroke-width: 16px !important; stroke-opacity: 1 !important;
-}
-#map .map-hex-container.dashboard-tile-drop-rejected .dashboard-related-edge-inner {
-  display: inline !important; fill: none !important;
-  stroke: #ef4444 !important; stroke-width: 10px !important; stroke-opacity: 1 !important;
-}
-#map.dashboard-tile-drag-active .map-hex-container:not(.dashboard-tile-drop-exact-legal) .dashboard-dim-overlay {
-  display: inline !important; fill: #000 !important; fill-opacity: 0.42 !important;
-}
-
 /* ============================================================
  * TILE UPGRADE SELECTOR
  * ============================================================ */
@@ -2621,17 +2060,7 @@ h(:style, {}, %(
           ]),
 
           h(:g, { attrs: { transform: "scale(#{@scale})" } }, [
-            h(
-  :g,
-  {
-    attrs: {
-      id: 'map-hexes',
-      transform: "translate(#{map_x} #{map_y})",
-    },
-  },
-  rendered_hexes
-),
-
+            h(:g, { attrs: { id: 'map-hexes', transform: "translate(#{map_x} #{map_y})" } }, @hexes),
             h(:g, { attrs: { id: 'map-axis' } }, [
              h(Axis,
                cols: @cols.map { |c| c + 1 },

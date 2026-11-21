@@ -15,48 +15,10 @@ require 'view/game/dashboard/bidding_overlay'
 require 'view/game/dashboard/dashboard_tile_manifest'
 require 'view/game/dashboard/other_games_overlay'
 require 'view/game/dashboard/dashboard_action_window'
-require 'view/game/dashboard/dashboard_history_overlay'
 require 'view/game/dashboard/chat_overlay'
 require 'view/game/dashboard/dashboard_ai_player'
 require 'view/game/dashboard/dashboard_ai_engine_search'
 require 'view/game/dashboard/dashboard_help_overlay'
-module View
-  module Game
-    class DashboardVisualizer < Snabberb::Component
-      def self.ensure_game_page_load_guard!
-        return unless defined?(::View::GamePage) &&
-                      ::View::GamePage.method_defined?(:load_game) &&
-                      !::View::GamePage.method_defined?(:_dashboard_orig_load_game)
-
-        ::View::GamePage.class_eval do
-          alias_method :_dashboard_orig_load_game, :load_game
-
-          def load_game
-            actions = @game_data && (@game_data['actions'] || @game_data[:actions])
-            last_act = actions.is_a?(Array) ? actions.last : nil
-            sig = [
-              @game_data && (@game_data['id'] || @game_data[:id]),
-              actions.is_a?(Array) ? actions.size : 0,
-              last_act.is_a?(Hash) ? (last_act['id'] || last_act[:id]) : nil,
-              last_act.is_a?(Hash) ? (last_act['type'] || last_act[:type]) : nil,
-            ]
-
-            if @game && @game.respond_to?(:exception) && @game.exception
-              if @_dashboard_broken_load_sig.nil? || @_dashboard_broken_load_sig == sig
-                @_dashboard_broken_load_sig = sig
-                return
-              end
-            end
-
-            _dashboard_orig_load_game
-
-            @_dashboard_broken_load_sig = @game && @game.respond_to?(:exception) && @game.exception ? sig : nil
-          end
-        end
-      end
-    end
-  end
-end
 
 # Monkey-patch Engine::Minor so 1846 / 1835 minors safely respond to .ipoed
 module Engine
@@ -81,49 +43,49 @@ module Engine
   end
 end
 
-# # Snabbdom Extensibility Shield:
-# # Prevents Opal.nil and NilClass singletons from being frozen so Snabbdom
-# # can assign `.elm` anchors safely if a component's render method returns nil.
-# %x{
-#   (function() {
-#     if (window.__snabbdom_extensibility_shield) return;
-#     window.__snabbdom_extensibility_shield = true;
+# Snabbdom Extensibility Shield:
+# Prevents Opal.nil and NilClass singletons from being frozen so Snabbdom
+# can assign `.elm` anchors safely if a component's render method returns nil.
+%x{
+  (function() {
+    if (window.__snabbdom_extensibility_shield) return;
+    window.__snabbdom_extensibility_shield = true;
 
-#     var origFreeze = Object.freeze;
-#     Object.freeze = function(obj) {
-#       if (obj && (
-#         (typeof Opal !== 'undefined' && obj === Opal.nil) ||
-#         (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
-#         (obj.constructor && obj.constructor.name === 'NilClass')
-#       )) {
-#         return obj;
-#       }
-#       return origFreeze.call(Object, obj);
-#     };
+    var origFreeze = Object.freeze;
+    Object.freeze = function(obj) {
+      if (obj && (
+        (typeof Opal !== 'undefined' && obj === Opal.nil) ||
+        (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
+        (obj.constructor && obj.constructor.name === 'NilClass')
+      )) {
+        return obj;
+      }
+      return origFreeze.call(Object, obj);
+    };
 
-#     var origPreventExtensions = Object.preventExtensions;
-#     Object.preventExtensions = function(obj) {
-#       if (obj && (
-#         (typeof Opal !== 'undefined' && obj === Opal.nil) ||
-#         (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
-#         (obj.constructor && obj.constructor.name === 'NilClass')
-#       )) {
-#         return obj;
-#       }
-#       return origPreventExtensions.call(Object, obj);
-#     };
+    var origPreventExtensions = Object.preventExtensions;
+    Object.preventExtensions = function(obj) {
+      if (obj && (
+        (typeof Opal !== 'undefined' && obj === Opal.nil) ||
+        (obj.$$class && (obj.$$class.$$name === 'NilClass' || obj.$$class.$$name === 'FalseClass')) ||
+        (obj.constructor && obj.constructor.name === 'NilClass')
+      )) {
+        return obj;
+      }
+      return origPreventExtensions.call(Object, obj);
+    };
 
-#     if (typeof Opal !== 'undefined' && Opal.nil) {
-#       try {
-#         Object.defineProperty(Opal.nil, 'elm', {
-#           writable: true,
-#           configurable: true,
-#           value: null
-#         });
-#       } catch (e) {}
-#     }
-#   })();
-# }
+    if (typeof Opal !== 'undefined' && Opal.nil) {
+      try {
+        Object.defineProperty(Opal.nil, 'elm', {
+          writable: true,
+          configurable: true,
+          value: null
+        });
+      } catch (e) {}
+    }
+  })();
+}
 
 module View
   module Game
@@ -166,51 +128,6 @@ module View
           } catch(e) {}
         }
 
-        update
-      end
-
-      def player_timers_enabled?
-        [true, 'true'].include?(Lib::Storage['show_player_timers'])
-      end
-
-      def toggle_player_timers
-        new_val = !player_timers_enabled?
-        Lib::Storage['show_player_timers'] = new_val
-        %x{
-          try {
-            localStorage.setItem('show_player_timers', #{new_val} ? 'true' : 'false');
-          } catch(e) {}
-        }
-        update
-      end
-
-      def player_values_enabled?
-        [true, 'true'].include?(Lib::Storage['show_player_values'])
-      end
-
-      def toggle_player_values
-        new_val = !player_values_enabled?
-        Lib::Storage['show_player_values'] = new_val
-        %x{
-          try {
-            localStorage.setItem('show_player_values', #{new_val} ? 'true' : 'false');
-          } catch(e) {}
-        }
-        update
-      end
-
-      def unopened_corporations_visible?
-        ![true, 'true'].include?(Lib::Storage['spreadsheet_hide_not_floated'])
-      end
-
-      def toggle_unopened_corporations
-        hide_unopened = unopened_corporations_visible?
-        Lib::Storage['spreadsheet_hide_not_floated'] = hide_unopened
-        %x{
-          try {
-            localStorage.setItem('spreadsheet_hide_not_floated', #{hide_unopened} ? 'true' : 'false');
-          } catch(e) {}
-        }
         update
       end
 
@@ -403,7 +320,108 @@ module View
       end
 
       def actions_window_open?
-        true
+        storage_key = actions_window_storage_key
+        stored_open = [true, 'true'].include?(Lib::Storage[storage_key])
+
+        if action_required_for_me?
+          @show_actions_window = true
+          Lib::Storage[storage_key] = true
+          return true
+        end
+
+        @show_actions_window == true || stored_open
+      end
+
+      def render_action_hub_button
+        is_open = actions_window_open?
+        is_required = action_required_for_me?
+
+        bg_color =
+          if is_required
+            '#dcfce7'
+          elsif is_open
+            '#eff6ff'
+          else
+            '#ffffff'
+          end
+
+        border_style =
+          if is_required
+            '2px solid #16a34a'
+          elsif is_open
+            '2px solid #2563eb'
+          else
+            '1px solid #cbd5e1'
+          end
+
+        text_color =
+          if is_required
+            '#15803d'
+          elsif is_open
+            '#1d4ed8'
+          else
+            '#334155'
+          end
+
+        click_action = lambda do
+          storage_key = actions_window_storage_key
+          currently_open = actions_window_open?
+          new_value = !currently_open
+
+          @show_actions_window = new_value
+          Lib::Storage[storage_key] = new_value
+
+          store(:show_actions_window, new_value)
+          update
+        end
+
+        title =
+          if is_required
+            'Actions Hub: action required'
+          elsif is_open
+            'Close Actions Hub'
+          else
+            'Open Actions Hub'
+          end
+
+        h(:button, {
+            attrs: {
+              id: 'btn-action-hub',
+              type: 'button',
+              title: title,
+              'aria-pressed': is_open ? 'true' : 'false',
+            },
+            style: {
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+              minWidth: '48px',
+              padding: '0',
+              flexShrink: '0',
+              borderRadius: '8px',
+              backgroundColor: bg_color,
+              color: text_color,
+              border: border_style,
+              boxShadow: '0 2px 5px rgba(0, 0, 0, 0.18)',
+              cursor: is_required ? 'default' : 'pointer',
+              lineHeight: '1',
+              zIndex: 10,
+              transition: 'all 0.2s ease',
+            },
+            on: {
+              click: click_action,
+            },
+          }, [
+            h(:span, {
+                style: {
+                  fontSize: '1.8rem',
+                  lineHeight: '1',
+                },
+              }, '⚡'),
+          ])
       end
 
       def render_history_button
@@ -515,11 +533,24 @@ module View
       end
 
       def render_action_window
+        return nil unless actions_window_open?
+
+        close_handler = lambda do
+          storage_key = actions_window_storage_key
+
+          @show_actions_window = false
+          Lib::Storage[storage_key] = false
+
+          store(:show_actions_window, false)
+          update
+        end
+
         h(
           ::View::Game::Dashboard::DashboardActionWindow,
           game: @game,
           game_data: @game_data,
-          user: @user
+          user: @user,
+          on_close: close_handler
         )
       end
 
@@ -584,10 +615,18 @@ module View
           on_cancel: cancel_handler)
       end
 
-      def render_tile_manifest_panel
+      def render_tile_manifest_overlay
+        return nil unless Lib::Storage['dashboard_tile_manifest']
+
+        close_handler = lambda {
+          Lib::Storage['dashboard_tile_manifest'] = false
+          update
+        }
+
         h(::View::Game::Dashboard::TileManifest,
           game: @game,
-          tile_selector: @tile_selector)
+          tile_selector: @tile_selector,
+          on_close: close_handler)
       end
 
       def auction_actor(step)
@@ -739,6 +778,20 @@ module View
             user: @user,
             actor: actor)
         end
+
+        if use_bidding_overlay
+          h(::View::Game::Dashboard::BiddingOverlay,
+            game: @game,
+            game_data: @game_data,
+            user: @user,
+            bidder: actor)
+        else
+          h(::View::Game::Dashboard::DraftOverlay,
+            game: @game,
+            game_data: @game_data,
+            user: @user,
+            actor: actor)
+        end
       end
 
       def render_zoom_controls(panel_id, position_styles = {})
@@ -775,61 +828,6 @@ module View
               on: { click: -> { `window.resetPanelZoom('#{pid}')` } },
             }, '⟲'),
         ]
-
-        if pid == 'panel-ledger'
-          is_timer_active = player_timers_enabled?
-          timer_btn_style = button_style.merge(
-            fontSize: '12px',
-            backgroundColor: is_timer_active ? '#10b981' : '#ffffff',
-            color: is_timer_active ? '#ffffff' : '#333333',
-            borderColor: is_timer_active ? '#059669' : '#999999'
-          )
-          buttons << h(:button, {
-                         attrs: {
-                           id: 'btn-toggle-player-timers',
-                           title: is_timer_active ? 'Player thinking timers: ON (click to hide)' : 'Player thinking timers: OFF (click to show)',
-                           type: 'button',
-                         },
-                         style: timer_btn_style,
-                         on: { click: -> { toggle_player_timers } },
-                       }, '⏱')
-
-          is_value_active = player_values_enabled?
-          value_btn_style = button_style.merge(
-            fontSize: '11px',
-            backgroundColor: is_value_active ? '#10b981' : '#ffffff',
-            color: is_value_active ? '#ffffff' : '#333333',
-            borderColor: is_value_active ? '#059669' : '#999999'
-          )
-          buttons << h(:button, {
-                         attrs: {
-                           id: 'btn-toggle-player-values',
-                           title: is_value_active ? 'Player values: ON (click to hide)' : 'Player values: OFF (click to show)',
-                           type: 'button',
-                           'aria-pressed': is_value_active ? 'true' : 'false',
-                         },
-                         style: value_btn_style,
-                         on: { click: -> { toggle_player_values } },
-                       }, 'V')
-
-          are_unopened_visible = unopened_corporations_visible?
-          unopened_btn_style = button_style.merge(
-            fontSize: '11px',
-            backgroundColor: are_unopened_visible ? '#10b981' : '#ffffff',
-            color: are_unopened_visible ? '#ffffff' : '#333333',
-            borderColor: are_unopened_visible ? '#059669' : '#999999'
-          )
-          buttons << h(:button, {
-                         attrs: {
-                           id: 'btn-toggle-unopened-corporations',
-                           title: are_unopened_visible ? 'Unopened corporations: SHOWN (click to hide)' : 'Unopened corporations: HIDDEN (click to show)',
-                           type: 'button',
-                           'aria-pressed': are_unopened_visible ? 'true' : 'false',
-                         },
-                         style: unopened_btn_style,
-                         on: { click: -> { toggle_unopened_corporations } },
-                       }, 'C')
-        end
 
         if pid == 'map-panel-bot'
           is_meme_active = meme_revenue_enabled?
@@ -1062,7 +1060,7 @@ module View
           update
         }
 
-        h(::View::Game::Dashboard::DashboardHistoryOverlay,
+        h(::View::Game::Dashboard::HistoryOverlay,
           game: @game,
           game_data: @game_data,
           on_close: close_handler)
@@ -1496,7 +1494,9 @@ module View
               zIndex: 99_999,
             },
           }, [
+            render_action_hub_button,
             render_history_button,
+            render_move_history_button,
             render_other_games_button,
             render_sound_toggle_button,
             render_chat_button,
@@ -1754,6 +1754,15 @@ badge_el,
           Lib::Storage['cmd_manual_routes'] = false
           store(:show_manual_routes, false)
           store(:selected_route, nil)
+          any_closed = true
+        end
+
+        # 10. Voluntary Action Hub Drawer
+        storage_key = actions_window_storage_key
+        if (@show_actions_window == true || [true, 'true'].include?(Lib::Storage[storage_key])) && !action_required_for_me?
+          @show_actions_window = false
+          Lib::Storage[storage_key] = false
+          store(:show_actions_window, false)
           any_closed = true
         end
 
@@ -2091,8 +2100,6 @@ badge_el,
       end
 
       def render
-        self.class.ensure_game_page_load_guard!
-
         # Allow finished games to mount the complete dashboard, attach window._dashboardVisualizer,
         # and render the navigation cluster for history scrubbing and post-game review.
         #
@@ -2193,7 +2200,6 @@ badge_el,
 
         h(:div, {
             hook: {
-
               insert: lambda {
                         Lib::Storage["viz_last_act_#{game_storage_id}"] = last_action_id.to_i
                         # `window.scrollTo(0, 0)`
@@ -2224,11 +2230,6 @@ badge_el,
                           }).catch(function() {});
                       }
                     }, 60000);
-                 if (window._playerClockInterval) {
-                      clearInterval(window._playerClockInterval);
-                      window._playerClockInterval = null;
-                    }
-
                   )
 
                         `document.body.style.margin = '0'`
@@ -2793,7 +2794,6 @@ if (liveComp && liveComp.$trigger_random_ai_move) {
       'map-panel-bot': 1.0,
       'panel-market': 1.0,
       'panel-ledger': 1.0,
-      'tile-manifest-panel': 1.0,
     };
 
   window.scalerPanOffset =
@@ -2801,21 +2801,18 @@ if (liveComp && liveComp.$trigger_random_ai_move) {
       'map-panel-bot': { x: 0, y: 0 },
       'panel-market': { x: 0, y: 0 },
       'panel-ledger': { x: 0, y: 0 },
-      'tile-manifest-panel': { x: 0, y: 0 },
     };
 } catch(e) {
   window.scalerUserZoom = {
     'map-panel-bot': 1.0,
     'panel-market': 1.0,
     'panel-ledger': 1.0,
-    'tile-manifest-panel': 1.0,
   };
 
   window.scalerPanOffset = {
     'map-panel-bot': { x: 0, y: 0 },
     'panel-market': { x: 0, y: 0 },
     'panel-ledger': { x: 0, y: 0 },
-    'tile-manifest-panel': { x: 0, y: 0 },
   };
 }
 
@@ -2882,7 +2879,6 @@ if (liveComp && liveComp.$trigger_random_ai_move) {
 
                     createResizer('resizer-v-main', 'col-left', 'col-right', false);
                   createResizer('resizer-h-entity-map', 'temporal-hub', 'map-panel-bot', true);
-                    createResizer('resizer-h-map-manifest', 'map-panel-bot', 'tile-manifest-panel', true);
                     createResizer('resizer-h-entity-ledger', 'temporal-hub', 'panel-ledger', true);
                     createResizer('resizer-h-ledger-market', 'panel-ledger', 'panel-market', true);
 
@@ -2947,23 +2943,6 @@ window.applyPanelTransform = function(panelId) {
                         }
                       }
 
-                      if (panelId === 'tile-manifest-panel') {
-                        var sizer = panel.querySelector('.manifest-sizer');
-                        var inner = wrapper.firstElementChild || wrapper;
-                        var cw = Math.max(wrapper.scrollWidth || 0, inner.scrollWidth || 0, inner.offsetWidth || 0);
-                        var ch = Math.max(wrapper.scrollHeight || 0, inner.scrollHeight || 0, inner.offsetHeight || 0);
-                        if (sizer && cw > 0 && ch > 0) {
-                          var scrollCanvas = panel.querySelector('#tile-manifest-scroll') || panel;
-                          var viewportW = scrollCanvas.clientWidth || panel.clientWidth;
-                          var viewportH = scrollCanvas.clientHeight || panel.clientHeight;
-                          var scaledW = Math.ceil(cw * effScale + Math.max(0, offset.x) + 12);
-                          var scaledH = Math.ceil(ch * effScale + Math.max(0, offset.y) + 12);
-                          sizer.style.width = Math.max(scaledW, viewportW) + 'px';
-                          sizer.style.height = Math.max(scaledH, viewportH) + 'px';
-                          sizer.style.minWidth = sizer.style.width;
-                          sizer.style.minHeight = sizer.style.height;
-                        }
-                      }
                       if (panelId === 'panel-market') {
                         var sizer = panel.querySelector('.market-sizer');
                         var cw = parseFloat(wrapper.style.width) || wrapper.scrollWidth || 0;
@@ -3017,7 +2996,6 @@ window.applyPanelTransform = function(panelId) {
                           panel.querySelector('#map-scroll-canvas') ||
                           panel.querySelector('#panel-ledger-scroll') ||
                           panel.querySelector('#panel-market-scroll') ||
-                          panel.querySelector('#tile-manifest-scroll') ||
                           panel;
                         scrollCanvas.scrollLeft = 0;
                         scrollCanvas.scrollTop = 0;
@@ -3144,7 +3122,7 @@ createPanHandler('panel-ledger');
                      '    filter: drop-shadow(0 0 4px #00ffff); ' +
                      '  } ' +
                      '} ' +
-                     '#map-scroll-canvas .map-hex-highlight .hex-highlight-poly { ' +
+                     '.map-hex-highlight .hex-highlight-poly { ' +
                      '  stroke: #00ffff !important; ' +
                      '  stroke-width: 8px !important; ' +
                      '  fill: #00ffff !important; ' +
@@ -3282,7 +3260,7 @@ createPanHandler('panel-ledger');
                         var pw = entries[i].contentRect.width - 16;
                         var ph = entries[i].contentRect.height - 16;
 if (cw > 50 && ch > 50 && pw > 50 && ph > 50) {
-                            if (panel.id === 'panel-ledger' || panel.id === 'tile-manifest-panel') {
+                            if (panel.id === 'panel-ledger') {
                             // Fit width (up to 1.0x) so tall status tables remain readable and scroll vertically
                             window.scalerScales[panel.id] = Math.min(1.0, pw / cw);
                           } else {
@@ -3317,7 +3295,7 @@ window.recalcAllPanels = function() {
                         var pw = panel.clientWidth - 16;
                         var ph = panel.clientHeight - 16;
                         if (cw > 50 && ch > 50 && pw > 50 && ph > 50) {
-                          if (id === 'panel-ledger' || id === 'tile-manifest-panel') {
+                          if (id === 'panel-ledger') {
                             window.scalerScales[id] = Math.min(1.0, pw / cw);
                           } else {
                             window.scalerScales[id] = Math.min(pw / cw, ph / ch);
@@ -3339,95 +3317,6 @@ window.recalcAllPanels = function() {
 
                     setTimeout(window.recalcAllPanels, 100);
                     setTimeout(window.recalcAllPanels, 400);
-
-                    // Tile manifest uses its own exhaustive fit calculation. It tries
-                    // every useful row width and selects the arrangement producing
-                    // the largest possible tiles while keeping every tile visible.
-                    window.fitTileManifestPanel = function() {
-                      var panel = document.getElementById('tile-manifest-panel');
-                      if (!panel) return;
-                      var viewport = panel.querySelector('#tile-manifest-scroll');
-                      var wrapper = panel.querySelector('.scaler-content');
-                      var manifest = panel.querySelector('#tile_manifest');
-                      if (!viewport || !wrapper || !manifest) return;
-
-                      var items = Array.prototype.slice.call(manifest.children || []);
-                      if (!items.length) return;
-
-                      wrapper.style.transform = 'none';
-                      wrapper.style.left = '0px';
-                      wrapper.style.top = '0px';
-                      wrapper.style.padding = '0';
-                      manifest.style.transform = 'none';
-                      manifest.style.margin = '0';
-                      manifest.style.display = 'flex';
-                      manifest.style.flexWrap = 'wrap';
-                      manifest.style.alignContent = 'flex-start';
-                      manifest.style.justifyContent = 'center';
-                      manifest.style.gap = '0';
-
-                      var availableW = Math.max(1, viewport.clientWidth - 10);
-                      var availableH = Math.max(1, viewport.clientHeight - 10);
-
-                      // Measure the smallest ordinary block as the basic column unit.
-                      var widths = items.map(function(el) { return Math.max(1, el.offsetWidth); });
-                      var positive = widths.filter(function(w) { return w > 8; }).sort(function(a, b) { return a - b; });
-                      var unit = positive.length ? positive[Math.floor(positive.length * 0.25)] : 100;
-                      unit = Math.max(40, unit);
-
-                      var totalUnits = widths.reduce(function(sum, w) {
-                        return sum + Math.max(1, Math.round(w / unit));
-                      }, 0);
-
-                      var best = null;
-                      for (var cols = 1; cols <= totalUnits; cols++) {
-                        manifest.style.width = Math.ceil(cols * unit) + 'px';
-                        // Force layout before measuring the wrapped result.
-                        void manifest.offsetHeight;
-                        var naturalW = Math.max(1, manifest.scrollWidth);
-                        var naturalH = Math.max(1, manifest.scrollHeight);
-                        var scale = Math.min(availableW / naturalW, availableH / naturalH);
-                        if (!best || scale > best.scale) {
-                          best = { cols: cols, width: naturalW, height: naturalH, scale: scale };
-                        }
-                      }
-                      if (!best) return;
-
-                      manifest.style.width = Math.ceil(best.cols * unit) + 'px';
-                      void manifest.offsetHeight;
-                      best.width = Math.max(1, manifest.scrollWidth);
-                      best.height = Math.max(1, manifest.scrollHeight);
-                      best.scale = Math.min(availableW / best.width, availableH / best.height);
-
-                      wrapper.style.width = best.width + 'px';
-                      wrapper.style.height = best.height + 'px';
-                      wrapper.style.transformOrigin = 'top left';
-                      wrapper.style.transform = 'scale(' + best.scale + ')';
-                      wrapper.style.left = Math.max(5, (viewport.clientWidth - best.width * best.scale) / 2) + 'px';
-                      wrapper.style.top = Math.max(5, (viewport.clientHeight - best.height * best.scale) / 2) + 'px';
-
-                      var sizer = panel.querySelector('.manifest-sizer');
-                      if (sizer) {
-                        sizer.style.width = '100%';
-                        sizer.style.height = '100%';
-                        sizer.style.minWidth = '100%';
-                        sizer.style.minHeight = '100%';
-                      }
-                    };
-
-                    var manifestPanel = document.getElementById('tile-manifest-panel');
-                    if (manifestPanel) {
-                      var fitManifestSoon = function() {
-                        if (window._fitManifestFrame) cancelAnimationFrame(window._fitManifestFrame);
-                        window._fitManifestFrame = requestAnimationFrame(window.fitTileManifestPanel);
-                      };
-                      var manifestResizeObserver = new ResizeObserver(fitManifestSoon);
-                      manifestResizeObserver.observe(manifestPanel);
-                      var manifestMutationObserver = new MutationObserver(fitManifestSoon);
-                      manifestMutationObserver.observe(manifestPanel, { childList: true, subtree: true });
-                      setTimeout(fitManifestSoon, 50);
-                      setTimeout(fitManifestSoon, 250);
-                    }
                   };
                   setTimeout(window.init18xxResizers, 200);)
                       },
@@ -3440,9 +3329,6 @@ window.recalcAllPanels = function() {
   }
     if (window.recalcAllPanels) {
     requestAnimationFrame(window.recalcAllPanels);
-  }
-  if (window.fitTileManifestPanel) {
-    requestAnimationFrame(window.fitTileManifestPanel);
   }
 }
                            check_and_pop_new_chat!
@@ -3471,10 +3357,6 @@ window.recalcAllPanels = function() {
                      if (window._other_games_timer) {
                        clearInterval(window._other_games_timer);
                        window._other_games_timer = null;
-                     }
-                       if (window._playerClockInterval) {
-                       clearInterval(window._playerClockInterval);
-                       window._playerClockInterval = null;
                      }
                    )
                          %x(
@@ -3598,40 +3480,41 @@ window.recalcAllPanels = function() {
                     textShadow: '0 0 2px #ffffff, 0 0 6px rgba(255, 255, 255, 0.7)',
                   },
                 }, game_title),
-              ].compact),
               h(:div, {
-                  attrs: { id: 'resizer-h-map-manifest', title: 'Drag to resize map and remaining tiles' },
-                  style: { flex: '0 0 0.5rem', minHeight: '0.5rem', cursor: 'row-resize', zIndex: 10 },
-                }),
-              h(:div, {
-                  attrs: { id: 'tile-manifest-panel' },
+                  attrs: { class: 'panel-manifest-control' },
                   style: {
-                    flex: '0 0 22%',
-                    width: '100%',
-                    minHeight: '5rem',
-                    overflow: 'hidden',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    backgroundColor: '#fff',
-                    boxSizing: 'border-box',
-                    position: 'relative',
+                    position: 'absolute',
+                    top: '36px',
+                    left: '6px',
+                    zIndex: 30,
+                    display: 'flex',
                   },
                 }, [
-                  h(:div, {
-                      attrs: { id: 'tile-manifest-scroll' },
-                      style: { width: '100%', height: '100%', minHeight: '0', overflow: 'hidden', position: 'relative', boxSizing: 'border-box' },
-                    }, [
-                      h(:div, {
-                          attrs: { class: 'manifest-sizer' },
-                          style: { position: 'relative', display: 'block', width: '100%', height: '100%', minWidth: '100%', minHeight: '100%' },
-                        }, [
-                          h(:div, {
-                              attrs: { class: 'scaler-content' },
-                              style: { position: 'absolute', top: '0', left: '0', width: 'max-content', height: 'max-content', transformOrigin: 'top left', padding: '0.35rem', boxSizing: 'border-box' },
-                            }, [render_tile_manifest_panel]),
-                        ]),
-                    ]),
-                ]),
+                h(:button, {
+                    attrs: { id: 'btn-show-tile-manifest', type: 'button', title: 'Toggle tile manifest overlay' },
+                    style: {
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
+                      border: '1px solid #94a3b8',
+                      borderRadius: '4px',
+                      padding: '4px 9px',
+                      fontSize: '0.78rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      lineHeight: '1.2',
+                    },
+                    on: {
+                      click: lambda {
+                        Lib::Storage['dashboard_tile_manifest'] = !Lib::Storage['dashboard_tile_manifest']
+                        update
+                      },
+                    },
+                  }, 'Show Remaining Tiles'),
+              ]),
+              ].compact),
               ].compact),
 
             h(:div, { attrs: { id: 'resizer-v-main' }, style: { flex: '0 0 0.75rem', cursor: 'col-resize', zIndex: 10 } }),
@@ -3776,7 +3659,9 @@ window.recalcAllPanels = function() {
 ].compact),
             render_global_auction_overlay,
             render_par_overlay,
+            render_tile_manifest_overlay,
             render_history_overlay,
+            render_dashboard_move_feed_overlay,
             render_other_games_overlay,
             render_top_nav_utility_cluster,
             render_chat_overlay,
