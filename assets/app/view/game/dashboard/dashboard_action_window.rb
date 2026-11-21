@@ -67,6 +67,8 @@ module View
         needs :last_routed_action_id, store: true, default: nil
         needs :last_entity, store: true, default: nil
         needs :cmd_router_running, store: true, default: false
+        needs :cmd_route_game_instance, store: true, default: nil
+        needs :cmd_router_generation, store: true, default: 0
         needs :show_manual_routes, store: true, default: false
         needs :show_move_history, store: true, default: false
         needs :show_history_overlay, store: true, default: false
@@ -4698,6 +4700,16 @@ module View
             }
           ')
 
+          # Invalidate cached routes when undo/redo reconstructs the game.
+          if @cmd_route_game_instance && !@cmd_route_game_instance.equal?(@game)
+            store(:routes, [], skip: true)
+            store(:selected_route, nil, skip: true)
+            store(:last_routed_action_id, nil, skip: true)
+            store(:cmd_router_generation, @cmd_router_generation.to_i + 1, skip: true)
+            store(:cmd_router_running, false, skip: true)
+          end
+          store(:cmd_route_game_instance, @game, skip: true)
+
           if Lib::Storage['cmd_last_entity_id']&.to_s != entity_id&.to_s
             Lib::Storage['cmd_last_entity_id'] = entity_id
             @routes = []
@@ -5284,9 +5296,15 @@ module View
                 routes_seed = @routes.select { |r| r.chains.any? }
               end
 
+              router_generation = @cmd_router_generation.to_i
+              router_game = @game
+
               lambda {
                 `setTimeout(function() {`
                 begin
+                  next unless @cmd_router_generation.to_i == router_generation &&
+                              @game.equal?(router_game)
+
                   flash_cb = lambda do |msg|
                     store(:flash_opts, { message: msg }, skip: false)
                   end
@@ -5303,6 +5321,9 @@ module View
                     path_timeout: p_timeout,
                     route_timeout: r_timeout,
                     callback: lambda do |computed_routes|
+                      next unless @cmd_router_generation.to_i == router_generation &&
+                                  @game.equal?(router_game)
+
                       routes_list = computed_routes || routes_seed || []
                       store(:routes, routes_list, skip: true)
                       store(:selected_route, routes_list.first, skip: true)
