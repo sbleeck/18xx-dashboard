@@ -32,7 +32,6 @@ require 'view/game/dashboard/dashboard_money_animation'
 require 'view/game/dashboard/dashboard_marker_animation'
 require 'view/game/dashboard/railcard_helper'
 require 'view/game/dashboard/par_prompt_overlay'
-require 'view/game/dashboard/history_overlay'
 require 'view/game/dashboard/dashboard_chess_clock_replay_adapter'
 
 FLOATED = 2

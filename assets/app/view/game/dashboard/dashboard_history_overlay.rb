@@ -2,6 +2,67 @@
 
 # backtick_javascript: true
 
+require 'native'
+require 'lib/params'
+require 'lib/settings'
+require 'lib/storage'
+
+# History navigation deliberately uses full-page navigation when changing actions.
+# This avoids reconciling VDOM trees belonging to different reconstructed game states.
+
+# Monkey-patch Lib::Params to support runtime overrides and preserve tab anchors (e.g. #dashboard)
+module Lib
+  module Params
+    class << self
+      alias _orig_get_param [] unless method_defined?(:_orig_get_param)
+      alias _orig_add_dashboard_anchor add unless method_defined?(:_orig_add_dashboard_anchor)
+
+      def [](key)
+        url_val = _orig_get_param(key)
+        if @overrides&.key?(key.to_s)
+          @overrides[key.to_s] = url_val if url_val && !url_val.empty? && url_val != @overrides[key.to_s]
+          return @overrides[key.to_s]
+        end
+
+        url_val
+      end
+
+      def []=(key, val)
+        @overrides ||= {}
+        if val.nil? || val.to_s.empty?
+          @overrides.delete(key.to_s)
+        else
+          @overrides[key.to_s] = val.to_s
+        end
+      end
+
+      def add(route, param, value)
+        route_str = route.to_s
+        anchor = route_str.split('#')[1]&.split('?')&.first
+        base_route = route_str.split('#').first
+        res = _orig_add_dashboard_anchor(base_route, param, value)
+        anchor && !anchor.empty? ? "#{res.split('#').first}##{anchor}" : res
+      end
+    end
+  end
+end
+
+# Ensure GamePage does not cache stale @cursor values across history steps
+module View
+  class GamePage < Snabberb::Component
+    def cursor
+      param = Lib::Params['action']
+      return param.to_i if param && !param.to_s.empty?
+
+      nil
+    end
+  end
+end
+
+# frozen_string_literal: true
+
+# backtick_javascript: true
+
 require 'lib/params'
 require 'native'
 require 'lib/storage'
@@ -10,12 +71,12 @@ require 'view/game/dashboard/railcard_helper'
 module View
   module Game
     module Dashboard
-      class MoveHistoryOverlay < Snabberb::Component
+      class DashboardHistoryOverlay < Snabberb::Component
         include RailcardHelper
 
         needs :game, store: true
         needs :game_data, store: true, default: nil
-        needs :show_move_history, store: true, default: true
+        needs :show_history_overlay, store: true, default: false
         needs :app_route, store: true, default: nil
         needs :on_close, default: nil
 
@@ -91,65 +152,19 @@ module View
           }
 
           store(:app_route, new_route)
-        end
-
-        def play_from_action(target_id)
-          curr = target_id.to_i
-          total = total_actions
-          return if curr >= total
-
-          confirmed = `confirm("Discard all actions after #" + #{curr} + " and resume play from here?")`
-          return unless confirmed
-
-          if @game_data && @game_data['actions']
-            filtered = @game_data['actions'].select do |a|
-              aid = if a.is_a?(Hash)
-                      a['id'] || a[:id]
-                    else
-                      (a.respond_to?(:id) ? a.id : nil)
-                    end
-              aid ? aid.to_i <= curr : true
-            end
-            @game_data['actions'] = filtered
-            Lib::Storage[@game_data['id']] = @game_data if @game_data['id']
-          end
-
           %x{
-            (function() {
-              try {
-                var gameData = #{@game_data.to_n};
-                if (gameData && gameData.actions) {
-                  var targetId = #{curr};
-                  var list = [];
-                  for (var i = 0; i < gameData.actions.length; i++) {
-                    var act = gameData.actions[i];
-                    var aid = act.id !== undefined ? act.id : (act.get && act.get('id'));
-                    if (aid === undefined || aid <= targetId) {
-                      list.push(act);
-                    }
-                  }
-                  gameData.actions = list;
-                  if (gameData.id) {
-                    localStorage.setItem('game_' + gameData.id, JSON.stringify(gameData));
-                    localStorage.setItem(gameData.id, JSON.stringify(gameData));
-                  }
-                }
-              } catch(e) {
-                console.error('Failed syncing truncated actions', e);
-              }
-
-              var url = new URL(window.location.href);
-              url.searchParams.delete('action');
-              window.location.href = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') + url.hash;
-            })()
+            var slider = document.querySelector('#dashboard_history_floating_hud input[type="range"]');
+            if (slider) slider.value = #{aid};
           }
+          `window.__user_scrolled_move_hist = false;` if aid >= max_id
+          scroll_to_action(aid)
         end
 
         def close_overlay
           view_action(total_actions) if viewing_history?
-          Lib::Storage['cmd_dashboard_move_feed_overlay'] = nil
+          Lib::Storage['cmd_history_overlay'] = nil
           begin
-            store(:show_move_history, false)
+            store(:show_history_overlay, false)
           rescue StandardError
             nil
           end
@@ -241,7 +256,7 @@ module View
             if (ev.preventDefault) ev.preventDefault();
             if (ev.stopPropagation) ev.stopPropagation();
 
-            var hud = document.getElementById('move_history_floating_hud');
+            var hud = document.getElementById('dashboard_history_floating_hud');
             if (!hud) return;
 
             var startX = ev.clientX;
@@ -273,11 +288,28 @@ module View
           }
         end
 
+        def scroll_to_action(aid)
+          %x{
+            window.__user_scrolled_move_hist = true;
+            setTimeout(function() {
+              var container = document.getElementById('dashboard_history_scroll_body');
+              if (!container) return;
+              var rows = container.querySelectorAll('[data-history-action-id]');
+              var best = null, distance = Infinity;
+              for (var i = 0; i < rows.length; i++) {
+                var d = Math.abs(Number(rows[i].getAttribute('data-history-action-id')) - #{aid});
+                if (d < distance) { best = rows[i]; distance = d; }
+              }
+              if (best) container.scrollTop += best.getBoundingClientRect().top - container.getBoundingClientRect().top - 12;
+            }, 100);
+          }
+        end
+
         def scroll_to_latest
           return if viewing_history?
 
           %x{
-            var container = document.getElementById('move_history_scroll_body');
+            var container = document.getElementById('dashboard_history_scroll_body');
             if (container) {
               var isUserScrolledUp = container.scrollTop < (container.scrollHeight - container.offsetHeight - 35);
               if (!window.__user_scrolled_move_hist || !isUserScrolledUp) {
@@ -360,26 +392,29 @@ module View
         def entity_lookup
           @entity_lookup ||= begin
             list = []
-            if @game.respond_to?(:companies) && @game.companies
-              @game.companies.each do |c|
-                list << { name: c.name.to_s, type: :company, entity: c } if c.name
-                list << { name: c.sym.to_s, type: :company, entity: c } if c.respond_to?(:sym) && c.sym && c.sym != c.name
+            companies = @game.respond_to?(:companies) ? Array(@game.companies) : []
+            corps = @game.respond_to?(:corporations) ? Array(@game.corporations) : []
+            minors = @game.respond_to?(:minors) ? Array(@game.minors) : []
+            companies.each { |c| list << { name: c.name.to_s, type: :company, entity: c, priority: 0 } if c.name }
+            (corps + minors).each do |c|
+              list << { name: c.name.to_s, type: :corp, entity: c, priority: 1 } if c.name
+            end
+            (corps + minors).each do |c|
+              [c.respond_to?(:sym) ? c.sym : nil, c.respond_to?(:id) ? c.id : nil].compact.each do |label|
+                next if label.to_s.match?(/\A\d+\z/)
+
+                list << { name: label.to_s, type: :corp, entity: c, priority: 2 }
               end
             end
-            if @game.respond_to?(:corporations) && @game.corporations
-              @game.corporations.each do |c|
-                list << { name: c.name.to_s, type: :corp, entity: c } if c.name
-                list << { name: c.id.to_s, type: :corp, entity: c } if c.id
-                list << { name: c.sym.to_s, type: :corp, entity: c } if c.respond_to?(:sym) && c.sym && c.sym != c.name
-              end
+            companies.each do |c|
+              next unless c.respond_to?(:sym) && c.sym
+              next if c.sym.to_s.match?(/\A\d+\z/)
+
+              list << { name: c.sym.to_s, type: :company, entity: c, priority: 3 }
             end
-            if @game.respond_to?(:minors) && @game.minors
-              @game.minors.each do |m|
-                list << { name: m.name.to_s, type: :corp, entity: m } if m.name
-                list << { name: m.id.to_s, type: :corp, entity: m } if m.id
-              end
-            end
-            list.uniq { |item| item[:name] }.sort_by { |item| -item[:name].length }
+            list.reject { |item| item[:name].empty? }
+                .sort_by { |item| [item[:priority], -item[:name].length] }
+                .uniq { |item| item[:name].downcase }
           end
         end
 
@@ -432,6 +467,17 @@ module View
             key
           end
 
+          # Resolve entities before hex and currency formatting. Placeholders protect
+          # full names (including names containing numbers) from later substitutions.
+          entity_lookup.each do |item|
+            name = item[:name]
+            next if name.length < 2 || %w[IN ON OR AT TO A AN BY OF FOR WITH].include?(name.upcase)
+
+            pattern = Regexp.new('(?<![[:alnum:]])' + Regexp.escape(name) + '(?![[:alnum:]])',
+                                 name.length <= 3 ? nil : Regexp::IGNORECASE)
+            clean_text = clean_text.gsub(pattern) { next_tok.call(render_entity_railcard_node(item)) }
+          end
+
           # 1. Tile numbers (#57, #8, etc.)
           clean_text = clean_text.gsub(/(#[A-Za-z0-9]+)/) do |m|
             next_tok.call(h(:span, { style: { color: '#64748b', fontWeight: '700' } }, m))
@@ -448,13 +494,18 @@ module View
             next_tok.call(render_railcard(m, %w[game-card cert-share-card]))
           end
 
-          # 4. Trains ("2 train", "4 train", "3/5 train", etc.) -> Canonical RailcardHelper train card
+          # 4. Only train transactions get train cards, not running trains.
+          train_transaction = clean_text.match?(/\b(buys?|purchases?|sells?|sold|transfers?|exchanges?|rusts?|rusted|scraps?|discards?)\b/i)
           clean_text = clean_text.gsub(%r{\b(\d+(?:[/+]\d+|[A-Z]+)?)\s+(trains?)\b}i) do
             m = Regexp.last_match(1)
             word = Regexp.last_match(2)
-            train_node = render_railcard(m, %w[game-card card-train])
-            next_tok.call(h(:span,
-                            { style: { display: 'inline-flex', alignItems: 'center', gap: '3px', verticalAlign: 'middle' } }, [train_node, " #{word}"]))
+            if train_transaction
+              train_node = render_railcard(m, %w[game-card card-train])
+              next_tok.call(h(:span,
+                              { style: { display: 'inline-flex', alignItems: 'center', gap: '3px', verticalAlign: 'middle' } }, [train_node, " #{word}"]))
+            else
+              "#{m} #{word}"
+            end
           end
 
           # 5. Map hex coordinates (C13, G9, etc.) -> Cyan spatial link
@@ -489,22 +540,6 @@ module View
                   },
                 }, h_id)
             )
-          end
-
-          # 6. Corporations, Minors, and Private Companies -> Canonical RailcardHelper cards
-          entity_lookup.each do |item|
-            name = item[:name]
-            next if name.nil? || name.empty?
-            next if %w[IN ON OR AT TO A AN BY OF FOR WITH].include?(name.upcase) && name.length <= 2
-
-            flags = name.length <= 3 ? nil : 'i'
-            pattern = Regexp.new('(?:\b)' + Regexp.escape(name) + '(?:\b)', flags)
-
-            next unless clean_text.match?(pattern)
-
-            clean_text = clean_text.gsub(pattern) do
-              next_tok.call(render_entity_railcard_node(item))
-            end
           end
 
           parts = clean_text.split(/(\u0001\u0002\d+\u0002\u0001)/)
@@ -611,6 +646,8 @@ module View
           current_block = nil
           time_map = action_time_map
           entity_map = action_entity_map
+          round_kind = nil
+          awaiting_first_operator = false
 
           log = full_log
           log.each do |entry|
@@ -633,16 +670,51 @@ module View
                            msg.match?(/^[a-zA-Z0-9_\s]+:\s/) &&
                            !msg.match?(/pays out|runs a|withholds|operates|buys|sells|lays|places|pars|redeems|issues|takes|declares|receives|chooses|passes|skips|bids/i)
             next if is_chat_line
+            next if routine_history_line?(msg)
 
             if is_divider
               blocks << current_block if current_block && current_block[:lines]&.any?
               current_block = nil
               blocks << { type: :divider, text: msg }
+              round_kind = if msg.match?(/Stock Round/i)
+                             :stock
+                           else
+                             (msg.match?(/Operating Round/i) ? :operating : nil)
+                           end
+              awaiting_first_operator = round_kind == :operating
+              next
+            end
+
+            if awaiting_first_operator && msg.match?(/\bcollects?\s+[$£€¥][\d,]+\s+from\b/i)
+              if current_block && current_block[:type] == :transition && current_block[:phase] == :preparing
+                current_block[:lines] << { text: msg, time: time_str, id: aid }
+              else
+                blocks << current_block if current_block && current_block[:lines]&.any?
+                current_block = { type: :transition, phase: :preparing, lines: [{ text: msg, time: time_str, id: aid }] }
+              end
+              next
+            end
+
+            # End-of-stock-round adjustments are not actions of the last player.
+            # Require a preceding pass, so ordinary share-price changes stay
+            # attached to the actual corporation's action.
+            closing_event = msg.match?(/\b(?:share price moves?|has priority deal|priority deal passes?)\b/i)
+            previous_pass = current_block && current_block[:lines]&.last &&
+                            current_block[:lines].last[:text].to_s.match?(/\bpasses?\b/i)
+            if round_kind == :stock && closing_event &&
+               (previous_pass || (current_block && current_block[:type] == :transition && current_block[:phase] == :finishing))
+              if current_block[:type] == :transition && current_block[:phase] == :finishing
+                current_block[:lines] << { text: msg, time: time_str, id: aid }
+              else
+                blocks << current_block if current_block[:lines]&.any?
+                current_block = { type: :transition, phase: :finishing, lines: [{ text: msg, time: time_str, id: aid }] }
+              end
               next
             end
 
             if (op_match = msg.match(/^(.+?)\s+operates\s+(.+)$/i))
               blocks << current_block if current_block && current_block[:lines]&.any?
+              awaiting_first_operator = false
               player_name = op_match[1].strip
               corp_name = op_match[2].strip
 
@@ -662,6 +734,7 @@ module View
                 entity: corp_obj,
                 operator: (player_obj ? player_obj.name : player_name),
                 group_key: corp_name,
+                operating: true,
                 lines: [],
               }
               next
@@ -679,7 +752,8 @@ module View
 
             group_key = entity || msg.split.first
 
-            if current_block && current_block[:group_key] == group_key
+            if current_block && current_block[:type] != :transition &&
+               (current_block[:operating] || current_block[:group_key] == group_key)
               current_block[:lines] << { text: msg, time: time_str, id: aid }
             else
               blocks << current_block if current_block && current_block[:lines]&.any?
@@ -695,6 +769,86 @@ module View
 
           blocks << current_block if current_block && current_block[:lines]&.any?
           blocks
+        end
+
+        # Compact a stock-round par and its matching initial share purchase.
+        # Retain the exact price and amount; do not alter the engine log.
+        def summarize_stock_lines(lines)
+          output = []
+          i = 0
+          while i < lines.length
+            first = lines[i]
+            second = lines[i + 1]
+            par = first[:text].match(/\A(.+?) pars (.+?) at (\$[\d,]+)\z/i)
+            buy = second && second[:text].match(/\A(.+?) buys a (\d+%) share of (.+?) from the Treasury for (\$[\d,]+)\z/i)
+            if par && buy && par[1] == buy[1] && par[2] == buy[3]
+              output << first.merge(text: "Pars #{par[2]} at #{par[3]}; buys #{buy[2]} for #{buy[4]}",
+                                    id: second[:id] || first[:id])
+              i += 2
+            else
+              output << first
+              i += 1
+            end
+          end
+          output
+        end
+
+        def routine_history_line?(text)
+          text.to_s.match?(%r{\b(?:passes? (?:buy(?:ing)? trains?|buy/use companies|place (?:a )?token|lay track|acquire companies|buy(?:ing)? shares?|purchase shares?)|skips? (?:place (?:a )?token|acquire companies|buy(?:ing)? trains?|buy/use companies|lay track)|declines? to buy shares?|does not run)\b}i)
+        end
+
+        # Transform only explicit engine-log statements. Retain the last source
+        # action ID for navigation, and never calculate revenue from route counts.
+        def summarize_operating_lines(lines)
+          output = []
+          i = 0
+          while i < lines.size
+            line = lines[i]
+            text = line[:text].to_s
+            run = text.match(%r{\A.*?\bruns? (?:an? )?[\w/+]+ trains? for ([$£€¥][\d,]+)(?:\s*:\s*.*)?\z}i) ||
+                  text.match(/\A.*?\bruns? for ([$£€¥][\d,]+)(?:\s*:\s*.*)?\z/i)
+            if run
+              revenue = run[1]
+              j = i + 1
+              # Combine consecutive runs only, and only within this operating block.
+              while j < lines.size
+                next_run = lines[j][:text].to_s.match(%r{\A.*?\bruns? (?:an? )?[\w/+]+ trains? for ([$£€¥][\d,]+)(?:\s*:\s*.*)?\z}i) ||
+                           lines[j][:text].to_s.match(/\A.*?\bruns? for ([$£€¥][\d,]+)(?:\s*:\s*.*)?\z/i)
+                break unless next_run
+                # A generic "runs for" line may be an engine-provided total.
+                # Do not add it to individual train runs.
+                break unless lines[j][:text].to_s.match?(%r{\bruns? (?:an? )?[\w/+]+ trains? for\b}i) &&
+                             text.match?(%r{\bruns? (?:an? )?[\w/+]+ trains? for\b}i)
+                # Sum only same-currency, explicit, separate running entries.
+                break unless next_run[1][0] == revenue[0]
+
+                revenue = revenue[0] + (revenue[1..-1].delete(',').to_i + next_run[1][1..-1].delete(',').to_i).to_s
+                j += 1
+              end
+              summary = "Runs for #{revenue}"
+              if j < lines.size
+                dividend = lines[j][:text].to_s
+                if (pay = dividend.match(/\bpays? out ([$£€¥][\d,]+)/i))
+                  summary += ", pays out #{pay[1]}"
+                  j += 1
+                elsif dividend.match?(/\bpays? half\b/i)
+                  summary += ', pays half'
+                  j += 1
+                elsif dividend.match?(/\bwithholds?\b/i)
+                  summary += ', withholds'
+                  j += 1
+                end
+              end
+              output << line.merge(text: summary, id: lines[j - 1][:id] || line[:id])
+              i = j
+            else
+              # Make explicit share-price changes compact, without inferring dividends.
+              price = text.match(/\bshare price moves? (?:right|left|up|down) from ([$£€¥][\d,]+) to ([$£€¥][\d,]+)/i)
+              output << (price ? line.merge(text: "Share price #{price[1]} → #{price[2]}") : line)
+              i += 1
+            end
+          end
+          output
         end
 
         def render_blocks
@@ -737,12 +891,18 @@ module View
                 }, clean_text)
 
             else
-              badge = entity_badge(block[:entity], block[:group_key])
-              actor_label = (if block[:entity].respond_to?(:sym)
-                               block[:entity].sym
-                             else
-                               (block[:entity].respond_to?(:name) ? block[:entity].name : block[:group_key])
-                             end).to_s
+              transition_block = block[:type] == :transition
+              player_block = transition_block || (block[:entity] && block[:entity].respond_to?(:player?) && block[:entity].player?)
+              badge = transition_block || player_block ? nil : entity_badge(block[:entity], block[:group_key])
+              actor_label = if transition_block
+                              block[:phase] == :preparing ? 'Preparing operating round · Private income' : 'Finishing stock round · Adjustments'
+                            else
+                              (block[:entity].respond_to?(:name) ? block[:entity].name : block[:group_key]).to_s
+                            end
+              if !player_block && block[:entity] && block[:entity].respond_to?(:sym) &&
+                 actor_label == block[:entity].sym.to_s
+                actor_label = ''
+              end
 
               operator = block[:operator]
               operator = block[:entity].owner.name if !operator && block[:entity].respond_to?(:owner) && block[:entity].owner
@@ -758,6 +918,8 @@ module View
               actor_names = actor_names.compact.map(&:to_s).reject(&:empty?).uniq.sort_by { |s| -s.length }
 
               lines = block[:lines] || []
+              lines = summarize_stock_lines(lines)
+              lines = summarize_operating_lines(lines) if block[:operating]
               line_nodes = lines.map do |line|
                 time_node = if line[:time]
                               h(:span, {
@@ -782,38 +944,9 @@ module View
               header_title_nodes = [
                 h(:strong, { style: { fontSize: '0.95rem', color: '#0f172a', marginRight: '6px' } }, actor_label),
               ]
-              if operator
-                p_color = player_color(operator)
-                p_initials = operator[0..1].to_s.upcase
-                header_title_nodes << h(:div, {
-                                          style: {
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '5px',
-                                            backgroundColor: '#f1f5f9',
-                                            padding: '2px 6px',
-                                            borderRadius: '4px',
-                                            border: '1px solid #e2e8f0',
-                                            marginLeft: '4px',
-                                          },
-                                        }, [
-                  h(:div, {
-                      style: {
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '3px',
-                        backgroundColor: p_color,
-                        color: '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.65rem',
-                        fontWeight: '800',
-                        lineHeight: '1',
-                      },
-                    }, p_initials),
-                  h(:span, { style: { fontSize: '0.8rem', fontWeight: '600', color: '#334155' } }, operator),
-                ])
+              if operator && !player_block
+                header_title_nodes << h(:span, { style: { fontSize: '0.8rem', fontWeight: '600', color: '#334155' } },
+                                        " | #{operator}")
               end
 
               action_controls = []
@@ -847,39 +980,12 @@ module View
                                        },
                                      }, is_current ? 'Viewing' : 'View here')
 
-                if aid_num < total_actions
-                  action_controls << h(:button, {
-                                         attrs: {
-                                           type: 'button',
-                                           title: "Discard subsequent actions and resume play from Action ##{aid_num}",
-                                         },
-                                         style: {
-                                           padding: '1px 5px',
-                                           fontSize: '0.68rem',
-                                           fontWeight: '600',
-                                           backgroundColor: '#fff1f2',
-                                           color: '#e11d48',
-                                           border: '1px solid #fecdd3',
-                                           borderRadius: '3px',
-                                           cursor: 'pointer',
-                                           lineHeight: '1.2',
-                                           boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                                         },
-                                         on: {
-                                           click: lambda { |e|
-                                             %x{
-                          if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();
-                        }
-                                             play_from_action(aid_num)
-                                           },
-                                         },
-                                       }, 'Move from here')
-                end
               end
 
               action_header_right = h(:div, { style: { display: 'flex', alignItems: 'center', gap: '5px' } }, action_controls)
 
               h(:div, {
+                  attrs: { 'data-history-action-id': last_id.to_s },
                   style: {
                     display: 'flex',
                     flexDirection: 'row',
@@ -892,7 +998,7 @@ module View
                     boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
                   },
                 }, [
-                h(:div, { style: { flexShrink: '0' } }, [badge]),
+                (player_block ? h(:span, { style: { display: 'none' } }, '') : h(:div, { style: { flexShrink: '0' } }, [badge])),
                 h(:div, { style: { flex: '1', minWidth: '0' } }, [
                   h(:div, {
                       style: {
@@ -921,46 +1027,62 @@ module View
 
         # // --- START FIX ---
         def render_history_banner
-          return nil unless viewing_history?
+          nil
+        end
 
-          h(:div, {
-              style: {
-                backgroundColor: '#eff6ff',
-                borderBottom: '1px solid #bfdbfe',
-                padding: '6px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: '0.8rem',
-                color: '#1e40af',
-                fontWeight: '600',
-                flexShrink: '0',
-              },
-            }, [
-            h(:span, "Viewing Action ##{current_cursor} of #{total_actions}"),
-            h(:button, {
-                attrs: { type: 'button', title: 'Return board to current live state' },
-                style: {
-                  backgroundColor: '#2563eb',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '3px 8px',
-                  fontSize: '0.74rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                },
+        def render_timeline
+          total = total_actions
+          current = current_cursor
+          button = {
+            padding: '5px 9px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #cbd5e1',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+          }
+          h(:div, { style: { padding: '8px 12px', backgroundColor: '#ffffff', borderBottom: '1px solid #cbd5e1', flexShrink: '0' } }, [
+            h(:div, { style: { display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' } }, [
+              h(:button, {
+                  style: button,
+                  attrs: { type: 'button', disabled: current <= 1, title: 'Previous action' },
+                  on: {
+                    click: lambda {
+                      view_action([current - 1, 1].max)
+                    },
+                  },
+                }, '◀'),
+              h(:button, {
+                  style: button,
+                  attrs: { type: 'button', disabled: current >= total, title: 'Next action' },
+                  on: {
+                    click: lambda {
+                      view_action([current + 1, total].min)
+                    },
+                  },
+                }, '▶'),
+              h(:span, { style: { fontSize: '0.82rem', fontWeight: 'bold', color: '#334155' } }, "Action #{current} / #{total}"),
+              h(:button, {
+                  style: button.merge(marginLeft: 'auto', backgroundColor: '#dbeafe', color: '#1d4ed8'),
+                  attrs: { type: 'button' },
+                  on: {
+                    click: lambda {
+                      view_action(total)
+                    },
+                  },
+                }, 'Return to Live'),
+            ]),
+            h(:input, {
+                attrs: { type: 'range', min: 1, max: [total, 1].max, value: current, 'aria-label': 'Browse game actions' },
+                style: { width: '100%', marginTop: '8px' },
                 on: {
-                  click: lambda { |e|
-                    `if (#{e} && #{e}.stopPropagation) #{e}.stopPropagation();`
-                    view_action(total_actions)
+                  change: lambda { |e|
+                    view_action(`#{e}.target.value`.to_i)
                   },
                 },
-              }, 'Return to Live ▶|'),
+              }),
           ])
         end
-        # // --- END FIX ---
 
         def render
           saved_pos = %x{
@@ -1026,7 +1148,7 @@ module View
 
           # // --- START FIX ---
           hud_children = [
-            h('div#move_history_hud_handle', {
+            h('div#dashboard_history_hud_handle', {
                 style: {
                   padding: '0.6rem 0.9rem',
                   backgroundColor: '#e2e8f0',
@@ -1043,7 +1165,7 @@ module View
               }, [
               h(:div, { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' } }, [
                 h(:span, { style: { fontSize: '1rem', color: '#64748b' } }, '⠿'),
-                h(:h3, { style: { margin: '0', fontSize: '0.95rem', color: '#0f172a', fontWeight: '800' } }, 'Move Feed'),
+                h(:h3, { style: { margin: '0', fontSize: '0.95rem', color: '#0f172a', fontWeight: '800' } }, 'Game History'),
                 h(:span, {
                     style: {
                       fontSize: '0.72rem',
@@ -1056,7 +1178,7 @@ module View
                   }, "#{moves_count} Events"),
               ]),
               h(:button, {
-                  attrs: { id: 'btn_close_dashboard_move_feed_overlay', type: 'button', title: 'Close Feed' },
+                  attrs: { id: 'btn_close_dashboard_history_overlay', type: 'button', title: 'Close History' },
                   style: {
                     background: 'none',
                     border: 'none',
@@ -1078,9 +1200,10 @@ module View
                 }, '✕'),
             ]),
 
+            render_timeline,
             render_history_banner,
 
-            h('div#move_history_scroll_body', {
+            h('div#dashboard_history_scroll_body', {
                 style: {
                   flex: '1',
                   overflowY: 'auto',
@@ -1102,7 +1225,7 @@ module View
                 },
               }, render_blocks),
 
-            h('div#move_history_resize_grip', {
+            h('div#dashboard_history_resize_grip', {
                 style: {
                   position: 'absolute',
                   right: '2px',
@@ -1154,16 +1277,20 @@ module View
           ].compact
           # // --- END FIX ---
 
-          h('div#move_history_floating_hud', {
+          h('div#dashboard_history_floating_hud', {
               style: hud_style,
               hook: {
-                insert: -> { scroll_to_latest },
+                insert: lambda {
+                  `window.__user_scrolled_move_hist = false;`
+                  view_action(total_actions) if viewing_history?
+                  scroll_to_latest
+                },
                 postpatch: -> { scroll_to_latest },
               },
               on: {
                 mouseup: lambda {
                   %x{
-                    var hud = document.getElementById('move_history_floating_hud');
+                    var hud = document.getElementById('dashboard_history_floating_hud');
                     if (hud && hud.style.width && hud.style.height) {
                       try {
                         localStorage.setItem('move_hist_overlay_size', JSON.stringify({ width: hud.style.width, height: hud.style.height }));
@@ -1173,10 +1300,10 @@ module View
                 },
               },
               # // --- DELETE --- }, [
-              # // --- DELETE ---   h('div#move_history_hud_handle', ...),
+              # // --- DELETE ---   h('div#dashboard_history_hud_handle', ...),
               # // --- DELETE ---   (if viewing_history? ... end),
-              # // --- DELETE ---   h('div#move_history_scroll_body', ...),
-              # // --- DELETE ---   h('div#move_history_resize_grip', ...),
+              # // --- DELETE ---   h('div#dashboard_history_scroll_body', ...),
+              # // --- DELETE ---   h('div#dashboard_history_resize_grip', ...),
               # // --- DELETE --- ])
               # // --- START FIX ---
             }, hud_children)

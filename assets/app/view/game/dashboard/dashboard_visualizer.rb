@@ -15,6 +15,7 @@ require 'view/game/dashboard/bidding_overlay'
 require 'view/game/dashboard/dashboard_tile_manifest'
 require 'view/game/dashboard/other_games_overlay'
 require 'view/game/dashboard/dashboard_action_window'
+require 'view/game/dashboard/dashboard_history_overlay'
 require 'view/game/dashboard/chat_overlay'
 require 'view/game/dashboard/dashboard_ai_player'
 require 'view/game/dashboard/dashboard_ai_engine_search'
@@ -1061,7 +1062,7 @@ module View
           update
         }
 
-        h(::View::Game::Dashboard::HistoryOverlay,
+        h(::View::Game::Dashboard::DashboardHistoryOverlay,
           game: @game,
           game_data: @game_data,
           on_close: close_handler)
@@ -1496,7 +1497,6 @@ module View
             },
           }, [
             render_history_button,
-            render_move_history_button,
             render_other_games_button,
             render_sound_toggle_button,
             render_chat_button,
@@ -3777,7 +3777,6 @@ window.recalcAllPanels = function() {
             render_global_auction_overlay,
             render_par_overlay,
             render_history_overlay,
-            render_dashboard_move_feed_overlay,
             render_other_games_overlay,
             render_top_nav_utility_cluster,
             render_chat_overlay,

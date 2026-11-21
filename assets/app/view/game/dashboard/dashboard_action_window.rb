@@ -19,8 +19,6 @@ require 'view/game/dashboard/railcard_helper'
 require 'view/game/round/operating'
 require 'view/game/dashboard/actions_monitor_overlay'
 require 'view/game/dashboard/manual_route_overlay'
-require 'view/game/dashboard/history_overlay'
-require 'view/game/dashboard/dashboard_move_feed_overlay'
 
 class String
   def player?
@@ -5238,6 +5236,7 @@ module View
                 '),
                 h(HistoryAndUndo, last_action_id: last_action_id),
               ]),
+                h(:button, { attrs: { id: "btn-action-hub-history", type: "button", title: "Game History" }, style: { height: "2.2rem", padding: "0 10px", fontWeight: "bold", cursor: "pointer" }, on: { click: lambda { store(:show_history_overlay, @show_history_overlay != true) } } }, "History"),
               h(:div, { style: { marginLeft: 'auto' } }),
               h(:button, {
                   style: {
