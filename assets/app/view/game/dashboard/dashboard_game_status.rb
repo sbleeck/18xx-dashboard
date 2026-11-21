@@ -938,7 +938,7 @@ module View
             var elapsed = Math.floor((performance.now() - anchor) / 1000);
             var value = base - elapsed;
             active.textContent = formatClock(value);
-            active.style.color = value < 0 ? '#dc2626' : 'inherit';
+            active.style.setProperty('color', value < 0 ? '#dc2626' : 'inherit', 'important');
           }, 250);
         }
       end
