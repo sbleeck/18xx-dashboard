@@ -894,7 +894,11 @@ module View
           ability_boxes = active_ability_companies.map do |c|
             card_text = (c.sym || c.name).to_s
             click_handler = lambda {
-              (store(:selected_company, nil); `window.clearMapHexHighlights && window.clearMapHexHighlights()`; next) if @selected_company == c
+              if @selected_company == c
+                (store(:selected_company, nil)
+                 `window.clearMapHexHighlights && window.clearMapHexHighlights()`
+                 next)
+              end
               c_actions = begin
                 @game.round.actions_for(c)
               rescue StandardError
@@ -4969,8 +4973,8 @@ module View
           unless game_finished
             ground_truth_actions = begin
               render_ground_truth_actions(actions, step)
-            rescue StandardError => e
-              `console.error("Dashboard command action rendering failed:", #{e.message})`
+            rescue StandardError, NotImplementedError => e
+              `console.error("Dashboard command action rendering failed:", #{e.message}, #{e.backtrace})`
 
               h(
                 :div,
