@@ -4,11 +4,15 @@
     "priority": 1,
     "action": {
       "type": "redirect",
-      "redirect": { "extensionPath": "/main.js" }
+      "redirect": {
+        "extensionPath": "/main.js"
+      }
     },
     "condition": {
       "urlFilter": "||18xx.games/assets/main.js*",
-      "resourceTypes": ["script"]
+      "resourceTypes": [
+        "script"
+      ]
     }
   },
   {
@@ -17,12 +21,2162 @@
     "action": {
       "type": "modifyHeaders",
       "responseHeaders": [
-        { "header": "content-security-policy", "operation": "remove" }
+        {
+          "header": "content-security-policy",
+          "operation": "remove"
+        }
       ]
     },
     "condition": {
       "urlFilter": "||18xx.games/*",
-      "resourceTypes": ["main_frame", "sub_frame"]
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1804.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1804\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1807.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1807\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1812.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1812\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 6,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1817.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1817\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 7,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1817_de.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1817_de\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 8,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1817_na.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1817_na\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 9,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1817_wo.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1817_wo\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 10,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 11,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_africa.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_africa\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 12,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_ca.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_ca\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 13,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_ca_ers.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_ca_ers\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 14,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_ca_wrs.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_ca_wrs\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 15,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_mrs.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_mrs\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 16,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_mx.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_mx\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 17,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_nrs.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_nrs\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 18,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_pnw.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_pnw\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 19,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_pnw_short.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_pnw_short\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 20,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1822_pnw_srs.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1822_pnw_srs\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 21,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1824.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1824\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 22,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1824_cisleithania.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1824_cisleithania\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 23,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1825.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1825\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 24,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1826.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1826\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 25,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1828.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1828\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 26,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1829.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1829\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 27,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1830.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1830\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 28,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1832.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1832\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 29,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1833_ne.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1833_ne\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 30,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1835.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1835\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 31,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1836_jr30.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1836_jr30\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 32,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1836_jr56.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1836_jr56\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 33,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1837.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1837\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 34,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1840.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1840\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 35,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1841.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1841\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 36,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1844.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1844\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 37,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1846.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1846\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 38,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1846_two_player_variant.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1846_two_player_variant\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 39,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1847_ae.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1847_ae\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 40,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1848.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1848\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 41,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1849.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1849\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 42,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1849_boot.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1849_boot\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 43,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1850.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1850\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 44,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1850_jr.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1850_jr\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 45,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1854.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1854\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 46,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1856.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1856\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 47,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1858.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1858\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 48,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1858_india.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1858_india\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 49,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1858_switzerland.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1858_switzerland\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 50,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1860.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1860\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 51,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1861.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1861\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 52,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1862.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1862\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 53,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1862_solo.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1862_solo\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 54,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1862_usa_canada.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1862_usa_canada\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 55,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1864.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1864\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 56,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1866.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1866\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 57,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1867.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1867\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 58,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1868_wy.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1868_wy\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 59,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1870.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1870\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 60,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1871.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1871\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 61,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1873.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1873\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 62,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1877.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1877\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 63,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1877_stockholm_tramways.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1877_stockholm_tramways\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 64,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1880.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1880\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 65,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1880_romania.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1880_romania\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 66,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1882.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1882\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 67,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1888.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1888\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 68,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1889.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1889\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 69,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1893.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1893\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 70,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_1894.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_1894\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 71,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_al.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_al\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 72,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_ardennes.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_ardennes\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 73,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_carolinas.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_carolinas\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 74,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_chesapeake.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_chesapeake\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 75,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_chesapeake_off_the_rails.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_chesapeake_off_the_rails\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 76,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_christmas_eve.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_christmas_eve\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 77,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_co.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_co\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 78,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_cuba.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_cuba\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 79,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_cz.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_cz\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 80,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_dixie.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_dixie\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 81,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_esp.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_esp\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 82,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_eu.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_eu\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 83,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_fl.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_fl\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 84,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_fr.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_fr\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 85,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_ga.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_ga\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 86,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_gb.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_gb\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 87,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_hiawatha.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_hiawatha\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 88,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_india.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_india\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 89,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_ireland.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_ireland\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 90,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_jpt.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_jpt\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 91,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_junta.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_junta\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 92,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_ka.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_ka\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 93,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_los_angeles.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_los_angeles\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 94,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_los_angeles1.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_los_angeles1\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 95,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_mag.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_mag\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 96,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_mex.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_mex\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 97,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_mo.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_mo\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 98,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_ms.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_ms\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 99,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_mt.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_mt\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 100,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_neb.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_neb\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 101,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_new_england.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_new_england\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 102,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_new_england_north.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_new_england_north\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 103,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_nl.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_nl\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 104,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_norway.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_norway\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 105,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_ny.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_ny\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 106,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_ny_1e.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_ny_1e\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 107,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_oe.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_oe\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 108,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_oe_uk_fr.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_oe_uk_fr\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 109,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_pa.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_pa\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 110,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_rhl.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_rhl\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 111,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_royal_gorge.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_royal_gorge\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 112,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_scan.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_scan\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 113,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_sj.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_sj\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 114,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_texas.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_texas\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 115,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_tn.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_tn\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 116,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_tokaido.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_tokaido\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 117,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_uruguay.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_uruguay\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 118,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_usa.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_usa\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 119,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_va.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_va\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 120,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_we.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_we\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 121,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_west.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_west\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 122,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_zoo.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_zoo\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 123,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_zoo_map_a.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_zoo_map_a\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 124,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_zoo_map_b.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_zoo_map_b\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 125,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_zoo_map_c.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_zoo_map_c\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 126,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_zoo_map_d.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_zoo_map_d\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 127,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_zoo_map_e.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_zoo_map_e\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 128,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_18_zoo_map_f.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_18_zoo_map_f\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 129,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_2038.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_2038\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 130,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_21_moon.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_21_moon\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 131,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_22_mars.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_22_mars\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 132,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_frost1831.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_frost1831\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 133,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_rolling_stock.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_rolling_stock\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 134,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_rolling_stock_stars.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_rolling_stock_stars\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 135,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_steam_over_holland.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_steam_over_holland\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
+    }
+  },
+  {
+    "id": 136,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/g_system18.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://18xx\\.games/assets/g_system18\\.js(?:\\?.*)?$",
+      "resourceTypes": [
+        "script"
+      ]
     }
   }
 ]
