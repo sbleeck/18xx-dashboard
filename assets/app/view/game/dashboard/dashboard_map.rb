@@ -1040,6 +1040,10 @@ module View
       def dashboard_affordable_tiles(step, entity_or_entities, hex)
         entity = Array(entity_or_entities).compact.first
         return [] unless step && entity
+        if entity.company? &&
+           @game.abilities(entity, :tile_lay)
+          return Array(step.upgradeable_tiles(entity_or_entities, hex))
+        end
 
         cash = entity.cash.to_i
 

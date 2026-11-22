@@ -945,7 +945,7 @@ module View
 
               store(:selected_company, c)
               active_a = (c.respond_to?(:all_abilities) ? c.all_abilities : []).dup.concat(c.abilities || []).find do |a|
-                !((a.respond_to?(:passive?) && a.passive?) || (a.respond_to?(:passive) && a.passive) || (a.respond_to?(:closed?) && a.closed?) || (a.respond_to?(:used?) && a.used?))
+                !((a.respond_to?(:passive?) && a.passive?) || (a.respond_to?(:passive) && a.passive) || (a.respond_to?(:closed?) && a.closed?) || (a.respond_to?(:used?) && a.used? && !(a.respond_to?(:count) && a.count && a.count.positive?)))
               end
 
               if active_a && !%i[tile_lay token teleport hex_bonus choose_ability assign_corporation].include?(active_a.type)
@@ -5156,7 +5156,7 @@ module View
               next false if a.respond_to?(:passive?) && a.passive?
               next false if a.respond_to?(:passive) && a.passive
               next false if a.respond_to?(:closed?) && a.closed?
-              next false if a.respond_to?(:used?) && a.used?
+              next false if a.respond_to?(:used?) && a.used? && !(a.respond_to?(:count) && a.count && a.count.positive?)
 
               true
             end
