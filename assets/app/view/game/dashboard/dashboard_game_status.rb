@@ -394,16 +394,9 @@ module View
           bg_color = player == active_player ? COLOR_ACTIVE : COLOR_INACTIVE
           counting_certs = @game.num_certs(player)
 
-          physical_certs =
-            (player.respond_to?(:shares) ? player.shares.size : counting_certs) +
-            (player.respond_to?(:companies) ? player.companies.count { |c| !c.respond_to?(:closed?) || !c.closed? } : 0)
-
-          exempt_certs = [physical_certs - counting_certs, 0].max
-          display_limit = cert_limit + exempt_certs
-
           cell_props = counting_certs > cert_limit ? props.merge(style: { backgroundColor: bg_color }) : { style: { backgroundColor: bg_color } }
           is_last = idx == @game.players.size - 1
-          cert_cells << h("td.padded_number#{'.thick-right' if is_last}", cell_props, "#{physical_certs}/#{display_limit}")
+          cert_cells << h("td.padded_number#{'.thick-right' if is_last}", cell_props, "#{counting_certs}/#{cert_limit}")
         end
         rows << cert_cells
 
@@ -3378,16 +3371,9 @@ module View
             bg_color = is_active_col ? COLOR_ACTIVE : COLOR_INACTIVE
             counting_certs = @game.num_certs(player)
 
-            physical_certs =
-              (player.respond_to?(:shares) ? player.shares.size : counting_certs) +
-              (player.respond_to?(:companies) ? player.companies.count { |c| !c.respond_to?(:closed?) || !c.closed? } : 0)
-
-            exempt_certs = [physical_certs - counting_certs, 0].max
-            display_limit = cert_limit + exempt_certs
-
             cell_props = counting_certs > cert_limit ? props.merge(style: { backgroundColor: bg_color }) : { style: { backgroundColor: bg_color } }
             is_last = idx == @game.players.size - 1
-            cert_cells << h("td.padded_number#{'.thick-right' if is_last}", cell_props, "#{physical_certs}/#{display_limit}")
+            cert_cells << h("td.padded_number#{'.thick-right' if is_last}", cell_props, "#{counting_certs}/#{cert_limit}")
           end,
           h(:td, { attrs: { colspan: 30 }, style: { border: 'none' } }, ''),
         ])

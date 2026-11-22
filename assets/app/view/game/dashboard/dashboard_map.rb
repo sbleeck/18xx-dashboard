@@ -1976,17 +1976,11 @@ module View
                 on: {
                   click: lambda do |event|
                     %x{
-    console.log('[DASH ROTATE] click received');
-
     if (#{event} && #{event}.stopPropagation) {
       #{event}.stopPropagation();
     }
   }
 
-                    puts '[DASH ROTATE] click'
-                    puts @tile_selector.tile.name
-                    puts @tile_selector.tile.rotation
-                    puts @tile_selector.tile.legal_rotations.inspect
 
                     @tile_selector.rotate! if @tile_selector
                   end,

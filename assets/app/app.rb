@@ -154,6 +154,6 @@ class App < Snabberb::Component
   end
 
   def setup_logger
-    Engine::Logger.set_level(Lib::Params['l'], @production)
+    Engine::Logger.set_level(2, @production)
   end
 end

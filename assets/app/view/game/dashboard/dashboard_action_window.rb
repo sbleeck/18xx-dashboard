@@ -660,6 +660,10 @@ module View
           return nil unless raw_choices && !raw_choices.empty?
 
           label = prompt.to_s.strip
+          if step.class.name.to_s.include?('G1835::Step::MinorExchange')
+            exchange_name = entity.respond_to?(:name) ? entity.name : entity.id
+            label = "#{exchange_name}: #{label}"
+          end
           label = "#{label}:" unless label.end_with?(':', '?')
 
           button_style = {
