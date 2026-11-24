@@ -1049,50 +1049,24 @@ module View
       end
 
       def sorted_corporations
-        operating_array =
-          if @game.round.respond_to?(:entities) && @game.round.operating?
-            @game.round.entities
-          else
-            @game.operating_order
-          end
-
-        operating_corporations = operating_array.each_with_index.to_h
-
-        all_entities = @game.respond_to?(:minors) ? (@game.minors || []) : []
+        all_entities = @game.respond_to?(:minors) ? (@game.minors || []).dup : []
         all_entities += @game.all_corporations
         all_entities = all_entities.uniq { |c| c.respond_to?(:id) ? c.id : c }
         all_entities.reject! { |c| c.respond_to?(:closed?) && c.closed? }
 
-        unfloated_corporations = (all_entities - operating_array)
-          .select { |c| c.respond_to?(:sort_order_key) && c.sort_order_key }
-          .sort
-          .each_with_index
-          .to_h
-
-        result = all_entities.map do |corporation|
-          operating_order =
-            if (index = operating_corporations[corporation])
-              [FLOATED, index + 1]
-            elsif (index = unfloated_corporations[corporation])
-              [UNFLOATED, index + 1]
+        # Minors first; priced majors by CURRENT market price (highest first);
+        # majors without a market price last. Original order breaks ties.
+        all_entities.each_with_index
+          .sort_by do |corporation, index|
+            if corporation.minor?
+              [0, 0, index]
+            elsif corporation.share_price
+              [1, -corporation.share_price.price, index]
             else
-              [UNSTARTED, 0]
+              [2, 0, index]
             end
-
-          [operating_order, corporation]
-        end
-
-        result.sort_by! do |operating_order, corporation|
-          is_minor = corporation.minor? ? 0 : 1
-
-          [
-            is_minor,
-            operating_order[0] == FLOATED ? 0 : 1,
-            operating_order[1],
-          ]
-        end
-
-        result
+          end
+          .map { |corporation, _index| [nil, corporation] }
       end
 
       def status_actions_for(entity)
