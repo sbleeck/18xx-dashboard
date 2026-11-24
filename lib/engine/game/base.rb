@@ -880,6 +880,8 @@ module Engine
           auto_actions = []
           until (actions = round.auto_actions || []).empty?
             actions.each { |a| process_single_action(a) }
+            return self if @exception
+
             auto_actions.concat(actions)
           end
           if validate_auto_actions
@@ -1051,7 +1053,8 @@ module Engine
       end
 
       def clone(actions)
-        self.class.new(@names, id: @id, pin: @pin, seed: @seed, actions: actions, optional_rules: @optional_rules)
+        self.class.new(@names, id: @id, pin: @pin, seed: @seed, actions: actions, optional_rules: @optional_rules,
+                               user: @user)
       end
 
       def trains
@@ -1416,6 +1419,8 @@ module Engine
       # consent is not required.
       def consenter_for_choice(_entity, _choice, _label); end
 
+      def consenter_for_lay_tile(_entity, _hex, _tile); end
+
       def can_run_route?(entity)
         graph_for_entity(entity).route_info(entity)&.dig(:route_available)
       end
@@ -1587,6 +1592,17 @@ module Engine
 
       def route_train_distance(_route, train)
         train.distance
+      end
+
+      # Limits on the number of city and town stops a train can use in one
+      # route, used by the auto-router to prune path walks. Return a hash with
+      # :city and :town limits, using nil for an unlimited stop type.
+      def max_route_stops(_train)
+        { city: nil, town: nil }
+      end
+
+      def auto_router_connection_cost(_connection_data, _corporation)
+        0
       end
 
       def route_links(_start_node, _end_node, _corporation)

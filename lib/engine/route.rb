@@ -5,7 +5,7 @@ require_relative 'game_error'
 module Engine
   class Route
     attr_accessor :halts, :routes, :bitfield
-    attr_reader :last_node, :phase, :train, :abilities
+    attr_reader :last_node, :phase, :train, :abilities, :router_cost
 
     def initialize(game, phase, train, **opts)
       @game = game
@@ -30,9 +30,16 @@ module Engine
       @stops = nil
 
       @bitfield = opts[:bitfield] # array of ints used only by auto-routing algorithm
+      @router_cost = opts[:router_cost] # extra connection cost used only by auto-routing algorithm
+    end
+
+    # Scratch cache shared by callers that derive values from this route.
+    def shared_cache
+      @shared_cache ||= {}
     end
 
     def clear_cache!(all: false, only_routes: false)
+      @shared_cache&.clear
       @connection_hexes = nil if all
       @node_signatures = nil if all
       @revenue = nil
@@ -450,7 +457,7 @@ module Engine
     end
 
     def read_connection(saved, index, used, previous)
-      hex_ids = saved
+      hex_ids = hex_ids_of(saved)
       if saved.is_a?(Hash)
         from = node_by_signature(saved['from'])
         to = node_by_signature(saved['to'])
@@ -460,7 +467,6 @@ module Engine
           end
           return segment(found, left: from) if found
         end
-        hex_ids = saved['hexes']
       end
 
       candidates = find_matching_chains(hex_ids).reject { |chain| (chain[:paths] & used).any? }
@@ -512,7 +518,8 @@ module Engine
       options.max_by { |option| yield(option).count { |node| @node_signatures.include?(node.signature) } }
     end
 
-    def find_matching_chains(hex_ids)
+    def find_matching_chains(saved)
+      hex_ids = hex_ids_of(saved)
       return [] if !hex_ids || hex_ids.empty?
 
       start_hex = @game.hex_by_id(hex_ids.first.split.first)
