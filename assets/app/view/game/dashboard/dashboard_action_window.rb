@@ -5277,7 +5277,12 @@ module View
           is_viewing_history = !Lib::Params['action'].nil? && !Lib::Params['action'].to_s.empty?
           is_game_1862 = @game.class.name.to_s.include?('1862') || @game_data&.dig('title').to_s.include?('1862')
 
-          if phase == :run_routes && @last_routed_action_id != routed_token && !@cmd_router_running && !is_viewing_history
+          if my_turn? &&
+             phase == :run_routes &&
+             @last_routed_action_id != routed_token &&
+             !@cmd_router_running &&
+             !is_viewing_history
+
             store(:last_routed_action_id, routed_token, skip: true)
 
             # In 1862, bypass auto-router to avoid intractable combinatorial lock
